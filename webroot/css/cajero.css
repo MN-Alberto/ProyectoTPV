@@ -1,0 +1,655 @@
+/* ============================================================
+   Estilos del Cajero / TPV
+   Autor: Alberto Méndez
+   ============================================================ */
+
+/* ======================== LAYOUT CAJERO ======================== */
+
+#cajero {
+    flex: 1;
+    display: flex;
+    gap: 0;
+    height: calc(100vh - 110px);
+    overflow: hidden;
+}
+
+/* ======================== PANEL PRODUCTOS ======================== */
+
+.cajero-productos {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #f0f2f5;
+    overflow: hidden;
+}
+
+.cajero-categorias {
+    display: flex;
+    gap: 8px;
+    padding: 15px 20px;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+    overflow-x: auto;
+    flex-shrink: 0;
+}
+
+#formBuscarProducto {
+    display: flex;
+    gap: 10px;
+    padding: 16px 20px;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+    overflow-x: auto;
+    flex-shrink: 0;
+    line-height: 40px;
+}
+
+.input-buscarProducto {
+    width: 50%;
+    height: 40px;
+    border-radius: 10px;
+    padding: 10px;
+}
+
+.btn-buscar {
+    width: 80px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.cat-btn {
+    padding: 8px 18px;
+    border-radius: 20px;
+    background: #e5e7eb;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.cat-btn:hover {
+    background: #d1d5db;
+}
+
+.cat-btn.activa {
+    background: #1a1a2e;
+    color: #fff;
+}
+
+.productos-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 12px;
+    padding: 20px;
+    overflow-y: auto;
+    align-content: start;
+}
+
+.producto-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 18px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.producto-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.producto-card:active {
+    transform: scale(0.97);
+}
+
+.producto-nombre {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #1a1a2e;
+    line-height: 1.3;
+}
+
+.producto-precio {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #059669;
+}
+
+.producto-stock {
+    font-size: 0.75rem;
+    color: #9ca3af;
+}
+
+.sin-productos {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: #9ca3af;
+    padding: 40px;
+    font-size: 0.95rem;
+}
+
+/* ======================== PANEL TICKET ======================== */
+
+.cajero-ticket {
+    width: 380px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid #e5e7eb;
+    flex-shrink: 0;
+}
+
+.ticket-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ticket-header h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1a1a2e;
+}
+
+.ticket-fecha {
+    font-size: 0.8rem;
+    color: #9ca3af;
+}
+
+.ticket-lineas {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+}
+
+.ticket-vacio {
+    text-align: center;
+    color: #d1d5db;
+    padding: 40px 0;
+    font-size: 0.95rem;
+}
+
+.ticket-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+
+.ticket-tabla thead th {
+    text-align: left;
+    padding: 6px 4px;
+    border-bottom: 2px solid #e5e7eb;
+    color: #6b7280;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+.ticket-tabla tbody td {
+    padding: 8px 4px;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: middle;
+}
+
+.cantidad-control {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cantidad-control button {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #374151;
+    transition: background 0.15s;
+}
+
+.cantidad-control button:hover {
+    background: #e5e7eb;
+}
+
+.cantidad-control span {
+    min-width: 20px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.btn-quitar {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+
+.btn-quitar:hover {
+    background: #fee2e2;
+}
+
+/* ======================== TICKET TOTAL Y ACCIONES ======================== */
+
+.ticket-total {
+    padding: 15px 20px;
+    border-top: 2px solid #1a1a2e;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #1a1a2e;
+}
+
+.ticket-acciones {
+    padding: 15px 20px;
+    display: flex;
+    gap: 8px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.ticket-acciones select {
+    padding: 10px 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    background: #f9fafb;
+    cursor: pointer;
+    outline: none;
+}
+
+.ticket-acciones select:focus {
+    border-color: #1a1a2e;
+}
+
+.btn-cobrar {
+    flex: 1;
+    padding: 12px;
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.2s;
+}
+
+.btn-cobrar:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.btn-cobrar:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-cancelar {
+    padding: 12px 16px;
+    background: #fee2e2;
+    color: #dc2626;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-cancelar:hover {
+    background: #fecaca;
+}
+
+/* ======================== LIMPIAR BÚSQUEDA ======================== */
+
+.btn-limpiar {
+    background: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    font-weight: 600;
+    transition: background 0.15s;
+}
+
+.btn-limpiar:hover {
+    background: #fecaca;
+}
+
+/* ======================== MODALES (OVERLAY GENÉRICO) ======================== */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.25s ease;
+}
+
+.modal-content {
+    background: #fff;
+    border-radius: 16px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    animation: scaleIn 0.3s ease;
+    max-width: 520px;
+    width: 90%;
+}
+
+/* ======================== MODAL TIPO DE DOCUMENTO ======================== */
+
+.modal-tipodoc h3 {
+    font-size: 1.3rem;
+    color: #1a1a2e;
+    margin-bottom: 8px;
+}
+
+.modal-subtitulo {
+    color: #6b7280;
+    font-size: 0.9rem;
+    margin-bottom: 25px;
+}
+
+.modal-opciones-doc {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.opcion-doc {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 25px 20px;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f9fafb;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #374151;
+    font-family: 'Inter', sans-serif;
+}
+
+.opcion-doc:hover {
+    border-color: #1a1a2e;
+    background: #f0f2f5;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.opcion-doc svg {
+    color: #1a1a2e;
+}
+
+.opcion-titulo {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1a1a2e;
+}
+
+.opcion-desc {
+    font-size: 0.75rem;
+    color: #9ca3af;
+}
+
+.btn-modal-cancelar {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-family: 'Inter', sans-serif;
+    padding: 8px 16px;
+    transition: color 0.15s;
+}
+
+.btn-modal-cancelar:hover {
+    color: #1a1a2e;
+}
+
+/* ======================== MODAL VENTA EXITOSA ======================== */
+
+.modal-exito .icono-exito {
+    color: #059669;
+    margin-bottom: 15px;
+}
+
+.modal-exito h3 {
+    font-size: 1.4rem;
+    margin-bottom: 8px;
+    color: #1a1a2e;
+}
+
+.exito-detalle {
+    color: #6b7280;
+    margin-bottom: 20px;
+}
+
+.exito-acciones {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+.btn-exito {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f9fafb;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #374151;
+    transition: all 0.2s;
+}
+
+.btn-exito:hover {
+    border-color: #1a1a2e;
+    background: #f0f2f5;
+}
+
+.btn-imprimir:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.btn-email:hover {
+    border-color: #059669;
+    color: #059669;
+}
+
+/* Email form */
+
+.form-email {
+    margin: 15px 0;
+    padding: 15px;
+    background: #f9fafb;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+}
+
+.form-email label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+    text-align: left;
+}
+
+.email-input-group {
+    display: flex;
+    gap: 8px;
+}
+
+.email-input-group input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border 0.2s;
+}
+
+.email-input-group input:focus {
+    border-color: #1a1a2e;
+}
+
+.btn-enviar-email {
+    padding: 10px 18px;
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s;
+    white-space: nowrap;
+}
+
+.btn-enviar-email:hover {
+    transform: translateY(-1px);
+}
+
+.email-status {
+    margin-top: 8px;
+    font-size: 0.82rem;
+    text-align: left;
+}
+
+.email-ok {
+    color: #059669;
+}
+
+.email-error {
+    color: #dc2626;
+}
+
+.email-enviando {
+    color: #6b7280;
+}
+
+/* Botón cerrar éxito */
+.btn-cerrar-exito {
+    margin-top: 10px;
+    padding: 10px 30px;
+    background: #059669;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-cerrar-exito:hover {
+    background: #047857;
+}
+
+/* ======================== MODAL ERROR ======================== */
+
+.modal-error-content h3 {
+    font-size: 1.3rem;
+    color: #dc2626;
+    margin: 15px 0 8px;
+}
+
+.modal-error-content p {
+    color: #6b7280;
+    margin-bottom: 20px;
+}
+
+.modal-error-content button {
+    padding: 10px 30px;
+    background: #dc2626;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.modal-error-content button:hover {
+    background: #b91c1c;
+}
+
+/* ======================== ANIMACIONES ======================== */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* ======================== ESTILOS DE IMPRESIÓN ======================== */
+
+@media print {
+
+    header,
+    footer,
+    .cajero-productos,
+    .cajero-ticket,
+    .modal-overlay,
+    .ticket-acciones {
+        display: none !important;
+    }
+}
