@@ -19,6 +19,7 @@ class Venta
     private $metodoPago; // 'efectivo', 'tarjeta', 'bizum'
     private $estado; // 'completada', 'anulada'
     private $tipoDocumento; // 'ticket', 'factura'
+    private $cerrada; // 0 o 1
 
     // ======================== GETTERS ========================
 
@@ -57,6 +58,11 @@ class Venta
         return $this->tipoDocumento;
     }
 
+    public function getCerrada()
+    {
+        return $this->cerrada;
+    }
+
     // ======================== SETTERS ========================
 
     public function setId($id)
@@ -92,6 +98,11 @@ class Venta
     public function setTipoDocumento($tipoDocumento)
     {
         $this->tipoDocumento = $tipoDocumento;
+    }
+
+    public function setCerrada($cerrada)
+    {
+        $this->cerrada = $cerrada;
     }
 
     // ======================== MÉTODOS CRUD ========================
@@ -180,8 +191,8 @@ class Venta
     {
         $conexion = ConexionDB::getInstancia()->getConexion();
         $stmt = $conexion->prepare(
-            "INSERT INTO ventas (idUsuario, fecha, total, metodoPago, estado, tipoDocumento) 
-             VALUES (:idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento)"
+            "INSERT INTO ventas (idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada) 
+             VALUES (:idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada)"
         );
         $stmt->bindParam(':idUsuario', $this->idUsuario, PDO::PARAM_INT);
         $stmt->bindParam(':fecha', $this->fecha);
@@ -189,6 +200,8 @@ class Venta
         $stmt->bindParam(':metodoPago', $this->metodoPago);
         $stmt->bindParam(':estado', $this->estado);
         $stmt->bindParam(':tipoDocumento', $this->tipoDocumento);
+        $cerradaVal = $this->cerrada ? 1 : 0;
+        $stmt->bindParam(':cerrada', $cerradaVal, PDO::PARAM_INT);
         $resultado = $stmt->execute();
         $this->id = $conexion->lastInsertId();
         return $resultado;
@@ -203,7 +216,7 @@ class Venta
         $conexion = ConexionDB::getInstancia()->getConexion();
         $stmt = $conexion->prepare(
             "UPDATE ventas SET idUsuario = :idUsuario, fecha = :fecha, total = :total, 
-             metodoPago = :metodoPago, estado = :estado, tipoDocumento = :tipoDocumento WHERE id = :id"
+             metodoPago = :metodoPago, estado = :estado, tipoDocumento = :tipoDocumento, cerrada = :cerrada WHERE id = :id"
         );
         $stmt->bindParam(':idUsuario', $this->idUsuario, PDO::PARAM_INT);
         $stmt->bindParam(':fecha', $this->fecha);
@@ -211,6 +224,8 @@ class Venta
         $stmt->bindParam(':metodoPago', $this->metodoPago);
         $stmt->bindParam(':estado', $this->estado);
         $stmt->bindParam(':tipoDocumento', $this->tipoDocumento);
+        $cerradaVal = $this->cerrada ? 1 : 0;
+        $stmt->bindParam(':cerrada', $cerradaVal, PDO::PARAM_INT);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
         return $stmt->execute();
     }
@@ -240,6 +255,49 @@ class Venta
     // ======================== MÉTODOS AUXILIARES ========================
 
     /**
+     * Obtiene el resumen de ventas abiertas (no cerradas) agrupadas por método de pago.
+     * @return array
+     */
+    public static function obtenerResumenCajaAbierta()
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->query(
+            "SELECT metodoPago, SUM(total) as sumaTotal, COUNT(id) as cantidad 
+             FROM ventas 
+             WHERE cerrada = 0 AND estado = 'completada' 
+             GROUP BY metodoPago"
+        );
+        $resumen = [
+            'efectivo' => ['total' => 0, 'cantidad' => 0],
+            'tarjeta' => ['total' => 0, 'cantidad' => 0],
+            'bizum' => ['total' => 0, 'cantidad' => 0],
+            'totalGeneral' => 0
+        ];
+
+        while ($fila = $stmt->fetch()) {
+            $metodo = $fila['metodoPago'];
+            if (isset($resumen[$metodo])) {
+                $resumen[$metodo]['total'] = (float) $fila['sumaTotal'];
+                $resumen[$metodo]['cantidad'] = (int) $fila['cantidad'];
+                $resumen['totalGeneral'] += (float) $fila['sumaTotal'];
+            }
+        }
+        return $resumen;
+    }
+
+    /**
+     * Marca todas las ventas completadas abiertas como cerradas.
+     * @return int Número de ventas cerradas
+     */
+    public static function cerrarCaja()
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->prepare("UPDATE ventas SET cerrada = 1 WHERE cerrada = 0 AND estado = 'completada'");
+        $stmt->execute();
+        return $stmt->rowCount();
+    }
+
+    /**
      * Crea un objeto Venta a partir de un array asociativo.
      * @param array $fila
      * @return Venta
@@ -254,6 +312,7 @@ class Venta
         $venta->setMetodoPago($fila['metodoPago']);
         $venta->setEstado($fila['estado']);
         $venta->setTipoDocumento($fila['tipoDocumento'] ?? 'ticket');
+        $venta->setCerrada($fila['cerrada'] ?? 0);
         return $venta;
     }
 }

@@ -183,6 +183,29 @@ class Producto
     }
 
     /**
+     * Busca productos por nombre y categoría (búsqueda completa).
+     * @param string $nombre
+     * @param string $categoria
+     * @return array
+     */
+    public static function buscarPorNombreYCategoria($nombre, $categoria)
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->prepare(
+            "SELECT * FROM productos WHERE nombre LIKE :nombre AND idCategoria = :categoria AND activo = 1 ORDER BY nombre"
+        );
+        $busqueda = '%' . $nombre . '%';
+        $stmt->bindParam(':nombre', $busqueda);
+        $stmt->bindParam(':categoria', $categoria, PDO::PARAM_STR);
+        $stmt->execute();
+        $productos = [];
+        while ($fila = $stmt->fetch()) {
+            $productos[] = self::crearDesdeArray($fila);
+        }
+        return $productos;
+    }
+
+    /**
      * Inserta un nuevo producto en la base de datos.
      * @return bool
      */

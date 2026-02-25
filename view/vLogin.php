@@ -10,6 +10,7 @@
         <h2>Iniciar Sesión</h2>
         <p class="login-subtitle">TPV Bazar — Productos Informáticos</p>
 
+        <!-- Si hay algún error, se muestra en un div con la clase login-error -->
         <?php if (!empty($error)): ?>
             <div class="login-error">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"

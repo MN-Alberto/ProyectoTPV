@@ -15,10 +15,16 @@ header('Content-Type: application/json; charset=utf-8');
 
 // Determinar qué productos devolver.
 if (isset($_GET['buscarProducto']) && !empty(trim($_GET['buscarProducto']))) {
-    // Búsqueda por nombre.
-    $productos = Producto::buscarPorNombre(trim($_GET['buscarProducto']));
-} elseif (isset($_GET['idCategoria']) && !empty($_GET['idCategoria'])) {
-    // Filtrar por categoría.
+    $busqueda = trim($_GET['buscarProducto']);
+    if (isset($_GET['idCategoria']) && !empty($_GET['idCategoria']) && $_GET['idCategoria'] !== 'todas') {
+        // Búsqueda por nombre y categoría específica
+        $productos = Producto::buscarPorNombreYCategoria($busqueda, (int) $_GET['idCategoria']);
+    } else {
+        // Búsqueda por nombre en todas las categorías
+        $productos = Producto::buscarPorNombre($busqueda);
+    }
+} elseif (isset($_GET['idCategoria']) && !empty($_GET['idCategoria']) && $_GET['idCategoria'] !== 'todas') {
+    // Filtrar por categoría sin búsqueda de nombre.
     $productos = Producto::obtenerPorCategoria((int) $_GET['idCategoria']);
 } else {
     // Todos los productos.
@@ -33,7 +39,8 @@ foreach ($productos as $prod) {
         'nombre' => $prod->getNombre(),
         'precio' => (float) $prod->getPrecio(),
         'stock' => (int) $prod->getStock(),
-        'idCategoria' => (int) $prod->getIdCategoria()
+        'idCategoria' => (int) $prod->getIdCategoria(),
+        'imagen' => $prod->getImagen()
     ];
 }
 

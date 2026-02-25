@@ -96,9 +96,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $_SESSION['ultimaVentaCarrito'] = json_encode($lineasVenta);
             $_SESSION['ultimaVentaMetodoPago'] = $_POST['metodoPago'] ?? 'efectivo';
             $_SESSION['ultimaVentaFecha'] = date('d/m/Y H:i');
+            $_SESSION['ultimaVentaEntregado'] = $_POST['dineroEntregado'] ?? $total;
+            $_SESSION['ultimaVentaCambio'] = $_POST['cambioDevuelto'] ?? 0;
+
+            // Datos del Cliente
+            $_SESSION['ultimaVentaClienteNif'] = $_POST['clienteNif'] ?? '';
+            $_SESSION['ultimaVentaClienteNombre'] = $_POST['clienteNombre'] ?? '';
+            $_SESSION['ultimaVentaClienteDir'] = $_POST['clienteDireccion'] ?? '';
+            $_SESSION['ultimaVentaClienteObs'] = $_POST['observaciones'] ?? '';
             header('Location: index.php');
             exit();
         }
+    }
+
+    if ($_POST['accion'] === 'previsualizarCaja') {
+        $resumenCaja = Venta::obtenerResumenCajaAbierta();
+        $_SESSION['cajaPrevisualizacion'] = true;
+        $_SESSION['resumenCaja'] = $resumenCaja;
+        header('Location: index.php');
+        exit();
+    }
+
+    if ($_POST['accion'] === 'confirmarCaja') {
+        Venta::cerrarCaja();
+        $_SESSION['cajaConfirmacion'] = true;
+        header('Location: index.php');
+        exit();
     }
 }
 

@@ -1,16 +1,16 @@
 <section id="cajero">
     <!-- Panel izquierdo: Categorías y productos -->
     <div class="cajero-productos">
-        <form id="formBuscarProducto" onsubmit="buscarProductos(event)">
-            <label for="buscarProducto">Buscar producto:</label>
+        <div id="formBuscarProducto" style="align-items: center;">
+            <label for="inputBuscarProducto"
+                style="font-weight: 600; color: #1a1a2e; white-space: nowrap;">Buscar:</label>
             <input type="text" id="inputBuscarProducto" class="input-buscarProducto"
-                placeholder="Introduce nombre del producto" />
-            <button type="submit" class="btn-buscar">Buscar</button>
-            <button type="button" class="btn-buscar btn-limpiar" onclick="limpiarBusqueda()">✕</button>
-        </form>
+                placeholder="Escribe el nombre del producto a buscar..." oninput="buscarProductos()" autocomplete="off"
+                style="width: 100%;" />
+        </div>
         <div class="cajero-categorias">
             <button class="cat-btn activa" data-categoria="" onclick="seleccionarCategoria(this, null)">
-                Todas
+                Todos
             </button>
             <?php foreach ($categorias as $cat): ?>
                 <button class="cat-btn" data-categoria="<?php echo $cat->getId(); ?>"
@@ -18,6 +18,21 @@
                     <?php echo htmlspecialchars($cat->getNombre()); ?>
                 </button>
             <?php endforeach; ?>
+        </div>
+        <div class="cajero-opciones-extra"
+            style="padding: 15px 20px; background: #fff; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: flex-start;">
+            <form method="POST" action="index.php" style="margin: 0;">
+                <input type="hidden" name="accion" value="previsualizarCaja">
+                <button type="submit" class="btn-cancelar"
+                    style="font-size: 0.85rem; padding: 10px 15px; background: #fff; border: 2px solid #1a1a2e; color: #1a1a2e; display: flex; align-items: center; gap: 8px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                    Hacer Caja
+                </button>
+            </form>
         </div>
 
         <div class="productos-grid" id="productosGrid">
@@ -28,15 +43,23 @@
                     <div class="producto-card" data-id="<?php echo $prod->getId(); ?>"
                         data-nombre="<?php echo htmlspecialchars($prod->getNombre()); ?>"
                         data-precio="<?php echo $prod->getPrecio(); ?>" data-stock="<?php echo $prod->getStock(); ?>"
-                        onclick="agregarAlCarrito(this)">
+                        onclick="agregarAlCarrito(this)" style="<?php if ($prod->getStock() <= 0) {
+                            echo 'opacity: 0.5; cursor: not-allowed;';
+                        } ?>">
                         <div class="producto-nombre">
                             <?php echo htmlspecialchars($prod->getNombre()); ?>
                         </div>
-                        <div class="producto-precio">
-                            <?php echo number_format($prod->getPrecio(), 2, ',', '.'); ?> €
+                        <div class="producto-imagen">
+                            <?php
+                            $imgSrc = !empty($prod->getImagen()) ? $prod->getImagen() : 'webroot/img/logo.PNG';
+                            echo '<img src="' . htmlspecialchars($imgSrc) . '" alt="' . htmlspecialchars($prod->getNombre()) . '">';
+                            ?>
                         </div>
-                        <div class="producto-stock">Stock:
-                            <?php echo $prod->getStock(); ?>
+                        <div class="producto-info-inferior">
+                            <span class="producto-precio"><?php echo number_format($prod->getPrecio(), 2, ',', '.'); ?> €</span>
+                            <span class="producto-stock" <?php if ($prod->getStock() <= 0) {
+                                echo 'style="color: red; text-decoration: underline;"';
+                            } ?>>Stock: <?php echo $prod->getStock(); ?></span>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -47,14 +70,33 @@
     <!-- Panel derecho: Ticket / Carrito -->
     <div class="cajero-ticket">
         <div class="ticket-header">
-            <h3>Ticket de Venta</h3>
+            <h3>Productos añadidos</h3>
             <span class="ticket-fecha">
-                <?php echo date('d/m/Y H:i'); ?>
+                <script>
+                    function actualizarFechaHora() {
+                        const ahora = new Date();
+
+                        const dia = String(ahora.getDate()).padStart(2, '0');
+                        const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+                        const anio = ahora.getFullYear();
+
+                        const horas = String(ahora.getHours()).padStart(2, '0');
+                        const minutos = String(ahora.getMinutes()).padStart(2, '0');
+                        const segundos = String(ahora.getSeconds()).padStart(2, '0');
+
+                        const fechaHora = `${dia}/${mes}/${anio} ${horas}:${minutos}:${segundos}`;
+
+                        document.querySelector('.ticket-fecha').textContent = fechaHora;
+                    }
+
+                    actualizarFechaHora();
+                    setInterval(actualizarFechaHora, 1000);
+                </script>
             </span>
         </div>
 
         <div class="ticket-lineas" id="ticketLineas">
-            <p class="ticket-vacio">Añade productos al ticket</p>
+            <p class="ticket-vacio">Añade productos para realizar la venta</p>
         </div>
 
         <div class="ticket-total">
@@ -68,7 +110,7 @@
                 <option value="tarjeta">Tarjeta</option>
                 <option value="bizum">Bizum</option>
             </select>
-            <button class="btn-cobrar" id="btnCobrar" onclick="mostrarModalTipoDocumento()" disabled>
+            <button class="btn-cobrar" id="btnCobrar" onclick="intentarCobrar()" disabled>
                 Cobrar
             </button>
             <button class="btn-cancelar" onclick="vaciarCarrito()">
@@ -83,8 +125,57 @@
         <input type="hidden" name="carrito" id="inputCarrito">
         <input type="hidden" name="metodoPago" id="inputMetodoPago">
         <input type="hidden" name="tipoDocumento" id="inputTipoDocumento">
+        <input type="hidden" name="dineroEntregado" id="inputDineroEntregadoFinal">
+        <input type="hidden" name="cambioDevuelto" id="inputCambioDevueltoFinal">
+        <!-- Campos de cliente (Nuevos) -->
+        <input type="hidden" name="clienteNif" id="inputClienteNifFinal">
+        <input type="hidden" name="clienteNombre" id="inputClienteNombreFinal">
+        <input type="hidden" name="clienteDireccion" id="inputClienteDireccionFinal">
+        <input type="hidden" name="observaciones" id="inputObservacionesFinal">
     </form>
 </section>
+
+<!-- ==================== MODAL: CALCULAR CAMBIO (EFECTIVO) ==================== -->
+<div class="modal-overlay" id="modalCambio" style="display:none;">
+    <div class="modal-content modal-cambio" style="max-width: 400px;">
+        <h3>Pago en Efectivo</h3>
+        <p class="modal-subtitulo">Introduce la cantidad entregada por el cliente</p>
+
+        <div class="calculo-cambio-container"
+            style="text-align: left; background: #f9fafb; padding: 20px; border-radius: 8px; margin: 15px 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <span style="font-size: 1.1rem; color: #4b5563;">Total a pagar:</span>
+                <span id="cambioTotalPagar" style="font-size: 1.4rem; font-weight: bold; color: #1f2937;">0,00 €</span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <label for="inputDineroEntregado" style="font-size: 1.1rem; color: #4b5563;">Entregado:</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="number" id="inputDineroEntregado" step="0.01" min="0" placeholder="0.00"
+                        style="padding: 10px; font-size: 1.2rem; width: 120px; text-align: right; border: 1px solid #d1d5db; border-radius: 6px; outline: none;"
+                        oninput="calcularCambio()" onkeypress="if(event.key === 'Enter') confirmarCambio()">
+                    <span style="font-size: 1.2rem; color: #4b5563;">€</span>
+                </div>
+            </div>
+
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #e5e7eb; padding-top: 15px;">
+                <span style="font-size: 1.1rem; font-weight: bold; color: #4b5563;">Cambio a devolver:</span>
+                <span id="cambioDevolver" style="font-size: 1.8rem; font-weight: bold; color: #22c55e;">0,00 €</span>
+            </div>
+
+            <p id="cambioError"
+                style="color: #ef4444; font-size: 0.9rem; margin-top: 15px; text-align: center; display: none;">La
+                cantidad entregada es insuficiente para realizar el cobro.</p>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalCambio')" style="flex: 1;">Cancelar</button>
+            <button class="btn-exito" onclick="confirmarCambio()"
+                style="flex: 1; margin: 0; display: flex; justify-content: center; align-items: center;">Continuar</button>
+        </div>
+    </div>
+</div>
 
 <!-- ==================== MODAL: TIPO DE DOCUMENTO ==================== -->
 <div class="modal-overlay" id="modalTipoDoc" style="display:none;">
@@ -92,7 +183,7 @@
         <h3>¿Cómo desea el comprobante?</h3>
         <p class="modal-subtitulo">Seleccione el tipo de documento para esta venta</p>
         <div class="modal-opciones-doc">
-            <button class="opcion-doc" onclick="confirmarVenta('ticket')">
+            <button class="opcion-doc" onclick="seleccionarDatosCliente('ticket')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
@@ -101,7 +192,7 @@
                 <span class="opcion-titulo">Ticket</span>
                 <span class="opcion-desc">Comprobante de venta simplificado</span>
             </button>
-            <button class="opcion-doc" onclick="confirmarVenta('factura')">
+            <button class="opcion-doc" onclick="seleccionarDatosCliente('factura')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -115,6 +206,58 @@
             </button>
         </div>
         <button class="btn-modal-cancelar" onclick="cerrarModal('modalTipoDoc')">Cancelar</button>
+    </div>
+</div>
+
+<!-- ==================== MODAL: DATOS DEL CLIENTE ==================== -->
+<div class="modal-overlay" id="modalDatosCliente" style="display:none;">
+    <div class="modal-content" style="max-width: 500px; text-align: left;">
+        <h3 id="tituloDatosCliente" style="margin-bottom: 5px; color: #1a1a2e;">Datos del Cliente</h3>
+        <p id="subtituloDatosCliente" style="color: #6b7280; font-size: 0.9rem; margin-bottom: 20px;">Complete los datos
+            (Opcional en Ticket)</p>
+
+        <div style="display: grid; gap: 15px;">
+            <div>
+                <label for="clienteNif"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">NIF/CIF <span
+                        id="reqNif" style="color: #ef4444; display: none;">*</span></label>
+                <input type="text" id="clienteNif"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="B12345678">
+            </div>
+            <div>
+                <label for="clienteNombre"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Razón Social /
+                    Nombre <span id="reqNombre" style="color: #ef4444; display: none;">*</span></label>
+                <input type="text" id="clienteNombre"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="Nombre de la empresa o persona">
+            </div>
+            <div id="divDireccionCliente" style="display: none;">
+                <label for="clienteDireccion"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Domicilio Fiscal
+                    <span id="reqDir" style="color: #ef4444; display: none;">*</span></label>
+                <input type="text" id="clienteDireccion"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="Calle, Número, C.P, Ciudad">
+            </div>
+            <div id="divObservacionesCliente" style="display: none;">
+                <label for="clienteObservaciones"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Observaciones
+                    (Régimen, Exento, etc.)</label>
+                <input type="text" id="clienteObservaciones"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="Opcional">
+            </div>
+        </div>
+        <p id="errorDatosCliente" style="color: #ef4444; font-size: 0.9rem; margin-top: 15px; display: none;">Por favor,
+            rellene todos los campos obligatorios (*).</p>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalDatosCliente')">Atrás</button>
+            <button class="btn-exito" id="btnConfirmarDatos" onclick="validarYConfirmarVenta()"
+                style="margin: 0;">Finalizar Venta</button>
+        </div>
     </div>
 </div>
 
@@ -177,7 +320,13 @@
             tipo: '<?php echo $_SESSION['ultimaVentaTipo']; ?>',
             carrito: <?php echo $_SESSION['ultimaVentaCarrito']; ?>,
             metodoPago: '<?php echo $_SESSION['ultimaVentaMetodoPago']; ?>',
-            fecha: '<?php echo $_SESSION['ultimaVentaFecha']; ?>'
+            fecha: '<?php echo $_SESSION['ultimaVentaFecha']; ?>',
+            entregado: '<?php echo number_format($_SESSION['ultimaVentaEntregado'] ?? $_SESSION['ultimaVentaTotal'], 2, ',', '.'); ?>',
+            cambio: '<?php echo number_format($_SESSION['ultimaVentaCambio'] ?? 0, 2, ',', '.'); ?>',
+            clienteNif: '<?php echo addslashes($_SESSION['ultimaVentaClienteNif'] ?? ''); ?>',
+            clienteNombre: '<?php echo addslashes($_SESSION['ultimaVentaClienteNombre'] ?? ''); ?>',
+            clienteDir: '<?php echo addslashes($_SESSION['ultimaVentaClienteDir'] ?? ''); ?>',
+            clienteObs: '<?php echo addslashes($_SESSION['ultimaVentaClienteObs'] ?? ''); ?>'
         };
     </script>
 
@@ -189,6 +338,8 @@
     unset($_SESSION['ultimaVentaCarrito']);
     unset($_SESSION['ultimaVentaMetodoPago']);
     unset($_SESSION['ultimaVentaFecha']);
+    unset($_SESSION['ultimaVentaEntregado']);
+    unset($_SESSION['ultimaVentaCambio']);
 ?>
 <?php endif; ?>
 
@@ -210,6 +361,172 @@
     <?php unset($_SESSION['ventaError']); ?>
 <?php endif; ?>
 
+<!-- ==================== MODAL: PREVISUALIZACIÓN DE CIERRE DE CAJA ==================== -->
+<?php if (isset($_SESSION['cajaPrevisualizacion']) && $_SESSION['cajaPrevisualizacion'] && isset($_SESSION['resumenCaja'])): ?>
+    <div class="modal-overlay" id="cajaPrevisualizacion">
+        <div class="modal-content modal-exito" style="max-width: 450px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2563eb"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 15px;">
+                <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                <path d="M12 12h.01"></path>
+                <path d="M17 12h.01"></path>
+                <path d="M7 12h.01"></path>
+            </svg>
+            <h3 style="color: #1a1a2e; font-size: 1.4rem; margin-bottom: 20px;">Cierre de Caja</h3>
+
+            <div id="cajaResumenImprimible"
+                style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; text-align: left; margin-bottom: 20px;">
+                <!-- Header visible solo al imprimir -->
+                <div class="solo-impresion" style="text-align: center; margin-bottom: 15px;">
+                    <h2>TPV Bazar</h2>
+                    <p>Cierre de Caja - <?php echo date('d/m/Y H:i'); ?></p>
+                </div>
+
+                <h4
+                    style="margin: 0 0 15px 0; font-size: 1.1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; color: #374151;">
+                    Resumen de Ventas de Hoy</h4>
+
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem;">
+                    <span><strong style="color: #4b5563;">Efectivo:</strong>
+                        (<?php echo $_SESSION['resumenCaja']['efectivo']['cantidad']; ?> tickets)</span>
+                    <span
+                        style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['efectivo']['total'], 2, ',', '.'); ?>
+                        €</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem;">
+                    <span><strong style="color: #4b5563;">Tarjeta:</strong>
+                        (<?php echo $_SESSION['resumenCaja']['tarjeta']['cantidad']; ?> tickets)</span>
+                    <span
+                        style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['tarjeta']['total'], 2, ',', '.'); ?>
+                        €</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.95rem;">
+                    <span><strong style="color: #4b5563;">Bizum:</strong>
+                        (<?php echo $_SESSION['resumenCaja']['bizum']['cantidad']; ?> tickets)</span>
+                    <span
+                        style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['bizum']['total'], 2, ',', '.'); ?>
+                        €</span>
+                </div>
+
+                <div
+                    style="display: flex; justify-content: space-between; border-top: 2px solid #1a1a2e; padding-top: 15px; font-size: 1.2rem;">
+                    <strong style="color: #1a1a2e;">TOTAL GENERADO:</strong>
+                    <strong
+                        style="color: #059669;"><?php echo number_format($_SESSION['resumenCaja']['totalGeneral'], 2, ',', '.'); ?>
+                        €</strong>
+                </div>
+
+                <!-- Footer visible solo al imprimir -->
+                <div class="solo-impresion"
+                    style="text-align: center; margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 10px; font-size: 0.9rem; color: #666;">
+                    <p>Firma y sello:</p>
+                    <br><br><br>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button class="btn-modal-cancelar"
+                    onclick="document.getElementById('cajaPrevisualizacion').style.display='none';">Cancelar</button>
+                <form method="POST" action="index.php" style="margin: 0;">
+                    <input type="hidden" name="accion" value="confirmarCaja">
+                    <button type="submit" class="btn-cerrar-exito" style="margin-top: 0; background: #2563eb;">Confirmar
+                        Cierre</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <?php
+    unset($_SESSION['cajaPrevisualizacion']);
+        // No borramos resumenCaja aquí porque lo utilizaremos si confirman e imprimen.
+    ?>
+<?php endif; ?>
+
+<!-- ==================== MODAL: COMPLETADO (Imprimir y resetear) ==================== -->
+<?php if (isset($_SESSION['cajaConfirmacion']) && $_SESSION['cajaConfirmacion'] && isset($_SESSION['resumenCaja'])): ?>
+    <div class="modal-overlay" id="cajaConfirmacion">
+        <div class="modal-content modal-exito" style="max-width: 450px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#059669"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icono-exito">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <h3 style="color: #1a1a2e; font-size: 1.4rem; margin-bottom: 20px;">Caja Cerrada Correctamente</h3>
+            <p style="color: #6b7280; font-size: 0.95rem; margin-bottom: 20px;">El recuento de ventas ha vuelto a 0 para el
+                contador del día de mañana.</p>
+
+            <div id="cajaOcultaImprimible" style="display: none;">
+                <!-- Usamos este bloque inyectado para imprimir -->
+                <div style="text-align: center; margin-bottom: 15px; font-family: 'Inter', sans-serif;">
+                    <h2 style="margin:0;">TPV Bazar</h2>
+                    <p style="margin:5px 0 15px 0;">Cierre de Caja - <?php echo date('d/m/Y H:i'); ?></p>
+                </div>
+                <div
+                    style="border-top: 1px solid #000; padding-top: 10px; padding-bottom: 5px; font-family: 'Inter', sans-serif;">
+                    <p style="margin: 5px 0; display:flex; justify-content:space-between;"><span>Efectivo
+                            (<?php echo $_SESSION['resumenCaja']['efectivo']['cantidad']; ?>):</span>
+                        <span><?php echo number_format($_SESSION['resumenCaja']['efectivo']['total'], 2, ',', '.'); ?>
+                            €</span>
+                    </p>
+                    <p style="margin: 5px 0; display:flex; justify-content:space-between;"><span>Tarjeta
+                            (<?php echo $_SESSION['resumenCaja']['tarjeta']['cantidad']; ?>):</span>
+                        <span><?php echo number_format($_SESSION['resumenCaja']['tarjeta']['total'], 2, ',', '.'); ?>
+                            €</span>
+                    </p>
+                    <p style="margin: 5px 0; display:flex; justify-content:space-between;"><span>Bizum
+                            (<?php echo $_SESSION['resumenCaja']['bizum']['cantidad']; ?>):</span>
+                        <span><?php echo number_format($_SESSION['resumenCaja']['bizum']['total'], 2, ',', '.'); ?> €</span>
+                    </p>
+                </div>
+                <div
+                    style="border-top: 2px solid #000; padding-top: 10px; margin-top: 10px; font-weight: bold; display:flex; justify-content:space-between; font-family: 'Inter', sans-serif;">
+                    <span>TOTAL:</span>
+                    <span><?php echo number_format($_SESSION['resumenCaja']['totalGeneral'], 2, ',', '.'); ?> €</span>
+                </div>
+                <div style="text-align: center; margin-top: 30px; font-size: 0.8rem; font-family: 'Inter', sans-serif;">
+                    <p>Firma / Sello</p>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button class="btn-cerrar-exito" onclick="imprimirCierreCaja()">Imprimir Resumen</button>
+                <button class="btn-modal-cancelar"
+                    onclick="document.getElementById('cajaConfirmacion').style.display='none';">Aceptar</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        function imprimirCierreCaja() {
+            const contenido = document.getElementById('cajaOcultaImprimible').innerHTML;
+            const ventana = window.open('', '', 'width=400,height=600');
+            ventana.document.write(`
+                <html>
+                <head>
+                    <title>Cierre de Caja</title>
+                    <style>
+                        body { font-family: 'Inter', sans-serif; font-size: 12px; padding: 20px; color: #000; }
+                    </style>
+                </head>
+                <body>${contenido}</body>
+                </html>
+            `);
+        ventana.document.close();
+        ventana.focus();
+        setTimeout(() => {
+            ventana.print();
+            ventana.close();
+            document.getElementById('cajaConfirmacion').style.display = 'none';
+        }, 500);
+    }
+</script>
+<?php
+        unset($_SESSION['cajaConfirmacion']);
+        unset($_SESSION['resumenCaja']);
+?>
+<?php endif; ?>
+
+<script src="webroot/js/cajero.js"></script>
 <script>
     // ======================== CARRITO (persiste en memoria) ========================
     let carrito = [];
@@ -243,17 +560,14 @@
         actualizarTicket();
     }
 
-    function cambiarCantidad(index, nueva) {
-        if (nueva <= 0) {
-            eliminarDelCarrito(index);
-            return;
-        }
-        // No permitir superar el stock máximo.
-        if (nueva > carrito[index].stockMax) {
-            alert('No hay más stock disponible para este producto.');
-            return;
-        }
-        carrito[index].cantidad = nueva;
+    function cambiarCantidad(indice, nuevaCantidad) {
+        const item = carrito[indice];
+        nuevaCantidad = parseInt(nuevaCantidad) || 1;
+
+        if (nuevaCantidad < 1) nuevaCantidad = 1;
+        if (nuevaCantidad > item.stockMax) nuevaCantidad = item.stockMax;
+
+        item.cantidad = nuevaCantidad;
         actualizarTicket();
     }
 
@@ -285,7 +599,10 @@
                 <td>
                     <div class="cantidad-control">
                         <button onclick="cambiarCantidad(${i}, ${item.cantidad - 1})">−</button>
-                        <span>${item.cantidad}</span>
+                        <input type="number" value="${item.cantidad}" 
+                            min="1" 
+                            max="${item.stockMax}"
+                            onchange="cambiarCantidad(${i}, Math.min(Math.max(1, parseInt(this.value) || 1), ${item.stockMax}))">
                         <button onclick="cambiarCantidad(${i}, ${item.cantidad + 1})">+</button>
                     </div>
                 </td>
@@ -301,93 +618,156 @@
         btnCobrar.disabled = false;
     }
 
-    // ======================== CATEGORÍAS (AJAX) ========================
-    function seleccionarCategoria(boton, idCategoria) {
-        // Actualizar clase activa.
-        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('activa'));
-        boton.classList.add('activa');
+    // ======================== PROCESO DE COBRO Y CAMBIO ========================
+    function intentarCobrar() {
+        if (carrito.length === 0) return;
+        const metodoPago = document.getElementById('metodoPago').value;
 
-        // Limpiar campo de búsqueda.
-        document.getElementById('inputBuscarProducto').value = '';
-
-        // Cargar productos por AJAX.
-        let url = 'api/productos.php';
-        if (idCategoria !== null) {
-            url += '?idCategoria=' + idCategoria;
+        if (metodoPago === 'efectivo') {
+            mostrarModalCambio();
+        } else {
+            mostrarModalTipoDocumento();
         }
-
-        fetch(url)
-            .then(res => res.json())
-            .then(data => renderProductos(data))
-            .catch(err => {
-                console.error('Error cargando productos:', err);
-                document.getElementById('productosGrid').innerHTML =
-                    '<p class="sin-productos">Error al cargar los productos.</p>';
-            });
     }
 
-    // ======================== BÚSQUEDA (AJAX) ========================
-    function buscarProductos(event) {
-        event.preventDefault();
-        const texto = document.getElementById('inputBuscarProducto').value.trim();
-        if (!texto) return;
+    function mostrarModalCambio() {
+        const total = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+        document.getElementById('cambioTotalPagar').textContent = total.toFixed(2).replace('.', ',') + ' €';
 
-        // Quitar selección activa de categorías.
-        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('activa'));
+        const inputEntregado = document.getElementById('inputDineroEntregado');
+        inputEntregado.value = '';
+        document.getElementById('cambioDevolver').textContent = '0,00 €';
+        document.getElementById('cambioDevolver').style.color = '#22c55e';
+        document.getElementById('cambioError').style.display = 'none';
 
-        fetch('api/productos.php?buscarProducto=' + encodeURIComponent(texto))
-            .then(res => res.json())
-            .then(data => renderProductos(data))
-            .catch(err => {
-                console.error('Error buscando productos:', err);
-                document.getElementById('productosGrid').innerHTML =
-                    '<p class="sin-productos">Error al buscar productos.</p>';
-            });
+        document.getElementById('modalCambio').style.display = 'flex';
+        // Foco automático en el input
+        setTimeout(() => inputEntregado.focus(), 100);
     }
 
-    function limpiarBusqueda() {
-        document.getElementById('inputBuscarProducto').value = '';
-        // Recargar todos los productos y activar "Todas".
-        const btnTodas = document.querySelector('.cat-btn[data-categoria=""]');
-        if (btnTodas) seleccionarCategoria(btnTodas, null);
+    function calcularCambio() {
+        const total = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+        const entregado = parseFloat(document.getElementById('inputDineroEntregado').value) || 0;
+        const devolucion = entregado - total;
+
+        const spanDevolver = document.getElementById('cambioDevolver');
+        const errorMsg = document.getElementById('cambioError');
+
+        if (devolucion < 0 && entregado > 0) {
+            spanDevolver.textContent = '0,00 €';
+            spanDevolver.style.color = '#333';
+            errorMsg.style.display = 'block';
+        } else {
+            errorMsg.style.display = 'none';
+            if (entregado === 0) {
+                spanDevolver.textContent = '0,00 €';
+                spanDevolver.style.color = '#333';
+            } else {
+                spanDevolver.textContent = devolucion.toFixed(2).replace('.', ',') + ' €';
+                spanDevolver.style.color = '#22c55e';
+            }
+        }
     }
 
-    // ======================== RENDER PRODUCTOS ========================
-    function renderProductos(productos) {
-        const grid = document.getElementById('productosGrid');
+    function confirmarCambio() {
+        const total = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+        const entregado = parseFloat(document.getElementById('inputDineroEntregado').value) || 0;
 
-        if (!productos || productos.length === 0) {
-            grid.innerHTML = '<p class="sin-productos">No hay productos disponibles.</p>';
+        if (entregado < total) {
+            document.getElementById('cambioError').style.display = 'block';
             return;
         }
 
-        let html = '';
-        productos.forEach(prod => {
-            html += `<div class="producto-card" data-id="${prod.id}"
-                        data-nombre="${prod.nombre.replace(/"/g, '&quot;')}"
-                        data-precio="${prod.precio}" data-stock="${prod.stock}"
-                        onclick="agregarAlCarrito(this)">
-                        <div class="producto-nombre">${prod.nombre}</div>
-                        <div class="producto-precio">${prod.precio.toFixed(2).replace('.', ',')} €</div>
-                        <div class="producto-stock">Stock: ${prod.stock}</div>
-                    </div>`;
-        });
-
-        grid.innerHTML = html;
+        cerrarModal('modalCambio');
+        mostrarModalTipoDocumento();
     }
 
-    // ======================== MODAL TIPO DOCUMENTO ========================
+    // ======================== MODAL TIPO DOCUMENTO / CLIENTE ========================
     function mostrarModalTipoDocumento() {
         if (carrito.length === 0) return;
         document.getElementById('modalTipoDoc').style.display = 'flex';
     }
 
-    function confirmarVenta(tipoDocumento) {
+    let tipoDocumentoActual = 'ticket';
+
+    function seleccionarDatosCliente(tipo) {
+        tipoDocumentoActual = tipo;
         cerrarModal('modalTipoDoc');
 
+        // Limpiamos errores
+        document.getElementById('errorDatosCliente').style.display = 'none';
+
+        // Configuramos la vista según sea Ticket o Factura
+        const divDir = document.getElementById('divDireccionCliente');
+        const divObs = document.getElementById('divObservacionesCliente');
+        const subTitulo = document.getElementById('subtituloDatosCliente');
+
+        const reqNif = document.getElementById('reqNif');
+        const reqNombre = document.getElementById('reqNombre');
+        const reqDir = document.getElementById('reqDir');
+
+        if (tipo === 'factura') {
+            subTitulo.textContent = 'Complete los datos (Obligatorios para Factura)';
+            divDir.style.display = 'block';
+            divObs.style.display = 'block';
+            reqNif.style.display = 'inline';
+            reqNombre.style.display = 'inline';
+            reqDir.style.display = 'inline';
+        } else {
+            subTitulo.textContent = 'Complete los datos (Opcional en Ticket)';
+            divDir.style.display = 'none';
+            divObs.style.display = 'none';
+            reqNif.style.display = 'none';
+            reqNombre.style.display = 'none';
+            reqDir.style.display = 'none';
+        }
+
+        document.getElementById('modalDatosCliente').style.display = 'flex';
+    }
+
+    function validarYConfirmarVenta() {
+        const nif = document.getElementById('clienteNif').value.trim();
+        const nombre = document.getElementById('clienteNombre').value.trim();
+        const direccion = document.getElementById('clienteDireccion').value.trim();
+        const observaciones = document.getElementById('clienteObservaciones').value.trim();
+
+        if (tipoDocumentoActual === 'factura') {
+            if (!nif || !nombre || !direccion) {
+                document.getElementById('errorDatosCliente').style.display = 'block';
+                return;
+            }
+        }
+
+        cerrarModal('modalDatosCliente');
+        confirmarVenta(tipoDocumentoActual, nif, nombre, direccion, observaciones);
+    }
+
+    function confirmarVenta(tipoDocumento, nif, nombre, direccion, observaciones) {
+        const total = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+        const metodoPago = document.getElementById('metodoPago').value;
+        let entregado = total;
+        let cambio = 0;
+
+        if (metodoPago === 'efectivo') {
+            const inputVal = parseFloat(document.getElementById('inputDineroEntregado').value);
+            if (!isNaN(inputVal) && inputVal >= total) {
+                entregado = inputVal;
+                cambio = inputVal - total;
+            }
+        }
+
         document.getElementById('inputCarrito').value = JSON.stringify(carrito);
-        document.getElementById('inputMetodoPago').value = document.getElementById('metodoPago').value;
+        document.getElementById('inputMetodoPago').value = metodoPago;
         document.getElementById('inputTipoDocumento').value = tipoDocumento;
+        document.getElementById('inputDineroEntregadoFinal').value = entregado.toFixed(2);
+        document.getElementById('inputCambioDevueltoFinal').value = cambio.toFixed(2);
+
+        // Asignar los valores del cliente
+        document.getElementById('inputClienteNifFinal').value = nif;
+        document.getElementById('inputClienteNombreFinal').value = nombre;
+        document.getElementById('inputClienteDireccionFinal').value = direccion;
+        document.getElementById('inputObservacionesFinal').value = observaciones;
+
         document.getElementById('formVenta').submit();
     }
 
@@ -406,58 +786,126 @@
     function imprimirDocumento() {
         if (typeof ultimaVenta === 'undefined') return;
 
-        const tipoTitulo = (ultimaVenta.tipo === 'factura') ? 'FACTURA' : 'TICKET DE VENTA';
+        const isFactura = (ultimaVenta.tipo === 'factura');
+        const tipoTitulo = isFactura ? 'FACTURA' : 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
+
+        // Emisor fijo
+        const emisorHtml = `
+            <strong>TPV Bazar — Productos Informáticos</strong><br>
+            NIF: B12345678<br>
+            C/ Falsa 123, 28000 Madrid<br>
+        `;
+
+        // Receptor
+        let receptorHtml = '';
+        if (isFactura || ultimaVenta.clienteNif || ultimaVenta.clienteNombre) {
+            receptorHtml = `
+                <div class="datos-cliente" style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc;">
+                    <strong>Datos del Cliente:</strong><br>
+                    ${ultimaVenta.clienteNombre ? ultimaVenta.clienteNombre + '<br>' : ''}
+                    ${ultimaVenta.clienteNif ? 'NIF/CIF: ' + ultimaVenta.clienteNif + '<br>' : ''}
+                    ${ultimaVenta.clienteDir ? ultimaVenta.clienteDir + '<br>' : ''}
+                </div>
+            `;
+        }
 
         let lineasHtml = '';
+        let sumaTotalesNumeric = 0;
+
         ultimaVenta.carrito.forEach(item => {
-            const subtotal = (item.precio * item.cantidad).toFixed(2).replace('.', ',');
-            const precioFmt = item.precio.toFixed(2).replace('.', ',');
+            const subtotalNumeric = item.precio * item.cantidad;
+            sumaTotalesNumeric += subtotalNumeric;
+
+            const subtotal = subtotalNumeric.toFixed(2).replace('.', ',');
+            const precioFmt = parseFloat(item.precio).toFixed(2).replace('.', ',');
+
             lineasHtml += `<tr>
                 <td>${item.nombre}</td>
                 <td style="text-align:center">${item.cantidad}</td>
                 <td style="text-align:right">${precioFmt} €</td>
+                <td style="text-align:center">21%</td>
                 <td style="text-align:right">${subtotal} €</td>
             </tr>`;
         });
+
+        // Suposición: Todo lleva IVA incluído 21%
+        const totalVenta = sumaTotalesNumeric;
+        const baseImponible = totalVenta / 1.21;
+        const cuotaIva = totalVenta - baseImponible;
+
+        let totalesHtml = `
+            <table class="tabla-totales" style="width:100%; font-size: 0.9rem; margin-top:10px;">
+                <tr>
+                    <td><strong>Base Imponible:</strong></td>
+                    <td style="text-align:right">${baseImponible.toFixed(2).replace('.', ',')} €</td>
+                </tr>
+                <tr>
+                    <td><strong>Cuota IVA (21%):</strong></td>
+                    <td style="text-align:right">${cuotaIva.toFixed(2).replace('.', ',')} €</td>
+                </tr>
+                <tr>
+                    <td style="font-size: 1.1rem; padding-top:10px;"><strong>TOTAL (IVA INCLUIDO):</strong></td>
+                    <td style="font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;">${ultimaVenta.total} €</td>
+                </tr>
+            </table>
+        `;
+
+        let obsHtml = '';
+        if (ultimaVenta.clienteObs) {
+            obsHtml = `<div style="margin-top: 15px; font-size: 0.8rem;"><strong>Observaciones:</strong> ${ultimaVenta.clienteObs}</div>`;
+        }
 
         const contenido = `
         <html>
         <head>
             <title>${tipoTitulo} #${ultimaVenta.id}</title>
             <style>
-                body { font-family: 'Inter', Arial, sans-serif; padding: 30px; color: #333; max-width: 600px; margin: 0 auto; }
-                .header { text-align: center; border-bottom: 2px solid #1a1a2e; padding-bottom: 15px; margin-bottom: 20px; }
-                .header h1 { margin: 0; font-size: 1.4rem; color: #1a1a2e; }
-                .header h2 { margin: 5px 0 0; font-size: 1rem; color: #666; }
-                .datos { margin-bottom: 20px; font-size: 0.9rem; }
-                .datos p { margin: 4px 0; }
-                table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-                th { background: #f0f2f5; padding: 10px 8px; text-align: left; border-bottom: 2px solid #ddd; font-size: 0.85rem; }
-                td { padding: 10px 8px; border-bottom: 1px solid #eee; font-size: 0.85rem; }
-                .total { text-align: right; font-size: 1.3rem; font-weight: bold; padding: 15px 0; border-top: 2px solid #1a1a2e; }
-                .footer { text-align: center; color: #999; font-size: 0.8rem; padding-top: 20px; border-top: 1px solid #eee; }
+                body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #1a1a1a; max-width: 80mm; margin: 0 auto; line-height: 1.4; }
+                .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
+                .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; }
+                .header h2 { margin: 5px 0 0; font-size: 0.9rem; font-weight: normal;}
+                .datos { margin-bottom: 15px; font-size: 0.85rem; }
+                .datos p { margin: 3px 0; }
+                table.tabla-lineas { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.8rem; }
+                table.tabla-lineas th { background: #f0f0f0; padding: 6px 4px; text-align: left; border-bottom: 1px solid #ccc;  }
+                table.tabla-lineas td { padding: 6px 4px; border-bottom: 1px dashed #eee; }
+                .footer { text-align: center; font-size: 0.75rem; padding-top: 15px; border-top: 1px solid #ccc; margin-top: 20px;}
             </style>
         </head>
         <body>
             <div class="header">
-                <h1>TPV Bazar — Productos Informáticos</h1>
-                <h2>${tipoTitulo}</h2>
+                <h1>${tipoTitulo}</h1>
             </div>
+            
             <div class="datos">
-                <p><strong>Nº:</strong> ${ultimaVenta.id}</p>
-                <p><strong>Fecha:</strong> ${ultimaVenta.fecha}</p>
-                <p><strong>Método de pago:</strong> ${ultimaVenta.metodoPago}</p>
+                ${emisorHtml}
+                <div style="margin-top: 10px;">
+                    <p><strong>Nº Factura/Ticket:</strong> ${ultimaVenta.id}</p>
+                    <p><strong>Fecha Operación y Expedición:</strong> ${ultimaVenta.fecha}</p>
+                    <p><strong>Método de pago:</strong> ${ultimaVenta.metodoPago}</p>
+                </div>
+                ${receptorHtml}
             </div>
-            <table>
+
+            <table class="tabla-lineas">
                 <thead>
-                    <tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">Precio</th><th style="text-align:right">Subtotal</th></tr>
+                    <tr><th>Desc.</th><th style="text-align:center">Cant</th><th style="text-align:right">Precio</th><th style="text-align:center">IVA</th><th style="text-align:right">Subt.</th></tr>
                 </thead>
                 <tbody>${lineasHtml}</tbody>
             </table>
-            <div class="total">TOTAL: ${ultimaVenta.total} €</div>
+            
+            ${totalesHtml}
+
+            <div class="datos-pago" style="font-size: 0.85rem; margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px;">
+                <p><strong>Entregado:</strong> ${ultimaVenta.entregado} €</p>
+                <p><strong>Cambio devuelto:</strong> ${ultimaVenta.cambio} €</p>
+            </div>
+            
+            ${obsHtml}
+
             <div class="footer">
-                <p>TPV Bazar — Productos Informáticos</p>
-                <p>Gracias por su compra</p>
+                <p><strong>GRACIAS POR SU COMPRA</strong></p>
+                <p>Los precios mostrados incluyen IVA.</p>
             </div>
         </body>
         </html>`;
@@ -507,7 +955,13 @@
                 total: ultimaVenta.total,
                 lineas: ultimaVenta.carrito,
                 fecha: ultimaVenta.fecha,
-                metodoPago: ultimaVenta.metodoPago
+                metodoPago: ultimaVenta.metodoPago,
+                entregado: ultimaVenta.entregado,
+                cambio: ultimaVenta.cambio,
+                clienteNif: ultimaVenta.clienteNif,
+                clienteNombre: ultimaVenta.clienteNombre,
+                clienteDir: ultimaVenta.clienteDir,
+                clienteObs: ultimaVenta.clienteObs
             })
         })
             .then(res => res.json())

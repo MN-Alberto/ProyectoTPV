@@ -7,7 +7,7 @@
 require_once("./config/confAPP.php"); //Incluimos el fichero de configuración de la APP.
 require_once("./config/confDB.php"); //Incluimos el fichero de configuración de la BD.
 
-date_default_timezone_set('Europe/Madrid');
+date_default_timezone_set('Europe/Madrid'); //Asignamos la zona horaria por defecto a 'Europa/Madrid'.
 session_start(); //Iniciamos o recuperamos la sesión.
 
 if (!isset($_SESSION['paginaEnCurso'])) { //Si la página en curso no existe.

@@ -50,11 +50,13 @@ header h1 {
     padding: 8px 16px;
     border-radius: 6px;
     font-size: 0.85rem;
-    transition: background 0.2s;
+    transition: all 0.2s ease-in-out;
 }
 
 .btn-cerrar-sesion:hover {
     background: rgba(255, 255, 255, 0.25);
+    cursor: pointer;
+    scale: 1.10;
 }
 
 /* ======================== FOOTER ======================== */
