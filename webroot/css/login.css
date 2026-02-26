@@ -36,6 +36,11 @@ header h1 {
     letter-spacing: 0.5px;
 }
 
+#link-repositorio {
+    text-decoration: none;
+    color: #e5e7eb;
+}
+
 .header-usuario {
     display: flex;
     align-items: center;

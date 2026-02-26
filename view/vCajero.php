@@ -44,7 +44,7 @@
                         data-nombre="<?php echo htmlspecialchars($prod->getNombre()); ?>"
                         data-precio="<?php echo $prod->getPrecio(); ?>" data-stock="<?php echo $prod->getStock(); ?>"
                         onclick="agregarAlCarrito(this)" style="<?php if ($prod->getStock() <= 0) {
-                            echo 'opacity: 0.5; cursor: not-allowed;';
+                            echo 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);';
                         } ?>">
                         <div class="producto-nombre">
                             <?php echo htmlspecialchars($prod->getNombre()); ?>
@@ -112,6 +112,9 @@
             </select>
             <button class="btn-cobrar" id="btnCobrar" onclick="intentarCobrar()" disabled>
                 Cobrar
+            </button>
+            <button class="btn-descuento" id="btnDescuento" onclick="aplicarDescuento()" disabled>
+                Descuento
             </button>
             <button class="btn-cancelar" onclick="vaciarCarrito()">
                 Vaciar
