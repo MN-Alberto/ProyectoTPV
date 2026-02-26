@@ -80,7 +80,7 @@ function renderProductos(productos) {
         html += `<div class="producto-card" data-id="${prod.id}"
                     data-nombre="${prod.nombre.replace(/"/g, '&quot;')}"
                     data-precio="${prod.precio}" data-stock="${prod.stock}"
-                    onclick="agregarAlCarrito(this)" style="${prod.stock <= 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
+                    onclick="agregarAlCarrito(this)" style="${prod.stock <= 0 ? 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);' : ''}">
                     <div class="producto-nombre">${prod.nombre}</div>
                     <div class="producto-imagen">
                         <img src="${imgSrc}" alt="${prod.nombre.replace(/"/g, '&quot;')}">

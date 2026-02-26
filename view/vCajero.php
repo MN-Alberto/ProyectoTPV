@@ -23,8 +23,7 @@
             style="padding: 15px 20px; background: #fff; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: flex-start;">
             <form method="POST" action="index.php" style="margin: 0;">
                 <input type="hidden" name="accion" value="previsualizarCaja">
-                <button type="submit" class="btn-cancelar"
-                    style="font-size: 0.85rem; padding: 10px 15px; background: #fff; border: 2px solid #1a1a2e; color: #1a1a2e; display: flex; align-items: center; gap: 8px;">
+                <button type="submit" class="btn-hacerCaja" id="btnHacerCaja">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -99,6 +98,7 @@
             <p class="ticket-vacio">Añade productos para realizar la venta</p>
         </div>
 
+        <div id="ticketDesglose"></div>
         <div class="ticket-total">
             <span>TOTAL:</span>
             <span id="ticketTotal">0,00 €</span>
@@ -135,6 +135,10 @@
         <input type="hidden" name="clienteNombre" id="inputClienteNombreFinal">
         <input type="hidden" name="clienteDireccion" id="inputClienteDireccionFinal">
         <input type="hidden" name="observaciones" id="inputObservacionesFinal">
+        <!-- Campos de descuento -->
+        <input type="hidden" name="descuentoTipo" id="inputDescuentoTipo">
+        <input type="hidden" name="descuentoValor" id="inputDescuentoValor">
+        <input type="hidden" name="descuentoCupon" id="inputDescuentoCupon">
     </form>
 </section>
 
@@ -209,6 +213,50 @@
             </button>
         </div>
         <button class="btn-modal-cancelar" onclick="cerrarModal('modalTipoDoc')">Cancelar</button>
+    </div>
+</div>
+
+<!-- ==================== MODAL: DESCUENTO ==================== -->
+<div class="modal-overlay" id="modalDescuento" style="display:none;">
+    <div class="modal-content modal-premium" style="max-width: 420px;">
+        <div class="modal-header-premium">
+            <div class="icon-container-discount">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="5" x2="5" y2="19"></line>
+                    <circle cx="6.5" cy="6.5" r="2.5"></circle>
+                    <circle cx="17.5" cy="17.5" r="2.5"></circle>
+                </svg>
+            </div>
+            <h3>Aplicar Descuento</h3>
+            <p>Elige un porcentaje o usa un código promocional</p>
+        </div>
+
+        <div class="modal-body-premium">
+            <div class="form-group-premium">
+                <label for="inputPorcentajeDescuento">Porcentaje de Descuento</label>
+                <div class="input-with-icon">
+                    <input type="number" id="inputPorcentajeDescuento" min="0" max="100" step="1" placeholder="0">
+                    <span class="input-suffix">%</span>
+                </div>
+                <span class="input-hint">Rango permitido: 0% a 100%</span>
+            </div>
+
+            <div class="divider-text">o bien</div>
+
+            <div class="form-group-premium">
+                <label for="inputCuponDescuento">Código de Cupón</label>
+                <div class="input-cupon">
+                    <input type="text" id="inputCuponDescuento" placeholder="Introduce el código"
+                        style="text-transform: uppercase;">
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer-premium">
+            <button class="btn-cancel-flat" onclick="cerrarModal('modalDescuento')">Cancelar</button>
+            <button class="btn-apply-premium" onclick="procesarDescuento()">Aplicar Descuento</button>
+        </div>
     </div>
 </div>
 
@@ -329,7 +377,10 @@
             clienteNif: '<?php echo addslashes($_SESSION['ultimaVentaClienteNif'] ?? ''); ?>',
             clienteNombre: '<?php echo addslashes($_SESSION['ultimaVentaClienteNombre'] ?? ''); ?>',
             clienteDir: '<?php echo addslashes($_SESSION['ultimaVentaClienteDir'] ?? ''); ?>',
-            clienteObs: '<?php echo addslashes($_SESSION['ultimaVentaClienteObs'] ?? ''); ?>'
+            clienteObs: '<?php echo addslashes($_SESSION['ultimaVentaClienteObs'] ?? ''); ?>',
+            descuentoTipo: '<?php echo $_SESSION['ultimaVentaDescuentoTipo'] ?? 'ninguno'; ?>',
+            descuentoValor: <?php echo $_SESSION['ultimaVentaDescuentoValor'] ?? 0; ?>,
+            descuentoCupon: '<?php echo $_SESSION['ultimaVentaDescuentoCupon'] ?? ''; ?>'
         };
     </script>
 
@@ -343,6 +394,9 @@
     unset($_SESSION['ultimaVentaFecha']);
     unset($_SESSION['ultimaVentaEntregado']);
     unset($_SESSION['ultimaVentaCambio']);
+    unset($_SESSION['ultimaVentaDescuentoTipo']);
+    unset($_SESSION['ultimaVentaDescuentoValor']);
+    unset($_SESSION['ultimaVentaDescuentoCupon']);
 ?>
 <?php endif; ?>
 
@@ -533,6 +587,7 @@
 <script>
     // ======================== CARRITO (persiste en memoria) ========================
     let carrito = [];
+    let descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
 
     function agregarAlCarrito(elemento) {
         const id = parseInt(elemento.dataset.id);
@@ -576,18 +631,33 @@
 
     function vaciarCarrito() {
         carrito = [];
+        descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
         actualizarTicket();
+    }
+
+    function obtenerTotalCalculado() {
+        let subtotal = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+        let importeDescuento = 0;
+        if (descuento.tipo === 'porcentaje') {
+            importeDescuento = subtotal * (descuento.valor / 100);
+        } else if (descuento.tipo === 'fijo') {
+            importeDescuento = descuento.valor;
+        }
+        return Math.max(0, subtotal - importeDescuento);
     }
 
     function actualizarTicket() {
         const contenedor = document.getElementById('ticketLineas');
         const totalEl = document.getElementById('ticketTotal');
         const btnCobrar = document.getElementById('btnCobrar');
+        const btnDescuento = document.getElementById('btnDescuento');
 
         if (carrito.length === 0) {
             contenedor.innerHTML = '<p class="ticket-vacio">Añade productos al ticket</p>';
+            document.getElementById('ticketDesglose').innerHTML = '';
             totalEl.textContent = '0,00 €';
             btnCobrar.disabled = true;
+            btnDescuento.disabled = true;
             return;
         }
 
@@ -617,8 +687,73 @@
 
         html += '</tbody></table>';
         contenedor.innerHTML = html;
+
+        // Desglose de totales
+        let subtotal = total;
+        total = obtenerTotalCalculado();
+        let importeDescuento = subtotal - total;
+
+        let htmlDesglose = '';
+        if (importeDescuento > 0) {
+            htmlDesglose = `
+                <div class="resumen-final-premium">
+                    <div class="resumen-fila-mini">
+                        <span>Subtotal:</span>
+                        <span>${subtotal.toFixed(2).replace('.', ',')} €</span>
+                    </div>
+                    <div class="resumen-fila-mini descuento-texto">
+                        <span>Descuento (${descuento.tipo === 'porcentaje' ? descuento.valor + '%' : 'Cupón ' + descuento.cupon}):</span>
+                        <span>- ${importeDescuento.toFixed(2).replace('.', ',')} €</span>
+                    </div>
+                </div>`;
+        }
+
+        document.getElementById('ticketDesglose').innerHTML = htmlDesglose;
         totalEl.textContent = total.toFixed(2).replace('.', ',') + ' €';
         btnCobrar.disabled = false;
+        btnDescuento.disabled = false;
+    }
+
+    // ======================== DESCUENTOS ========================
+    function aplicarDescuento() {
+        if (carrito.length === 0) return;
+        document.getElementById('modalDescuento').style.display = 'flex';
+        document.getElementById('inputPorcentajeDescuento').focus();
+    }
+
+    function procesarDescuento() {
+        let porcentaje = parseFloat(document.getElementById('inputPorcentajeDescuento').value);
+        const cupon = document.getElementById('inputCuponDescuento').value.trim().toUpperCase();
+
+        if (!isNaN(porcentaje) && document.getElementById('inputPorcentajeDescuento').value !== '') {
+            // Validación de rango 0-100
+            if (porcentaje < 0 || porcentaje > 100) {
+                alert('El porcentaje de descuento debe estar entre 0 y 100');
+                return;
+            }
+            descuento = { tipo: 'porcentaje', valor: porcentaje, cupon: '' };
+        } else if (cupon) {
+            // Ejemplo de cupones válidos
+            if (cupon === 'PROMO10') {
+                descuento = { tipo: 'porcentaje', valor: 10, cupon: 'PROMO10' };
+            } else if (cupon === 'BIENVENIDA5') {
+                descuento = { tipo: 'porcentaje', valor: 5, cupon: 'BIENVENIDA5' };
+            } else if (cupon === 'FIJO5') {
+                descuento = { tipo: 'fijo', valor: 5, cupon: 'FIJO5' };
+            } else {
+                alert('Cupón no válido');
+                return;
+            }
+        } else {
+            descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+        }
+
+        // Limpiar inputs
+        document.getElementById('inputPorcentajeDescuento').value = '';
+        document.getElementById('inputCuponDescuento').value = '';
+
+        cerrarModal('modalDescuento');
+        actualizarTicket();
     }
 
     // ======================== PROCESO DE COBRO Y CAMBIO ========================
@@ -634,7 +769,7 @@
     }
 
     function mostrarModalCambio() {
-        const total = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+        const total = obtenerTotalCalculado();
         document.getElementById('cambioTotalPagar').textContent = total.toFixed(2).replace('.', ',') + ' €';
 
         const inputEntregado = document.getElementById('inputDineroEntregado');
@@ -649,7 +784,7 @@
     }
 
     function calcularCambio() {
-        const total = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+        const total = obtenerTotalCalculado();
         const entregado = parseFloat(document.getElementById('inputDineroEntregado').value) || 0;
         const devolucion = entregado - total;
 
@@ -673,7 +808,7 @@
     }
 
     function confirmarCambio() {
-        const total = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+        const total = obtenerTotalCalculado();
         const entregado = parseFloat(document.getElementById('inputDineroEntregado').value) || 0;
 
         if (entregado < total) {
@@ -746,7 +881,7 @@
     }
 
     function confirmarVenta(tipoDocumento, nif, nombre, direccion, observaciones) {
-        const total = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+        const total = obtenerTotalCalculado();
         const metodoPago = document.getElementById('metodoPago').value;
         let entregado = total;
         let cambio = 0;
@@ -770,6 +905,11 @@
         document.getElementById('inputClienteNombreFinal').value = nombre;
         document.getElementById('inputClienteDireccionFinal').value = direccion;
         document.getElementById('inputObservacionesFinal').value = observaciones;
+
+        // Descuento
+        document.getElementById('inputDescuentoTipo').value = descuento.tipo;
+        document.getElementById('inputDescuentoValor').value = descuento.valor;
+        document.getElementById('inputDescuentoCupon').value = descuento.cupon;
 
         document.getElementById('formVenta').submit();
     }
@@ -831,26 +971,49 @@
             </tr>`;
         });
 
-        // Suposición: Todo lleva IVA incluído 21%
-        const totalVenta = sumaTotalesNumeric;
+        let importeDescuento = 0;
+        if (ultimaVenta.descuentoTipo === 'porcentaje') {
+            importeDescuento = sumaTotalesNumeric * (ultimaVenta.descuentoValor / 100);
+        } else if (ultimaVenta.descuentoTipo === 'fijo') {
+            importeDescuento = ultimaVenta.descuentoValor;
+        }
+
+        const subtotalSinDescuento = sumaTotalesNumeric;
+        const totalVenta = Math.max(0, subtotalSinDescuento - importeDescuento);
         const baseImponible = totalVenta / 1.21;
         const cuotaIva = totalVenta - baseImponible;
 
         let totalesHtml = `
             <table class="tabla-totales" style="width:100%; font-size: 0.9rem; margin-top:10px;">
+        `;
+
+        if (importeDescuento > 0) {
+            totalesHtml += `
                 <tr>
-                    <td><strong>Base Imponible:</strong></td>
-                    <td style="text-align:right">${baseImponible.toFixed(2).replace('.', ',')} €</td>
+                    <td><strong>Subtotal:</strong></td>
+                    <td style="text-align:right">${subtotalSinDescuento.toFixed(2).replace('.', ',')} €</td>
                 </tr>
                 <tr>
-                    <td><strong>Cuota IVA (21%):</strong></td>
-                    <td style="text-align:right">${cuotaIva.toFixed(2).replace('.', ',')} €</td>
+                    <td style="color: #16a34a;"><strong>Descuento (${ultimaVenta.descuentoTipo === 'porcentaje' ? ultimaVenta.descuentoValor + '%' : 'Cupón ' + ultimaVenta.descuentoCupon}):</strong></td>
+                    <td style="text-align:right; color: #16a34a;">- ${importeDescuento.toFixed(2).replace('.', ',')} €</td>
                 </tr>
-                <tr>
-                    <td style="font-size: 1.1rem; padding-top:10px;"><strong>TOTAL (IVA INCLUIDO):</strong></td>
-                    <td style="font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;">${ultimaVenta.total} €</td>
-                </tr>
-            </table>
+            `;
+        }
+
+        totalesHtml += `
+            <tr>
+                <td><strong>Base Imponible:</strong></td>
+                <td style="text-align:right">${baseImponible.toFixed(2).replace('.', ',')} €</td>
+            </tr>
+            <tr>
+                <td><strong>Cuota IVA (21%):</strong></td>
+                <td style="text-align:right">${cuotaIva.toFixed(2).replace('.', ',')} €</td>
+            </tr>
+            <tr>
+                <td style="font-size: 1.1rem; padding-top:10px;"><strong>TOTAL (IVA INCLUIDO):</strong></td>
+                <td style="font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;">${ultimaVenta.total} €</td>
+            </tr>
+        </table>
         `;
 
         let obsHtml = '';
@@ -964,7 +1127,10 @@
                 clienteNif: ultimaVenta.clienteNif,
                 clienteNombre: ultimaVenta.clienteNombre,
                 clienteDir: ultimaVenta.clienteDir,
-                clienteObs: ultimaVenta.clienteObs
+                clienteObs: ultimaVenta.clienteObs,
+                descuentoTipo: ultimaVenta.descuentoTipo,
+                descuentoValor: ultimaVenta.descuentoValor,
+                descuentoCupon: ultimaVenta.descuentoCupon
             })
         })
             .then(res => res.json())

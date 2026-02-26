@@ -63,6 +63,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 exit();
             }
 
+            // Aplicar descuento al total antes de guardar la venta
+            $descuentoTipo = $_POST['descuentoTipo'] ?? 'ninguno';
+            $descuentoValor = (float) ($_POST['descuentoValor'] ?? 0);
+            $importeDescuento = 0;
+            if ($descuentoTipo === 'porcentaje') {
+                $importeDescuento = $total * ($descuentoValor / 100);
+            } elseif ($descuentoTipo === 'fijo') {
+                $importeDescuento = $descuentoValor;
+            }
+            $total = max(0, $total - $importeDescuento);
+
             $venta->setTotal($total);
             $venta->insertar();
 
@@ -98,6 +109,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $_SESSION['ultimaVentaFecha'] = date('d/m/Y H:i');
             $_SESSION['ultimaVentaEntregado'] = $_POST['dineroEntregado'] ?? $total;
             $_SESSION['ultimaVentaCambio'] = $_POST['cambioDevuelto'] ?? 0;
+
+            // Datos de Descuento
+            $_SESSION['ultimaVentaDescuentoTipo'] = $_POST['descuentoTipo'] ?? 'ninguno';
+            $_SESSION['ultimaVentaDescuentoValor'] = $_POST['descuentoValor'] ?? 0;
+            $_SESSION['ultimaVentaDescuentoCupon'] = $_POST['descuentoCupon'] ?? '';
 
             // Datos del Cliente
             $_SESSION['ultimaVentaClienteNif'] = $_POST['clienteNif'] ?? '';
