@@ -20,6 +20,8 @@ class Venta
     private $estado; // 'completada', 'anulada'
     private $tipoDocumento; // 'ticket', 'factura'
     private $cerrada; // 0 o 1
+    private $importeEntregado;
+    private $cambioDevuelto;
 
     // ======================== GETTERS ========================
 
@@ -103,6 +105,24 @@ class Venta
     public function setCerrada($cerrada)
     {
         $this->cerrada = $cerrada;
+    }
+
+    public function getImporteEntregado()
+    {
+        return $this->importeEntregado;
+    }
+    public function setImporteEntregado($importeEntregado)
+    {
+        $this->importeEntregado = $importeEntregado;
+    }
+
+    public function getCambioDevuelto()
+    {
+        return $this->cambioDevuelto;
+    }
+    public function setCambioDevuelto($cambioDevuelto)
+    {
+        $this->cambioDevuelto = $cambioDevuelto;
     }
 
     // ======================== MÉTODOS CRUD ========================
@@ -191,8 +211,8 @@ class Venta
     {
         $conexion = ConexionDB::getInstancia()->getConexion();
         $stmt = $conexion->prepare(
-            "INSERT INTO ventas (idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada) 
-             VALUES (:idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada)"
+            "INSERT INTO ventas (idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto) 
+             VALUES (:idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto)"
         );
         $stmt->bindParam(':idUsuario', $this->idUsuario, PDO::PARAM_INT);
         $stmt->bindParam(':fecha', $this->fecha);
@@ -202,6 +222,8 @@ class Venta
         $stmt->bindParam(':tipoDocumento', $this->tipoDocumento);
         $cerradaVal = $this->cerrada ? 1 : 0;
         $stmt->bindParam(':cerrada', $cerradaVal, PDO::PARAM_INT);
+        $stmt->bindParam(':importeEntregado', $this->importeEntregado);
+        $stmt->bindParam(':cambioDevuelto', $this->cambioDevuelto);
         $resultado = $stmt->execute();
         $this->id = $conexion->lastInsertId();
         return $resultado;
@@ -268,10 +290,11 @@ class Venta
              GROUP BY metodoPago"
         );
         $resumen = [
-            'efectivo' => ['total' => 0, 'cantidad' => 0],
-            'tarjeta' => ['total' => 0, 'cantidad' => 0],
-            'bizum' => ['total' => 0, 'cantidad' => 0],
-            'totalGeneral' => 0
+            'efectivo' => ['total' => 0, 'cantidad' => 0, 'devoluciones' => 0],
+            'tarjeta' => ['total' => 0, 'cantidad' => 0, 'devoluciones' => 0],
+            'bizum' => ['total' => 0, 'cantidad' => 0, 'devoluciones' => 0],
+            'totalGeneral' => 0,
+            'totalDevoluciones' => 0
         ];
 
         while ($fila = $stmt->fetch()) {
@@ -282,6 +305,85 @@ class Venta
                 $resumen['totalGeneral'] += (float) $fila['sumaTotal'];
             }
         }
+
+        // Restar devoluciones
+        require_once(__DIR__ . '/Devolucion.php');
+        require_once(__DIR__ . '/Caja.php');
+        $sesion = Caja::obtenerSesionAbierta();
+        if ($sesion) {
+            $idSesion = $sesion->getId();
+
+            $devEfectivo = Devolucion::obtenerTotalPorMetodo($idSesion, 'Efectivo');
+            $devTarjeta = Devolucion::obtenerTotalPorMetodo($idSesion, 'Tarjeta');
+            $devBizum = Devolucion::obtenerTotalPorMetodo($idSesion, 'Bizum');
+
+            $resumen['efectivo']['devoluciones'] = $devEfectivo;
+            $resumen['tarjeta']['devoluciones'] = $devTarjeta;
+            $resumen['bizum']['devoluciones'] = $devBizum;
+
+            $resumen['efectivo']['total'] -= $devEfectivo;
+            $resumen['tarjeta']['total'] -= $devTarjeta;
+            $resumen['bizum']['total'] -= $devBizum;
+
+            $resumen['totalDevoluciones'] = $devEfectivo + $devTarjeta + $devBizum;
+            $resumen['totalGeneral'] -= $resumen['totalDevoluciones'];
+        }
+
+        return $resumen;
+    }
+
+    /**
+     * Obtiene el resumen de ventas de una sesión cerrada específica, en base a fechas.
+     * @return array
+     */
+    public static function obtenerResumenCerrada($fechaInicio, $fechaFin, $idSesion)
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->prepare(
+            "SELECT metodoPago, SUM(total) as sumaTotal, COUNT(id) as cantidad 
+             FROM ventas 
+             WHERE cerrada = 1 AND estado = 'completada' AND fecha >= :fechaInicio AND fecha <= :fechaFin 
+             GROUP BY metodoPago"
+        );
+        $stmt->bindParam(':fechaInicio', $fechaInicio);
+        $stmt->bindParam(':fechaFin', $fechaFin);
+        $stmt->execute();
+
+        $resumen = [
+            'efectivo' => ['total' => 0, 'cantidad' => 0, 'devoluciones' => 0],
+            'tarjeta' => ['total' => 0, 'cantidad' => 0, 'devoluciones' => 0],
+            'bizum' => ['total' => 0, 'cantidad' => 0, 'devoluciones' => 0],
+            'totalGeneral' => 0,
+            'totalDevoluciones' => 0
+        ];
+
+        while ($fila = $stmt->fetch()) {
+            $metodo = $fila['metodoPago'];
+            if (isset($resumen[$metodo])) {
+                $resumen[$metodo]['total'] = (float) $fila['sumaTotal'];
+                $resumen[$metodo]['cantidad'] = (int) $fila['cantidad'];
+                $resumen['totalGeneral'] += (float) $fila['sumaTotal'];
+            }
+        }
+
+        require_once(__DIR__ . '/Devolucion.php');
+        if ($idSesion) {
+            $devEfectivo = Devolucion::obtenerTotalPorMetodo($idSesion, 'Efectivo');
+            $devTarjeta = Devolucion::obtenerTotalPorMetodo($idSesion, 'Tarjeta');
+            $devBizum = Devolucion::obtenerTotalPorMetodo($idSesion, 'Bizum');
+
+            $resumen['efectivo']['devoluciones'] = $devEfectivo;
+            $resumen['tarjeta']['devoluciones'] = $devTarjeta;
+            $resumen['bizum']['devoluciones'] = $devBizum;
+
+            $resumen['efectivo']['total'] -= $devEfectivo;
+            $resumen['tarjeta']['total'] -= $devTarjeta;
+            $resumen['bizum']['total'] -= $devBizum;
+
+            $resumen['totalDevoluciones'] = $devEfectivo + $devTarjeta + $devBizum;
+            $resumen['totalGeneral'] -= $resumen['totalDevoluciones'];
+        }
+
         return $resumen;
     }
 
@@ -313,6 +415,8 @@ class Venta
         $venta->setEstado($fila['estado']);
         $venta->setTipoDocumento($fila['tipoDocumento'] ?? 'ticket');
         $venta->setCerrada($fila['cerrada'] ?? 0);
+        $venta->setImporteEntregado($fila['importeEntregado'] ?? null);
+        $venta->setCambioDevuelto($fila['cambioDevuelto'] ?? null);
         return $venta;
     }
 }

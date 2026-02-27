@@ -1,68 +1,114 @@
 <?php
-/*
- * Autor: Alberto Méndez
- * Fecha de actualización: 25/02/2026
- *
- * API para enviar el ticket/factura por correo electrónico.
- * Usa PHPMailer + SMTP de Gmail en lugar de mail() nativo.
+/**
+ * TPV Bazar - API de Envío de Ticket/Factura por Correo Electrónico
+ * 
+ * Este script procesa una petición POST con los datos de una venta (ID, fecha, productos, totales, cliente),
+ * construye un documento HTML con formato profesional (Ticket o Factura) y lo envía al correo
+ * electrónico proporcionado utilizando la librería PHPMailer y el servidor SMTP de Gmail.
+ * 
+ * @author Alberto Méndez
+ * @version 1.2 (26/02/2026)
  */
 
+// Iniciamos la sesión para acceder a posibles variables de entorno o estado del usuario
 session_start();
+
+// Establecemos la cabecera para que la respuesta sea interpretada como JSON por el cliente (JavaScript)
 header('Content-Type: application/json; charset=utf-8');
 
+/**
+ * ────────────────────────────────────────────────────────────────────────────
+ * 1. CONFIGURACIÓN DEL SERVIDOR SMTP (GMAIL)
+ * ────────────────────────────────────────────────────────────────────────────
+ * Se definen las constantes de conexión para el envío de correos.
+ */
+define('SMTP_HOST', 'smtp.gmail.com');                 // Host del servidor SMTP de Google
+define('SMTP_USUARIO', 'albertomennun04@gmail.com');   // Dirección de correo remitente
+define('SMTP_PASSWORD', 'jdpq cfwd whpm ekmc');        // Contraseña de aplicación generada en Google
+define('SMTP_PUERTO', 587);                            // Puerto estándar para TLS (STARTTLS)
+define('CORREO_FROM', 'albertomennun04@gmail.com');    // Email de origen para el envío
+define('NOMBRE_FROM', 'TPV Bazar');                    // Nombre que aparecerá como remitente
 
-define('SMTP_HOST', 'smtp.gmail.com');
-define('SMTP_USUARIO', 'albertomennun04@gmail.com');
-define('SMTP_PASSWORD', 'jdpq cfwd whpm ekmc');
-define('SMTP_PUERTO', 587);
-define('CORREO_FROM', 'albertomennun04@gmail.com');
-define('NOMBRE_FROM', 'TPV Bazar');
 
-
+/**
+ * ────────────────────────────────────────────────────────────────────────────
+ * 2. CARGA DE DEPENDENCIAS (PHPMailer)
+ * ────────────────────────────────────────────────────────────────────────────
+ * Requerimos los archivos necesarios para instanciar el cliente SMTP.
+ */
 require_once __DIR__ . '/../core/Exception.php';
 require_once __DIR__ . '/../core/PHPMailer.php';
 require_once __DIR__ . '/../core/SMTP.php';
 
+// Importamos los espacios de nombres (namespaces) de la librería
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
+/**
+ * ────────────────────────────────────────────────────────────────────────────
+ * 3. VALIDACIÓN DE LA PETICIÓN
+ * ────────────────────────────────────────────────────────────────────────────
+ */
+
+// Verificamos que la petición se reciba mediante el método POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['ok' => false, 'mensaje' => 'Método no permitido']);
     exit();
 }
 
+// Obtenemos los datos enviados en formato JSON (raw data) y los decodificamos a array asociativo
 $datos = json_decode(file_get_contents('php://input'), true);
 
+// Validamos que se haya proporcionado un correo electrónico y que tenga un formato correcto
 if (!isset($datos['email']) || !filter_var($datos['email'], FILTER_VALIDATE_EMAIL)) {
     echo json_encode(['ok' => false, 'mensaje' => 'Email no válido']);
     exit();
 }
 
+/**
+ * ────────────────────────────────────────────────────────────────────────────
+ * 4. EXTRACCIÓN Y LIMPIEZA DE DATOS DE LA VENTA
+ * ────────────────────────────────────────────────────────────────────────────
+ */
 $email = $datos['email'];
-$tipoDocumento = $datos['tipoDocumento'] ?? 'ticket';
+$tipoDocumento = $datos['tipoDocumento'] ?? 'ticket'; // Defecto: ticket
 $ventaId = $datos['ventaId'] ?? '—';
 $total = $datos['total'] ?? '0,00';
-$lineas = $datos['lineas'] ?? [];
+$lineas = $datos['lineas'] ?? [];               // Array con los productos de la cesta
 $fecha = $datos['fecha'] ?? date('d/m/Y H:i');
 $metodoPago = $datos['metodoPago'] ?? 'efectivo';
 $entregado = $datos['entregado'] ?? '0,00';
 $cambio = $datos['cambio'] ?? '0,00';
+
+// Datos opcionales del cliente (necesarios para facturas)
 $clienteNif = $datos['clienteNif'] ?? '';
 $clienteNombre = $datos['clienteNombre'] ?? '';
 $clienteDir = $datos['clienteDir'] ?? '';
 $clienteObs = $datos['clienteObs'] ?? '';
 
+// Datos de Descuento
+$descuentoTipo = $datos['descuentoTipo'] ?? 'ninguno';
+$descuentoValor = (float) ($datos['descuentoValor'] ?? 0);
+$descuentoCupon = $datos['descuentoCupon'] ?? '';
+
+// Determinamos el título principal del documento según la elección del usuario
 $isFactura = ($tipoDocumento === 'factura');
 $tipoTitulo = $isFactura ? 'FACTURA' : 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
 
-// Emisor fijo
+/**
+ * ────────────────────────────────────────────────────────────────────────────
+ * 5. CONSTRUCCIÓN DE SEGMENTOS HTML
+ * ────────────────────────────────────────────────────────────────────────────
+ */
+
+// A. Bloque del Emisor (Datos fijos del establecimiento)
 $emisorHtml = "
     <strong>TPV Bazar — Productos Informáticos</strong><br>
     NIF: B12345678<br>
     C/ Falsa 123, 28000 Madrid<br>
 ";
 
-// Receptor
+// B. Bloque del Receptor (Solo se muestra si hay datos del cliente o es factura)
 $receptorHtml = '';
 if ($isFactura || $clienteNif || $clienteNombre) {
     $receptorHtml = "<div style='margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc;'>
@@ -76,16 +122,18 @@ if ($isFactura || $clienteNif || $clienteNombre) {
     $receptorHtml .= "</div>";
 }
 
-// ── Construir el cuerpo HTML ────────────────────────────────────
+// C. Generación de las filas de productos (Tabla de líneas)
 $filasLineas = '';
 $sumaTotalesNumeric = 0;
 
 foreach ($lineas as $linea) {
+    // Calculamos los subtotales para recalcular impuestos si fuera necesario
     $subtotalNumeric = $linea['precio'] * $linea['cantidad'];
     $sumaTotalesNumeric += $subtotalNumeric;
 
     $subtotal = number_format($subtotalNumeric, 2, ',', '.');
     $precioFmt = number_format($linea['precio'], 2, ',', '.');
+
     $filasLineas .= "
         <tr>
             <td>{$linea['nombre']}</td>
@@ -96,35 +144,68 @@ foreach ($lineas as $linea) {
         </tr>";
 }
 
-// Cálculos de IVA
-$baseImponible = $sumaTotalesNumeric / 1.21;
-$cuotaIva = $sumaTotalesNumeric - $baseImponible;
+// D. Desglose de impuestos (IVA) y Descuentos
+// Asumimos un IVA general del 21% incluido en el precio final
+$importeDescuento = 0;
+if ($descuentoTipo === 'porcentaje') {
+    $importeDescuento = $sumaTotalesNumeric * ($descuentoValor / 100);
+} else if ($descuentoTipo === 'fijo') {
+    $importeDescuento = $descuentoValor;
+}
 
+$subtotalSinDescuento = $sumaTotalesNumeric;
+$totalFinalVenta = max(0, $subtotalSinDescuento - $importeDescuento);
+
+$baseImponible = $totalFinalVenta / 1.21;
+$cuotaIva = $totalFinalVenta - $baseImponible;
+
+$subtotalSinDescFmt = number_format($subtotalSinDescuento, 2, ',', '.');
+$descFmt = number_format($importeDescuento, 2, ',', '.');
 $baseImpFmt = number_format($baseImponible, 2, ',', '.');
 $cuotaIvaFmt = number_format($cuotaIva, 2, ',', '.');
 
-$totalesHtml = "
-    <table style='width:100%; border: none; margin-top:10px;'>
-        <tr>
-            <td style='border: none;'><strong>Base Imponible:</strong></td>
-            <td style='border: none; text-align:right'>{$baseImpFmt} €</td>
-        </tr>
-        <tr>
-            <td style='border: none;'><strong>Cuota IVA (21%):</strong></td>
-            <td style='border: none; text-align:right'>{$cuotaIvaFmt} €</td>
-        </tr>
-        <tr>
-            <td style='border: none; font-size: 1.1rem; padding-top:10px;'><strong>TOTAL (IVA INCLUIDO):</strong></td>
-            <td style='border: none; font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;'>{$total} €</td>
-        </tr>
-    </table>
-";
+// Bloque de pie de tabla con los sumatorios
+$totalesHtml = "<table style='width:100%; border: none; margin-top:10px;'>";
 
+if ($importeDescuento > 0) {
+    $descEtiqueta = ($descuentoTipo === 'porcentaje') ? "Descuento ({$descuentoValor}%):" : "Descuento (Cupón {$descuentoCupon}):";
+    $totalesHtml .= "
+        <tr>
+            <td style='border: none;'><strong>Subtotal:</strong></td>
+            <td style='border: none; text-align:right'>{$subtotalSinDescFmt} €</td>
+        </tr>
+        <tr>
+            <td style='border: none; color: #16a34a;'><strong>{$descEtiqueta}</strong></td>
+            <td style='border: none; text-align:right; color: #16a34a;'>- {$descFmt} €</td>
+        </tr>";
+}
+
+$totalesHtml .= "
+    <tr>
+        <td style='border: none;'><strong>Base Imponible:</strong></td>
+        <td style='border: none; text-align:right'>{$baseImpFmt} €</td>
+    </tr>
+    <tr>
+        <td style='border: none;'><strong>Cuota IVA (21%):</strong></td>
+        <td style='border: none; text-align:right'>{$cuotaIvaFmt} €</td>
+    </tr>
+    <tr>
+        <td style='border: none; font-size: 1.1rem; padding-top:10px;'><strong>TOTAL (IVA INCLUIDO):</strong></td>
+        <td style='border: none; font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;'>{$total} €</td>
+    </tr>
+</table>";
+
+// E. Bloque de observaciones (si existen)
 $obsHtml = '';
 if ($clienteObs) {
     $obsHtml = "<div style='margin-top: 15px; font-size: 13px;'><strong>Observaciones:</strong> " . htmlspecialchars($clienteObs) . "</div>";
 }
 
+/**
+ * ────────────────────────────────────────────────────────────────────────────
+ * 6. ESTRUCTURA FINAL DEL CUERPO DEL EMAIL (HTML)
+ * ────────────────────────────────────────────────────────────────────────────
+ */
 $cuerpo = "
 <html>
 <head>
@@ -183,10 +264,15 @@ $cuerpo = "
 </body>
 </html>";
 
-// ── Enviar con PHPMailer ────────────────────────────────────────
+/**
+ * ────────────────────────────────────────────────────────────────────────────
+ * 7. PROCESO DE ENVÍO CON PHPMailer
+ * ────────────────────────────────────────────────────────────────────────────
+ */
 $mail = new PHPMailer(true);
 
 try {
+    // Configuración SMTP para Gmail
     $mail->isSMTP();
     $mail->Host = SMTP_HOST;
     $mail->SMTPAuth = true;
@@ -196,17 +282,23 @@ try {
     $mail->Port = SMTP_PUERTO;
     $mail->CharSet = 'UTF-8';
 
+    // Destinatarios y Remitente
     $mail->setFrom(CORREO_FROM, NOMBRE_FROM);
-    $mail->addAddress($email);
+    $mail->addAddress($email);                                  // El correo del cliente recogido por el modal
 
-    $mail->isHTML(true);
-    $mail->Subject = "TPV Bazar — {$tipoTitulo} #{$ventaId}";
-    $mail->Body = $cuerpo;
+    // Contenido del correo
+    $mail->isHTML(true);                                        // Habilitar formato HTML
+    $mail->Subject = "TPV Bazar — {$tipoTitulo} #{$ventaId}";  // Asunto del correo
+    $mail->Body = $cuerpo;                                   // Cuerpo generado anteriormente
 
+    // Acción de envío
     $mail->send();
+
+    // Si el envío es exitoso, devolvemos respuesta JSON positiva
     echo json_encode(['ok' => true, 'mensaje' => 'Correo enviado correctamente']);
 
 } catch (Exception $e) {
+    // Si falla, capturamos el error y lo enviamos al frontend
     echo json_encode([
         'ok' => false,
         'mensaje' => 'No se pudo enviar el correo: ' . $mail->ErrorInfo

@@ -10,6 +10,7 @@ require_once(__DIR__ . '/../model/Producto.php');
 require_once(__DIR__ . '/../model/Categoria.php');
 require_once(__DIR__ . '/../model/Venta.php');
 require_once(__DIR__ . '/../model/LineaVenta.php');
+require_once(__DIR__ . '/../model/Caja.php');
 
 //Verificar que el usuario está autenticado.
 if (!isset($_SESSION['idUsuario'])) {
@@ -26,6 +27,9 @@ if (isset($_REQUEST['cerrarSesion'])) {
 
 //Cargar categorías para el menú lateral.
 $categorias = Categoria::obtenerTodas();
+
+// Cargar estado de la caja
+$sesionCaja = Caja::obtenerSesionAbierta();
 
 //Los productos se cargan por AJAX desde api/productos.php, pero cargamos una lista inicial para la primera vista.
 $idCategoriaSeleccionada = null;
@@ -63,7 +67,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 exit();
             }
 
+            // Aplicar descuento al total antes de guardar la venta
+            $descuentoTipo = $_POST['descuentoTipo'] ?? 'ninguno';
+            $descuentoValor = (float) ($_POST['descuentoValor'] ?? 0);
+            $importeDescuento = 0;
+            if ($descuentoTipo === 'porcentaje') {
+                $importeDescuento = $total * ($descuentoValor / 100);
+            } elseif ($descuentoTipo === 'fijo') {
+                $importeDescuento = $descuentoValor;
+            }
+            $total = max(0, $total - $importeDescuento);
+
+            if ($venta->getMetodoPago() === 'efectivo' && $total > 1000) {
+                $_SESSION['ventaError'] = "No se permite el pago en efectivo para importes superiores a 1.000€.";
+                header('Location: index.php');
+                exit();
+            }
+
             $venta->setTotal($total);
+
+            // Si el pago es en efectivo, guardar datos extras para el control de caja
+            if (($venta->getMetodoPago() === 'efectivo')) {
+                $entregado = (float) ($_POST['dineroEntregado'] ?? $total);
+                $cambio = (float) ($_POST['cambioDevuelto'] ?? 0);
+                $venta->setImporteEntregado($entregado);
+                $venta->setCambioDevuelto($cambio);
+
+                // Actualizar importe en la sesión de caja si está abierta
+                if ($sesionCaja) {
+                    $sesionCaja->actualizarEfectivo($entregado - $cambio);
+                }
+            }
+
             $venta->insertar();
 
             //Insertar líneas de venta y actualizar stock.
@@ -99,6 +134,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $_SESSION['ultimaVentaEntregado'] = $_POST['dineroEntregado'] ?? $total;
             $_SESSION['ultimaVentaCambio'] = $_POST['cambioDevuelto'] ?? 0;
 
+            // Datos de Descuento
+            $_SESSION['ultimaVentaDescuentoTipo'] = $_POST['descuentoTipo'] ?? 'ninguno';
+            $_SESSION['ultimaVentaDescuentoValor'] = $_POST['descuentoValor'] ?? 0;
+            $_SESSION['ultimaVentaDescuentoCupon'] = $_POST['descuentoCupon'] ?? '';
+
             // Datos del Cliente
             $_SESSION['ultimaVentaClienteNif'] = $_POST['clienteNif'] ?? '';
             $_SESSION['ultimaVentaClienteNombre'] = $_POST['clienteNombre'] ?? '';
@@ -109,8 +149,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
         }
     }
 
+    require_once(__DIR__ . '/../model/Devolucion.php');
+
     if ($_POST['accion'] === 'previsualizarCaja') {
         $resumenCaja = Venta::obtenerResumenCajaAbierta();
+
+        // Añadir datos de la sesión de caja si existe
+        if ($sesionCaja) {
+            $idSesion = $sesionCaja->getId();
+            $totalDevoluciones = Devolucion::obtenerTotalPorSesion($idSesion);
+
+            $resumenCaja['importeInicial'] = $sesionCaja->getImporteInicial();
+            $resumenCaja['importeActual'] = $sesionCaja->getImporteActual();
+            $resumenCaja['totalDevoluciones'] = $totalDevoluciones;
+        } else {
+            $resumenCaja['importeInicial'] = 0;
+            $resumenCaja['importeActual'] = 0;
+            $resumenCaja['totalDevoluciones'] = 0;
+        }
+
         $_SESSION['cajaPrevisualizacion'] = true;
         $_SESSION['resumenCaja'] = $resumenCaja;
         header('Location: index.php');
@@ -119,7 +176,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 
     if ($_POST['accion'] === 'confirmarCaja') {
         Venta::cerrarCaja();
+        // Cerrar también la sesión de caja formal
+        if ($sesionCaja) {
+            $sesionCaja->cerrar();
+        }
         $_SESSION['cajaConfirmacion'] = true;
+        header('Location: index.php');
+        exit();
+    }
+
+    if ($_POST['accion'] === 'abrirCaja' && isset($_POST['importeInicial'])) {
+        $importeInicial = (float) $_POST['importeInicial'];
+        Caja::abrir($_SESSION['idUsuario'], $importeInicial);
+        header('Location: index.php');
+        exit();
+    }
+
+    if ($_POST['accion'] === 'tramitarDevolucion' && isset($_POST['idProductoDev'])) {
+        $devolucion = new Devolucion();
+        $devolucion->setIdUsuario($_SESSION['idUsuario']);
+        $devolucion->setIdProducto((int) $_POST['idProductoDev']);
+        $devolucion->setCantidad((int) $_POST['cantidadDev']);
+        $devolucion->setImporteTotal((float) $_POST['importeTotalDev']);
+        $devolucion->setIdSesionCaja($sesionCaja ? $sesionCaja->getId() : null);
+        $devolucion->setMetodoPago($_POST['metodoPagoDev'] ?? 'Efectivo');
+
+        if ($devolucion->insertar()) {
+            // Solo restar de la caja si es efectivo
+            if ($sesionCaja && $devolucion->getMetodoPago() === 'Efectivo') {
+                $sesionCaja->actualizarEfectivo(-$devolucion->getImporteTotal());
+            }
+
+            // Sumar al stock del producto
+            $producto = Producto::buscarPorId($devolucion->getIdProducto());
+            if ($producto) {
+                $producto->actualizarStock($devolucion->getCantidad());
+            }
+
+            $_SESSION['ventaExito'] = false;
+            $_SESSION['devolucionExito'] = true;
+        }
+        header('Location: index.php');
+        exit();
+    }
+
+    if ($_POST['accion'] === 'retirarDinero' && isset($_POST['importeRetiro'])) {
+        $importe = (float) $_POST['importeRetiro'];
+        if ($sesionCaja && $importe > 0) {
+            $sesionCaja->actualizarEfectivo(-$importe);
+            $_SESSION['retiroExito'] = true;
+        }
         header('Location: index.php');
         exit();
     }
