@@ -1,73 +1,110 @@
 <?php
-/**
- * TPV Bazar - API REST de Productos
- * 
- * Este script actúa como un endpoint que devuelve la lista de productos en formato JSON.
- * Permite filtrar los resultados mediante parámetros GET para:
- * - Obtener todos los productos.
- * - Filtrar por una categoría específica.
- * - Buscar productos por nombre.
- * - Combinar búsqueda por nombre y filtro de categoría.
- * 
- * @author Alberto Méndez
- * @version 1.2 (26/02/2026)
- */
-
-// Carga de configuración de base de datos y modelos necesarios
 require_once(__DIR__ . '/../config/confDB.php');
 require_once(__DIR__ . '/../model/Producto.php');
 require_once(__DIR__ . '/../model/Categoria.php');
 
-// Establecemos la cabecera para que el navegador/cliente trate la respuesta como JSON en UTF-8
 header('Content-Type: application/json; charset=utf-8');
 
-/**
- * ────────────────────────────────────────────────────────────────────────────
- * 1. PROCESAMIENTO DE FILTROS Y BÚSQUEDA
- * ────────────────────────────────────────────────────────────────────────────
- * Se evalúan los parámetros recibidos vía URL (?idCategoria=X&buscarProducto=Y)
- */
+$producto = new Producto();
 
+// ── ELIMINAR PRODUCTO (DELETE) ────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+    parse_str(file_get_contents('php://input'), $params);
+    $id = isset($_GET['eliminar']) ? (int) $_GET['eliminar'] : 0;
+
+    if ($id > 0 && $producto->eliminar($id)) {
+        echo json_encode(['ok' => true]);
+    } else {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'No se pudo eliminar el producto.']);
+    }
+    exit();
+}
+
+// ── POST (actualizar) ──────────────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id = (int) $_POST['id'];
+    $nombre = trim($_POST['nombre']);
+    $precio = (float) $_POST['precio'];
+    $stock = (int) $_POST['stock'];
+    $activo = (int) $_POST['activo'];
+
+    // Cargar el producto existente para no perder descripción e idCategoria
+    $producto = Producto::buscarPorId($id);
+
+    if (!$producto) {
+        http_response_code(404);
+        echo json_encode(['ok' => false, 'error' => 'Producto no encontrado.']);
+        exit();
+    }
+
+    // Actualizar solo los campos que llegan del formulario
+    $producto->setNombre($nombre);
+    $producto->setPrecio($precio);
+    $producto->setStock($stock);
+    $producto->setActivo((int) $_POST['activo']);
+
+    // Subida de imagen (opcional)
+    if (isset($_FILES['imagen']) && $_FILES['imagen']['error'] === UPLOAD_ERR_OK) {
+        $ext = pathinfo($_FILES['imagen']['name'], PATHINFO_EXTENSION);
+        $nombreFile = 'prod_' . $id . '_' . time() . '.' . $ext;
+        $destino = __DIR__ . '/../webroot/img/' . $nombreFile;
+        if (move_uploaded_file($_FILES['imagen']['tmp_name'], $destino)) {
+            $producto->setImagen('webroot/img/' . $nombreFile);
+        }
+    }
+
+    if ($producto->actualizar()) {
+        echo json_encode(['ok' => true]);
+    } else {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'No se pudo actualizar el producto.']);
+    }
+    exit();
+}
+
+// ── FILTROS GET ───────────────────────────────────────────────────────────
 if (isset($_GET['buscarProducto']) && !empty(trim($_GET['buscarProducto']))) {
-    // Si hay una cadena de búsqueda, limpiamos espacios en blanco
     $busqueda = trim($_GET['buscarProducto']);
 
     if (isset($_GET['idCategoria']) && !empty($_GET['idCategoria']) && $_GET['idCategoria'] !== 'todas') {
-        // CASO A: Búsqueda por nombre dentro de una categoría específica
         $productos = Producto::buscarPorNombreYCategoria($busqueda, (int) $_GET['idCategoria']);
     } else {
-        // CASO B: Búsqueda por nombre en todo el catálogo (todas las categorías)
         $productos = Producto::buscarPorNombre($busqueda);
     }
 
 } elseif (isset($_GET['idCategoria']) && !empty($_GET['idCategoria']) && $_GET['idCategoria'] !== 'todas') {
-    // CASO C: Listado completo de una categoría específica (sin búsqueda por nombre)
     $productos = Producto::obtenerPorCategoria((int) $_GET['idCategoria']);
 
 } else {
-    // CASO D: Sin filtros ni búsquedas, devolvemos el catálogo completo
-    $productos = Producto::obtenerTodos();
+    if (isset($_GET['admin'])) {
+        $productos = Producto::obtenerTodosAdmin();
+    } else {
+        $productos = Producto::obtenerTodos();
+    }
 }
 
-/**
- * ────────────────────────────────────────────────────────────────────────────
- * 2. FORMATEO DE LA RESPUESTA JSON
- * ────────────────────────────────────────────────────────────────────────────
- * Recorremos la lista de objetos 'Producto' para convertirlos en un array 
- * asociativo plano, asegurando tipos de datos correctos para el frontend.
- */
+// ── FORMATEO RESPUESTA ────────────────────────────────────────────────────
+// Cargamos las categorías una sola vez para mapear id → nombre
+$mapCategorias = [];
+foreach (Categoria::obtenerTodas() as $cat) {
+    $mapCategorias[$cat->getId()] = $cat->getNombre();
+}
+
 $resultado = [];
 foreach ($productos as $prod) {
+    $idCat = (int) $prod->getIdCategoria();
     $resultado[] = [
         'id' => $prod->getId(),
         'nombre' => $prod->getNombre(),
-        'precio' => (float) $prod->getPrecio(),      // Forzamos float para cálculos en JS
-        'stock' => (int) $prod->getStock(),        // Forzamos int para validaciones de inventario
-        'idCategoria' => (int) $prod->getIdCategoria(),
-        'imagen' => $prod->getImagen()              // Ruta de la imagen del producto
+        'precio' => (float) $prod->getPrecio(),
+        'stock' => (int) $prod->getStock(),
+        'idCategoria' => $idCat,
+        'categoria' => $mapCategorias[$idCat] ?? '—',   // ← nombre legible
+        'activo' => (int) $prod->getActivo(),         // ← 1 = activo, 0 = inactivo
+        'imagen' => $prod->getImagen()
     ];
 }
 
-// Codificamos el array resultante en una cadena JSON y la imprimimos
 echo json_encode($resultado);
 ?>
