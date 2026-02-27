@@ -20,18 +20,68 @@
             <?php endforeach; ?>
         </div>
         <div class="cajero-opciones-extra"
-            style="padding: 15px 20px; background: #fff; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: flex-start;">
-            <form method="POST" action="index.php" style="margin: 0;">
-                <input type="hidden" name="accion" value="previsualizarCaja">
-                <button type="submit" class="btn-hacerCaja" id="btnHacerCaja">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            style="padding: 15px 20px; background: #fff; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+            
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <form method="POST" action="index.php" style="margin: 0;">
+                    <input type="hidden" name="accion" value="previsualizarCaja">
+                    <button type="submit" class="btn-hacerCaja" id="btnHacerCaja"
+                        <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                        style="<?php echo !$sesionCaja ? 'opacity: 0.3; background: red; cursor: not-allowed;' : ''; ?>">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="1" x2="12" y2="23"></line>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                        Hacer Caja
+                    </button>
+                </form>
+
+                <button type="button" class="btn-abrirCaja" id="btnAbrirCaja" onclick="mostrarModalAbrirCaja()" 
+                    <?php echo $sesionCaja ? 'disabled' : ''; ?>
+                    style="<?php echo $sesionCaja ? 'opacity: 0.3; background: red; cursor: not-allowed;' : ''; ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="12" y1="1" x2="12" y2="23"></line>
-                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                     </svg>
-                    Hacer Caja
+                    Abrir Caja
                 </button>
-            </form>
+
+                <button type="button" class="btn-devolucion" id="btnDevolucion" onclick="mostrarModalDevolucion()"
+                    <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                    style="<?php echo !$sesionCaja ? 'opacity: 0.3; background: #991b1b; cursor: not-allowed;' : ''; ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 4v6h6"></path>
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                    </svg>
+                    Devolución
+                </button>
+
+                <button type="button" class="btn-retiro" id="btnRetiro" onclick="mostrarModalRetiro()"
+                    <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                    style="<?php echo !$sesionCaja ? 'opacity: 0.3; background: #ea580c; cursor: not-allowed;' : ''; ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="20" height="12" x="2" y="6" rx="2"></rect>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <path d="M6 12h.01M18 12h.01"></path>
+                    </svg>
+                    Retirar Dinero
+                </button>
+            </div>
+
+            <?php if ($sesionCaja): ?>
+            <div class="indicador-efectivo" title="Efectivo actual en caja">
+                <span class="label">Efectivo en caja:</span>
+                <span class="amount"><?php echo number_format($sesionCaja->getImporteActual(), 2, ',', '.'); ?> €</span>
+            </div>
+            <?php else: ?>
+            <div class="indicador-efectivo caja-cerrada">
+                <span class="label">Caja Cerrada</span>
+            </div>
+            <?php endif; ?>
         </div>
 
         <div class="productos-grid" id="productosGrid">
@@ -110,6 +160,9 @@
                 <option value="tarjeta">Tarjeta</option>
                 <option value="bizum">Bizum</option>
             </select>
+            <div id="avisoLimiteEfectivo" style="display: none; color: #dc2626; font-size: 0.75rem; margin-top: 5px; font-weight: 600;">
+                ⚠️ No se permite pago en efectivo > 1.000€
+            </div>
             <button class="btn-cobrar" id="btnCobrar" onclick="intentarCobrar()" disabled>
                 Cobrar
             </button>
@@ -400,6 +453,196 @@
 ?>
 <?php endif; ?>
 
+<!-- ==================== MODAL: ABRIR CAJA ==================== -->
+<div class="modal-overlay" id="modalAbrirCaja" style="display:none;">
+    <div class="modal-content modal-premium" style="max-width: 450px;">
+        <div class="modal-header-premium" style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);">
+            <div class="icon-container-discount">
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
+                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+            </div>
+            <h3>Apertura de Caja</h3>
+            <p>Introduce el efectivo inicial para comenzar la jornada</p>
+        </div>
+        
+        <div class="modal-body-premium">
+            <form id="formAbrirCaja" method="POST" action="index.php">
+                <input type="hidden" name="accion" value="abrirCaja">
+                <div class="form-group-premium">
+                    <label for="importeInicial">Fondo de caja inicial (€)</label>
+                    <div class="input-cupon">
+                        <input type="number" name="importeInicial" id="importeInicial" step="0.01" min="0" placeholder="0,00" required
+                            style="text-align: center; padding-right: 15px;">
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 15px; margin-top: 30px;">
+                    <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalAbrirCaja')" style="flex: 1;">Cancelar</button>
+                    <button type="submit" class="btn-apply-premium" style="flex: 1; background: #16a34a; color: white; border:none; border-radius:12px; cursor:pointer;">Confirmar Apertura</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODAL: DEVOLUCIÓN (REMBOLSO) ==================== -->
+<div class="modal-overlay" id="modalDevolucion" style="display:none;">
+    <div class="modal-content modal-premium" style="max-width: 550px;">
+        <div class="modal-header-premium" style="background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);">
+            <div class="icon-container-discount">
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
+                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 4v6h6"></path>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                </svg>
+            </div>
+            <h3>Tramitar Devolución</h3>
+            <p>Selecciona un producto y la cantidad a devolver</p>
+        </div>
+        
+        <div class="modal-body-premium">
+            <form id="formDevolucion" method="POST" action="index.php">
+                <input type="hidden" name="accion" value="tramitarDevolucion">
+                
+                <div class="form-group-premium">
+                    <label for="buscarProductoDev">Buscar Producto</label>
+                    <div style="position: relative;">
+                        <input type="text" id="buscarProductoDev" placeholder="Escribe el nombre del producto..." 
+                               onkeyup="filtrarProductosDev(this.value)" autocomplete="off">
+                        <div id="resultadosBusquedaDev" class="resultados-busqueda-dev" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 15px; margin-top: 15px;">
+                    <div class="form-group-premium" style="flex: 2;">
+                        <label>Producto Seleccionado</label>
+                        <input type="text" id="nombreProductoDev" readonly placeholder="Ninguno seleccionado" 
+                               style="background: #f3f4f6; color: #4b5563;">
+                        <input type="hidden" name="idProductoDev" id="idProductoDev" required>
+                    </div>
+                    <div class="form-group-premium" style="flex: 1;">
+                        <label for="cantidadDev">Cantidad</label>
+                        <input type="number" name="cantidadDev" id="cantidadDev" min="1" value="1" 
+                               onchange="calcularTotalDev()" onkeyup="calcularTotalDev()">
+                        <input type="hidden" id="precioUnitarioDev">
+                    </div>
+                </div>
+
+                <div class="form-group-premium" style="margin-top: 15px;">
+                    <label>Método de Devolución</label>
+                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                        <label style="flex: 1; cursor: pointer;">
+                            <input type="radio" name="metodoPagoDev" value="Efectivo" checked style="display: none;" onchange="updateMethodUI(this)">
+                            <div class="method-chip active" id="chip-Efectivo" style="padding: 10px; border: 2px solid #b91c1c; border-radius: 8px; text-align: center; color: #b91c1c; font-weight: 600;">Efectivo</div>
+                        </label>
+                        <label style="flex: 1; cursor: pointer;">
+                            <input type="radio" name="metodoPagoDev" value="Tarjeta" style="display: none;" onchange="updateMethodUI(this)">
+                            <div class="method-chip" id="chip-Tarjeta" style="padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; text-align: center; color: #6b7280;">Tarjeta</div>
+                        </label>
+                        <label style="flex: 1; cursor: pointer;">
+                            <input type="radio" name="metodoPagoDev" value="Bizum" style="display: none;" onchange="updateMethodUI(this)">
+                            <div class="method-chip" id="chip-Bizum" style="padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; text-align: center; color: #6b7280;">Bizum</div>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="margin-top: 25px; padding: 15px; background: #fee2e2; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; color: #991b1b;">TOTAL A DEVOLVER:</span>
+                    <span id="totalDevDisplay" style="font-size: 1.5rem; font-weight: 800; color: #b91c1c;">0,00 €</span>
+                    <input type="hidden" name="importeTotalDev" id="importeTotalDev">
+                </div>
+                
+                <div style="display: flex; gap: 15px; margin-top: 25px;">
+                    <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalDevolucion')" style="flex: 1;">Cancelar</button>
+                    <button type="submit" class="btn-apply-premium" id="btnConfirmarDev" disabled 
+                            style="flex: 1; background: #b91c1c; color: white; border:none; border-radius:12px; cursor:pointer; opacity: 0.5;">Confirmar Devolución</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODAL: DEVOLUCIÓN ÉXITO ==================== -->
+<?php if (isset($_SESSION['devolucionExito'])): ?>
+    <div class="modal-overlay" id="devolucionExito">
+        <div class="modal-content modal-exito" style="max-width: 400px; border-top: 5px solid #b91c1c;">
+            <div class="icon-container-discount" style="background: #fee2e2;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="#b91c1c"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 4v6h6"></path>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                </svg>
+            </div>
+            <h3 style="color: #991b1b; margin-top: 10px;">Devolución Realizada</h3>
+            <p style="color: #6b7280; font-size: 0.9rem;">El importe ha sido restado de las ganancias del método seleccionado correctamente.</p>
+            <button class="btn-cerrar-exito" style="background: #b91c1c; margin-top: 20px;" onclick="document.getElementById('devolucionExito').remove()">Aceptar</button>
+        </div>
+    </div>
+    <?php unset($_SESSION['devolucionExito']); ?>
+<?php endif; ?>
+
+<!-- ==================== MODAL: RETIRAR DINERO ==================== -->
+<div class="modal-overlay" id="modalRetiro" style="display:none;">
+    <div class="modal-content modal-premium" style="max-width: 450px;">
+        <div class="modal-header-premium" style="background: linear-gradient(135deg, #ea580c 0%, #9a3412 100%);">
+            <div class="icon-container-discount">
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
+                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="20" height="12" x="2" y="6" rx="2"></rect>
+                    <circle cx="12" cy="12" r="2"></circle>
+                    <path d="M6 12h.01M18 12h.01"></path>
+                </svg>
+            </div>
+            <h3>Retirar Dinero</h3>
+            <p>Ingresa la cantidad que deseas retirar de la caja</p>
+        </div>
+        
+        <div class="modal-body-premium">
+            <form id="formRetiro" method="POST" action="index.php">
+                <input type="hidden" name="accion" value="retirarDinero">
+                
+                <div class="form-group-premium">
+                    <label for="importeRetiro">Cantidad a Retirar (€)</label>
+                    <input type="number" name="importeRetiro" id="importeRetiro" step="0.01" min="0.01" placeholder="0.00" required>
+                </div>
+
+                <div class="form-group-premium" style="margin-top: 15px;">
+                    <label for="motivoRetiro">Motivo (Opcional)</label>
+                    <input type="text" name="motivoRetiro" id="motivoRetiro" placeholder="Ej: Pago a proveedor, ingreso banco...">
+                </div>
+                
+                <div style="display: flex; gap: 15px; margin-top: 25px;">
+                    <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalRetiro')" style="flex: 1;">Cancelar</button>
+                    <button type="submit" class="btn-apply-premium" style="flex: 1; background: #ea580c; color: white; border:none; border-radius:12px; cursor:pointer;">Confirmar Retiro</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODAL: RETIRO ÉXITO ==================== -->
+<?php if (isset($_SESSION['retiroExito'])): ?>
+    <div class="modal-overlay" id="retiroExito">
+        <div class="modal-content modal-exito" style="max-width: 400px; border-top: 5px solid #ea580c;">
+            <div class="icon-container-discount" style="background: #ffedd5;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="#ea580c"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="20" height="12" x="2" y="6" rx="2"></rect>
+                    <circle cx="12" cy="12" r="2"></circle>
+                    <path d="M6 12h.01M18 12h.01"></path>
+                </svg>
+            </div>
+            <h3 style="color: #9a3412; margin-top: 10px;">Retiro Realizado</h3>
+            <p style="color: #6b7280; font-size: 0.9rem;">El importe ha sido restado del efectivo en caja correctamente.</p>
+            <button class="btn-cerrar-exito" style="background: #ea580c; margin-top: 20px;" onclick="document.getElementById('retiroExito').remove()">Aceptar</button>
+        </div>
+    </div>
+    <?php unset($_SESSION['retiroExito']); ?>
+<?php endif; ?>
+
 <!-- ==================== MODAL: ERROR ==================== -->
 <?php if (isset($_SESSION['ventaError'])): ?>
     <div class="modal-overlay" id="ventaError">
@@ -446,33 +689,58 @@
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem;">
                     <span><strong style="color: #4b5563;">Efectivo:</strong>
                         (<?php echo $_SESSION['resumenCaja']['efectivo']['cantidad']; ?> tickets)</span>
-                    <span
-                        style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['efectivo']['total'], 2, ',', '.'); ?>
-                        €</span>
+                    <div style="text-align: right;">
+                        <span style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['efectivo']['total'], 2, ',', '.'); ?> €</span>
+                        <?php if ($_SESSION['resumenCaja']['efectivo']['devoluciones'] > 0): ?>
+                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev: -<?php echo number_format($_SESSION['resumenCaja']['efectivo']['devoluciones'], 2, ',', '.'); ?> €)</span>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem;">
                     <span><strong style="color: #4b5563;">Tarjeta:</strong>
                         (<?php echo $_SESSION['resumenCaja']['tarjeta']['cantidad']; ?> tickets)</span>
-                    <span
-                        style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['tarjeta']['total'], 2, ',', '.'); ?>
-                        €</span>
+                    <div style="text-align: right;">
+                        <span style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['tarjeta']['total'], 2, ',', '.'); ?> €</span>
+                        <?php if ($_SESSION['resumenCaja']['tarjeta']['devoluciones'] > 0): ?>
+                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev: -<?php echo number_format($_SESSION['resumenCaja']['tarjeta']['devoluciones'], 2, ',', '.'); ?> €)</span>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
                 <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.95rem;">
                     <span><strong style="color: #4b5563;">Bizum:</strong>
                         (<?php echo $_SESSION['resumenCaja']['bizum']['cantidad']; ?> tickets)</span>
-                    <span
-                        style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['bizum']['total'], 2, ',', '.'); ?>
-                        €</span>
+                    <div style="text-align: right;">
+                        <span style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['bizum']['total'], 2, ',', '.'); ?> €</span>
+                        <?php if ($_SESSION['resumenCaja']['bizum']['devoluciones'] > 0): ?>
+                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev: -<?php echo number_format($_SESSION['resumenCaja']['bizum']['devoluciones'], 2, ',', '.'); ?> €)</span>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
                 <div
                     style="display: flex; justify-content: space-between; border-top: 2px solid #1a1a2e; padding-top: 15px; font-size: 1.2rem;">
-                    <strong style="color: #1a1a2e;">TOTAL GENERADO:</strong>
+                    <strong style="color: #1a1a2e;">TOTAL VENTAS:</strong>
                     <strong
                         style="color: #059669;"><?php echo number_format($_SESSION['resumenCaja']['totalGeneral'], 2, ',', '.'); ?>
                         €</strong>
+                </div>
+
+                <!-- Detalles de Caja Reales -->
+                <div style="margin-top: 20px; border-top: 1px dashed #d1d5db; padding-top: 15px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; color: #4b5563;">
+                        <span>Fondo inicial:</span>
+                        <span><?php echo number_format($_SESSION['resumenCaja']['importeInicial'], 2, ',', '.'); ?> €</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; color: #b91c1c;">
+                        <span>Total Devoluciones:</span>
+                        <span style="font-weight: 600;">- <?php echo number_format($_SESSION['resumenCaja']['totalDevoluciones'], 2, ',', '.'); ?> €</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: bold; color: #1a1a2e;">
+                        <span>EFECTIVO REAL EN CAJA:</span>
+                        <span><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?> €</span>
+                    </div>
                 </div>
 
                 <!-- Footer visible solo al imprimir -->
@@ -521,25 +789,55 @@
                 </div>
                 <div
                     style="border-top: 1px solid #000; padding-top: 10px; padding-bottom: 5px; font-family: 'Inter', sans-serif;">
-                    <p style="margin: 5px 0; display:flex; justify-content:space-between;"><span>Efectivo
-                            (<?php echo $_SESSION['resumenCaja']['efectivo']['cantidad']; ?>):</span>
-                        <span><?php echo number_format($_SESSION['resumenCaja']['efectivo']['total'], 2, ',', '.'); ?>
-                            €</span>
+                    <p style="margin: 5px 0; display:flex; justify-content:space-between;">
+                        <span>Efectivo (<?php echo $_SESSION['resumenCaja']['efectivo']['cantidad']; ?>):</span>
+                        <span><?php echo number_format($_SESSION['resumenCaja']['efectivo']['total'], 2, ',', '.'); ?> €</span>
                     </p>
-                    <p style="margin: 5px 0; display:flex; justify-content:space-between;"><span>Tarjeta
-                            (<?php echo $_SESSION['resumenCaja']['tarjeta']['cantidad']; ?>):</span>
-                        <span><?php echo number_format($_SESSION['resumenCaja']['tarjeta']['total'], 2, ',', '.'); ?>
-                            €</span>
+                    <?php if ($_SESSION['resumenCaja']['efectivo']['devoluciones'] > 0): ?>
+                        <p style="margin: 0px 0 5px 0; display:flex; justify-content:flex-end; font-size: 0.8rem;">
+                            <span>(Devolución: -<?php echo number_format($_SESSION['resumenCaja']['efectivo']['devoluciones'], 2, ',', '.'); ?> €)</span>
+                        </p>
+                    <?php endif; ?>
+
+                    <p style="margin: 5px 0; display:flex; justify-content:space-between;">
+                        <span>Tarjeta (<?php echo $_SESSION['resumenCaja']['tarjeta']['cantidad']; ?>):</span>
+                        <span><?php echo number_format($_SESSION['resumenCaja']['tarjeta']['total'], 2, ',', '.'); ?> €</span>
                     </p>
-                    <p style="margin: 5px 0; display:flex; justify-content:space-between;"><span>Bizum
-                            (<?php echo $_SESSION['resumenCaja']['bizum']['cantidad']; ?>):</span>
+                    <?php if ($_SESSION['resumenCaja']['tarjeta']['devoluciones'] > 0): ?>
+                        <p style="margin: 0px 0 5px 0; display:flex; justify-content:flex-end; font-size: 0.8rem;">
+                            <span>(Devolución: -<?php echo number_format($_SESSION['resumenCaja']['tarjeta']['devoluciones'], 2, ',', '.'); ?> €)</span>
+                        </p>
+                    <?php endif; ?>
+
+                    <p style="margin: 5px 0; display:flex; justify-content:space-between;">
+                        <span>Bizum (<?php echo $_SESSION['resumenCaja']['bizum']['cantidad']; ?>):</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['bizum']['total'], 2, ',', '.'); ?> €</span>
                     </p>
+                    <?php if ($_SESSION['resumenCaja']['bizum']['devoluciones'] > 0): ?>
+                        <p style="margin: 0px 0 5px 0; display:flex; justify-content:flex-end; font-size: 0.8rem;">
+                            <span>(Devolución: -<?php echo number_format($_SESSION['resumenCaja']['bizum']['devoluciones'], 2, ',', '.'); ?> €)</span>
+                        </p>
+                    <?php endif; ?>
                 </div>
                 <div
-                    style="border-top: 2px solid #000; padding-top: 10px; margin-top: 10px; font-weight: bold; display:flex; justify-content:space-between; font-family: 'Inter', sans-serif;">
-                    <span>TOTAL:</span>
+                    style="border-top: 1px solid #000; padding-top: 10px; margin-top: 10px; font-weight: bold; display:flex; justify-content:space-between; font-family: 'Inter', sans-serif;">
+                    <span>TOTAL VENTAS:</span>
                     <span><?php echo number_format($_SESSION['resumenCaja']['totalGeneral'], 2, ',', '.'); ?> €</span>
+                </div>
+
+                <div style="border-top: 1px dashed #000; margin-top: 15px; padding-top: 10px; font-family: 'Inter', sans-serif;">
+                    <p style="margin: 5px 0; display:flex; justify-content:space-between; font-size: 0.9em;">
+                        <span>Fondo inicial:</span>
+                        <span><?php echo number_format($_SESSION['resumenCaja']['importeInicial'], 2, ',', '.'); ?> €</span>
+                    </p>
+                    <p style="margin: 5px 0; display:flex; justify-content:space-between; font-size: 0.9em; color: #000;">
+                        <span>Total Devoluciones:</span>
+                        <span>- <?php echo number_format($_SESSION['resumenCaja']['totalDevoluciones'], 2, ',', '.'); ?> €</span>
+                    </p>
+                    <p style="margin: 5px 0; display:flex; justify-content:space-between; font-weight: bold; font-size: 1.1em;">
+                        <span>EFECTIVO REAL CAJA:</span>
+                        <span><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?> €</span>
+                    </p>
                 </div>
                 <div style="text-align: center; margin-top: 30px; font-size: 0.8rem; font-family: 'Inter', sans-serif;">
                     <p>Firma / Sello</p>
@@ -588,6 +886,7 @@
     // ======================== CARRITO (persiste en memoria) ========================
     let carrito = [];
     let descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+    let cajaAbierta = <?php echo $sesionCaja ? 'true' : 'false'; ?>;
 
     function agregarAlCarrito(elemento) {
         const id = parseInt(elemento.dataset.id);
@@ -710,6 +1009,10 @@
 
         document.getElementById('ticketDesglose').innerHTML = htmlDesglose;
         totalEl.textContent = total.toFixed(2).replace('.', ',') + ' €';
+        
+        // Verificar límite de efectivo
+        verificarLimiteEfectivo();
+
         btnCobrar.disabled = false;
         btnDescuento.disabled = false;
     }
@@ -762,6 +1065,11 @@
         const metodoPago = document.getElementById('metodoPago').value;
 
         if (metodoPago === 'efectivo') {
+            const total = obtenerTotalCalculado();
+            if (total > 1000) {
+                alert('No se permite el pago en efectivo para importes superiores a 1.000€. Por favor, selecciona otro método de pago.');
+                return;
+            }
             mostrarModalCambio();
         } else {
             mostrarModalTipoDocumento();
@@ -823,6 +1131,13 @@
     // ======================== MODAL TIPO DOCUMENTO / CLIENTE ========================
     function mostrarModalTipoDocumento() {
         if (carrito.length === 0) return;
+
+        // Restricción de caja abierta
+        if (!cajaAbierta) {
+            alert('No se pueden realizar ventas si la caja no está abierta. Por favor, realiza la Apertura de Caja.');
+            return;
+        }
+
         document.getElementById('modalTipoDoc').style.display = 'flex';
     }
 
@@ -914,13 +1229,6 @@
         document.getElementById('formVenta').submit();
     }
 
-    // ======================== MODAL GENÉRICO ========================
-    function cerrarModal(id) {
-        const modal = document.getElementById(id);
-        if (modal) modal.style.display = 'none';
-    }
-
-    // ======================== MODAL VENTA EXITOSA ========================
     function cerrarExito() {
         document.getElementById('ventaExito').remove();
     }
@@ -1148,4 +1456,126 @@
                 statusEl.className = 'email-status email-error';
             });
     }
+
+    // ======================== CAJA ========================
+    function mostrarModalAbrirCaja() {
+        document.getElementById('modalAbrirCaja').style.display = 'flex';
+        document.getElementById('importeInicial').focus();
+    }
+
+    function mostrarModalDevolucion() {
+        document.getElementById('modalDevolucion').style.display = 'flex';
+        document.getElementById('buscarProductoDev').focus();
+    }
+
+    function mostrarModalRetiro() {
+        document.getElementById('modalRetiro').style.display = 'flex';
+        document.getElementById('importeRetiro').focus();
+    }
+
+    // ======================== DEVOLUCIONES ========================
+    let todosLosProductos = []; // Se cargará por AJAX o desde PHP si es necesario
+
+    function filtrarProductosDev(query) {
+        const resultados = document.getElementById('resultadosBusquedaDev');
+        if (query.length < 2) {
+            resultados.style.display = 'none';
+            return;
+        }
+
+        // Usamos fetch para obtener productos (o podemos usar la lista de productos que ya tiene el cajero)
+        fetch('api/productos.php?buscarProducto=' + encodeURIComponent(query))
+            .then(res => res.json())
+            .then(productos => {
+                if (productos.length === 0) {
+                    resultados.style.display = 'none';
+                    return;
+                }
+
+                resultados.innerHTML = '';
+                productos.forEach(p => {
+                    const div = document.createElement('div');
+                    div.className = 'resultado-item-dev';
+                    div.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span><strong>${p.nombre}</strong></span>
+                            <span style="color: #6b7280; font-size: 0.8rem;">${p.precio} €</span>
+                        </div>
+                    `;
+                    div.onclick = () => seleccionarProductoDev(p);
+                    resultados.appendChild(div);
+                });
+                resultados.style.display = 'block';
+            });
+    }
+
+    function seleccionarProductoDev(producto) {
+        document.getElementById('nombreProductoDev').value = producto.nombre;
+        document.getElementById('idProductoDev').value = producto.id;
+        document.getElementById('precioUnitarioDev').value = producto.precio;
+        document.getElementById('buscarProductoDev').value = '';
+        document.getElementById('resultadosBusquedaDev').style.display = 'none';
+        
+        calcularTotalDev();
+        
+        // Habilitar botón confirmación
+        const btn = document.getElementById('btnConfirmarDev');
+        btn.disabled = false;
+        btn.style.opacity = '1';
+    }
+
+    function calcularTotalDev() {
+        const precio = parseFloat(document.getElementById('precioUnitarioDev').value) || 0;
+        const cantidad = parseInt(document.getElementById('cantidadDev').value) || 0;
+        const total = precio * cantidad;
+        
+        document.getElementById('totalDevDisplay').textContent = total.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €';
+        document.getElementById('importeTotalDev').value = total.toFixed(2);
+    }
+
+    function updateMethodUI(radio) {
+        // Remover clase active de todos los chips
+        document.querySelectorAll('.method-chip').forEach(chip => {
+            chip.style.border = '2px solid #e5e7eb';
+            chip.style.color = '#6b7280';
+            chip.style.fontWeight = '400';
+            chip.classList.remove('active');
+        });
+
+        // Añadir clase active al chip seleccionado
+        const chip = document.getElementById('chip-' + radio.value);
+        if (chip) {
+            chip.style.border = '2px solid #b91c1c';
+            chip.style.color = '#b91c1c';
+            chip.style.fontWeight = '600';
+            chip.classList.add('active');
+        }
+    }
+
+    // ======================== UTILIDADES ========================
+    function cerrarModal(id) {
+        document.getElementById(id).style.display = 'none';
+    }
+
+    function verificarLimiteEfectivo() {
+        const metodo = document.getElementById('metodoPago')?.value;
+        const total = obtenerTotalCalculado();
+        const aviso = document.getElementById('avisoLimiteEfectivo');
+        
+        if (aviso) {
+            if (metodo === 'efectivo' && total > 1000) {
+                aviso.style.display = 'block';
+            } else {
+                aviso.style.display = 'none';
+            }
+        }
+    }
+
+    // Listener para el selector de pago
+    document.addEventListener('DOMContentLoaded', () => {
+        const selectPago = document.getElementById('metodoPago');
+        if (selectPago) {
+            selectPago.addEventListener('change', verificarLimiteEfectivo);
+        }
+    });
 </script>

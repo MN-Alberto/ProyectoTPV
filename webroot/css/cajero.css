@@ -3,6 +3,34 @@
    Autor: Alberto Méndez
    ============================================================ */
 
+/* ======================== SCROLLBAR CUSTOMIZATION ======================== */
+/* For WebKit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #1a1a2e;
+    border-radius: 10px;
+    border: 2px solid #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #374151;
+}
+
+/* For Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #1a1a2e #f1f1f1;
+}
+
 /* ======================== LAYOUT CAJERO ======================== */
 
 #cajero {
@@ -336,28 +364,27 @@ input[type=number] {
 }
 
 .btn-hacerCaja {
-    padding: 12px 16px;
-    background: #e5ffd8;
-    color: black;
-    border: 1px solid black;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    font-family: 'Inter', sans-serif;
-    cursor: pointer;
-    transition: background 0.15s;
-    transition: scale 0.15s ease-in-out;
     display: flex;
     align-items: center;
     gap: 8px;
+    background: #16a34a;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
-.btn-hacerCaja:hover {
-    background: #9cff8f;
-    color: #fff;
-    font-weight: bold;
-    border: 1px solid white;
-    scale: 1.10;
+.btn-hacerCaja:hover:not(:disabled) {
+    background: #15803d;
+    transform: translateY(-1px);
+}
+
+.btn-hacerCaja svg {
+    opacity: 0.9;
 }
 
 /* ======================== TICKET TOTAL Y ACCIONES ======================== */
@@ -772,6 +799,183 @@ input[type=number] {
 
 .modal-error-content button:hover {
     background: #b91c1c;
+}
+
+/* ======================== CAJA ======================== */
+
+.btn-abrirCaja {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #16a34a;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-abrirCaja:hover:not(:disabled) {
+    background: #15803d;
+    transform: translateY(-1px);
+}
+
+.btn-abrirCaja svg {
+    opacity: 0.9;
+}
+
+.indicador-efectivo {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    padding: 6px 14px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1.2;
+}
+
+.indicador-efectivo.caja-cerrada {
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.indicador-efectivo .label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #166534;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.indicador-efectivo.caja-cerrada .label {
+    color: #991b1b;
+}
+
+.indicador-efectivo .amount {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #15803d;
+}
+
+.btn-retiro {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #ea580c;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-retiro:hover:not(:disabled) {
+    background: #ea580c;
+    transform: translateY(-1px);
+}
+
+#importeRetiro {
+    width: 50px;
+    height: 25px;
+    text-align: center;
+}
+
+#motivoRetiro {
+    width: 300px;
+    height: 40px;
+    border: 1px solid rgb(211, 211, 211);
+    border-radius: 10px;
+    padding: 5px;
+}
+
+#motivoRetiro:focus {
+    border: 2px solid black;
+}
+
+/* Devoluciones */
+.btn-devolucion {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #b91c1c;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-devolucion:hover:not(:disabled) {
+    background: #991b1b;
+    transform: translateY(-1px);
+}
+
+.resultados-busqueda-dev {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-top: none;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1010;
+}
+
+.resultado-item-dev {
+    padding: 10px 15px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.resultado-item-dev:last-child {
+    border-bottom: none;
+}
+
+.resultado-item-dev:hover {
+    background: #f9fafb;
+}
+
+#buscarProductoDev {
+    width: 300px;
+    height: 40px;
+    border-radius: 10px;
+    padding: 5px;
+    border: 1px solid rgb(224, 224, 224);
+}
+
+#buscarProductoDev:focus {
+    border: 2px solid black;
+}
+
+#cantidadDev {
+    text-align: center;
+    height: 40px;
+    padding: 5px;
+    transition: border 0.15s ease-in-out;
+}
+
+#nombreProductoDev {
+    width: 250px;
+    height: 40px;
+    border-radius: 10px;
+    padding: 5px;
+    border: 1px solid rgb(224, 224, 224);
 }
 
 /* ======================== DESCUENTOS (PREMIUM) ======================== */
