@@ -142,6 +142,22 @@ class Producto
     }
 
     /**
+     * Obtiene todos los productos (activos e inactivos).
+     * @return array
+     */
+    public static function obtenerTodosAdmin()
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->prepare("SELECT * FROM productos ORDER BY nombre ASC");
+        $stmt->execute();
+        $productos = [];
+        while ($fila = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $productos[] = self::crearDesdeArray($fila);
+        }
+        return $productos;
+    }
+
+    /**
      * Obtiene todos los productos de una categoría.
      * @param int $idCategoria
      * @return array
@@ -246,7 +262,7 @@ class Producto
         $stmt->bindParam(':stock', $this->stock, PDO::PARAM_INT);
         $stmt->bindParam(':idCategoria', $this->idCategoria, PDO::PARAM_INT);
         $stmt->bindParam(':imagen', $this->imagen);
-        $stmt->bindParam(':activo', $this->activo, PDO::PARAM_BOOL);
+        $stmt->bindParam(':activo', $this->activo, PDO::PARAM_INT);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
         return $stmt->execute();
     }

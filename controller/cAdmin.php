@@ -28,7 +28,7 @@ if (isset($_REQUEST['cerrarSesion'])) {
 $sesionCaja = Caja::obtenerSesionAbierta();
 
 $tituloVentas = "Ventas (Sesión Actual)";
-$tituloPedidos = "Pedidos Hoy";
+$tituloPedidos = "Ventas realizadas hoy";
 
 // Lógica para el dashboard
 if ($sesionCaja) {
@@ -40,7 +40,7 @@ if ($sesionCaja) {
     if ($ultimaCaja && $ultimaCaja->getFechaCierre()) {
         $resumenCaja = Venta::obtenerResumenCerrada($ultimaCaja->getFechaApertura(), $ultimaCaja->getFechaCierre(), $ultimaCaja->getId());
         $tituloVentas = "Ventas (Sesión Anterior)";
-        $tituloPedidos = "Pedidos Sesión Anterior";
+        $tituloPedidos = "Ventas realizadas (Sesión Anterior)";
     } else {
         $resumenCaja = [
             'totalGeneral' => 0,
