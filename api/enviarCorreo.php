@@ -7,7 +7,7 @@
  * electrónico proporcionado utilizando la librería PHPMailer y el servidor SMTP de Gmail.
  * 
  * @author Alberto Méndez
- * @version 1.2 (26/02/2026)
+ * @version 1.2 (02/03/2026)
  */
 
 // Iniciamos la sesión para acceder a posibles variables de entorno o estado del usuario
@@ -105,7 +105,7 @@ $tipoTitulo = $isFactura ? 'FACTURA' : 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
 $emisorHtml = "
     <strong>TPV Bazar — Productos Informáticos</strong><br>
     NIF: B12345678<br>
-    C/ Falsa 123, 28000 Madrid<br>
+    C/ Falsa 123, 23000 León<br>
 ";
 
 // B. Bloque del Receptor (Solo se muestra si hay datos del cliente o es factura)
@@ -114,11 +114,11 @@ if ($isFactura || $clienteNif || $clienteNombre) {
     $receptorHtml = "<div style='margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc;'>
         <strong>Datos del Cliente:</strong><br>";
     if ($clienteNombre)
-        $receptorHtml .= htmlspecialchars($clienteNombre) . "<br>";
+        $receptorHtml .= htmlspecialchars($clienteNombre) . "<br>"; // Mostramos el nombre del cliente
     if ($clienteNif)
-        $receptorHtml .= "NIF/CIF: " . htmlspecialchars($clienteNif) . "<br>";
+        $receptorHtml .= "NIF/CIF: " . htmlspecialchars($clienteNif) . "<br>"; // Mostramos el NIF del cliente
     if ($clienteDir)
-        $receptorHtml .= htmlspecialchars($clienteDir) . "<br>";
+        $receptorHtml .= htmlspecialchars($clienteDir) . "<br>"; // Mostramos la dirección del cliente
     $receptorHtml .= "</div>";
 }
 

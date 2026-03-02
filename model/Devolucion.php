@@ -1,13 +1,15 @@
 <?php
-/*
- * Autor: Antigravity
- * Fecha: 26/02/2026
- * 
+/**
  * Modelo para las devoluciones de productos.
+ * 
+ * @author Alberto Méndez
+ * @version 1.2 (02/03/2026)
  */
 
+// Requerimos el fichero de conexión a la base de datos
 require_once(__DIR__ . '/../core/conexionDB.php');
 
+// Definimos la clase Devolucion
 class Devolucion
 {
     private $id;
@@ -99,7 +101,9 @@ class Devolucion
      */
     public function insertar()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
             "INSERT INTO devoluciones (idUsuario, idProducto, cantidad, importeTotal, idSesionCaja, fecha, metodoPago) 
              VALUES (:idUsuario, :idProducto, :cantidad, :importeTotal, :idSesionCaja, :fecha, :metodoPago)"
@@ -122,28 +126,47 @@ class Devolucion
 
     /**
      * Obtiene el total de devoluciones en una sesión de caja específica.
+     * 
+     * @param int $idSesionCaja
+     * @return float
      */
     public static function obtenerTotalPorSesion($idSesionCaja)
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare("SELECT SUM(importeTotal) as total FROM devoluciones WHERE idSesionCaja = :idSesionCaja");
+        // Vinculamos los parámetros
         $stmt->bindParam(':idSesionCaja', $idSesionCaja, PDO::PARAM_INT);
+        // Ejecutamos la consulta
         $stmt->execute();
+        // Obtenemos la fila
         $fila = $stmt->fetch();
+        // Devolvemos el total
         return (float) ($fila['total'] ?? 0);
     }
 
     /**
      * Obtiene el total de devoluciones por método de pago.
+     * 
+     * @param int $idSesionCaja
+     * @param string $metodo
+     * @return float
      */
     public static function obtenerTotalPorMetodo($idSesionCaja, $metodo)
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare("SELECT SUM(importeTotal) as total FROM devoluciones WHERE idSesionCaja = :idSesionCaja AND metodoPago = :metodo");
+        // Vinculamos los parámetros
         $stmt->bindParam(':idSesionCaja', $idSesionCaja, PDO::PARAM_INT);
         $stmt->bindParam(':metodo', $metodo);
+        // Ejecutamos la consulta
         $stmt->execute();
+        // Obtenemos la fila
         $fila = $stmt->fetch();
+        // Devolvemos el total
         return (float) ($fila['total'] ?? 0);
     }
 }

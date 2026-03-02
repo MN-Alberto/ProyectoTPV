@@ -180,6 +180,7 @@
 <script>
     // ======================== NAVEGACIÓN PANEL ADMIN ========================
 
+    // Títulos para el panel lateral
     const TITULOS = {
         dashboard: 'Resumen de Actividad',
         productos: 'Gestión de Productos',

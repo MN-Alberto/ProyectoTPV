@@ -1,12 +1,12 @@
 <?php
-
-/*
- * Autor: Alberto Méndez 
- * Fecha de actualización: 24/02/2026
+/**
+ * Modelo para las líneas de detalle de cada venta.
  * 
- * Clase modelo para las líneas de detalle de cada venta.
+ * @author Alberto Méndez
+ * @version 1.2 (02/03/2026)
  */
 
+// Requerimos el fichero de conexión a la base de datos
 require_once(__DIR__ . '/../core/conexionDB.php');
 
 class LineaVenta
@@ -92,16 +92,24 @@ class LineaVenta
      */
     public static function obtenerPorVenta($idVenta)
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
             "SELECT * FROM lineasVenta WHERE idVenta = :idVenta"
         );
+        // Vinculamos los parámetros
         $stmt->bindParam(':idVenta', $idVenta, PDO::PARAM_INT);
+        // Ejecutamos la consulta
         $stmt->execute();
+        // Creamos un array para guardar las líneas
         $lineas = [];
+        // Recorremos las filas
         while ($fila = $stmt->fetch()) {
+            // Creamos una nueva línea y la añadimos al array
             $lineas[] = self::crearDesdeArray($fila);
         }
+        // Devolvemos las líneas
         return $lineas;
     }
 
@@ -112,15 +120,21 @@ class LineaVenta
      */
     public static function buscarPorId($id)
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare("SELECT * FROM lineasVenta WHERE id = :id");
+        // Vinculamos los parámetros
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        // Ejecutamos la consulta
         $stmt->execute();
+        // Obtenemos la fila
         $fila = $stmt->fetch();
-
+        // Si se encuentra la fila, creamos una nueva línea
         if ($fila) {
             return self::crearDesdeArray($fila);
         }
+        // Si no se encuentra la fila, devolvemos null
         return null;
     }
 
@@ -130,19 +144,26 @@ class LineaVenta
      */
     public function insertar()
     {
-        $this->subtotal = $this->cantidad * $this->precioUnitario; //Calcula el subtotal automáticamente.
+        // Calcula el subtotal automáticamente.
+        $this->subtotal = $this->cantidad * $this->precioUnitario;
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
             "INSERT INTO lineasVenta (idVenta, idProducto, cantidad, precioUnitario, subtotal) 
              VALUES (:idVenta, :idProducto, :cantidad, :precioUnitario, :subtotal)"
         );
+        // Vinculamos los parámetros
         $stmt->bindParam(':idVenta', $this->idVenta, PDO::PARAM_INT);
         $stmt->bindParam(':idProducto', $this->idProducto, PDO::PARAM_INT);
         $stmt->bindParam(':cantidad', $this->cantidad, PDO::PARAM_INT);
         $stmt->bindParam(':precioUnitario', $this->precioUnitario);
         $stmt->bindParam(':subtotal', $this->subtotal);
+        // Ejecutamos la consulta
         $resultado = $stmt->execute();
+        // Obtenemos el último ID insertado
         $this->id = $conexion->lastInsertId();
+        // Devolvemos el resultado
         return $resultado;
     }
 
@@ -152,18 +173,23 @@ class LineaVenta
      */
     public function actualizar()
     {
+        // Calcula el subtotal automáticamente.
         $this->subtotal = $this->cantidad * $this->precioUnitario;
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
             "UPDATE lineasVenta SET idVenta = :idVenta, idProducto = :idProducto, 
              cantidad = :cantidad, precioUnitario = :precioUnitario, subtotal = :subtotal WHERE id = :id"
         );
+        // Vinculamos los parámetros
         $stmt->bindParam(':idVenta', $this->idVenta, PDO::PARAM_INT);
         $stmt->bindParam(':idProducto', $this->idProducto, PDO::PARAM_INT);
         $stmt->bindParam(':cantidad', $this->cantidad, PDO::PARAM_INT);
         $stmt->bindParam(':precioUnitario', $this->precioUnitario);
         $stmt->bindParam(':subtotal', $this->subtotal);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
+        // Ejecutamos la consulta
         return $stmt->execute();
     }
 
@@ -173,9 +199,13 @@ class LineaVenta
      */
     public function eliminar()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare("DELETE FROM lineasVenta WHERE id = :id");
+        // Vinculamos los parámetros
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
+        // Ejecutamos la consulta
         return $stmt->execute();
     }
 
@@ -186,9 +216,13 @@ class LineaVenta
      */
     public static function eliminarPorVenta($idVenta)
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare("DELETE FROM lineasVenta WHERE idVenta = :idVenta");
+        // Vinculamos los parámetros
         $stmt->bindParam(':idVenta', $idVenta, PDO::PARAM_INT);
+        // Ejecutamos la consulta
         return $stmt->execute();
     }
 
@@ -201,13 +235,16 @@ class LineaVenta
      */
     private static function crearDesdeArray($fila)
     {
+        // Creamos una nueva línea
         $linea = new LineaVenta();
+        // Asignamos los valores
         $linea->setId($fila['id']);
         $linea->setIdVenta($fila['idVenta']);
         $linea->setIdProducto($fila['idProducto']);
         $linea->setCantidad($fila['cantidad']);
         $linea->setPrecioUnitario($fila['precioUnitario']);
         $linea->setSubtotal($fila['subtotal']);
+        // Devolvemos la linea creada
         return $linea;
     }
 }

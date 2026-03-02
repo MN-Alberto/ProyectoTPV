@@ -1,15 +1,18 @@
 <?php
 
-/*
- * Autor: Alberto Méndez 
- * 
+/**
  * Clase modelo para la gestión de las sesiones de caja (apertura y cierre).
+ * 
+ * @author Alberto Méndez
+ * @version 1.2 (02/03/2026)
  */
 
+// Requerimos la clase de conexión a la base de datos
 require_once(__DIR__ . '/../core/conexionDB.php');
 
 class Caja
 {
+    // Propiedades de la clase
     private $id;
     private $idUsuario;
     private $fechaApertura;
@@ -84,12 +87,17 @@ class Caja
      */
     public static function obtenerSesionAbierta()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Ejecutamos la consulta
         $stmt = $conexion->query("SELECT * FROM caja_sesiones WHERE estado = 'abierta' LIMIT 1");
+        // Obtenemos la fila
         $fila = $stmt->fetch();
+        // Si la fila existe, la devolvemos
         if ($fila) {
             return self::crearDesdeArray($fila);
         }
+        // Si no existe, devolvemos null
         return null;
     }
 
@@ -99,12 +107,17 @@ class Caja
      */
     public static function obtenerUltimaSesionCerrada()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Ejecutamos la consulta
         $stmt = $conexion->query("SELECT * FROM caja_sesiones WHERE estado = 'cerrada' ORDER BY fechaCierre DESC LIMIT 1");
+        // Obtenemos la fila
         $fila = $stmt->fetch();
+        // Si la fila existe, la devolvemos
         if ($fila) {
             return self::crearDesdeArray($fila);
         }
+        // Si no existe, devolvemos null
         return null;
     }
 
@@ -116,21 +129,26 @@ class Caja
      */
     public static function abrir($idUsuario, $importeInicial)
     {
-        // Verificar si ya hay una abierta
+        // Verificar si ya hay una sesión de caja abierta
         if (self::obtenerSesionAbierta()) {
             return false;
         }
 
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
             "INSERT INTO caja_sesiones (idUsuario, importeInicial, importeActual, estado) 
              VALUES (:idUsuario, :importeInicial, :importeActual, 'abierta')"
         );
+        // Vinculamos los parámetros
         $stmt->bindParam(':idUsuario', $idUsuario, PDO::PARAM_INT);
         $stmt->bindParam(':importeInicial', $importeInicial);
         $stmt->bindParam(':importeActual', $importeInicial); // Al empezar, el actual es el inicial.
 
+        // Ejecutamos la consulta
         if ($stmt->execute()) {
+            // Si la consulta se ejecuta correctamente, devolvemos la sesión de caja abierta
             return self::obtenerSesionAbierta();
         }
         return false;
@@ -143,10 +161,13 @@ class Caja
      */
     public function actualizarEfectivo($variacion)
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
             "UPDATE caja_sesiones SET importeActual = importeActual + :variacion WHERE id = :id"
         );
+        // Vinculamos los parámetros
         $stmt->bindParam(':variacion', $variacion);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
         return $stmt->execute();
@@ -158,17 +179,28 @@ class Caja
      */
     public function cerrar()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
             "UPDATE caja_sesiones SET estado = 'cerrada', fechaCierre = CURRENT_TIMESTAMP WHERE id = :id"
         );
+        // Vinculamos los parámetros
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
+        // Ejecutamos la consulta
         return $stmt->execute();
     }
 
+    /**
+     * Crea una instancia de Caja desde un array.
+     * @param array $fila
+     * @return Caja
+     */
     private static function crearDesdeArray($fila)
     {
+        // Creamos una nueva instancia de Caja
         $caja = new Caja();
+        // Establecemos los valores de la instancia
         $caja->setId($fila['id']);
         $caja->setIdUsuario($fila['idUsuario']);
         $caja->setFechaApertura($fila['fechaApertura']);
@@ -176,6 +208,7 @@ class Caja
         $caja->setImporteInicial($fila['importeInicial']);
         $caja->setImporteActual($fila['importeActual']);
         $caja->setEstado($fila['estado']);
+        // Devolvemos la instancia
         return $caja;
     }
 }

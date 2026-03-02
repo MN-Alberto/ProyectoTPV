@@ -7,9 +7,11 @@
     <title>TPV Bazar Electrónico</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="webroot/css/login.css" rel="stylesheet" type="text/css">
+    <!-- Si la pagina en curso solicitada es la del cajero y la solicita el cajero o el admin, cargamos la hoja de estilos de cajero -->
     <?php if (isset($_SESSION['paginaEnCurso']) && ($_SESSION['paginaEnCurso'] === 'cajero' || $_SESSION['paginaEnCurso'] === 'admin')): ?>
         <link href="webroot/css/cajero.css" rel="stylesheet" type="text/css">
     <?php endif; ?>
+    <!-- Si la pagina en curso solicitada es la del admin y la solicita el admin, cargamos la hoja de estilos de admin -->
     <?php if (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'admin'): ?>
         <link href="webroot/css/admin.css" rel="stylesheet" type="text/css">
     <?php endif; ?>
@@ -35,6 +37,7 @@
             </svg>
             <h1>TPV Bazar Electrónico</h1>
         </div>
+        <!-- Si el id del usuario está guardado en la sesión, mostramos el nombre del usuario y el botón de cerrar sesión -->
         <?php if (isset($_SESSION['idUsuario'])): ?>
             <div class="header-usuario">
                 <span>Hola, <strong><?php echo htmlspecialchars($_SESSION['nombreUsuario']); ?></strong></span>
