@@ -2,11 +2,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <section id="cajero">
     <!-- Panel izquierdo: Navegación de Admin -->
-    <div class="cajero-productos" style="max-width: 300px; border-right: 1px solid #e5e7eb;">
-        <div id="formBuscarProducto" style="padding: 20px;">
-            <h2 style="font-size: 1.2rem; color: #1a1a2e;">Administración</h2>
+    <div class="cajero-productos admin-sidebar" style="max-width: 300px; border-right: 1px solid #e5e7eb;">
+        <div id="formBuscarProducto" class="admin-sidebar-header" style="padding: 20px;">
+            <h2 class="admin-view-title">Administración</h2>
         </div>
-        <div class="cajero-categorias" style="flex-direction: column; height: 100%; gap: 10px; padding: 20px;">
+        <div class="cajero-categorias admin-nav-buttons"
+            style="flex-direction: column; height: 100%; gap: 10px; padding: 20px;">
             <button class="cat-btn activa" data-seccion="dashboard" style="width: 100%; text-align: left;">
                 <i class="fas fa-chart-line" style="margin-right: 10px;"></i> Dashboard
             </button>
@@ -18,6 +19,9 @@
             </button>
             <button class="cat-btn" data-seccion="ventas" style="width: 100%; text-align: left;">
                 <i class="fas fa-file-invoice-dollar" style="margin-right: 10px;"></i> Ventas
+            </button>
+            <button class="cat-btn" data-seccion="devoluciones" style="width: 100%; text-align: left;">
+                <i class="fas fa-undo" style="margin-right: 10px;"></i> Devoluciones
             </button>
             <button class="cat-btn" data-seccion="configuracion" style="width: 100%; text-align: left;">
                 <i class="fas fa-cog" style="margin-right: 10px;"></i> Configuración
@@ -58,8 +62,7 @@
         </div>
 
         <div class="admin-content-panel">
-            <h3 id="adminTitulo"
-                style="margin-bottom: 20px; color: #1a1a2e; border-bottom: 2px solid #f0f2f5; padding-bottom: 10px;">
+            <h3 id="adminTitulo" class="admin-view-subtitle">
                 Resumen de Actividad
             </h3>
             <div id="adminContenido" class="contenido-admin">
@@ -120,8 +123,8 @@
 
 <div class="modal-overlay" id="modalEditarProducto" style="display:none;">
     <div class="modal-content modal-editarProducto">
-        <h3>Editar Producto</h3>
-        <p class="modal-subtitulo">Modifica los datos del producto</p>
+        <h3 id="editProductoTitulo">Editar Producto</h3>
+        <p id="editProductoSubtitulo" class="modal-subtitulo">Modifica los datos del producto</p>
 
         <input type="hidden" id="editProductoId">
 
@@ -145,8 +148,9 @@
                 </div>
                 <div class="editar-prod-fila">
                     <label>Categoría</label>
-                    <input type="text" id="editProductoCategoria" readonly
-                        style="background:#f3f4f6; cursor:not-allowed;">
+                    <select id="editProductoCategoria"
+                        style="padding: 8px; border-radius: 4px; border: 1px solid #d1d5db;">
+                    </select>
                 </div>
                 <div class="editar-prod-fila">
                     <label>Precio (€)</label>
@@ -175,6 +179,151 @@
     </div>
 </div>
 
+<!-- ##-----------------------------------MODAL VER USUARIO-----------------------------------## -->
+
+<div class="modal-overlay" id="modalVerUsuario" style="display:none;">
+    <div class="modal-content modal-verProducto" style="max-width: 420px;">
+        <h3>Detalle del Usuario</h3>
+        <p class="modal-subtitulo">Información completa</p>
+
+        <div style="display: flex; flex-direction: column; gap: 15px; margin: 20px 0;">
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Nombre</span>
+                <span id="verUsuarioNombre" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Email</span>
+                <span id="verUsuarioEmail" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Rol</span>
+                <span id="verUsuarioRol" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Fecha de Alta</span>
+                <span id="verUsuarioFecha" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Estado</span>
+                <span id="verUsuarioEstado" class="ver-prod-valor"></span>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: center; margin-top: 20px;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerUsuario')" style="min-width: 100px;">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ##-----------------------------------MODAL VER DEVOLUCION-----------------------------------## -->
+
+<div class="modal-overlay" id="modalVerDevolucion" style="display:none;">
+    <div class="modal-content modal-verProducto" style="max-width: 420px;">
+        <h3>Detalle de Devolución</h3>
+        <p class="modal-subtitulo">Información de la operación</p>
+
+        <div style="display: flex; flex-direction: column; gap: 15px; margin: 20px 0;">
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">ID Devolución</span>
+                <span id="verDevolucionId" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Ticket Original</span>
+                <span id="verDevolucionTicket" class="ver-prod-valor" style="font-weight: 700; color: #1e40af;"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Fecha</span>
+                <span id="verDevolucionFecha" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Producto</span>
+                <span id="verDevolucionProducto" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Cantidad</span>
+                <span id="verDevolucionCantidad" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Importe Total</span>
+                <span id="verDevolucionImporte" class="ver-prod-valor" style="color: #dc2626; font-weight: 700;"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Método Reembolso</span>
+                <span id="verDevolucionMetodo" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Empleado</span>
+                <span id="verDevolucionUsuario" class="ver-prod-valor"></span>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: center; margin-top: 20px;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerDevolucion')" style="min-width: 100px;">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ##-----------------------------------MODAL EDITAR/CREAR USUARIO-----------------------------------## -->
+
+<div class="modal-overlay" id="modalEditarUsuario" style="display:none;">
+    <div class="modal-content modal-editarProducto">
+        <h3 id="editUsuarioTitulo">Editar Usuario</h3>
+        <p class="modal-subtitulo">Modifica los datos del usuario</p>
+
+        <input type="hidden" id="editUsuarioId">
+
+        <div class="editar-prod-campos" style="max-width: 100%;">
+            <div class="editar-prod-fila">
+                <label>Nombre <span style="color:red">*</span></label>
+                <input type="text" id="editUsuarioNombre" required>
+            </div>
+            <div class="editar-prod-fila">
+                <label>Email <span style="color:red">*</span></label>
+                <input type="email" id="editUsuarioEmail" required>
+            </div>
+            <div class="editar-prod-fila">
+                <label>Password <span style="color:red">*</span></label>
+                <input type="password" id="editUsuarioPassword">
+            </div>
+            <div class="editar-prod-fila">
+                <label>Rol</label>
+                <select id="editUsuarioRol">
+                    <option value="empleado">Empleado</option>
+                    <option value="admin">Administrador</option>
+                </select>
+            </div>
+            <div class="editar-prod-fila">
+                <label>Estado</label>
+                <select id="editUsuarioEstado">
+                    <option value="1">Activo</option>
+                    <option value="0">Inactivo</option>
+                </select>
+            </div>
+            <div class="editar-prod-fila" id="filaPermisos" style="display: none;">
+                <label>Permisos adicionales</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="editUsuarioPermisoCrearProductos" value="crear_productos"
+                        style="width: auto;">
+                    <span>Permitir crear productos</span>
+                </div>
+                <p style="font-size: 0.8rem; color: #6b7280; margin-top: 4px;">El empleado podrá añadir productos desde
+                    su vista de cajero</p>
+            </div>
+        </div>
+
+        <div class="editar-prod-botones">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalEditarUsuario')">Cancelar</button>
+            <button class="btn-exito" onclick="guardarCambiosUsuario()">
+                <i class="fas fa-save"></i> Guardar Cambios
+            </button>
+        </div>
+    </div>
+</div>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <script>
@@ -186,6 +335,7 @@
         productos: 'Gestión de Productos',
         usuarios: 'Gestión de Usuarios',
         ventas: 'Historial de Ventas',
+        devoluciones: 'Gestión de Devoluciones',
         configuracion: 'Configuración'
     };
 
@@ -204,22 +354,19 @@
                     cargarGraficoDashboard();
                     break;
                 case 'productos':
-                    cargarProductosAdmin();
+                    cargarCategoriasAdmin().then(() => cargarProductosAdmin());
                     break;
                 case 'usuarios':
-                    // TODO: cargarUsuariosAdmin();
-                    document.getElementById('adminContenido').innerHTML =
-                        '<p style="color:#9ca3af; padding:40px; text-align:center;">Sección en construcción...</p>';
+                    cargarUsuariosAdmin();
                     break;
                 case 'ventas':
-                    // TODO: cargarVentasAdmin();
-                    document.getElementById('adminContenido').innerHTML =
-                        '<p style="color:#9ca3af; padding:40px; text-align:center;">Sección en construcción...</p>';
+                    cargarVentasAdmin();
+                    break;
+                case 'devoluciones':
+                    cargarDevolucionesAdmin();
                     break;
                 case 'configuracion':
-                    // TODO: cargarConfiguracion();
-                    document.getElementById('adminContenido').innerHTML =
-                        '<p style="color:#9ca3af; padding:40px; text-align:center;">Sección en construcción...</p>';
+                    cargarConfiguracion();
                     break;
             }
         });

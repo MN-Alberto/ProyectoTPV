@@ -19,6 +19,7 @@ class Caja
     private $fechaCierre;
     private $importeInicial;
     private $importeActual;
+    private $cambio; // Cambio guardado para el siguiente turno
     private $estado; // 'abierta', 'cerrada'
 
     // ======================== GETTERS ========================
@@ -45,6 +46,10 @@ class Caja
     public function getImporteActual()
     {
         return $this->importeActual;
+    }
+    public function getCambio()
+    {
+        return $this->cambio;
     }
     public function getEstado()
     {
@@ -75,6 +80,10 @@ class Caja
     public function setImporteActual($importeActual)
     {
         $this->importeActual = $importeActual;
+    }
+    public function setCambio($cambio)
+    {
+        $this->cambio = $cambio;
     }
     public function setEstado($estado)
     {
@@ -125,9 +134,10 @@ class Caja
      * Abre una nueva sesión de caja.
      * @param int $idUsuario
      * @param float $importeInicial
+     * @param float $cambioOptional Cambio recovery from previous session (opcional)
      * @return Caja|bool
      */
-    public static function abrir($idUsuario, $importeInicial)
+    public static function abrir($idUsuario, $importeInicial, $cambioOptional = 0)
     {
         // Verificar si ya hay una sesión de caja abierta
         if (self::obtenerSesionAbierta()) {
@@ -136,15 +146,19 @@ class Caja
 
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+
+        // Si se proporciona un cambio recovery, lo sumamos al importe inicial
+        $importeTotal = $importeInicial + $cambioOptional;
+
         // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "INSERT INTO caja_sesiones (idUsuario, importeInicial, importeActual, estado) 
-             VALUES (:idUsuario, :importeInicial, :importeActual, 'abierta')"
+            "INSERT INTO caja_sesiones (idUsuario, importeInicial, importeActual, cambio, estado) 
+             VALUES (:idUsuario, :importeInicial, :importeActual, 0, 'abierta')"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':idUsuario', $idUsuario, PDO::PARAM_INT);
-        $stmt->bindParam(':importeInicial', $importeInicial);
-        $stmt->bindParam(':importeActual', $importeInicial); // Al empezar, el actual es el inicial.
+        $stmt->bindParam(':importeInicial', $importeTotal);
+        $stmt->bindParam(':importeActual', $importeTotal);
 
         // Ejecutamos la consulta
         if ($stmt->execute()) {
@@ -175,18 +189,24 @@ class Caja
 
     /**
      * Cierra la sesión de caja actual.
+     * @param float $cambioOptional Cambio a guardar para el siguiente turno (opcional)
      * @return bool
      */
-    public function cerrar()
+    public function cerrar($cambioOptional = null)
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+
+        // Si se proporciona un cambio, lo guardamos; si no, usamos el importe actual como cambio por defecto
+        $cambio = $cambioOptional !== null ? $cambioOptional : $this->importeActual;
+
         // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "UPDATE caja_sesiones SET estado = 'cerrada', fechaCierre = CURRENT_TIMESTAMP WHERE id = :id"
+            "UPDATE caja_sesiones SET estado = 'cerrada', fechaCierre = CURRENT_TIMESTAMP, cambio = :cambio WHERE id = :id"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
+        $stmt->bindParam(':cambio', $cambio, PDO::PARAM_STR);
         // Ejecutamos la consulta
         return $stmt->execute();
     }
@@ -207,6 +227,7 @@ class Caja
         $caja->setFechaCierre($fila['fechaCierre']);
         $caja->setImporteInicial($fila['importeInicial']);
         $caja->setImporteActual($fila['importeActual']);
+        $caja->setCambio(isset($fila['cambio']) ? $fila['cambio'] : 0);
         $caja->setEstado($fila['estado']);
         // Devolvemos la instancia
         return $caja;

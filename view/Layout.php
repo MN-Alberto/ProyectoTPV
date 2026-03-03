@@ -11,11 +11,12 @@
     <?php if (isset($_SESSION['paginaEnCurso']) && ($_SESSION['paginaEnCurso'] === 'cajero' || $_SESSION['paginaEnCurso'] === 'admin')): ?>
         <link href="webroot/css/cajero.css" rel="stylesheet" type="text/css">
     <?php endif; ?>
-    <!-- Si la pagina en curso solicitada es la del admin y la solicita el admin, cargamos la hoja de estilos de admin -->
-    <?php if (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'admin'): ?>
+    <!-- Si la pagina en curso solicitada es la del admin o cajero, cargamos la hoja de estilos de admin (para modales) -->
+    <?php if (isset($_SESSION['paginaEnCurso']) && ($_SESSION['paginaEnCurso'] === 'admin' || $_SESSION['paginaEnCurso'] === 'cajero')): ?>
         <link href="webroot/css/admin.css" rel="stylesheet" type="text/css">
     <?php endif; ?>
     <link rel="icon" href="webroot/img/logoCPU.PNG" type="image/png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
 <body>
@@ -40,6 +41,14 @@
         <!-- Si el id del usuario está guardado en la sesión, mostramos el nombre del usuario y el botón de cerrar sesión -->
         <?php if (isset($_SESSION['idUsuario'])): ?>
             <div class="header-usuario">
+                <div class="theme-toggle" title="Cambiar tema">
+                    <button class="theme-btn" id="btnModoClaro" onclick="setTheme('light')" title="Modo claro">
+                        <i class="fas fa-sun"></i>
+                    </button>
+                    <button class="theme-btn" id="btnModoOscuro" onclick="setTheme('dark')" title="Modo oscuro">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
                 <span>Hola, <strong><?php echo htmlspecialchars($_SESSION['nombreUsuario']); ?></strong></span>
                 <form action="<?php echo $_SERVER["PHP_SELF"]; ?>" method="post">
                     <input type="submit" name="cerrarSesion" class="btn-cerrar-sesion" value="Cerrar Sesión">
@@ -62,5 +71,40 @@
         </a>
     </footer>
 </body>
+
+<script>
+    // Theme toggle functionality
+    function setTheme(theme) {
+        if (theme === 'dark') {
+            document.body.classList.add('dark-mode');
+            localStorage.setItem('theme', 'dark');
+            document.getElementById('btnModoOscuro').classList.add('active');
+            document.getElementById('btnModoClaro').classList.remove('active');
+        } else {
+            document.body.classList.remove('dark-mode');
+            localStorage.setItem('theme', 'light');
+            document.getElementById('btnModoClaro').classList.add('active');
+            document.getElementById('btnModoOscuro').classList.remove('active');
+        }
+        // Dispatch custom event for charts to update
+        window.dispatchEvent(new Event('themeChange'));
+    }
+
+    // Load saved theme on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('btnModoOscuro').classList.add('active');
+        } else {
+            document.getElementById('btnModoClaro').classList.add('active');
+        }
+
+        // Aplicar tema personalizado guardado
+        if (typeof aplicarTemaGuardado === 'function') {
+            aplicarTemaGuardado();
+        }
+    });
+</script>
 
 </html>

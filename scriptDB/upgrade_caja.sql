@@ -10,9 +10,13 @@ CREATE TABLE IF NOT EXISTS caja_sesiones (
     fechaCierre DATETIME NULL,
     importeInicial DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     importeActual DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    cambio DECIMAL(10, 2) NOT NULL DEFAULT 0.00 COMMENT 'Cambio guardado para el siguiente turno',
     estado ENUM('abierta', 'cerrada') NOT NULL DEFAULT 'abierta',
     FOREIGN KEY (idUsuario) REFERENCES usuarios(id) ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB;
+
+-- Añadir campo cambio si no existe (para bases de datos existentes)
+ALTER TABLE caja_sesiones ADD COLUMN IF NOT EXISTS cambio DECIMAL(10, 2) NOT NULL DEFAULT 0.00 COMMENT 'Cambio guardado para el siguiente turno';
 
 -- Asegurar que la tabla ventas tiene los campos necesarios para el seguimiento de caja
 -- (dineroEntregado y cambioDevuelto son útiles para auditoría según la fórmula del usuario)

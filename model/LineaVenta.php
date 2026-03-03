@@ -86,6 +86,31 @@ class LineaVenta
     // ======================== MÉTODOS CRUD ========================
 
     /**
+     * Obtiene los detalles de una venta incluyendo la cantidad total ya devuelta de cada producto.
+     * Útil para el proceso de validación de devoluciones.
+     * 
+     * @param int $idVenta
+     * @return array
+     */
+    public static function obtenerDetalleParaDevolucion($idVenta)
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        // Consulta que une las líneas de venta con la suma de devoluciones ya realizadas para este ticket
+        $sql = "SELECT lv.*, p.nombre as producto_nombre,
+                       IFNULL((SELECT SUM(d.cantidad) FROM devoluciones d 
+                               WHERE d.idVenta = lv.idVenta AND d.idProducto = lv.idProducto), 0) as cantidad_devuelta
+                FROM lineasVenta lv
+                JOIN productos p ON lv.idProducto = p.id
+                WHERE lv.idVenta = :idVenta";
+
+        $stmt = $conexion->prepare($sql);
+        $stmt->bindParam(':idVenta', $idVenta, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
      * Obtiene todas las líneas de una venta.
      * @param int $idVenta
      * @return array

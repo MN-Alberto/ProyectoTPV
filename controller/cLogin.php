@@ -31,6 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['usuario'], $_POST['pa
             $_SESSION['idUsuario'] = $usuario->getId();
             $_SESSION['nombreUsuario'] = $usuario->getNombre();
             $_SESSION['rolUsuario'] = $usuario->getRol();
+            $_SESSION['permisosUsuario'] = $usuario->getPermisos();
 
             // Redirigimos según el rol, si es admin a la vista de admin y si es cajero a la de cajero
             if ($usuario->getRol() === 'admin') {

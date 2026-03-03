@@ -10,6 +10,7 @@
 require_once(__DIR__ . '/../model/Venta.php');
 require_once(__DIR__ . '/../model/Caja.php');
 require_once(__DIR__ . '/../model/Producto.php');
+require_once(__DIR__ . '/../model/Usuario.php');
 
 // Si no hay una sesión iniciada o el usuario no es admin, redirigimos al login.
 if (!isset($_SESSION['rolUsuario']) || $_SESSION['rolUsuario'] !== 'admin') {

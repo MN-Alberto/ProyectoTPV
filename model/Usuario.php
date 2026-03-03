@@ -58,6 +58,11 @@ class Usuario
         return $this->activo;
     }
 
+    public function getPermisos()
+    {
+        return $this->permisos;
+    }
+
     // ======================== SETTERS ========================
 
     public function setId($id)
@@ -93,6 +98,26 @@ class Usuario
     public function setActivo($activo)
     {
         $this->activo = $activo;
+    }
+
+    public function setPermisos($permisos)
+    {
+        $this->permisos = $permisos;
+    }
+
+    /**
+     * Verifica si el usuario tiene un permiso específico.
+     * @param string $permiso El permiso a verificar (ej: 'crear_productos')
+     * @return bool
+     */
+    public function tienePermiso($permiso)
+    {
+        if ($this->permisos === null || $this->permisos === '') {
+            return false;
+        }
+        // Los permisos están almacenados como una cadena separada por comas
+        $permisosArray = explode(',', $this->permisos);
+        return in_array($permiso, $permisosArray);
     }
 
     // ======================== MÉTODOS CRUD ========================
@@ -145,6 +170,33 @@ class Usuario
         }
         // Si no se encuentra la fila, devolvemos null
         return null;
+    }
+
+    /**
+     * Busca usuarios por nombre (búsqueda parcial).
+     * @param string $nombre
+     * @return array
+     */
+    public static function buscarPorNombreParcial($nombre)
+    {
+        // Obtenemos la instancia de la conexión
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta con LIKE para búsqueda parcial
+        $stmt = $conexion->prepare("SELECT * FROM usuarios WHERE nombre LIKE :nombre ORDER BY nombre");
+        // Vinculamos el parámetro con comodines para búsqueda parcial
+        $busqueda = '%' . $nombre . '%';
+        $stmt->bindParam(':nombre', $busqueda);
+        // Ejecutamos la consulta
+        $stmt->execute();
+        // Creamos un array para guardar los usuarios
+        $usuarios = [];
+        // Recorremos las filas
+        while ($fila = $stmt->fetch()) {
+            // Creamos un nuevo usuario y lo añadimos al array
+            $usuarios[] = self::crearDesdeArray($fila);
+        }
+        // Devolvemos los usuarios
+        return $usuarios;
     }
 
     /**
@@ -203,8 +255,8 @@ class Usuario
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "INSERT INTO usuarios (nombre, email, password, rol, fechaAlta, activo) 
-             VALUES (:nombre, :email, :password, :rol, :fechaAlta, :activo)"
+            "INSERT INTO usuarios (nombre, email, password, rol, fechaAlta, activo, permisos) 
+             VALUES (:nombre, :email, :password, :rol, :fechaAlta, :activo, :permisos)"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':nombre', $this->nombre);
@@ -213,6 +265,7 @@ class Usuario
         $stmt->bindParam(':rol', $this->rol);
         $stmt->bindParam(':fechaAlta', $this->fechaAlta);
         $stmt->bindParam(':activo', $this->activo, PDO::PARAM_BOOL);
+        $stmt->bindParam(':permisos', $this->permisos);
         // Ejecutamos la consulta
         $resultado = $stmt->execute();
         // Obtenemos el ID del nuevo usuario
@@ -232,7 +285,7 @@ class Usuario
         // Preparamos la consulta
         $stmt = $conexion->prepare(
             "UPDATE usuarios SET nombre = :nombre, email = :email, password = :password, 
-             rol = :rol, activo = :activo WHERE id = :id"
+             rol = :rol, activo = :activo, permisos = :permisos WHERE id = :id"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':nombre', $this->nombre);
@@ -240,6 +293,7 @@ class Usuario
         $stmt->bindParam(':password', $this->password);
         $stmt->bindParam(':rol', $this->rol);
         $stmt->bindParam(':activo', $this->activo, PDO::PARAM_BOOL);
+        $stmt->bindParam(':permisos', $this->permisos);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
         // Ejecutamos la consulta
         return $stmt->execute();
@@ -298,6 +352,7 @@ class Usuario
         $usuario->setRol($fila['rol']);
         $usuario->setFechaAlta($fila['fechaAlta']);
         $usuario->setActivo($fila['activo']);
+        $usuario->setPermisos(isset($fila['permisos']) ? $fila['permisos'] : null);
         // Devolvemos el usuario
         return $usuario;
     }

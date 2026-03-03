@@ -29,8 +29,7 @@
         <!-- ==================== BUSCADOR DE PRODUCTOS ==================== -->
         <!-- Input de búsqueda que filtra productos en tiempo real mediante la función buscarProductos() -->
         <div id="formBuscarProducto" style="align-items: center;">
-            <label for="inputBuscarProducto"
-                style="font-weight: 600; color: #1a1a2e; white-space: nowrap;">Buscar:</label>
+            <label for="inputBuscarProducto" style="font-weight: 600; white-space: nowrap;">Buscar:</label>
             <input type="text" id="inputBuscarProducto" class="input-buscarProducto"
                 placeholder="Escribe el nombre del producto a buscar..." oninput="buscarProductos()" autocomplete="off"
                 style="width: 100%;" />
@@ -55,8 +54,7 @@
 
         <!-- ==================== BARRA DE OPCIONES EXTRA ==================== -->
         <!-- Contiene los botones de acción principales y el indicador de efectivo en caja -->
-        <div class="cajero-opciones-extra"
-            style="padding: 15px 20px; background: #fff; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+        <div class="cajero-opciones-extra">
 
             <div style="display: flex; gap: 10px; align-items: center;">
 
@@ -114,6 +112,28 @@
                         <path d="M6 12h.01M18 12h.01"></path>
                     </svg>
                     Retirar Dinero
+                </button>
+
+                <!-- Botón HISTORIAL DE VENTAS: abre el modal con el historial de ventas de la sesión actual -->
+                <button type="button" class="btn-historial" id="btnHistorial" onclick="mostrarHistorialVentas()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                    style="<?php echo !$sesionCaja ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 8v4l3 3"></path>
+                        <circle cx="12" cy="12" r="10"></circle>
+                    </svg>
+                    Historial Ventas
+                </button>
+
+                <!-- Botón NUEVO PRODUCTO: abre el modal para crear un nuevo producto (requiere permiso: crear_productos) -->
+                <button type="button" class="btn-nuevo-producto" id="btnNuevoProducto"
+                    onclick="abrirModalNuevoProducto()" style="display:none;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Nuevo
                 </button>
             </div>
 
@@ -260,13 +280,26 @@
             </button>
 
             <!-- Botón DESCUENTO: abre el modal para aplicar descuento porcentual o por cupón -->
-            <button class="btn-descuento" id="btnDescuento" onclick="aplicarDescuento()" disabled>
-                Descuento
+            <button class="btn-descuento" id="btnDescuento" onclick="aplicarDescuento()" disabled
+                title="Aplicar descuento">
+                🏷️
             </button>
 
             <!-- Botón VACIAR: elimina todos los productos del carrito -->
-            <button class="btn-cancelar" onclick="vaciarCarrito()">
-                Vaciar
+            <button class="btn-cancelar" onclick="vaciarCarrito()" title="Vaciar carrito">
+                🗑️
+            </button>
+
+            <!-- Botón POSPONER: guarda la venta sin terminar para recuperarla después -->
+            <button class="btn-descuento" id="btnPosponer" onclick="posponerVenta()" disabled
+                style="background: #8b5cf6;" title="Posponer venta">
+                ⏳
+            </button>
+
+            <!-- Botón RECUPERAR: recupera la última venta pospuesta -->
+            <button class="btn-descuento" id="btnRecuperar" onclick="recuperarVenta()" style="background: #f59e0b;"
+                title="Recuperar venta">
+                🔄
             </button>
         </div>
     </div>
@@ -308,13 +341,12 @@
         <p class="modal-subtitulo">Introduce la cantidad entregada por el cliente</p>
 
         <!-- Contenedor del cálculo de cambio -->
-        <div class="calculo-cambio-container"
-            style="text-align: left; background: #f9fafb; padding: 20px; border-radius: 8px; margin: 15px 0;">
+        <div class="calculo-cambio-container">
 
             <!-- Fila 1: Total a pagar (se rellena con JS) -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <span style="font-size: 1.1rem; color: #4b5563;">Total a pagar:</span>
-                <span id="cambioTotalPagar" style="font-size: 1.4rem; font-weight: bold; color: #1f2937;">0,00 €</span>
+                <span id="cambioTotalPagar" class="cambio-total-monto">0,00 €</span>
             </div>
 
             <!-- Fila 2: Input para la cantidad entregada por el cliente -->
@@ -452,9 +484,8 @@
 <div class="modal-overlay" id="modalDatosCliente" style="display:none;">
     <div class="modal-content" style="max-width: 500px; text-align: left;">
         <!-- Título dinámico que cambia según sea Ticket o Factura -->
-        <h3 id="tituloDatosCliente" style="margin-bottom: 5px; color: #1a1a2e;">Datos del Cliente</h3>
-        <p id="subtituloDatosCliente" style="color: #6b7280; font-size: 0.9rem; margin-bottom: 20px;">Complete los datos
-            (Opcional en Ticket)</p>
+        <h3 id="tituloDatosCliente" style="margin-bottom: 5px;">Datos del Cliente</h3>
+        <p id="subtituloDatosCliente" class="modal-subtitulo-cliente">Complete los datos (Opcional en Ticket)</p>
 
         <div style="display: grid; gap: 15px;">
             <!-- Campo NIF/CIF del cliente -->
@@ -620,7 +651,7 @@
 <div class="modal-overlay" id="modalAbrirCaja" style="display:none;">
     <div class="modal-content modal-premium" style="max-width: 450px;">
         <!-- Cabecera con gradiente verde y icono de candado -->
-        <div class="modal-header-premium" style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);">
+        <div class="modal-header-premiummodal-header-green">
             <div class="icon-container-discount">
                 <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
                     stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -636,12 +667,37 @@
             <!-- Formulario de apertura de caja -->
             <form id="formAbrirCaja" method="POST" action="index.php">
                 <input type="hidden" name="accion" value="abrirCaja">
+                <input type="hidden" name="cambioRecovery" id="cambioRecovery" value="0">
+
+                <?php if ($cambioAnterior > 0): ?>
+                    <!-- Opción para recuperar cambio anterior -->
+                    <div class="resumen-caja-container" style="margin-bottom: 15px; border-color: #10b981;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="opcionCambio" value="recuperar" checked onclick="toggleCambio(false)"
+                                style="margin-right: 8px;">
+                            <span>💰 Recuperar cambio anterior:
+                                <strong><?php echo number_format($cambioAnterior, 2, ',', '.'); ?> €</strong></span>
+                        </label>
+                    </div>
+                    <div class="resumen-caja-container" style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="opcionCambio" value="nuevo" onclick="toggleCambio(true)"
+                                style="margin-right: 8px;">
+                            <span>✨ Introducir nuevo cambio</span>
+                        </label>
+                    </div>
+                <?php else: ?>
+                    <input type="radio" name="opcionCambio" value="nuevo" checked style="display:none;">
+                <?php endif; ?>
+
                 <!-- Input para el importe inicial (fondo de caja) -->
-                <div class="form-group-premium">
+                <div class="form-group-premium" id="divImporteInicial"
+                    style="<?php echo ($cambioAnterior > 0) ? 'opacity: 0.5;' : ''; ?>">
                     <label for="importeInicial">Fondo de caja inicial (€)</label>
                     <div class="input-cupon">
                         <input type="number" name="importeInicial" id="importeInicial" step="0.01" min="0"
-                            placeholder="0,00" required style="text-align: center; padding-right: 15px;">
+                            placeholder="0,00" <?php echo ($cambioAnterior > 0) ? '' : 'required'; ?>
+                            style="text-align: center; padding-right: 15px;">
                     </div>
                 </div>
 
@@ -650,7 +706,7 @@
                     <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalAbrirCaja')"
                         style="flex: 1;">Cancelar</button>
                     <button type="submit" class="btn-apply-premium"
-                        style="flex: 1; background: #16a34a; color: white; border:none; border-radius:12px; cursor:pointer;">Confirmar
+                        style="flex: 1; background: #16a34a; color: white;">Confirmar
                         Apertura</button>
                 </div>
             </form>
@@ -661,10 +717,13 @@
 <!-- ##=========================== MODAL: DEVOLUCIÓN (REEMBOLSO) ===========================## -->
 <!-- Modal para tramitar la devolución de un producto -->
 <!-- Permite buscar un producto, seleccionar cantidad y método de devolución -->
+<!-- ##=========================== MODAL: DEVOLUCIÓN (REEMBOLSO) ===========================## -->
+<!-- Modal rediseñado para devoluciones con verificación de ticket -->
 <div class="modal-overlay" id="modalDevolucion" style="display:none;">
-    <div class="modal-content modal-premium" style="max-width: 550px;">
-        <!-- Cabecera con gradiente rojo y icono de devolución -->
-        <div class="modal-header-premium" style="background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);">
+    <div class="modal-content modal-premium"
+        style="max-width: 700px; display: flex; flex-direction: column; max-height: 90vh;">
+        <!-- Cabecera con gradiente rojo -->
+        <div class="modal-header-premium modal-header-red" style="flex-shrink: 0;">
             <div class="icon-container-discount">
                 <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
                     stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -672,97 +731,135 @@
                     <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
                 </svg>
             </div>
-            <h3>Tramitar Devolución</h3>
-            <p>Selecciona un producto y la cantidad a devolver</p>
+            <h3 style="margin-bottom: 5px;">Tramitar Devolución</h3>
+            <p id="devolucionSubtitulo" style="opacity: 0.9;">Introduce el ID del Ticket para comenzar</p>
         </div>
 
-        <div class="modal-body-premium">
-            <!-- Formulario de devolución -->
-            <form id="formDevolucion" method="POST" action="index.php">
-                <input type="hidden" name="accion" value="tramitarDevolucion">
+        <div class="modal-body-premium" style="flex: 1; overflow-y: auto; padding: 25px;">
+            <!-- PASO 1: Búsqueda de Ticket -->
+            <div id="devolucionPaso1">
+                <div class="form-group-premium" style="text-align: center; padding: 20px 0;">
+                    <label for="inputTicketIdDev" style="font-size: 1.1rem; margin-bottom: 15px;">ID del Ticket /
+                        Factura</label>
+                    <div
+                        style="display: flex; gap: 0; max-width: 400px; margin: 0 auto; border: 2px solid var(--border-main); border-radius: 12px; overflow: hidden; background: white; transition: border-color 0.2s;">
+                        <input type="number" id="inputTicketIdDev" placeholder="Ej: 123"
+                            style="flex: 1; border: none; padding: 15px; font-size: 1.2rem; outline: none; background: transparent;"
+                            onkeypress="if(event.key === 'Enter') buscarTicketParaDevolucion()"
+                            onfocus="this.parentElement.style.borderColor = 'var(--accent-danger)'"
+                            onblur="this.parentElement.style.borderColor = 'var(--border-main)'">
+                        <button type="button" class="btn-apply-premium" onclick="buscarTicketParaDevolucion()"
+                            style="background: var(--accent-danger); color: white; margin: 0; min-width: 120px; border-radius: 0; font-weight: bold; border: none;">
+                            Buscar
+                        </button>
+                    </div>
+                    <p id="errorTicketDev"
+                        style="color: var(--accent-danger); font-size: 0.85rem; margin-top: 15px; font-weight: 600; display: none;">
+                    </p>
 
-                <!-- Buscador de productos para devolución -->
-                <!-- Usa AJAX (filtrarProductosDev) para buscar productos en la API -->
-                <div class="form-group-premium">
-                    <label for="buscarProductoDev">Buscar Producto</label>
-                    <div style="position: relative;">
-                        <input type="text" id="buscarProductoDev" placeholder="Escribe el nombre del producto..."
-                            onkeyup="filtrarProductosDev(this.value)" autocomplete="off">
-                        <!-- Contenedor de resultados de búsqueda (dropdown dinámico) -->
-                        <div id="resultadosBusquedaDev" class="resultados-busqueda-dev" style="display: none;"></div>
+                    <div
+                        style="margin-top: 30px; padding: 20px; background: #f9fafb; border-radius: 12px; border: 1px dashed #d1d5db;">
+                        <p style="margin: 0; color: #6b7280; font-size: 0.9rem;">
+                            <i class="fas fa-info-circle" style="margin-right: 5px;"></i>
+                            Necesitas el número de ticket impreso para realizar una devolución verificada.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PASO 2: Selección de Productos -->
+            <div id="devolucionPaso2" style="display: none;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding: 15px; background: #fff5f5; border-radius: 12px; border: 1px solid #fed7d7;">
+                    <div>
+                        <div style="font-weight: 700; color: #991b1b; font-size: 1rem; margin-bottom: 5px;">Información
+                            del Ticket</div>
+                        <div style="font-size: 0.9rem; color: #c53030;">
+                            <span id="infoTicketId" style="font-weight: 600;"></span> ·
+                            <span id="infoTicketFecha"></span>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div
+                            style="font-size: 0.8rem; color: #c53030; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">
+                            Total Original</div>
+                        <div id="infoTicketTotal" style="font-size: 1.2rem; font-weight: 800; color: #991b1b;"></div>
                     </div>
                 </div>
 
-                <!-- Producto seleccionado y cantidad a devolver -->
-                <div style="display: flex; gap: 15px; margin-top: 15px;">
-                    <!-- Campo de producto seleccionado (solo lectura) -->
-                    <div class="form-group-premium" style="flex: 2;">
-                        <label>Producto Seleccionado</label>
-                        <input type="text" id="nombreProductoDev" readonly placeholder="Ninguno seleccionado"
-                            style="background: #f3f4f6; color: #4b5563;">
-                        <input type="hidden" name="idProductoDev" id="idProductoDev" required>
-                    </div>
-                    <!-- Campo de cantidad a devolver -->
-                    <div class="form-group-premium" style="flex: 1;">
-                        <label for="cantidadDev">Cantidad</label>
-                        <input type="number" name="cantidadDev" id="cantidadDev" min="1" value="1"
-                            onchange="calcularTotalDev()" onkeyup="calcularTotalDev()">
-                        <!-- Precio unitario oculto para calcular el total -->
-                        <input type="hidden" id="precioUnitarioDev">
-                    </div>
+                <div
+                    style="border: 1px solid var(--border-main); border-radius: 12px; overflow: hidden; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f8fafc; border-bottom: 2px solid var(--border-main);">
+                                <th
+                                    style="text-align: left; padding: 12px 15px; font-weight: 700; font-size: 0.8rem; color: #64748b; text-transform: uppercase;">
+                                    Producto</th>
+                                <th
+                                    style="text-align: center; padding: 12px; font-weight: 700; font-size: 0.8rem; color: #64748b; text-transform: uppercase; width: 80px;">
+                                    Disp.</th>
+                                <th
+                                    style="text-align: center; padding: 12px 15px; font-weight: 700; font-size: 0.8rem; color: #64748b; text-transform: uppercase; width: 120px;">
+                                    A Devolver</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaProductosDev">
+                            <!-- Se rellena dinámicamente -->
+                        </tbody>
+                    </table>
                 </div>
 
-                <!-- Selector de método de devolución (Efectivo, Tarjeta, Bizum) -->
-                <!-- Usa radio buttons ocultos con chips visuales personalizados -->
-                <div class="form-group-premium" style="margin-top: 15px;">
-                    <label>Método de Devolución</label>
-                    <div style="display: flex; gap: 10px; margin-top: 5px;">
-                        <!-- Chip Efectivo (seleccionado por defecto) -->
+                <div class="form-group-premium" style="margin-top: 25px;">
+                    <label style="font-size: 1rem;">Método de Reembolso</label>
+                    <div style="display: flex; gap: 12px; margin-top: 10px;">
                         <label style="flex: 1; cursor: pointer;">
                             <input type="radio" name="metodoPagoDev" value="Efectivo" checked style="display: none;"
                                 onchange="updateMethodUI(this)">
                             <div class="method-chip active" id="chip-Efectivo"
-                                style="padding: 10px; border: 2px solid #b91c1c; border-radius: 8px; text-align: center; color: #b91c1c; font-weight: 600;">
-                                Efectivo</div>
+                                style="padding: 12px; text-align: center; border-radius: 10px; border: 2px solid var(--accent-danger); color: var(--accent-danger); font-weight: 700; transition: all 0.2s;">
+                                <i class="fas fa-money-bill-wave" style="margin-right: 8px;"></i> Efectivo
+                            </div>
                         </label>
-                        <!-- Chip Tarjeta -->
                         <label style="flex: 1; cursor: pointer;">
                             <input type="radio" name="metodoPagoDev" value="Tarjeta" style="display: none;"
                                 onchange="updateMethodUI(this)">
                             <div class="method-chip" id="chip-Tarjeta"
-                                style="padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; text-align: center; color: #6b7280;">
-                                Tarjeta</div>
+                                style="padding: 12px; text-align: center; border-radius: 10px; border: 2px solid var(--border-main); color: var(--text-muted); font-weight: 600; transition: all 0.2s;">
+                                <i class="fas fa-credit-card" style="margin-right: 8px;"></i> Tarjeta
+                            </div>
                         </label>
-                        <!-- Chip Bizum -->
                         <label style="flex: 1; cursor: pointer;">
                             <input type="radio" name="metodoPagoDev" value="Bizum" style="display: none;"
                                 onchange="updateMethodUI(this)">
                             <div class="method-chip" id="chip-Bizum"
-                                style="padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; text-align: center; color: #6b7280;">
-                                Bizum</div>
+                                style="padding: 12px; text-align: center; border-radius: 10px; border: 2px solid var(--border-main); color: var(--text-muted); font-weight: 600; transition: all 0.2s;">
+                                <i class="fas fa-mobile-alt" style="margin-right: 8px;"></i> Bizum
+                            </div>
                         </label>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <!-- Indicador del total a devolver (calculado dinámicamente) -->
-                <div
-                    style="margin-top: 25px; padding: 15px; background: #fee2e2; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight: 600; color: #991b1b;">TOTAL A DEVOLVER:</span>
-                    <span id="totalDevDisplay" style="font-size: 1.5rem; font-weight: 800; color: #b91c1c;">0,00
-                        €</span>
-                    <input type="hidden" name="importeTotalDev" id="importeTotalDev">
-                </div>
-
-                <!-- Botones: Cancelar y Confirmar Devolución -->
-                <!-- El botón de confirmar está deshabilitado hasta que se seleccione un producto -->
-                <div style="display: flex; gap: 15px; margin-top: 25px;">
-                    <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalDevolucion')"
-                        style="flex: 1;">Cancelar</button>
-                    <button type="submit" class="btn-apply-premium" id="btnConfirmarDev" disabled
-                        style="flex: 1; background: #b91c1c; color: white; border:none; border-radius:12px; cursor:pointer; opacity: 0.5;">Confirmar
-                        Devolución</button>
-                </div>
-            </form>
+        <!-- Footer siempre visible -->
+        <div class="modal-footer-premium"
+            style="flex-shrink: 0; background: #f8fafc; border-top: 1px solid var(--border-main); display: flex; justify-content: space-between; align-items: center; padding: 20px 30px;">
+            <div id="resumenReembolso" style="display: none;">
+                <span
+                    style="display: block; font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Total
+                    a reembolsar</span>
+                <span id="totalReembolsoDisplay"
+                    style="font-size: 1.6rem; font-weight: 800; color: var(--accent-danger);">0,00 €</span>
+            </div>
+            <div style="margin-left: auto; display: flex; gap: 15px;">
+                <button type="button" class="btn-cancel-flat" onclick="cerrarModalDevolucion()"
+                    style="padding: 10px 20px;">Cancelar</button>
+                <button type="button" class="btn-apply-premium" id="btnConfirmarMultiDev" disabled
+                    style="background: var(--accent-danger); color: white; margin: 0; padding: 12px 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); display: none;"
+                    onclick="procesarMultiDevolucion()">
+                    Confirmar Devolución
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -772,17 +869,17 @@
 <!-- Confirma que la devolución se ha procesado correctamente -->
 <?php if (isset($_SESSION['devolucionExito'])): ?>
     <div class="modal-overlay" id="devolucionExito">
-        <div class="modal-content modal-exito" style="max-width: 400px; border-top: 5px solid #b91c1c;">
+        <div class="modal-content modal-exito modal-border-red" style="max-width: 400px;">
             <!-- Icono de devolución en fondo rojo claro -->
-            <div class="icon-container-discount" style="background: #fee2e2;">
+            <div class="icon-container-discount icon-bg-red">
                 <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none"
                     stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M1 4v6h6"></path>
                     <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
                 </svg>
             </div>
-            <h3 style="color: #991b1b; margin-top: 10px;">Devolución Realizada</h3>
-            <p style="color: #6b7280; font-size: 0.9rem;">El importe ha sido restado de las ganancias del método
+            <h3 class="total-devolucion-label" style="margin-top: 10px;">Devolución Realizada</h3>
+            <p class="modal-subtitulo-cliente">El importe ha sido restado de las ganancias del método
                 seleccionado correctamente.</p>
             <button class="btn-cerrar-exito" style="background: #b91c1c; margin-top: 20px;"
                 onclick="document.getElementById('devolucionExito').remove()">Aceptar</button>
@@ -797,7 +894,7 @@
 <div class="modal-overlay" id="modalRetiro" style="display:none;">
     <div class="modal-content modal-premium" style="max-width: 450px;">
         <!-- Cabecera con gradiente naranja y icono de billete -->
-        <div class="modal-header-premium" style="background: linear-gradient(135deg, #ea580c 0%, #9a3412 100%);">
+        <div class="modal-header-premium modal-header-orange">
             <div class="icon-container-discount">
                 <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
                     stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -834,7 +931,7 @@
                     <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalRetiro')"
                         style="flex: 1;">Cancelar</button>
                     <button type="submit" class="btn-apply-premium"
-                        style="flex: 1; background: #ea580c; color: white; border:none; border-radius:12px; cursor:pointer;">Confirmar
+                        style="flex: 1; background: #ea580c; color: white;">Confirmar
                         Retiro</button>
                 </div>
             </form>
@@ -847,9 +944,9 @@
 <!-- Confirma que el retiro de dinero se ha procesado correctamente -->
 <?php if (isset($_SESSION['retiroExito'])): ?>
     <div class="modal-overlay" id="retiroExito">
-        <div class="modal-content modal-exito" style="max-width: 400px; border-top: 5px solid #ea580c;">
+        <div class="modal-content modal-exito modal-border-orange" style="max-width: 400px;">
             <!-- Icono de billete en fondo naranja claro -->
-            <div class="icon-container-discount" style="background: #ffedd5;">
+            <div class="icon-container-discount icon-bg-orange">
                 <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none"
                     stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect width="20" height="12" x="2" y="6" rx="2"></rect>
@@ -857,8 +954,8 @@
                     <path d="M6 12h.01M18 12h.01"></path>
                 </svg>
             </div>
-            <h3 style="color: #9a3412; margin-top: 10px;">Retiro Realizado</h3>
-            <p style="color: #6b7280; font-size: 0.9rem;">El importe ha sido restado del efectivo en caja correctamente.</p>
+            <h3 class="resumen-total-ventas" style="margin-top: 10px; border-top:none; padding-top:0;">Retiro Realizado</h3>
+            <p class="modal-subtitulo-cliente">El importe ha sido restado del efectivo en caja correctamente.</p>
             <button class="btn-cerrar-exito" style="background: #ea580c; margin-top: 20px;"
                 onclick="document.getElementById('retiroExito').remove()">Aceptar</button>
         </div>
@@ -871,18 +968,21 @@
 <!-- Muestra el mensaje de error de la venta fallida -->
 <?php if (isset($_SESSION['ventaError'])): ?>
     <div class="modal-overlay" id="ventaError">
-        <div class="modal-content modal-error-content">
+        <div class="modal-content modal-error-contentmodal-border-red" style="max-width: 400px;">
             <!-- Icono SVG de X/error en rojo -->
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#dc2626"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                stroke="var(--accent-danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                style="margin-bottom: 15px;">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="15" y1="9" x2="9" y2="15"></line>
                 <line x1="9" y1="9" x2="15" y2="15"></line>
             </svg>
-            <h3>Error en la venta</h3>
+            <h3 style="color: var(--accent-danger);">Error en la venta</h3>
             <!-- Mensaje de error escapado con htmlspecialchars para seguridad XSS -->
-            <p><?php echo htmlspecialchars($_SESSION['ventaError']); ?></p>
-            <button onclick="cerrarModal('ventaError')">Aceptar</button>
+            <p style="color: var(--text-main); margin-bottom: 25px;">
+                <?php echo htmlspecialchars($_SESSION['ventaError']); ?>
+            </p>
+            <button class="btn-modal-cancelar" onclick="cerrarModal('ventaError')" style="width: 100%;">Aceptar</button>
         </div>
     </div>
     <?php unset($_SESSION['ventaError']); ?>
@@ -906,8 +1006,7 @@
             <h3 style="color: #1a1a2e; font-size: 1.4rem; margin-bottom: 20px;">Cierre de Caja</h3>
 
             <!-- Contenedor imprimible del resumen de caja -->
-            <div id="cajaResumenImprimible"
-                style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; text-align: left; margin-bottom: 20px;">
+            <div id="cajaResumenImprimible" class="resumen-caja-container">
 
                 <!-- Header visible solo al imprimir (clase .solo-impresion) -->
                 <div class="solo-impresion" style="text-align: center; margin-bottom: 15px;">
@@ -915,8 +1014,7 @@
                     <p>Cierre de Caja - <?php echo date('d/m/Y H:i'); ?></p>
                 </div>
 
-                <h4
-                    style="margin: 0 0 15px 0; font-size: 1.1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; color: #374151;">
+                <h4 class="resumen-caja-titulo">
                     Resumen de Ventas de Hoy</h4>
 
                 <!-- Desglose por EFECTIVO: cantidad de tickets, total y devoluciones -->
@@ -968,44 +1066,53 @@
                 </div>
 
                 <!-- TOTAL GENERAL de ventas del día (suma de todos los métodos) -->
-                <div
-                    style="display: flex; justify-content: space-between; border-top: 2px solid #1a1a2e; padding-top: 15px; font-size: 1.2rem;">
-                    <strong style="color: #1a1a2e;">TOTAL VENTAS:</strong>
+                <div class="resumen-total-ventas">
+                    <strong>TOTAL VENTAS:</strong>
                     <strong
-                        style="color: #059669;"><?php echo number_format($_SESSION['resumenCaja']['totalGeneral'], 2, ',', '.'); ?>
+                        class="total-monto-verde"><?php echo number_format($_SESSION['resumenCaja']['totalGeneral'], 2, ',', '.'); ?>
                         €</strong>
                 </div>
 
                 <!-- Detalles reales de la caja: fondo inicial, devoluciones y efectivo real -->
-                <div style="margin-top: 20px; border-top: 1px dashed #d1d5db; padding-top: 15px;">
+                <div class="resumen-caja-detalles">
                     <!-- Fondo de caja inicial (importe con el que se abrió la caja) -->
-                    <div
-                        style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; color: #4b5563;">
+                    <div class="resumen-detalle-fila">
                         <span>Fondo inicial:</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['importeInicial'], 2, ',', '.'); ?> €</span>
                     </div>
                     <!-- Total de devoluciones realizadas durante la sesión -->
-                    <div
-                        style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; color: #b91c1c;">
+                    <div class="resumen-detalle-fila" style="color: #ef4444;">
                         <span>Total Devoluciones:</span>
                         <span style="font-weight: 600;">-
                             <?php echo number_format($_SESSION['resumenCaja']['totalDevoluciones'], 2, ',', '.'); ?>
                             €</span>
                     </div>
                     <!-- Efectivo real que debería haber en la caja física -->
-                    <div
-                        style="display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: bold; color: #1a1a2e;">
+                    <div class="caja-efectivo-real">
                         <span>EFECTIVO REAL EN CAJA:</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?> €</span>
                     </div>
                 </div>
 
                 <!-- Footer visible solo al imprimir: espacio para firma y sello -->
-                <div class="solo-impresion"
-                    style="text-align: center; margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 10px; font-size: 0.9rem; color: #666;">
+                <div class="solo-impresion solo-impresion-footer">
                     <p>Firma y sello:</p>
                     <br><br><br>
                 </div>
+            </div>
+
+            <!-- Opción para guardar cambio para el siguiente turno -->
+            <div class="cambio-turno-container">
+                <label for="cambio" class="cambio-turno-label">
+                    💰 Cambio a guardar para el siguiente turno:
+                </label>
+                <input type="number" id="cambio" name="cambio" step="0.01" min="0"
+                    value="<?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, '.', ''); ?>"
+                    placeholder="0,00"
+                    style="width: 100%; padding: 10px; text-align: center; font-size: 16px; border-radius: 6px;">
+                <p class="cambio-turno-subtitulo">
+                    Cantidad de efectivo que se quedará en la caja para el próximo turno
+                </p>
             </div>
 
             <!-- Botones: Cancelar (cierra sin cerrar caja) y Confirmar Cierre (cierra la caja definitivamente) -->
@@ -1014,7 +1121,10 @@
                     onclick="document.getElementById('cajaPrevisualizacion').style.display='none';">Cancelar</button>
                 <form method="POST" action="index.php" style="margin: 0;">
                     <input type="hidden" name="accion" value="confirmarCaja">
-                    <button type="submit" class="btn-cerrar-exito" style="margin-top: 0; background: #2563eb;">Confirmar
+                    <input type="hidden" name="cambio" id="cambioHidden"
+                        value="<?php echo $_SESSION['resumenCaja']['importeActual']; ?>">
+                    <button type="submit" class="btn-cerrar-exito" style="margin-top: 0; background: #2563eb;"
+                        onclick="document.getElementById('cambioHidden').value = document.getElementById('cambio').value">Confirmar
                         Cierre</button>
                 </form>
             </div>
@@ -1140,10 +1250,10 @@
 
     <script>
         /**
-         * imprimirCierreCaja()
-         * Abre una ventana emergente con el contenido del resumen de cierre de caja
-         * formateado para impresión. Tras imprimir, cierra la ventana y oculta el modal.
-         */
+    * imprimirCierreCaja()
+    * Abre una ventana emergente con el contenido del resumen de cierre de caja
+    * formateado para impresión. Tras imprimir, cierra la ventan    a y oculta el modal.
+    */
         function imprimirCierreCaja() {
             // Obtener el HTML del bloque oculto de impresión
             const contenido = document.getElementById('cajaOcultaImprimible').innerHTML;
@@ -1181,6 +1291,366 @@
 
 <!-- Carga del script externo del cajero (funciones de búsqueda y filtrado de productos) -->
 <script src="webroot/js/cajero.js"></script>
+
+<!-- ##=========================== MODAL: HISTORIAL DE VENTAS ===========================## -->
+<div class="modal-overlay" id="modalHistorialVentas" style="display:none;">
+    <div class="modal-content modal-premium" style="max-width: 650px;">
+        <!-- Cabecera con gradiente azul y icono de historial -->
+        <div class="modal-header-premium modal-header-blue">
+            <div class="icon-container-discount">
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
+                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 8v4l3 3"></path>
+                    <circle cx="12" cy="12" r="10"></circle>
+                </svg>
+            </div>
+            <h3>Historial de Ventas</h3>
+            <p id="historialFecha">Ventas desde la apertura de caja</p>
+        </div>
+
+        <div class="modal-body-premium">
+            <div id="historialVentasContenido" style="max-height: 400px; overflow-y: auto;">
+                <!-- Aquí se cargarán las ventas -->
+            </div>
+            <div
+                style="display: flex; justify-content: space-between; margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-main);">
+                <div id="historialTotal" style="font-weight: bold; font-size: 1.1rem;"></div>
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalHistorialVentas')"
+                    style="min-width: 100px;">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: DETALLE DE VENTA ===========================## -->
+<div class="modal-overlay" id="modalDetalleVenta" style="display:none;">
+    <div class="modal-content modal-premium" style="max-width: 700px; padding: 20px;">
+        <div class="modal-header-premium">
+            <h3>Detalle de Venta</h3>
+        </div>
+        <div class="modal-body-premium" style="padding: 10px;">
+            <div id="detalleVentaContenido">
+                <!-- Aquí se cargarán los detalles de la venta -->
+            </div>
+        </div>
+        <div
+            style="display: flex; justify-content: flex-end; margin-top: 20px; padding: 15px; border-top: 1px solid var(--border-main);">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalDetalleVenta')"
+                style="min-width: 100px; margin-right: 10px;">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /**
+     * Muestra el modal con el historial de ventas de hoy
+     */
+    function mostrarHistorialVentas() {
+        const modal = document.getElementById('modalHistorialVentas');
+        const contenido = document.getElementById('historialVentasContenido');
+        const totalDiv = document.getElementById('historialTotal');
+        const fechaDiv = document.getElementById('historialFecha');
+
+        // Actualizar la fecha en el subtítulo
+        const hoy = new Date();
+        if (fechaDiv) {
+            fechaDiv.textContent = 'Ventas desde la apertura de caja - ' + hoy.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+
+        // Mostrar modal
+        modal.style.display = 'flex';
+
+        // Cargar ventas desde la API de la sesión de caja actual
+        fetch('api/ventas.php?historialCaja=1')
+            .then(res => {
+                console.log('Response status:', res.status);
+                if (!res.ok) {
+                    throw new Error('HTTP error ' + res.status);
+                }
+                return res.json();
+            })
+            .then(ventas => {
+                console.log('Ventas:', ventas);
+                if (ventas.error) {
+                    if (ventas.error.includes('No hay sesión')) {
+                        contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">No hay sesión de caja abierta.</p>';
+                        totalDiv.textContent = '';
+                        return;
+                    }
+                    throw new Error(ventas.error);
+                }
+                if (!ventas || ventas.length === 0) {
+                    contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">No hay ventas registradas hoy.</p>';
+                    totalDiv.textContent = 'Total: 0.00 €';
+                    return;
+                }
+
+                // Calcular total
+                let total = 0;
+                let html = '<table class="historial-ventas-tabla">';
+                html += '<thead><tr>';
+                html += '<th>Hora</th>';
+                html += '<th>Usuario</th>';
+                html += '<th>Cantidad</th>';
+                html += '<th>Forma de pago</th>';
+                html += '<th>Total</th>';
+                html += '<th>Acciones</th>';
+                html += '</tr></thead><tbody>';
+
+                ventas.forEach(v => {
+                    const fecha = new Date(v.fecha);
+                    const hora = fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                    const totalVenta = parseFloat(v.total);
+                    const cantidad = v.cantidad_productos || 0;
+                    total += totalVenta;
+
+                    let formaPago = v.forma_pago || 'Efectivo';
+                    let usuario = v.usuario_nombre || 'Cajero';
+
+                    html += '<tr>';
+                    html += '<td >' + hora + '</td>';
+                    html += '<td>' + usuario + '</td>';
+                    html += '<td>' + cantidad + '</td>';
+                    html += '<td>' + formaPago + '</td>';
+                    html += '<td style="font-weight: 600;">' + totalVenta.toFixed(2).replace('.', ',') + ' €</td>';
+                    html += '<td>';
+                    html += '<div style="display: flex; gap: 5px; justify-content: center;">';
+                    html += '<button class="btn-exito" onclick="verDetalleVenta(' + v.id + ')" title="Ver detalles" style="padding: 5px 10px; font-size: 12px;">👁️</button>';
+                    html += '<button class="btn-exito" onclick="reimprimirTicket(' + v.id + ')" title="Reimprimir ticket" style="padding: 5px 10px; font-size: 12px;">🖨️</button>';
+                    html += '</div>';
+                    html += '</td>';
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                contenido.innerHTML = html;
+                totalDiv.textContent = 'Total del día: ' + total.toFixed(2).replace('.', ',') + ' € (' + ventas.length + ' ventas)';
+            })
+            .catch(err => {
+                console.error('Error cargando historial:', err);
+                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 40px;">Error al cargar el historial de ventas: ' + err.message + '</p>';
+                totalDiv.textContent = '';
+            });
+    }
+
+    /**
+     * Muestra los detalles de una venta específica en un modal
+     */
+    function verDetalleVenta(idVenta) {
+        const modal = document.getElementById('modalDetalleVenta');
+        const contenido = document.getElementById('detalleVentaContenido');
+
+        modal.style.display = 'flex';
+        contenido.innerHTML = '<p style="text-align: center; padding: 20px;">Cargando...</p>';
+
+        fetch('api/ventas.php?detalleVenta=' + idVenta)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;">Error: ' + data.error + '</p>';
+                    return;
+                }
+
+                const venta = data.venta;
+                const lineas = data.lineas;
+                const fecha = new Date(venta.fecha).toLocaleString('es-ES');
+
+                let html = '<div class="detalle-venta-header">';
+                html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
+                html += '<div><strong style="font-size: 18px;">Venta #' + venta.id + '</strong></div>';
+                html += '<div style="font-size: 12px; opacity: 0.9;">' + fecha + '</div>';
+                html += '</div>';
+                html += '</div>';
+
+                html += '<div class="detalle-venta-info">';
+                html += '<div><strong>Tipo:</strong> ' + (venta.tipoDocumento === 'factura' ? '📄 Factura' : '🧾 Ticket') + '</div>';
+                html += '<div><strong>Pago:</strong> ' + (venta.metodoPago || '💵 Efectivo') + '</div>';
+                html += '</div>';
+
+                html += '<table class="detalle-venta-tabla">';
+                html += '<thead><tr>';
+                html += '<th style="padding: 10px; text-align: left;">Producto</th>';
+                html += '<th style="padding: 10px; text-align: center;">Cant.</th>';
+                html += '<th style="padding: 10px; text-align: right;">P.U.</th>';
+                html += '<th style="padding: 10px; text-align: right;">Subtotal</th>';
+                html += '</tr></thead><tbody class="detalle-venta-body">';
+
+                lineas.forEach(item => {
+                    const subtotal = (item.precioUnitario * item.cantidad).toFixed(2).replace('.', ',');
+                    html += '<tr>';
+                    html += '<td>' + item.producto_nombre + '</td>';
+                    html += '<td style="text-align: center;">' + item.cantidad + '</td>';
+                    html += '<td style="text-align: right;">' + parseFloat(item.precioUnitario).toFixed(2).replace('.', ',') + ' €</td>';
+                    html += '<td style="text-align: right; font-weight: 600;">' + subtotal + ' €</td>';
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                html += '<div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border-radius: 8px; text-align: center; font-weight: bold; font-size: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">';
+                html += 'TOTAL: ' + parseFloat(venta.total).toFixed(2).replace('.', ',') + ' €';
+                html += '</div>';
+
+                contenido.innerHTML = html;
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;">Error al cargar los detalles</p>';
+            });
+    }
+
+    /**
+     * Reimprime un ticket de una venta existente
+     */
+    function reimprimirTicket(idVenta) {
+        fetch('api/ventas.php?detalleVenta=' + idVenta)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                const venta = data.venta;
+                const lineas = data.lineas;
+
+                const isFactura = venta.tipoDocumento === 'factura';
+                const tipoTitulo = isFactura ? 'FACTURA' : 'TICKET DE VENTA';
+
+                let lineasHtml = '';
+                lineas.forEach(item => {
+                    const subtotal = (item.precioUnitario * item.cantidad).toFixed(2).replace('.', ',');
+                    lineasHtml += '<tr>';
+                    lineasHtml += '<td>' + item.producto_nombre + '</td>';
+                    lineasHtml += '<td style="text-align:center">' + item.cantidad + '</td>';
+                    lineasHtml += '<td style="text-align:right">' + parseFloat(item.precioUnitario).toFixed(2).replace('.', ',') + ' €</td>';
+                    lineasHtml += '<td style="text-align:right">' + subtotal + ' €</td>';
+                    lineasHtml += '</tr>';
+                });
+
+                const total = parseFloat(venta.total).toFixed(2).replace('.', ',');
+                const fecha = new Date(venta.fecha).toLocaleString('es-ES');
+
+                const contenido = `
+                    <html>
+                    <head>
+                        <title>${tipoTitulo} #${venta.id}</title>
+                        <style>body { font-family: 'Courier New', monospace; font-size: 12px; padding: 20px; } table { width: 100%; border-collapse: collapse; } th, td { padding: 5px; text-align: left; } .total { font-weight: bold; font-size: 14px; } .header { text-align: center; margin-bottom: 20px; }</style>
+                    </head>
+                    <body>
+                        <div class="header"><strong>TPV Bazar</strong><br>NIF: B12345678<br><h2>${tipoTitulo}</h2><p>Fecha: ${fecha}<br>Nº Ticket: ${venta.id}</p></div>
+                        <table><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">P.Unit</th><th style="text-align:right">Importe</th></tr></thead><tbody>${lineasHtml}</tbody></table>
+                        <p class="total" style="text-align:right; margin-top:15px;">TOTAL: ${total} €</p>
+                        <p style="text-align:center; margin-top:20px;">Forma de pago: ${venta.metodoPago}</p>
+                        <p style="text-align:center; margin-top:30px;">Gracias por su compra</p>
+                    </body>
+                    </html>`;
+
+                const ventana = window.open('', '', 'width=400,height=600');
+                ventana.document.write(contenido);
+                ventana.document.close();
+                ventana.focus();
+                setTimeout(() => { ventana.print(); ventana.close(); }, 500);
+            })
+            .catch(err => { console.error('Error:', err); alert('Error al obtener los datos del ticket'); });
+    }
+
+    /**
+     * Envía un ticket por correo electrónico
+     */
+    function enviarTicketCorreo(idVenta) {
+        const email = prompt('Introduce el correo electrónico del cliente:');
+        if (!email || !email.includes('@')) { alert('Por favor, introduce un correo válido.'); return; }
+
+        fetch('api/ventas.php?detalleVenta=' + idVenta)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) { alert('Error: ' + data.error); return; }
+
+                const venta = data.venta;
+                const lineas = data.lineas;
+
+                const formData = new FormData();
+                formData.append('idVenta', venta.id);
+                formData.append('email', email);
+                formData.append('tipo', venta.tipoDocumento || 'ticket');
+
+                let productosData = [];
+                lineas.forEach(item => {
+                    productosData.push({ nombre: item.producto_nombre, cantidad: item.cantidad, precio: item.precioUnitario, subtotal: item.subtotal });
+                });
+                formData.append('productos', JSON.stringify(productosData));
+                formData.append('total', venta.total);
+                formData.append('fecha', venta.fecha);
+                formData.append('metodoPago', venta.metodoPago);
+
+                fetch('api/enviarCorreo.php', { method: 'POST', body: formData })
+                    .then(res => res.json())
+                    .then(response => { alert(response.ok ? 'Ticket enviado correctamente al correo: ' + email : 'Error al enviar el correo'); })
+                    .catch(err => { console.error('Error:', err); alert('Error al enviar el correo'); });
+            })
+            .catch(err => { console.error('Error:', err); alert('Error al obtener los datos del ticket'); });
+    }
+
+    // Variable global para almacenar datos de venta del historial temporal
+    let ventaHistorialTemporal = null;
+
+    /**
+     * Reimprime un ticket de una venta existente usando la función existente
+     */
+    function reimprimirTicket(idVenta) {
+        fetch('api/ventas.php?detalleVenta=' + idVenta)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) { alert('Error: ' + data.error); return; }
+                const venta = data.venta;
+                const lineas = data.lineas;
+                ultimaVenta = {
+                    id: venta.id, tipo: venta.tipoDocumento, total: parseFloat(venta.total),
+                    fecha: venta.fecha, metodoPago: venta.metodoPago,
+                    entregado: parseFloat(venta.importeEntregado) || 0,
+                    cambio: parseFloat(venta.cambioDevuelto) || 0,
+                    descuentoTipo: 'ninguno', descuentoValor: 0,
+                    clienteNif: '', clienteNombre: '', clienteDir: '', clienteObs: '',
+                    carrito: lineas.map(l => ({ idProducto: l.idProducto, nombre: l.producto_nombre, precio: parseFloat(l.precioUnitario), cantidad: l.cantidad }))
+                };
+                imprimirDocumento();
+            })
+            .catch(err => { console.error('Error:', err); alert('Error al obtener los datos del ticket'); });
+    }
+
+    /**
+     * Muestra el modal para enviar un ticket por correo electrónico
+     */
+    function mostrarModalEnviarCorreo(idVenta) {
+        console.log('Fetching sale details for ID:', idVenta);
+        fetch('api/ventas.php?detalleVenta=' + idVenta)
+            .then(res => {
+                console.log('Response status:', res.status);
+                return res.text();
+            })
+            .then(text => {
+                console.log('Response text:', text);
+                const data = JSON.parse(text);
+                if (data.error) { alert('Error: ' + data.error); return; }
+                const venta = data.venta;
+                const lineas = data.lineas;
+                ventaHistorialTemporal = {
+                    id: venta.id, tipo: venta.tipoDocumento, total: parseFloat(venta.total),
+                    fecha: venta.fecha, metodoPago: venta.metodoPago,
+                    entregado: parseFloat(venta.importeEntregado) || 0,
+                    cambio: parseFloat(venta.cambioDevuelto) || 0,
+                    descuentoTipo: 'ninguno', descuentoValor: 0,
+                    clienteNif: '', clienteNombre: '', clienteDir: '', clienteObs: '',
+                    carrito: lineas.map(l => ({ idProducto: l.idProducto, nombre: l.producto_nombre, precio: parseFloat(l.precioUnitario), cantidad: l.cantidad }))
+                };
+                ultimaVenta = ventaHistorialTemporal;
+                // Abrir primero el modal de éxito y luego mostrar el formulario de email
+                document.getElementById('ventaExito').style.display = 'flex';
+                mostrarFormEmail();
+            })
+            .catch(err => { console.error('Error:', err); alert('Error al obtener los datos del ticket: ' + err.message); });
+    }
+</script>
 
 <!-- ##=========================== SCRIPT PRINCIPAL DEL CAJERO ===========================## -->
 <!-- Contiene toda la lógica JavaScript del carrito, descuentos, cobro, impresión,
@@ -1283,6 +1753,99 @@
     }
 
     /**
+     * posponerVenta()
+     * Guarda la venta actual en sessionStorage para recuperarla después.
+     * Guarda: carrito, descuento, y fecha/hora de la posposición.
+     */
+    function posponerVenta() {
+        if (carrito.length === 0) {
+            alert('No hay productos en el carrito para posponer');
+            return;
+        }
+
+        const ventaPospuesta = {
+            carrito: carrito,
+            descuento: descuento,
+            fecha: new Date().toLocaleString('es-ES')
+        };
+
+        // Guardar en sessionStorage
+        sessionStorage.setItem('ventaPospuesta', JSON.stringify(ventaPospuesta));
+
+        // Vaciar el carrito
+        carrito = [];
+        descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+        actualizarTicket();
+
+        // Mostrar mensaje
+        alert('✅ Venta pospuesta. Puedes recuperarla cuando quieras.');
+
+        // Actualizar estado del botón recuperar
+        actualizarBotonRecuperar();
+    }
+
+    /**
+     * recuperarVenta()
+     * Recupera la última venta pospuesta y la vuelve al carrito.
+     */
+    function recuperarVenta() {
+        const ventaJson = sessionStorage.getItem('ventaPospuesta');
+
+        if (!ventaJson) {
+            alert('No hay ninguna venta pospuesta para recuperar');
+            return;
+        }
+
+        const ventaPospuesta = JSON.parse(ventaJson);
+
+        // Verificar si hay productos actuales en el carrito
+        if (carrito.length > 0) {
+            if (!confirm('⚠️ Ya hay productos en el carrito. ¿Quieres añadir los productos pospuestos?')) {
+                return;
+            }
+            // Añadir los productos pospuestos al carrito existente
+            ventaPospuesta.carrito.forEach(producto => {
+                agregarAlCarrito(producto.idProducto, producto.nombre, producto.precio, producto.cantidad);
+            });
+        } else {
+            // Restaurar el carrito y descuento
+            carrito = ventaPospuesta.carrito;
+            descuento = ventaPospuesta.descuento || { tipo: 'ninguno', valor: 0, cupon: '' };
+            actualizarTicket();
+        }
+
+        // Limpiar la venta pospuesta
+        sessionStorage.removeItem('ventaPospuesta');
+
+        alert('✅ Venta recuperada: ' + ventaPospuesta.fecha);
+
+        // Actualizar estado del botón recuperar
+        actualizarBotonRecuperar();
+    }
+
+    /**
+     * actualizarBotonRecuperar()
+     * Habilita/deshabilita el botón de recuperar según si hay venta pospuesta.
+     */
+    function actualizarBotonRecuperar() {
+        const btnRecuperar = document.getElementById('btnRecuperar');
+        const ventaJson = sessionStorage.getItem('ventaPospuesta');
+
+        if (ventaJson) {
+            btnRecuperar.disabled = false;
+            btnRecuperar.style.opacity = '1';
+        } else {
+            btnRecuperar.disabled = true;
+            btnRecuperar.style.opacity = '0.5';
+        }
+    }
+
+    // Inicializar botón de recuperar al cargar la página
+    document.addEventListener('DOMContentLoaded', function () {
+        actualizarBotonRecuperar();
+    });
+
+    /**
      * obtenerTotalCalculado()
      * Calcula el total del carrito aplicando el descuento vigente.
      * @returns {number} Total final (mínimo 0)
@@ -1322,6 +1885,7 @@
             totalEl.textContent = '0,00 €';
             btnCobrar.disabled = true;
             btnDescuento.disabled = true;
+            document.getElementById('btnPosponer').disabled = true;
             return;
         }
 
@@ -1387,6 +1951,7 @@
         // Habilitar botones de cobro y descuento
         btnCobrar.disabled = false;
         btnDescuento.disabled = false;
+        document.getElementById('btnPosponer').disabled = false;
     }
 
     // ======================== DESCUENTOS ========================
@@ -1856,7 +2421,8 @@
                 <p>Los precios mostrados incluyen IVA.</p>
             </div>
         </body>
-        </html>`;
+        </html>
+        `;
 
         // Crear un iframe oculto para imprimir sin afectar la página actual
         const iframe = document.createElement('iframe');
@@ -1873,23 +2439,70 @@
         };
     }
 
+</script>
+
+<script>
+    function guardarNuevoProducto() {
+        const nombre = document.getElementById('nuevoProductoNombre').value.trim();
+        const categoria = document.getElementById('nuevoProductoCategoria').value;
+        const precio = document.getElementById('nuevoProductoPrecio').value;
+        const stock = document.getElementById('nuevoProductoStock').value;
+        const activo = document.getElementById('nuevoProductoEstado').value;
+        const imgInput = document.getElementById('editProductoImagenInput');
+
+        // Validar que los campos obligatorios no estén vacíos.
+        if (!nombre || !categoria || !precio || stock === '') {
+            alert('Por favor rellena todos los campos obligatorios.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('nombre', nombre);
+        formData.append('categoria', categoria);
+        formData.append('precio', precio);
+        formData.append('stock', stock);
+        formData.append('activo', activo);
+        if (imgInput.files[0]) {
+            formData.append('imagen', imgInput.files[0]);
+        }
+
+        fetch('api/productos.php', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data.ok) {
+                    alert('Producto creado correctamente');
+                    cerrarModal('modalNuevoProducto');
+                    // Recargar productos
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error ?? ''));
+                }
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error al crear el producto');
+            });
+    }
+</script>
+<script>
+
     // ======================== ENVIAR POR CORREO ========================
 
     /**
-     * mostrarFormEmail()
-     * Muestra el formulario de envío por correo electrónico dentro del modal de venta exitosa.
-     */
+    * mostrarFormEmail()
+    * Muestra el formulario de envío por correo electrónico dentro del modal de venta exitosa.
+    */
     function mostrarFormEmail() {
         document.getElementById('formEmail').style.display = 'block';
         document.getElementById('inputEmail').focus();
     }
 
     /**
-     * enviarPorCorreo()
-     * Envía los datos de la última venta por correo electrónico al cliente.
-     * Realiza una petición AJAX POST a api/enviarCorreo.php con todos los datos de la venta.
-     * Muestra el estado del envío (enviando, éxito o error) en el elemento #emailStatus.
-     */
+    * enviarPorCorreo()
+    * Envía los datos de la última venta por correo electrónico al cliente.
+    * Realiza una petición AJAX POST a api/enviarCorreo.php con todos los datos de la venta.
+    * Muestra el estado del envío (enviando, éxito o error) en el elemento #emailStatus.
+    */
     function enviarPorCorreo() {
         if (typeof ultimaVenta === 'undefined') return;
 
@@ -1952,129 +2565,69 @@
     // ======================== CAJA ========================
 
     /**
-     * mostrarModalAbrirCaja()
-     * Muestra el modal de apertura de caja y enfoca el input del importe inicial.
-     */
+    * mostrarModalAbrirCaja()
+    * Muestra el modal de apertura de caja y enfoca el input del importe inicial.
+    */
     function mostrarModalAbrirCaja() {
         document.getElementById('modalAbrirCaja').style.display = 'flex';
+        // Resetear el formulario
+        document.getElementById('cambioRecovery').value = '0';
+        const importeInput = document.getElementById('importeInicial');
+        if (importeInput) {
+            importeInput.value = '';
+            importeInput.required = false;
+        }
+        const divImporte = document.getElementById('divImporteInicial');
+        if (divImporte) {
+            divImporte.style.opacity = '0.5';
+        }
+        // Seleccionar opción de recuperar por defecto si existe
+        const radioRecuperar = document.querySelector('input[name="opcionCambio"][value="recuperar"]');
+        if (radioRecuperar) {
+            radioRecuperar.checked = true;
+            toggleCambio(false);
+        }
         document.getElementById('importeInicial').focus();
     }
 
-    /**
-     * mostrarModalDevolucion()
-     * Muestra el modal de devolución y enfoca el buscador de productos.
-     */
-    function mostrarModalDevolucion() {
-        document.getElementById('modalDevolucion').style.display = 'flex';
-        document.getElementById('buscarProductoDev').focus();
+    function toggleCambio(mostrarNuevo) {
+        const divImporte = document.getElementById('divImporteInicial');
+        const importeInput = document.getElementById('importeInicial');
+        const cambioInput = document.getElementById('cambioRecovery');
+
+        if (mostrarNuevo) {
+            divImporte.style.opacity = '1';
+            importeInput.required = true;
+            cambioInput.value = '0';
+        } else {
+            divImporte.style.opacity = '0.5';
+            importeInput.required = false;
+            // Obtener el valor del cambio anterior
+            const cambioAnterior = <?php echo json_encode($cambioAnterior); ?>;
+            cambioInput.value = cambioAnterior;
+        }
     }
 
+
     /**
-     * mostrarModalRetiro()
-     * Muestra el modal de retiro de dinero y enfoca el input del importe.
-     */
+    * mostrarModalRetiro()
+    * Muestra el modal de retiro de dinero y enfoca el input del importe.
+    */
     function mostrarModalRetiro() {
         document.getElementById('modalRetiro').style.display = 'flex';
         document.getElementById('importeRetiro').focus();
     }
 
-    // ======================== DEVOLUCIONES ========================
-
-    /** Array para almacenar productos cargados por AJAX (reservado para uso futuro) */
-    let todosLosProductos = [];
-
     /**
-     * filtrarProductosDev(query)
-     * Busca productos por nombre mediante AJAX para el formulario de devolución.
-     * Muestra los resultados en un dropdown debajo del input de búsqueda.
-     * Requiere al menos 2 caracteres para iniciar la búsqueda.
-     * @param {string} query - Texto de búsqueda introducido por el usuario
-     */
-    function filtrarProductosDev(query) {
-        const resultados = document.getElementById('resultadosBusquedaDev');
-
-        // No buscar si hay menos de 2 caracteres
-        if (query.length < 2) {
-            resultados.style.display = 'none';
-            return;
-        }
-
-        // Petición AJAX a la API de productos
-        fetch('api/productos.php?buscarProducto=' + encodeURIComponent(query))
-            .then(res => res.json())
-            .then(productos => {
-                if (productos.length === 0) {
-                    resultados.style.display = 'none';
-                    return;
-                }
-
-                // Generar los elementos del dropdown con nombre y precio
-                resultados.innerHTML = '';
-                productos.forEach(p => {
-                    const div = document.createElement('div');
-                    div.className = 'resultado-item-dev';
-                    div.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span><strong>${p.nombre}</strong></span>
-                            <span style="color: #6b7280; font-size: 0.8rem;">${p.precio} €</span>
-                        </div>
-                    `;
-                    // Al hacer clic en un resultado, seleccionar ese producto
-                    div.onclick = () => seleccionarProductoDev(p);
-                    resultados.appendChild(div);
-                });
-                resultados.style.display = 'block';
-            });
-    }
-
-    /**
-     * seleccionarProductoDev(producto)
-     * Selecciona un producto del dropdown de búsqueda para la devolución.
-     * Rellena los campos del formulario y habilita el botón de confirmación.
-     * @param {Object} producto - Objeto con id, nombre y precio del producto
-     */
-    function seleccionarProductoDev(producto) {
-        document.getElementById('nombreProductoDev').value = producto.nombre;
-        document.getElementById('idProductoDev').value = producto.id;
-        document.getElementById('precioUnitarioDev').value = producto.precio;
-        document.getElementById('buscarProductoDev').value = '';
-        document.getElementById('resultadosBusquedaDev').style.display = 'none';
-
-        // Recalcular el total a devolver
-        calcularTotalDev();
-
-        // Habilitar el botón de confirmación de devolución
-        const btn = document.getElementById('btnConfirmarDev');
-        btn.disabled = false;
-        btn.style.opacity = '1';
-    }
-
-    /**
-     * calcularTotalDev()
-     * Calcula el total a devolver multiplicando precio unitario × cantidad.
-     * Actualiza el display visual y el campo oculto del formulario.
-     */
-    function calcularTotalDev() {
-        const precio = parseFloat(document.getElementById('precioUnitarioDev').value) || 0;
-        const cantidad = parseInt(document.getElementById('cantidadDev').value) || 0;
-        const total = precio * cantidad;
-
-        // Actualizar el display formateado y el campo oculto
-        document.getElementById('totalDevDisplay').textContent = total.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €';
-        document.getElementById('importeTotalDev').value = total.toFixed(2);
-    }
-
-    /**
-     * updateMethodUI(radio)
-     * Actualiza la interfaz visual de los chips de método de pago en el modal de devolución.
-     * Resalta el chip seleccionado con borde rojo y desactiva los demás.
-     * @param {HTMLInputElement} radio - El radio button seleccionado
-     */
+    * Actualiza la interfaz visual de los chips de método de pago en el modal de devolución.
+    * Resalta el chip seleccionado con borde rojo y desactiva los demás.
+    * @param { HTMLInputElement } radio - El radio button seleccionado
+            */
     function updateMethodUI(radio) {
         // Desactivar todos los chips (estilo gris)
         document.querySelectorAll('.method-chip').forEach(chip => {
-            chip.style.border = '2px solid #e5e7eb';
-            chip.style.color = '#6b7280';
+            chip.style.border = '2px solid var(--border-main)';
+            chip.style.color = 'var(--text-muted)';
             chip.style.fontWeight = '400';
             chip.classList.remove('active');
         });
@@ -2082,29 +2635,262 @@
         // Activar el chip seleccionado (estilo rojo)
         const chip = document.getElementById('chip-' + radio.value);
         if (chip) {
-            chip.style.border = '2px solid #b91c1c';
-            chip.style.color = '#b91c1c';
+            chip.style.border = '2px solid var(--accent-danger)';
+            chip.style.color = 'var(--accent-danger)';
             chip.style.fontWeight = '600';
             chip.classList.add('active');
         }
     }
 
+    // ======================== NUEVA LÓGICA DE DEVOLUCIONES MULTI-PRODUCTO ========================
+
+    let lineasVentaDevolucion = []; // Almacena las líneas cargadas del ticket
+    let ticketActualDevolucion = null;
+
+    /**
+     * Muestra el modal de devolución y enfoca el input del ID del ticket.
+     */
+    function mostrarModalDevolucion() {
+        document.getElementById('modalDevolucion').style.display = 'flex';
+        document.getElementById('inputTicketIdDev').focus();
+    }
+
+    /**
+     * Busca un ticket mediante su ID para iniciar el proceso de devolución.
+     */
+    function buscarTicketParaDevolucion() {
+        const idTicket = document.getElementById('inputTicketIdDev').value;
+        const errorEl = document.getElementById('errorTicketDev');
+
+        if (!idTicket) {
+            errorEl.textContent = 'Por favor, introduce un ID de ticket.';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        errorEl.style.display = 'none';
+
+        // Consultar API para verificar el ticket y obtener productos
+        fetch(`api/ventas.php?checkVentaDevolucion=${idTicket}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    errorEl.textContent = 'Error: ' + data.error;
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                // Guardar datos
+                ticketActualDevolucion = data.venta;
+                lineasVentaDevolucion = data.lineas;
+
+                // Actualizar UI - Paso 2
+                document.getElementById('devolucionPaso1').style.display = 'none';
+                document.getElementById('devolucionPaso2').style.display = 'block';
+                document.getElementById('btnConfirmarMultiDev').style.display = 'block';
+                document.getElementById('resumenReembolso').style.display = 'block';
+                document.getElementById('devolucionSubtitulo').textContent = 'Selecciona las unidades a devolver';
+
+                document.getElementById('infoTicketId').textContent = 'TICKET #' + ticketActualDevolucion.id;
+                document.getElementById('infoTicketFecha').textContent = new Date(ticketActualDevolucion.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                document.getElementById('infoTicketTotal').textContent = parseFloat(ticketActualDevolucion.total).toFixed(2).replace('.', ',') + ' €';
+
+                renderizarTablaDevolucion();
+            })
+            .catch(err => {
+                console.error(err);
+                errorEl.textContent = 'Error de conexión al buscar el ticket.';
+                errorEl.style.display = 'block';
+            });
+    }
+
+    /**
+     * Renderiza la tabla de productos disponibles para devolver.
+     */
+    function renderizarTablaDevolucion() {
+        const tbody = document.getElementById('tablaProductosDev');
+        tbody.innerHTML = '';
+
+        lineasVentaDevolucion.forEach((linea, index) => {
+            const comprado = parseInt(linea.cantidad);
+            const devuelto = parseInt(linea.cantidad_devuelta);
+            const disponible = comprado - devuelto;
+
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid #f1f5f9';
+            tr.innerHTML = `
+                <td style="padding: 12px 15px;">
+                    <div style="font-weight: 600; color: #1e293b;">${linea.producto_nombre}</div>
+                    <div style="font-size: 0.75rem; color: #64748b;">Precio: ${parseFloat(linea.precioUnitario).toFixed(2)} €</div>
+                </td>
+                <td style="padding: 12px; text-align: center; color: #64748b; font-weight: 500;">${disponible}</td>
+                <td style="padding: 12px 15px; text-align: center;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <input type="number" class="cant-dev-input" 
+                            data-index="${index}" 
+                            min="0" max="${disponible}" value="0" 
+                            style="width: 70px; text-align: center; padding: 8px; border: 2px solid #e2e8f0; border-radius: 8px; font-weight: 700; color: var(--accent-danger); outline: none; transition: all 0.2s;"
+                            onfocus="this.style.borderColor = 'var(--accent-danger)'"
+                            onblur="this.style.borderColor = '#e2e8f0'"
+                            onchange="recalcularTotalReembolso()"
+                            ${disponible <= 0 ? 'disabled' : ''}>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        recalcularTotalReembolso();
+    }
+
+    /**
+     * Calcula el total a reembolsar basándose en las cantidades introducidas.
+     */
+    function recalcularTotalReembolso() {
+        let total = 0;
+        let hayDevolucion = false;
+        const inputs = document.querySelectorAll('.cant-dev-input');
+
+        inputs.forEach(input => {
+            const index = input.dataset.index;
+            const cant = parseInt(input.value) || 0;
+            const precio = parseFloat(lineasVentaDevolucion[index].precioUnitario);
+
+            if (cant > 0) {
+                total += cant * precio;
+                hayDevolucion = true;
+            }
+        });
+
+        document.getElementById('totalReembolsoDisplay').textContent = total.toFixed(2).replace('.', ',') + ' €';
+        document.getElementById('btnConfirmarMultiDev').disabled = !hayDevolucion;
+    }
+
+    /**
+     * Cierra el modal y resetea su estado.
+     */
+    function cerrarModalDevolucion() {
+        cerrarModal('modalDevolucion');
+        // Resetear a paso 1
+        document.getElementById('devolucionPaso1').style.display = 'block';
+        document.getElementById('devolucionPaso2').style.display = 'none';
+        document.getElementById('btnConfirmarMultiDev').style.display = 'none';
+        document.getElementById('resumenReembolso').style.display = 'none';
+        document.getElementById('devolucionSubtitulo').textContent = 'Introduce el ID del Ticket para comenzar';
+        document.getElementById('inputTicketIdDev').value = '';
+        document.getElementById('errorTicketDev').style.display = 'none';
+        lineasVentaDevolucion = [];
+        ticketActualDevolucion = null;
+    }
+
+    /**
+     * Procesa la devolución enviando los datos al servidor.
+     */
+    function procesarMultiDevolucion() {
+        const inputs = document.querySelectorAll('.cant-dev-input');
+        const productosDev = [];
+        let totalReembolso = 0;
+
+        inputs.forEach(input => {
+            const cant = parseInt(input.value) || 0;
+            if (cant > 0) {
+                const index = input.dataset.index;
+                const linea = lineasVentaDevolucion[index];
+                const subtotal = cant * parseFloat(linea.precioUnitario);
+
+                productosDev.push({
+                    idProducto: linea.idProducto,
+                    cantidad: cant,
+                    importe: subtotal
+                });
+                totalReembolso += subtotal;
+            }
+        });
+
+        if (productosDev.length === 0) return;
+
+        const metodoPago = document.querySelector('input[name="metodoPagoDev"]:checked').value;
+
+        // Crear un formulario temporal para enviar por POST (o usar Fetch si prefieres, 
+        // pero cCajero.php está preparado para POST síncrono por lo visto en registrarVenta)
+        // No obstante, como es una lista de productos, haremos un fetch para mayor limpieza 
+        // y luego recargaremos o redirigiremos.
+
+        const data = new FormData();
+        data.append('accion', 'tramitarMultiDevolucion');
+        data.append('idVenta', ticketActualDevolucion.id);
+        data.append('metodoPago', metodoPago);
+        data.append('productos', JSON.stringify(productosDev));
+        data.append('totalReembolso', totalReembolso);
+
+        fetch('index.php', {
+            method: 'POST',
+            body: data
+        }).then(() => {
+            // Recargar para mostrar mensajes de éxito de sesión
+            location.reload();
+        }).catch(err => {
+            alert('Error al procesar la devolución: ' + err.message);
+        });
+    }
+
     // ======================== UTILIDADES ========================
 
     /**
-     * cerrarModal(id)
-     * Cierra un modal ocultándolo (display: none).
-     * @param {string} id - ID del elemento modal-overlay a ocultar
-     */
+    * cerrarModal(id)
+    * Cierra un modal ocultándolo (display: none).
+    * @param {string} id - ID del elemento modal-overlay a ocultar
+    */
     function cerrarModal(id) {
         document.getElementById(id).style.display = 'none';
     }
 
     /**
-     * verificarLimiteEfectivo()
-     * Verifica si el total del carrito supera los 1.000€ con método de pago en efectivo.
-     * Si se supera, muestra un aviso visual debajo del selector de método de pago.
+     * previsualizarImagen(event)
+     * Previsualiza la imagen seleccionada antes de subirla.
+     * @param {Event} event - Evento de cambio del input file.
      */
+    function previsualizarImagen(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                document.getElementById('editProductoImagen').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    /**
+     * abrirImagenGrande(src, alt)
+     * Abre una imagen en grande en un modal.
+     * @param {string} src - URL de la imagen.
+     * @param {string} alt - Texto alternativo de la imagen.
+     */
+    function abrirImagenGrande(src, alt = '') {
+        // Crear el elemento overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'modalImagenGrande';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);display:flex;justify-content:center;align-items:center;z-index:9999;cursor:pointer;';
+
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = alt;
+        img.style.cssText = 'max-width:90%;max-height:90%;object-fit:contain;border-radius:8px;';
+
+        overlay.appendChild(img);
+        overlay.onclick = function () {
+            document.body.removeChild(overlay);
+        };
+
+        document.body.appendChild(overlay);
+    }
+
+    /**
+    * verificarLimiteEfectivo()
+    * Verifica si el total del carrito supera los 1.000€ con método de pago en efectivo.
+    * Si se supera, muestra un aviso visual debajo del selector de método de pago.
+    */
     function verificarLimiteEfectivo() {
         const metodo = document.getElementById('metodoPago')?.value;
         const total = obtenerTotalCalculado();
@@ -2128,3 +2914,62 @@
         }
     });
 </script>
+
+<!-- Modal para crear nuevo producto (permiso: crear_productos) -->
+<div class="modal-overlay" id="modalNuevoProducto" style="display:none;">
+    <div class="modal-content modal-editarProducto">
+        <h3 id="editProductoTitulo">Nuevo Producto</h3>
+        <p id="editProductoSubtitulo" class="modal-subtitulo">Introduce los datos del nuevo producto</p>
+
+        <input type="hidden" id="editProductoId">
+
+        <div class="editar-prod-layout">
+            <!-- Imagen -->
+            <div class="editar-prod-imagen-wrapper">
+                <img id="editProductoImagen" src="webroot/img/logoCPU.PNG" alt="" style="cursor: zoom-in;"
+                    onclick="abrirImagenGrande(this.src, this.alt)">
+                <label class="btn-cambiar-imagen" title="Cambiar imagen">
+                    <i class="fas fa-camera"></i> Cambiar imagen
+                    <input type="file" id="editProductoImagenInput" accept="image/*" style="display:none;"
+                        onchange="previsualizarImagen(event)">
+                </label>
+            </div>
+
+            <!-- Campos -->
+            <div class="editar-prod-campos">
+                <div class="editar-prod-fila">
+                    <label>Nombre</label>
+                    <input type="text" id="nuevoProductoNombre">
+                </div>
+                <div class="editar-prod-fila">
+                    <label>Categoría</label>
+                    <select id="nuevoProductoCategoria"
+                        style="padding: 8px; border-radius: 4px; border: 1px solid #d1d5db;">
+                    </select>
+                </div>
+                <div class="editar-prod-fila">
+                    <label>Precio (€)</label>
+                    <input type="number" id="nuevoProductoPrecio" step="0.01" min="0">
+                </div>
+                <div class="editar-prod-fila">
+                    <label>Stock</label>
+                    <input type="number" id="nuevoProductoStock" min="0" value="0">
+                </div>
+                <div class="editar-prod-fila">
+                    <label>Estado</label>
+                    <select id="nuevoProductoEstado">
+                        <option value="1">Activo</option>
+                        <option value="0">Inactivo</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="editar-prod-botones">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalNuevoProducto')">Cancelar</button>
+            <button class="btn-exito" onclick="guardarNuevoProducto()">
+                <i class="fas fa-save"></i> Guardar
+            </button>
+        </div>
+    </div>
+</div>
