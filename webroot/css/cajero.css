@@ -38,7 +38,7 @@ body.dark-mode {
     --text-main: #f9fafb;
     --text-muted: #9ca3af;
     --text-header: #f9fafb;
-    --border-main: #374151;
+    --border-main: #4b5563;
     --border-ticket: #374151;
     --accent: #3b82f6;
     --accent-hover: #60a5fa;
@@ -199,6 +199,7 @@ body.dark-mode {
 
 .producto-card {
     background: var(--bg-card);
+    border: 1px solid var(--border-main);
     border-radius: 12px;
     padding: 15px;
     height: 500px;
@@ -839,16 +840,16 @@ body.dark-mode .cajero-opciones-extra {
 .form-email {
     margin: 15px 0;
     padding: 15px;
-    background: #f9fafb;
+    background: var(--bg-panel);
     border-radius: 10px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-main);
 }
 
 .form-email label {
     display: block;
     font-size: 0.85rem;
     font-weight: 600;
-    color: #374151;
+    color: var(--text-main);
     margin-bottom: 8px;
     text-align: left;
 }
@@ -861,16 +862,18 @@ body.dark-mode .cajero-opciones-extra {
 .email-input-group input {
     flex: 1;
     padding: 10px 12px;
-    border: 2px solid #e5e7eb;
+    border: 2px solid var(--border-main);
     border-radius: 8px;
     font-family: 'Inter', sans-serif;
     font-size: 0.9rem;
     outline: none;
     transition: border 0.2s;
+    background: var(--bg-input);
+    color: var(--text-main);
 }
 
 .email-input-group input:focus {
-    border-color: #1a1a2e;
+    border-color: var(--accent-main);
 }
 
 .btn-enviar-email {
@@ -1211,7 +1214,7 @@ body.dark-mode .cajero-opciones-extra {
     padding: 0 !important;
     overflow: hidden;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
-    background: #ffffff !important;
+    background: var(--bg-modal) !important;
 }
 
 .modal-header-premium {
@@ -1219,6 +1222,10 @@ body.dark-mode .cajero-opciones-extra {
     padding: 30px;
     color: white;
     text-align: center;
+}
+
+body.dark-mode .modal-header-premium {
+    background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%);
 }
 
 .icon-container-discount {
@@ -1259,7 +1266,7 @@ body.dark-mode .cajero-opciones-extra {
     margin-bottom: 8px;
     font-weight: 600;
     font-size: 0.9rem;
-    color: #374151;
+    color: var(--text-main);
 }
 
 .input-with-icon {
@@ -1271,27 +1278,31 @@ body.dark-mode .cajero-opciones-extra {
 .input-with-icon input {
     width: 100%;
     padding: 12px 45px 12px 15px;
-    border: 2px solid #f3f4f6;
+    border: 2px solid var(--border-main);
     border-radius: 12px;
     font-size: 1.1rem;
     font-weight: 600;
-    color: #1a1a2e;
+    color: var(--text-main);
     transition: all 0.2s;
     outline: none;
-    background: #f9fafb;
+    background: var(--bg-input);
 }
 
 .input-with-icon input:focus {
-    border-color: #1a1a2e;
-    background: #ffffff;
-    box-shadow: 0 0 0 4px rgba(26, 26, 46, 0.05);
+    border-color: var(--accent);
+    background: var(--bg-card);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+body.dark-mode .input-with-icon input:focus {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 
 .input-suffix {
     position: absolute;
     right: 15px;
     font-weight: 700;
-    color: #9ca3af;
+    color: var(--text-muted);
     font-size: 1.2rem;
 }
 
@@ -1299,7 +1310,7 @@ body.dark-mode .cajero-opciones-extra {
     display: block;
     margin-top: 6px;
     font-size: 0.8rem;
-    color: #6b7280;
+    color: var(--text-muted);
 }
 
 .divider-text {
@@ -1307,7 +1318,7 @@ body.dark-mode .cajero-opciones-extra {
     position: relative;
     margin: 25px 0;
     font-size: 0.85rem;
-    color: #9ca3af;
+    color: var(--text-muted);
     text-transform: uppercase;
     font-weight: 700;
     letter-spacing: 0.05em;
@@ -1320,7 +1331,7 @@ body.dark-mode .cajero-opciones-extra {
     top: 50%;
     width: 40%;
     height: 1px;
-    background: #e5e7eb;
+    background: var(--border-main);
 }
 
 .divider-text::before {
@@ -1341,7 +1352,7 @@ body.dark-mode .cajero-opciones-extra {
     flex: 1;
     background: transparent;
     border: none;
-    color: #6b7280;
+    color: var(--text-muted);
     font-weight: 600;
     cursor: pointer;
     font-size: 0.95rem;
@@ -1349,12 +1360,12 @@ body.dark-mode .cajero-opciones-extra {
 }
 
 .btn-cancel-flat:hover {
-    color: #374151;
+    color: var(--text-main);
 }
 
 .btn-apply-premium {
     flex: 2;
-    background: #1a1a2e;
+    background: var(--accent);
     color: white;
     border: none;
     padding: 12px;
@@ -1366,15 +1377,19 @@ body.dark-mode .cajero-opciones-extra {
 }
 
 .btn-apply-premium:hover {
-    background: #16213e;
+    background: var(--accent-hover);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(26, 26, 46, 0.2);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+body.dark-mode .btn-apply-premium:hover {
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
 }
 
 
 #inputPorcentajeDescuento {
     height: 25px;
-    border: 1px solid lightgray;
+    border: 1px solid var(--border-main);
 }
 
 input[type="text"] {
@@ -1393,26 +1408,30 @@ input[type="text"] {
 .input-cupon input {
     width: 100%;
     padding: 12px 45px 12px 15px;
-    border: 2px solid #f3f4f6;
+    border: 2px solid var(--border-main);
     border-radius: 12px;
     font-size: 1.1rem;
     font-weight: 600;
-    color: #1a1a2e;
+    color: var(--text-main);
     transition: all 0.2s;
     outline: none;
-    background: #f9fafb;
+    background: var(--bg-input);
 }
 
 .input-cupon input:focus {
-    border-color: #1a1a2e;
-    background: #ffffff;
-    box-shadow: 0 0 0 4px rgba(26, 26, 46, 0.05);
+    border-color: var(--accent);
+    background: var(--bg-card);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+body.dark-mode .input-cupon input:focus {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 
 #inputCuponDescuento {
     height: 35px;
     max-width: 300px;
-    border: 1px solid lightgray;
+    border: 1px solid var(--border-main);
     border-radius: 10px;
     padding: 0;
     transition: all 0.2s ease-in-out;
@@ -1422,7 +1441,7 @@ input[type="text"] {
 #inputCuponDescuento::placeholder {
     font-size: 0.8rem;
     font-weight: normal;
-    color: #9ca3af;
+    color: var(--text-muted);
 }
 
 /* ======================== ANIMACIONES ======================== */
@@ -1469,67 +1488,85 @@ input[type="text"] {
 
 /* ======================== DARK MODE ======================== */
 body.dark-mode .cajero-productos {
-    background: #1f2937;
-    color: #e5e7eb;
+    background: #111827;
+    color: #f9fafb;
 }
 
 body.dark-mode .cajero-opciones-extra {
-    background: #374151 !important;
-    border-bottom-color: #4b5563 !important;
+    background: #111827 !important;
+    border-bottom-color: #374151 !important;
 }
 
 body.dark-mode #formBuscarProducto,
 body.dark-mode .cajero-categorias {
-    background: #1f2937 !important;
+    background: #111827 !important;
     border-bottom-color: #374151 !important;
 }
 
 body.dark-mode #formBuscarProducto label {
-    color: #e5e7eb !important;
+    color: #f9fafb !important;
 }
 
 body.dark-mode .cat-btn {
-    background: #4b5563;
-    color: #e5e7eb;
+    background: #374151;
+    color: #f9fafb;
 }
 
 body.dark-mode .cat-btn.activa {
-    background: #2563eb;
+    background: #3b82f6;
     color: #fff;
 }
 
 body.dark-mode #inputBuscarProducto {
     background: #374151;
-    color: #e5e7eb;
+    color: #f9fafb;
     border-color: #4b5563;
 }
 
 body.dark-mode .producto-card {
-    background: #374151;
-    color: #e5e7eb;
-    border-color: #4b5563;
+    background: #1f2937;
+    color: #f9fafb;
+    border-color: #374151;
 }
 
 body.dark-mode .producto-card:hover {
-    background: #4b5563;
+    background: #374151;
 }
 
 body.dark-mode .producto-nombre {
-    color: #e5e7eb;
+    color: #f9fafb;
+}
+
+.producto-nombre-dev {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.producto-precio-dev {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+body.dark-mode .producto-nombre-dev {
+    color: #f9fafb !important;
+}
+
+body.dark-mode .producto-precio-dev {
+    color: #9ca3af !important;
 }
 
 body.dark-mode .producto-precio {
-    color: #34d399;
+    color: #22c55e;
 }
 
 body.dark-mode .cajero-ticket {
     background: #1f2937;
-    color: #e5e7eb;
+    color: #f9fafb;
 }
 
 body.dark-mode .ticket-header {
-    background: #374151;
-    color: #e5e7eb;
+    background: #111827;
+    color: #f9fafb;
 }
 
 body.dark-mode .ticket-vacio {
@@ -1537,23 +1574,23 @@ body.dark-mode .ticket-vacio {
 }
 
 body.dark-mode .ticket-total-label {
-    color: #e5e7eb;
+    color: #f9fafb;
 }
 
 body.dark-mode .ticket-total-amount {
-    color: #34d399;
+    color: #22c55e;
 }
 
 body.dark-mode .btn-cobrar {
-    background: #10b981;
+    background: #22c55e;
 }
 
 body.dark-mode .btn-cobrar:disabled {
-    background: #4b5563;
+    background: #374151;
 }
 
 body.dark-mode .btn-descuento {
-    background: #6366f1;
+    background: #3b82f6;
 }
 
 body.dark-mode .btn-cancelar {
@@ -1561,11 +1598,11 @@ body.dark-mode .btn-cancelar {
 }
 
 body.dark-mode .btn-nuevo-producto {
-    background: #059669;
+    background: #22c55e;
 }
 
 body.dark-mode .btn-nuevo-producto:hover {
-    background: #047857;
+    background: #16a34a;
 }
 
 body.dark-mode .modal-overlay {
@@ -1574,7 +1611,7 @@ body.dark-mode .modal-overlay {
 
 body.dark-mode .modal-content {
     background: #1f2937;
-    color: #e5e7eb;
+    color: #f9fafb;
 }
 
 body.dark-mode .modal-header-premium {
@@ -1685,6 +1722,47 @@ body.dark-mode .modal-verProducto {
 
 body.dark-mode .modal-verProducto h3 {
     color: #e5e7eb;
+}
+
+/* Estilos para el modal de devolución en modo oscuro */
+body.dark-mode .producto-nombre-dev {
+    color: #f9fafb !important;
+}
+
+body.dark-mode .producto-precio-dev {
+    color: #9ca3af !important;
+}
+
+body.dark-mode #devolucionPaso2 .tabla-productos-devolucion td:nth-child(2) {
+    color: #9ca3af !important;
+}
+
+body.dark-mode #devolucionPaso2 .tabla-productos-devolucion td {
+    color: #f9fafb;
+}
+
+body.dark-mode #devolucionPaso2 .tabla-productos-devolucion .producto-nombre-dev {
+    color: #f9fafb;
+}
+
+body.dark-mode #devolucionPaso2 .tabla-productos-devolucion .producto-precio-dev {
+    color: #9ca3af;
+}
+
+body.dark-mode #devolucionPaso2 .tabla-productos-devolucion td:nth-child(2) {
+    color: #9ca3af;
+}
+
+body.dark-mode #devolucionPaso2 .cant-dev-input {
+    background: #374151;
+    color: #f9fafb;
+    border-color: #4b5563;
+}
+
+body.dark-mode #devolucionPaso2 .cantidad-control button {
+    background: #374151;
+    color: #f9fafb;
+    border-color: #4b5563;
 }
 
 body.dark-mode .modal-subtitulo {

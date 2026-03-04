@@ -4,7 +4,7 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    background: #f0f2f5;
+    background: var(--bg-main);
     overflow: hidden;
 }
 
@@ -13,8 +13,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 15px 20px;
-    background: #fff;
-    border-bottom: 1px solid #e5e7eb;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border-main);
 }
 
 .admin-header h2 {
@@ -30,7 +30,8 @@
 }
 
 .admin-stat-card {
-    background: #fff;
+    background: var(--bg-card);
+    border: 1px solid var(--border-main);
     border-radius: 12px;
     padding: 20px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
@@ -53,11 +54,11 @@
 
 .admin-content-panel {
     flex: 1;
-    margin: 0 20px 20px 20px;
-    background: #fff;
+    margin: 0 20px 10px 20px;
+    background: var(--bg-panel);
     border-radius: 12px;
-    border: 1px solid #e5e7eb;
-    padding: 20px;
+    border: 1px solid var(--border-main);
+    padding: 15px;
     overflow-y: auto;
 }
 
@@ -225,8 +226,8 @@
 .admin-tabla thead th {
     position: sticky;
     top: 0;
-    background: #f0f2f5;
-    box-shadow: 0 1px 0 #e5e7eb;
+    background: var(--bg-main);
+    box-shadow: 0 1px 0 var(--border-main);
     z-index: 10;
 }
 
@@ -272,7 +273,7 @@
 }
 
 .modal-content {
-    background: #fff;
+    background: var(--bg-modal);
     border-radius: 16px;
     padding: 40px;
     text-align: center;
@@ -280,25 +281,26 @@
     animation: scaleIn 0.3s ease;
     max-width: 520px;
     width: 90%;
+    color: var(--text-main);
 }
 
 .ver-prod-fila {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #f0f2f5;
+    border-bottom: 1px solid var(--border-main);
     padding-bottom: 6px;
 }
 
 .ver-prod-label {
     font-size: 0.85rem;
-    color: #6b7280;
+    color: var(--text-muted);
     font-weight: 600;
 }
 
 .ver-prod-valor {
     font-size: 0.95rem;
-    color: #1a1a2e;
+    color: var(--text-main);
     font-weight: 500;
     text-align: right;
 }
@@ -337,18 +339,18 @@
 
 .filtro-group label {
     font-size: 0.85rem;
-    color: #6b7280;
+    color: var(--text-muted);
     font-weight: 500;
     white-space: nowrap;
 }
 
 .filtro-select {
     padding: 8px 12px;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--border-main);
     border-radius: 6px;
     font-size: 0.9rem;
-    color: #374151;
-    background: white;
+    color: var(--text-main);
+    background: var(--bg-input);
     cursor: pointer;
     transition: border-color 0.2s;
     min-width: 140px;
@@ -901,7 +903,7 @@ body.dark-mode .admin-sidebar {
 /* ======================== THEME EDITOR ======================== */
 
 .tema-editor {
-    padding: 10px 0;
+    padding: 5px 0;
 }
 
 .tema-editor-intro {
@@ -911,8 +913,8 @@ body.dark-mode .admin-sidebar {
     background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
     border: 1px solid #dbeafe;
     border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 25px;
+    padding: 15px;
+    margin-bottom: 15px;
 }
 
 body.dark-mode .tema-editor-intro {
@@ -921,7 +923,7 @@ body.dark-mode .tema-editor-intro {
 }
 
 .tema-intro-titulo {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 700;
     color: #1a1a2e;
     margin: 0 0 4px 0;
@@ -932,7 +934,7 @@ body.dark-mode .tema-intro-titulo {
 }
 
 .tema-intro-subtitulo {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: #6b7280;
     margin: 0;
 }
@@ -943,9 +945,9 @@ body.dark-mode .tema-intro-subtitulo {
 
 .tema-secciones-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 18px;
-    margin-bottom: 25px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
 }
 
 .tema-seccion-card {
@@ -1122,9 +1124,8 @@ body.dark-mode .tema-select-font:focus {
 .tema-botones {
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
+    gap: 10px;
     padding-top: 10px;
-    border-top: 1px solid #e5e7eb;
 }
 
 body.dark-mode .tema-botones {
@@ -1134,9 +1135,9 @@ body.dark-mode .tema-botones {
 .tema-btn-reset {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
-    font-size: 0.9rem;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: 0.85rem;
     font-weight: 600;
 }
 

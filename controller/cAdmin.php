@@ -21,6 +21,8 @@ if (!isset($_SESSION['rolUsuario']) || $_SESSION['rolUsuario'] !== 'admin') {
 
 // Si el usuario solicita cerrar sesión
 if (isset($_REQUEST['cerrarSesion'])) {
+    // Limpiar todas las variables de sesión
+    $_SESSION = array();
     // Destruimos la sesión
     session_destroy();
     // Redirigimos al login
@@ -34,6 +36,8 @@ $sesionCaja = Caja::obtenerSesionAbierta();
 // Definimos los títulos de las ventas y pedidos
 $tituloVentas = "Ventas (Sesión Actual)";
 $tituloPedidos = "Ventas realizadas hoy";
+$tituloRetiros = "Retiros (Sesión Actual)";
+$tituloDevoluciones = "Devoluciones (Sesión Actual)";
 
 // Si la caja está abierta
 if ($sesionCaja) {
@@ -49,6 +53,8 @@ if ($sesionCaja) {
         // Actualizamos los títulos
         $tituloVentas = "Ventas (Sesión Anterior)";
         $tituloPedidos = "Ventas realizadas (Sesión Anterior)";
+        $tituloRetiros = "Retiros (Sesión Anterior)";
+        $tituloDevoluciones = "Devoluciones (Sesión Anterior)";
     } else {
         // Array para el resumen de las ventas al hacer caja
         $resumenCaja = [
@@ -78,6 +84,28 @@ $stats = [
     'productos' => count($productosTotal),
     'alertasStock' => $alertasStock
 ];
+
+// Obtener el total de retiros según corresponda
+if ($sesionCaja) {
+    // Caja abierta: obtener retiros de la sesión actual
+    $stats['retirosHoy'] = $sesionCaja->getTotalRetiros();
+} elseif (isset($ultimaCaja) && $ultimaCaja) {
+    // Caja cerrada: obtener retiros de la última sesión
+    $stats['retirosHoy'] = $ultimaCaja->getTotalRetiros();
+} else {
+    $stats['retirosHoy'] = 0;
+}
+
+// Obtener el total de devoluciones según corresponda
+if ($sesionCaja) {
+    // Caja abierta: obtener devoluciones de la sesión actual
+    $stats['devolucionesHoy'] = Devolucion::obtenerTotalPorSesion($sesionCaja->getId());
+} elseif (isset($ultimaCaja) && $ultimaCaja) {
+    // Caja cerrada: obtener devoluciones de la última sesión
+    $stats['devolucionesHoy'] = Devolucion::obtenerTotalPorSesion($ultimaCaja->getId());
+} else {
+    $stats['devolucionesHoy'] = 0;
+}
 
 // Llamamos a la vista
 require_once $view['Layout'];

@@ -170,10 +170,10 @@
                     <!-- Si el stock es 0, la tarjeta se muestra con opacidad reducida y sin interacción -->
                     <div class="producto-card" data-id="<?php echo $prod->getId(); ?>"
                         data-nombre="<?php echo htmlspecialchars($prod->getNombre()); ?>"
-                        data-precio="<?php echo $prod->getPrecio(); ?>" data-stock="<?php echo $prod->getStock(); ?>"
-                        onclick="agregarAlCarrito(this)" style="<?php if ($prod->getStock() <= 0) {
-                            echo 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);';
-                        } ?>">
+                        data-precio="<?php echo $prod->getPrecio(); ?>" data-iva="<?php echo $prod->getIva(); ?>"
+                        data-stock="<?php echo $prod->getStock(); ?>" onclick="agregarAlCarrito(this)" style="<?php if ($prod->getStock() <= 0) {
+                               echo 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);';
+                           } ?>">
 
                         <!-- Nombre del producto -->
                         <div class="producto-nombre">
@@ -191,7 +191,10 @@
                         <!-- Precio y stock del producto -->
                         <!-- El stock se muestra en rojo y subrayado si es 0 o menor -->
                         <div class="producto-info-inferior">
-                            <span class="producto-precio"><?php echo number_format($prod->getPrecio(), 2, ',', '.'); ?> €</span>
+                            <?php
+                            $precioPVP = $prod->getPrecio() * (1 + ($prod->getIva() / 100));
+                            ?>
+                            <span class="producto-precio"><?php echo number_format($precioPVP, 2, ',', '.'); ?> €</span>
                             <span class="producto-stock" <?php if ($prod->getStock() <= 0) {
                                 echo 'style="color: red; text-decoration: underline;"';
                             } ?>>Stock: <?php echo $prod->getStock(); ?></span>
@@ -212,10 +215,10 @@
             <!-- Reloj que se actualiza cada segundo mostrando fecha y hora actual -->
             <span class="ticket-fecha">
                 <script>
-                    /**
-                     * actualizarFechaHora()
-                     * Actualiza el elemento .ticket-fecha con la fecha y hora actual
-                     * en formato DD/MM/AAAA HH:MM:SS. Se ejecuta cada segundo.
+                    /                        * *
+                        * actualizarFechaHora()
+                        * Actualiza el elemento.ticket - fecha con la fecha y hora actual
+                            * en formato DD / MM / AAAA HH: MM: SS.Se ejecuta cada segundo.
                      */
                     function actualizarFechaHora() {
                         const ahora = new Date();
@@ -610,13 +613,13 @@
     <!-- Se usa para las funciones de impresión y envío por correo -->
     <script>
         const ultimaVenta = {
-            id: <?php echo $_SESSION['ultimaVentaId']; ?>,                                          // ID de la venta
-            total: '<?php echo number_format($_SESSION['ultimaVentaTotal'], 2, ',', '.'); ?>',       // Total formateado
-            tipo: '<?php echo $_SESSION['ultimaVentaTipo']; ?>',                                     // 'ticket' o 'factura'
-            carrito: <?php echo $_SESSION['ultimaVentaCarrito']; ?>,                                  // Array de productos (JSON)
-            metodoPago: '<?php echo $_SESSION['ultimaVentaMetodoPago']; ?>',                         // Método de pago usado
-            fecha: '<?php echo $_SESSION['ultimaVentaFecha']; ?>',                                   // Fecha de la venta
-            entregado: '<?php echo number_format($_SESSION['ultimaVentaEntregado'] ?? $_SESSION['ultimaVentaTotal'], 2, ',', '.'); ?>', // Dinero entregado
+            id: <?php echo $_SESSION['ultimaVentaId'] ?? 'null'; ?>,                                          // ID de        la venta
+            total: '<?php echo number_format($_SESSION['ultimaVentaTotal'] ?? 0, 2, ',', '.'); ?>',       // Total formateado
+            tipo: '<?php echo $_SESSION['ultimaVentaTipo'] ?? 'ticket'; ?>',                                     // 'ticket' o 'factura'
+            carrito: <?php echo $_SESSION['ultimaVentaCarrito'] ?? '[]'; ?>,                                  // Array de productos (JSON)
+            metodoPago: '<?php echo $_SESSION['ultimaVentaMetodoPago'] ?? 'efectivo'; ?>',                         // Método de pago usado
+            fecha: '<?php echo $_SESSION['ultimaVentaFecha'] ?? ''; ?>',                                   // Fecha de la venta
+            entregado: '<?php echo number_format($_SESSION['ultimaVentaEntregado'] ?? ($_SESSION['ultimaVentaTotal'] ?? 0), 2, ',', '.'); ?>', // Dinero entregado
             cambio: '<?php echo number_format($_SESSION['ultimaVentaCambio'] ?? 0, 2, ',', '.'); ?>', // Cambio devuelto
             clienteNif: '<?php echo addslashes($_SESSION['ultimaVentaClienteNif'] ?? ''); ?>',       // NIF del cliente
             clienteNombre: '<?php echo addslashes($_SESSION['ultimaVentaClienteNombre'] ?? ''); ?>', // Nombre del cliente
@@ -738,31 +741,44 @@
         <div class="modal-body-premium" style="flex: 1; overflow-y: auto; padding: 25px;">
             <!-- PASO 1: Búsqueda de Ticket -->
             <div id="devolucionPaso1">
-                <div class="form-group-premium" style="text-align: center; padding: 20px 0;">
-                    <label for="inputTicketIdDev" style="font-size: 1.1rem; margin-bottom: 15px;">ID del Ticket /
-                        Factura</label>
+                <div style="text-align: center; padding: 20px 0;">
+                    <!-- Icono representativo grande -->
                     <div
-                        style="display: flex; gap: 0; max-width: 400px; margin: 0 auto; border: 2px solid var(--border-main); border-radius: 12px; overflow: hidden; background: white; transition: border-color 0.2s;">
+                        style="background: rgba(220, 38, 38, 0.1); width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px; color: var(--accent-danger); border: 2px solid rgba(220, 38, 38, 0.2); box-shadow: 0 8px 16px -4px rgba(220, 38, 38, 0.15);">
+                        <i class="fas fa-receipt" style="font-size: 2.2rem;"></i>
+                    </div>
+
+                    <h4 style="color: var(--text-main); font-size: 1.4rem; margin-bottom: 10px; font-weight: 700;">
+                        Recuperar Ticket</h4>
+                    <p
+                        style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 30px; max-width: 400px; margin-left: auto; margin-right: auto;">
+                        Introduce el número identificador para procesar la devolución de los productos.
+                    </p>
+
+                    <div style="max-width: 340px; margin: 0 auto;">
                         <input type="number" id="inputTicketIdDev" placeholder="Ej: 123"
-                            style="flex: 1; border: none; padding: 15px; font-size: 1.2rem; outline: none; background: transparent;"
+                            style="width: 100%; padding: 18px; font-size: 1.6rem; text-align: center; border-radius: 14px; border: 2px solid var(--border-main); background: var(--bg-input); color: var(--text-main); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transition: all 0.2s; outline: none; font-weight: 600;"
                             onkeypress="if(event.key === 'Enter') buscarTicketParaDevolucion()"
-                            onfocus="this.parentElement.style.borderColor = 'var(--accent-danger)'"
-                            onblur="this.parentElement.style.borderColor = 'var(--border-main)'">
+                            onfocus="this.style.borderColor = 'var(--accent-danger)'; this.style.boxShadow = '0 0 0 4px rgba(220, 38, 38, 0.1)'; this.style.transform = 'translateY(-2px)'"
+                            onblur="this.style.borderColor = 'var(--border-main)'; this.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)'; this.style.transform = 'translateY(0)'">
+
                         <button type="button" class="btn-apply-premium" onclick="buscarTicketParaDevolucion()"
-                            style="background: var(--accent-danger); color: white; margin: 0; min-width: 120px; border-radius: 0; font-weight: bold; border: none;">
-                            Buscar
+                            style="width: 100%; background: var(--accent-danger); color: white; margin-top: 20px; padding: 16px; border-radius: 14px; font-size: 1.1rem; font-weight: 700; border: none; box-shadow: 0 6px 15px rgba(220, 38, 38, 0.3); transition: all 0.2s; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                            <span>Continuar</span>
+                            <i class="fas fa-arrow-right" style="font-size: 0.9rem;"></i>
                         </button>
                     </div>
+
                     <p id="errorTicketDev"
-                        style="color: var(--accent-danger); font-size: 0.85rem; margin-top: 15px; font-weight: 600; display: none;">
+                        style="color: var(--accent-danger); font-size: 0.85rem; margin-top: 20px; font-weight: 600; display: none; background: rgba(220, 38, 38, 0.05); padding: 10px; border-radius: 8px;">
                     </p>
 
                     <div
-                        style="margin-top: 30px; padding: 20px; background: #f9fafb; border-radius: 12px; border: 1px dashed #d1d5db;">
-                        <p style="margin: 0; color: #6b7280; font-size: 0.9rem;">
-                            <i class="fas fa-info-circle" style="margin-right: 5px;"></i>
-                            Necesitas el número de ticket impreso para realizar una devolución verificada.
-                        </p>
+                        style="margin-top: 45px; padding: 15px 20px; background: var(--bg-panel); border-radius: 12px; border: 1px dashed var(--border-main); display: inline-flex; align-items: center; gap: 12px; opacity: 0.8;">
+                        <i class="fas fa-info-circle" style="color: var(--accent-danger);"></i>
+                        <span style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
+                            El número de ticket se encuentra en la parte superior del comprobante.
+                        </span>
                     </div>
                 </div>
             </div>
@@ -770,30 +786,32 @@
             <!-- PASO 2: Selección de Productos -->
             <div id="devolucionPaso2" style="display: none;">
                 <div
-                    style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding: 15px; background: #fff5f5; border-radius: 12px; border: 1px solid #fed7d7;">
+                    style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding: 15px; background: var(--bg-accent-danger); border-radius: 12px; border: 1px solid var(--accent-danger); opacity: 0.9;">
                     <div>
-                        <div style="font-weight: 700; color: #991b1b; font-size: 1rem; margin-bottom: 5px;">Información
+                        <div style="font-weight: 700; color: var(--text-main); font-size: 1rem; margin-bottom: 5px;">
+                            Información
                             del Ticket</div>
-                        <div style="font-size: 0.9rem; color: #c53030;">
+                        <div style="font-size: 0.9rem; color: var(--text-muted);">
                             <span id="infoTicketId" style="font-weight: 600;"></span> ·
                             <span id="infoTicketFecha"></span>
                         </div>
                     </div>
                     <div style="text-align: right;">
                         <div
-                            style="font-size: 0.8rem; color: #c53030; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">
+                            style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">
                             Total Original</div>
-                        <div id="infoTicketTotal" style="font-size: 1.2rem; font-weight: 800; color: #991b1b;"></div>
+                        <div id="infoTicketTotal"
+                            style="font-size: 1.2rem; font-weight: 800; color: var(--accent-danger);"></div>
                     </div>
                 </div>
 
                 <div
                     style="border: 1px solid var(--border-main); border-radius: 12px; overflow: hidden; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-                    <table style="width: 100%; border-collapse: collapse;">
+                    <table class="tabla-productos-devolucion" style="width: 100%; border-collapse: collapse;">
                         <thead>
-                            <tr style="background: #f8fafc; border-bottom: 2px solid var(--border-main);">
+                            <tr style="background: var(--bg-panel); border-bottom: 2px solid var(--border-main);">
                                 <th
-                                    style="text-align: left; padding: 12px 15px; font-weight: 700; font-size: 0.8rem; color: #64748b; text-transform: uppercase;">
+                                    style="text-align: left; padding: 12px 15px; font-weight: 700; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">
                                     Producto</th>
                                 <th
                                     style="text-align: center; padding: 12px; font-weight: 700; font-size: 0.8rem; color: #64748b; text-transform: uppercase; width: 80px;">
@@ -843,13 +861,18 @@
 
         <!-- Footer siempre visible -->
         <div class="modal-footer-premium"
-            style="flex-shrink: 0; background: #f8fafc; border-top: 1px solid var(--border-main); display: flex; justify-content: space-between; align-items: center; padding: 20px 30px;">
+            style="flex-shrink: 0; background: var(--bg-panel); border-top: 1px solid var(--border-main); display: flex; justify-content: space-between; align-items: center; padding: 20px 30px;">
             <div id="resumenReembolso" style="display: none;">
                 <span
-                    style="display: block; font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Total
+                    style="display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Total
                     a reembolsar</span>
                 <span id="totalReembolsoDisplay"
                     style="font-size: 1.6rem; font-weight: 800; color: var(--accent-danger);">0,00 €</span>
+                <div id="errorEfectivoInsuficiente"
+                    style="display: none; color: var(--accent-danger); font-size: 0.8rem; font-weight: 600; margin-top: 5px; background: rgba(220, 38, 38, 0.1); padding: 5px 10px; border-radius: 6px;">
+                    <i class="fas fa-exclamation-triangle"></i> No hay suficiente efectivo en caja (Disponible: <span
+                        id="efectivoDisponibleDisplay"></span>)
+                </div>
             </div>
             <div style="margin-left: auto; display: flex; gap: 15px;">
                 <button type="button" class="btn-cancel-flat" onclick="cerrarModalDevolucion()"
@@ -909,7 +932,7 @@
 
         <div class="modal-body-premium">
             <!-- Formulario de retiro de dinero -->
-            <form id="formRetiro" method="POST" action="index.php">
+            <form id="formRetiro" method="POST" action="index.php" onsubmit="return validarRetiro()">
                 <input type="hidden" name="accion" value="retirarDinero">
 
                 <!-- Campo: cantidad a retirar en euros -->
@@ -917,6 +940,11 @@
                     <label for="importeRetiro">Cantidad a Retirar (€)</label>
                     <input type="number" name="importeRetiro" id="importeRetiro" step="0.01" min="0.01"
                         placeholder="0.00" required>
+                    <small style="color: var(--text-muted); display: block; margin-top: 5px;">
+                        Efectivo disponible: <span
+                            id="efectivoDisponible"><?php echo number_format($sesionCaja ? $sesionCaja->getImporteActual() : 0, 2, ',', '.'); ?></span>
+                        €
+                    </small>
                 </div>
 
                 <!-- Campo: motivo del retiro (opcional) -->
@@ -963,12 +991,38 @@
     <?php unset($_SESSION['retiroExito']); ?>
 <?php endif; ?>
 
+<!-- ##=========================== MODAL: RETIRO ERROR ===========================## -->
+<!-- Se muestra automáticamente cuando $_SESSION['retiroError'] está definida -->
+<!-- Muestra el mensaje de error del retiro fallido -->
+<?php if (isset($_SESSION['retiroError'])): ?>
+    <div class="modal-overlay" id="retiroError">
+        <div class="modal-content modal-error-content modal-border-red" style="max-width: 400px;">
+            <!-- Icono SVG de X/error en rojo -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                stroke="var(--accent-danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                style="margin-bottom: 15px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+            <h3 style="color: var(--accent-danger);">Error en el retiro</h3>
+            <!-- Mensaje de error escapado con htmlspecialchars para seguridad XSS -->
+            <p style="color: var(--text-main); margin-bottom: 25px;">
+                <?php echo htmlspecialchars($_SESSION['retiroError']); ?>
+            </p>
+            <button class="btn-modal-cancelar" onclick="document.getElementById('retiroError').remove()"
+                style="width: 100%;">Aceptar</button>
+        </div>
+    </div>
+    <?php unset($_SESSION['retiroError']); ?>
+<?php endif; ?>
+
 <!-- ##=========================== MODAL: ERROR ===========================## -->
 <!-- Se muestra automáticamente cuando $_SESSION['ventaError'] está definida -->
 <!-- Muestra el mensaje de error de la venta fallida -->
 <?php if (isset($_SESSION['ventaError'])): ?>
     <div class="modal-overlay" id="ventaError">
-        <div class="modal-content modal-error-contentmodal-border-red" style="max-width: 400px;">
+        <div class="modal-content modal-error-content modal-border-red" style="max-width: 400px;">
             <!-- Icono SVG de X/error en rojo -->
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
                 stroke="var(--accent-danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -1030,6 +1084,11 @@
                                 -<?php echo number_format($_SESSION['resumenCaja']['efectivo']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
                         <?php endif; ?>
+                        <?php if (isset($_SESSION['resumenCaja']['totalRetiros']) && $_SESSION['resumenCaja']['totalRetiros'] > 0): ?>
+                            <br><span style="font-size: 0.75rem; color: #ea580c;">(Retiros:
+                                -<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'], 2, ',', '.'); ?>
+                                €)</span>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -1083,8 +1142,15 @@
                     <!-- Total de devoluciones realizadas durante la sesión -->
                     <div class="resumen-detalle-fila" style="color: #ef4444;">
                         <span>Total Devoluciones:</span>
-                        <span style="font-weight: 600;">-
-                            <?php echo number_format($_SESSION['resumenCaja']['totalDevoluciones'], 2, ',', '.'); ?>
+                        <span
+                            style="font-weight: 600;">-<?php echo number_format($_SESSION['resumenCaja']['totalDevoluciones'], 2, ',', '.'); ?>
+                            €</span>
+                    </div>
+                    <!-- Total de retiros realizados durante la sesión -->
+                    <div class="resumen-detalle-fila" style="color: #ef4444;">
+                        <span>Total Retiros:</span>
+                        <span
+                            style="font-weight: 600;">-<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'] ?? 0, 2, ',', '.'); ?>
                             €</span>
                     </div>
                     <!-- Efectivo real que debería haber en la caja física -->
@@ -1178,6 +1244,13 @@
                                 €)</span>
                         </p>
                     <?php endif; ?>
+                    <?php if (isset($_SESSION['resumenCaja']['totalRetiros']) && $_SESSION['resumenCaja']['totalRetiros'] > 0): ?>
+                        <p style="margin: 0px 0 5px 0; display:flex; justify-content:flex-end; font-size: 0.8rem;">
+                            <span>(Retiros:
+                                -<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'], 2, ',', '.'); ?>
+                                €)</span>
+                        </p>
+                    <?php endif; ?>
 
                     <!-- Tarjeta -->
                     <p style="margin: 5px 0; display:flex; justify-content:space-between;">
@@ -1224,6 +1297,11 @@
                     <p style="margin: 5px 0; display:flex; justify-content:space-between; font-size: 0.9em; color: #000;">
                         <span>Total Devoluciones:</span>
                         <span>- <?php echo number_format($_SESSION['resumenCaja']['totalDevoluciones'], 2, ',', '.'); ?>
+                            €</span>
+                    </p>
+                    <p style="margin: 5px 0; display:flex; justify-content:space-between; font-size: 0.9em; color: #000;">
+                        <span>Total Retiros:</span>
+                        <span>- <?php echo number_format($_SESSION['resumenCaja']['totalRetiros'] ?? 0, 2, ',', '.'); ?>
                             €</span>
                     </p>
                     <p
@@ -1499,59 +1577,163 @@
     }
 
     /**
-     * Reimprime un ticket de una venta existente
+     * Reimprime un ticket de una venta existente.
+     * @param {number} idVenta - El ID de la venta a reimprimir.
      */
     function reimprimirTicket(idVenta) {
+        // Abrir la ventana primero para evitar el bloqueo de popups (requiere contexto de usuario directo)
+        const ventana = window.open('', '_blank', 'width=450,height=700');
+
+        if (!ventana) {
+            alert('El navegador ha bloqueado la ventana de impresión. Por favor, permite los popups para poder imprimir el ticket.');
+            return;
+        }
+
+        // Mostrar un mensaje de carga mientras se obtienen los datos
+        ventana.document.write(`
+            <html>
+                <head><title>Cargando...</title></head>
+                <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 80vh; flex-direction: column; color: #666;">
+                    <div style="border: 4px solid #f3f3f3; border-top: 4px solid #2563eb; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+                    <p>Obteniendo datos del ticket #${idVenta}...</p>
+                    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+                </body>
+            </html>
+        `);
+
         fetch('api/ventas.php?detalleVenta=' + idVenta)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('Error en la respuesta del servidor (HTTP ' + res.status + ')');
+                return res.json();
+            })
             .then(data => {
                 if (data.error) {
-                    alert('Error: ' + data.error);
+                    ventana.close();
+                    alert('Error al obtener datos: ' + data.error);
                     return;
                 }
 
                 const venta = data.venta;
                 const lineas = data.lineas;
 
-                const isFactura = venta.tipoDocumento === 'factura';
+                const isFactura = (venta.tipoDocumento === 'factura');
                 const tipoTitulo = isFactura ? 'FACTURA' : 'TICKET DE VENTA';
 
                 let lineasHtml = '';
+                let desgloseIva = {};
+                let sumaPVP = 0;
+
                 lineas.forEach(item => {
-                    const subtotal = (item.precioUnitario * item.cantidad).toFixed(2).replace('.', ',');
-                    lineasHtml += '<tr>';
-                    lineasHtml += '<td>' + item.producto_nombre + '</td>';
-                    lineasHtml += '<td style="text-align:center">' + item.cantidad + '</td>';
-                    lineasHtml += '<td style="text-align:right">' + parseFloat(item.precioUnitario).toFixed(2).replace('.', ',') + ' €</td>';
-                    lineasHtml += '<td style="text-align:right">' + subtotal + ' €</td>';
-                    lineasHtml += '</tr>';
+                    const priceBase = parseFloat(item.precioUnitario) || 0;
+                    const qty = parseInt(item.cantidad) || 0;
+                    const ivaPorc = parseInt(item.iva) || 21;
+
+                    const subtotalBase = priceBase * qty;
+                    const cuotaIva = subtotalBase * (ivaPorc / 100);
+                    const subtotalPVP = subtotalBase + cuotaIva;
+
+                    sumaPVP += subtotalPVP;
+
+                    if (!desgloseIva[ivaPorc]) {
+                        desgloseIva[ivaPorc] = { base: 0, cuota: 0 };
+                    }
+                    desgloseIva[ivaPorc].base += subtotalBase;
+                    desgloseIva[ivaPorc].cuota += cuotaIva;
+
+                    lineasHtml += `
+                        <tr>
+                            <td style="padding: 5px 0;">${item.producto_nombre}</td>
+                            <td style="text-align:center;">${qty}</td>
+                            <td style="text-align:right;">${priceBase.toFixed(2).replace('.', ',')} €</td>
+                            <td style="text-align:center;">${ivaPorc}%</td>
+                            <td style="text-align:right;">${subtotalPVP.toFixed(2).replace('.', ',')} €</td>
+                        </tr>
+                    `;
                 });
 
                 const total = parseFloat(venta.total).toFixed(2).replace('.', ',');
-                const fecha = new Date(venta.fecha).toLocaleString('es-ES');
+                const fecha = new Date(venta.fecha).toLocaleString('es-ES', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
+                });
 
                 const contenido = `
                     <html>
                     <head>
                         <title>${tipoTitulo} #${venta.id}</title>
-                        <style>body { font-family: 'Courier New', monospace; font-size: 12px; padding: 20px; } table { width: 100%; border-collapse: collapse; } th, td { padding: 5px; text-align: left; } .total { font-weight: bold; font-size: 14px; } .header { text-align: center; margin-bottom: 20px; }</style>
+                        <style>
+                            body { font-family: 'Courier New', Courier, monospace; font-size: 13px; padding: 20px; line-height: 1.4; color: #000; }
+                            .header { text-align: center; margin-bottom: 20px; border-bottom: 1px dashed #000; padding-bottom: 15px; }
+                            table { width: 100%; border-collapse: collapse; }
+                            th { border-bottom: 1px solid #000; padding: 5px 0; text-align: left; font-size: 11px; text-transform: uppercase; }
+                            .total-row { border-top: 1px solid #000; margin-top: 15px; padding-top: 10px; font-weight: bold; font-size: 16px; text-align: right; }
+                            .footer { text-align: center; margin-top: 30px; font-size: 11px; font-style: italic; }
+                        </style>
                     </head>
                     <body>
-                        <div class="header"><strong>TPV Bazar</strong><br>NIF: B12345678<br><h2>${tipoTitulo}</h2><p>Fecha: ${fecha}<br>Nº Ticket: ${venta.id}</p></div>
-                        <table><thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">P.Unit</th><th style="text-align:right">Importe</th></tr></thead><tbody>${lineasHtml}</tbody></table>
-                        <p class="total" style="text-align:right; margin-top:15px;">TOTAL: ${total} €</p>
-                        <p style="text-align:center; margin-top:20px;">Forma de pago: ${venta.metodoPago}</p>
-                        <p style="text-align:center; margin-top:30px;">Gracias por su compra</p>
-                    </body>
-                    </html>`;
+                        <div class="header">
+                            <strong style="font-size: 16px;">TPV BAZAR</strong><br>
+                            NIF: B12345678<br>
+                            C/ Falsa 123, Madrid<br><br>
+                            <span style="font-size: 14px; font-weight: bold;">${tipoTitulo}</span><br>
+                            Nº Ticket: ${venta.id}<br>
+                            Fecha: ${fecha}
+                        </div>
+                        <table class="tabla-lineas">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th style="text-align:center">Uds.</th>
+                                    <th style="text-align:right">Base</th>
+                                    <th style="text-align:center">IVA</th>
+                                    <th style="text-align:right">PVP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${lineasHtml}
+                            </tbody>
+                        </table>
 
-                const ventana = window.open('', '', 'width=400,height=600');
+                        <div style="margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px;">
+                            <strong style="font-size: 11px;">Desglose Fiscal:</strong>
+                            <table style="width: 100%; font-size: 11px; margin-top: 5px;">
+                                ${Object.keys(desgloseIva).map(porc => `
+                                    <tr>
+                                        <td>Base al ${porc}%:</td>
+                                        <td style="text-align:right;">${desgloseIva[porc].base.toFixed(2).replace('.', ',')} €</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Cuota IVA (${porc}%):</td>
+                                        <td style="text-align:right;">${desgloseIva[porc].cuota.toFixed(2).replace('.', ',')} €</td>
+                                    </tr>
+                                `).join('')}
+                            </table>
+                        </div>
+
+                        <div class="total-row">TOTAL (PVP): ${total} €</div>
+                        <div style="margin-top: 10px; font-size: 12px;">Método de pago: ${venta.metodoPago || 'Efectivo'}</div>
+                        <div class="footer">Este documento es una copia del original.<br>¡Gracias por su visita!</div>
+                    </body>
+                    </html>
+                `;
+
+                // Escribir el contenido final
+                ventana.document.open();
                 ventana.document.write(contenido);
                 ventana.document.close();
-                ventana.focus();
-                setTimeout(() => { ventana.print(); ventana.close(); }, 500);
+
+                // Imprimir y cerrar
+                setTimeout(() => {
+                    ventana.focus();
+                    ventana.print();
+                    ventana.close();
+                }, 400);
             })
-            .catch(err => { console.error('Error:', err); alert('Error al obtener los datos del ticket'); });
+            .catch(err => {
+                if (ventana) ventana.close();
+                console.error('Error en reimprimirTicket:', err);
+                alert('No se pudo obtener la información del ticket para imprimir. ' + err.message);
+            });
     }
 
     /**
@@ -1611,7 +1793,7 @@
                     cambio: parseFloat(venta.cambioDevuelto) || 0,
                     descuentoTipo: 'ninguno', descuentoValor: 0,
                     clienteNif: '', clienteNombre: '', clienteDir: '', clienteObs: '',
-                    carrito: lineas.map(l => ({ idProducto: l.idProducto, nombre: l.producto_nombre, precio: parseFloat(l.precioUnitario), cantidad: l.cantidad }))
+                    carrito: lineas.map(l => ({ idProducto: l.idProducto, nombre: l.producto_nombre, precio: parseFloat(l.precioUnitario), iva: parseInt(l.iva) || 21, cantidad: l.cantidad }))
                 };
                 imprimirDocumento();
             })
@@ -1641,7 +1823,7 @@
                     cambio: parseFloat(venta.cambioDevuelto) || 0,
                     descuentoTipo: 'ninguno', descuentoValor: 0,
                     clienteNif: '', clienteNombre: '', clienteDir: '', clienteObs: '',
-                    carrito: lineas.map(l => ({ idProducto: l.idProducto, nombre: l.producto_nombre, precio: parseFloat(l.precioUnitario), cantidad: l.cantidad }))
+                    carrito: lineas.map(l => ({ idProducto: l.idProducto, nombre: l.producto_nombre, precio: parseFloat(l.precioUnitario), iva: parseInt(l.iva) || 21, cantidad: l.cantidad }))
                 };
                 ultimaVenta = ventaHistorialTemporal;
                 // Abrir primero el modal de éxito y luego mostrar el formulario de email
@@ -1679,6 +1861,11 @@
     let cajaAbierta = <?php echo $sesionCaja ? 'true' : 'false'; ?>;
 
     /**
+     * Efectivo actual en caja para validaciones (p.ej. devoluciones).
+     */
+    const efectivoActualCaja = <?php echo $sesionCaja ? $sesionCaja->getImporteActual() : 0; ?>;
+
+    /**
      * agregarAlCarrito(elemento)
      * Añade un producto al carrito o incrementa su cantidad si ya existe.
      * Lee los datos del producto desde los atributos data-* del elemento HTML.
@@ -1706,7 +1893,14 @@
                 alert('Este producto no tiene stock disponible.');
                 return;
             }
-            carrito.push({ idProducto: id, nombre: nombre, precio: precio, cantidad: 1, stockMax: stockMax });
+            carrito.push({
+                idProducto: id,
+                nombre: nombre,
+                precio: precio,
+                iva: (elemento.dataset.iva !== undefined && elemento.dataset.iva !== "") ? parseInt(elemento.dataset.iva) : 21,
+                cantidad: 1,
+                stockMax: stockMax
+            });
         }
 
         // Actualizar la visualización del ticket
@@ -1851,19 +2045,23 @@
      * @returns {number} Total final (mínimo 0)
      */
     function obtenerTotalCalculado() {
-        // Calcular subtotal sumando precio * cantidad de cada producto
-        let subtotal = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+        // Calcular subtotal sumando (precio * (1 + iva/100)) * cantidad de cada producto
+        let subtotalPVP = carrito.reduce((sum, item) => {
+            const precioPVP = item.precio * (1 + (item.iva / 100));
+            return sum + (precioPVP * item.cantidad);
+        }, 0);
+
         let importeDescuento = 0;
 
         // Aplicar descuento según el tipo
         if (descuento.tipo === 'porcentaje') {
-            importeDescuento = subtotal * (descuento.valor / 100);
+            importeDescuento = subtotalPVP * (descuento.valor / 100);
         } else if (descuento.tipo === 'fijo') {
             importeDescuento = descuento.valor;
         }
 
-        // Retornar total (nunca negativo)
-        return Math.max(0, subtotal - importeDescuento);
+        // Retornar total (nunca negativo) redondeado a 2 decimales
+        return Math.max(0, Math.round((subtotalPVP - importeDescuento) * 100) / 100);
     }
 
     /**
@@ -1890,17 +2088,16 @@
         }
 
         // Generar tabla HTML con las líneas del ticket
-        let html = '<table class="ticket-tabla"><thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subt.</th><th></th></tr></thead><tbody>';
-        let total = 0;
+        let html = '<table class="ticket-tabla"><thead><tr><th>Producto</th><th>Cant.</th><th>Precio (PVP)</th><th>Subt.</th><th></th></tr></thead><tbody>';
 
         // Iterar sobre cada producto del carrito
         carrito.forEach((item, i) => {
-            const subtotal = item.precio * item.cantidad;
-            total += subtotal;
+            const precioPVP = item.precio * (1 + (item.iva / 100));
+            const subtotal = precioPVP * item.cantidad;
 
-            // Generar fila con: nombre, controles de cantidad (−/input/+), precio, subtotal y botón eliminar
+            // Generar fila con: nombre, controles de cantidad (−/input/+), precio PVP, subtotal y botón eliminar
             html += `<tr>
-                <td>${item.nombre}</td>
+                <td>${item.nombre} <small style="color: #666; display: block; font-size: 0.7rem;">IVA: ${item.iva}%</small></td>
                 <td>
                     <div class="cantidad-control">
                         <button onclick="cambiarCantidad(${i}, ${item.cantidad - 1})">−</button>
@@ -1911,7 +2108,7 @@
                         <button onclick="cambiarCantidad(${i}, ${item.cantidad + 1})">+</button>
                     </div>
                 </td>
-                <td>${item.precio.toFixed(2).replace('.', ',')} €</td>
+                <td>${precioPVP.toFixed(2).replace('.', ',')} €</td>
                 <td>${subtotal.toFixed(2).replace('.', ',')} €</td>
                 <td><button class="btn-quitar" onclick="eliminarDelCarrito(${i})">✕</button></td>
             </tr>`;
@@ -1921,18 +2118,18 @@
         contenedor.innerHTML = html;
 
         // Calcular desglose de totales con descuento
-        let subtotal = total;
-        total = obtenerTotalCalculado();
-        let importeDescuento = subtotal - total;
+        let subtotalPVP = carrito.reduce((sum, item) => sum + (item.precio * (1 + (item.iva / 100)) * item.cantidad), 0);
+        let totalPVP = obtenerTotalCalculado();
+        let importeDescuento = subtotalPVP - totalPVP;
 
-        // Generar HTML del desglose (solo si hay descuento aplicado)
+        // Generar HTML del desglose (solo si hay descuento aplicado real > 0)
         let htmlDesglose = '';
-        if (importeDescuento > 0) {
+        if (importeDescuento > 0.01) {
             htmlDesglose = `
                 <div class="resumen-final-premium">
                     <div class="resumen-fila-mini">
                         <span>Subtotal:</span>
-                        <span>${subtotal.toFixed(2).replace('.', ',')} €</span>
+                        <span>${subtotalPVP.toFixed(2).replace('.', ',')} €</span>
                     </div>
                     <div class="resumen-fila-mini descuento-texto">
                         <span>Descuento (${descuento.tipo === 'porcentaje' ? descuento.valor + '%' : 'Cupón ' + descuento.cupon}):</span>
@@ -1943,10 +2140,10 @@
 
         // Actualizar el DOM con el desglose y el total
         document.getElementById('ticketDesglose').innerHTML = htmlDesglose;
-        totalEl.textContent = total.toFixed(2).replace('.', ',') + ' €';
+        totalEl.textContent = totalPVP.toFixed(2).replace('.', ',') + ' €';
 
         // Verificar si se supera el límite de 1.000€ en efectivo
-        verificarLimiteEfectivo();
+        // verificarLimiteEfectivo();
 
         // Habilitar botones de cobro y descuento
         btnCobrar.disabled = false;
@@ -2066,11 +2263,13 @@
         const total = obtenerTotalCalculado();
         const entregado = parseFloat(document.getElementById('inputDineroEntregado').value) || 0;
         const devolucion = entregado - total;
+        // Usar un pequeño epsilon o redondear para evitar errores de precisión en punto flotante
+        const devolucionRedondeada = Math.round(devolucion * 100) / 100;
 
         const spanDevolver = document.getElementById('cambioDevolver');
         const errorMsg = document.getElementById('cambioError');
 
-        if (devolucion < 0 && entregado > 0) {
+        if (devolucionRedondeada < 0 && entregado > 0) {
             // Cantidad insuficiente: mostrar error
             spanDevolver.textContent = '0,00 €';
             spanDevolver.style.color = '#333';
@@ -2082,7 +2281,7 @@
                 spanDevolver.textContent = '0,00 €';
                 spanDevolver.style.color = '#333';
             } else {
-                spanDevolver.textContent = devolucion.toFixed(2).replace('.', ',') + ' €';
+                spanDevolver.textContent = devolucionRedondeada.toFixed(2).replace('.', ',') + ' €';
                 spanDevolver.style.color = '#22c55e';
             }
         }
@@ -2096,8 +2295,8 @@
         const total = obtenerTotalCalculado();
         const entregado = parseFloat(document.getElementById('inputDineroEntregado').value) || 0;
 
-        // Validar que el entregado cubra el total
-        if (entregado < total) {
+        // Validar que el entregado cubra el total (usando redondeo para evitar errores de precisión)
+        if (Math.round(entregado * 100) < Math.round(total * 100)) {
             document.getElementById('cambioError').style.display = 'block';
             return;
         }
@@ -2292,38 +2491,60 @@
 
         // Generar las líneas de productos para la tabla
         let lineasHtml = '';
-        let sumaTotalesNumeric = 0;
+        let sumaTotalesNumeric = 0; // PVP acumulado
+        let desgloseIva = {}; // Para el resumen final por cada %
 
         ultimaVenta.carrito.forEach(item => {
-            const subtotalNumeric = item.precio * item.cantidad;
-            sumaTotalesNumeric += subtotalNumeric;
+            const cantidad = parseFloat(item.cantidad);
+            const precioBase = parseFloat(item.precio);
+            const ivaPorc = parseInt(item.iva) || 21;
 
-            // Formatear precios con coma decimal (formato español)
-            const subtotal = subtotalNumeric.toFixed(2).replace('.', ',');
-            const precioFmt = parseFloat(item.precio).toFixed(2).replace('.', ',');
+            // Cálculos por unidad
+            const cuotaIvaUnidad = precioBase * (ivaPorc / 100);
+            const precioPVP = precioBase + cuotaIvaUnidad;
+
+            // Cálculos totales de la línea
+            const subtotalBase = precioBase * cantidad;
+            const subtotalIva = cuotaIvaUnidad * cantidad;
+            const subtotalPVP = precioPVP * cantidad;
+
+            sumaTotalesNumeric += subtotalPVP;
+
+            // Acumular para el desglose fiscal final
+            if (!desgloseIva[ivaPorc]) {
+                desgloseIva[ivaPorc] = { base: 0, cuota: 0 };
+            }
+            desgloseIva[ivaPorc].base += subtotalBase;
+            desgloseIva[ivaPorc].cuota += subtotalIva;
+
+            // Formatear precios
+            const baseFmt = subtotalBase.toFixed(2).replace('.', ',');
+            const pvpFmt = subtotalPVP.toFixed(2).replace('.', ',');
+            const unitarioFmt = precioBase.toFixed(2).replace('.', ',');
 
             lineasHtml += `<tr>
-                <td>${item.nombre}</td>
-                <td style="text-align:center">${item.cantidad}</td>
-                <td style="text-align:right">${precioFmt} €</td>
-                <td style="text-align:center">21%</td>
-                <td style="text-align:right">${subtotal} €</td>
+                <td style="padding: 8px 4px;">${item.nombre}</td>
+                <td style="text-align:center">${cantidad}</td>
+                <td style="text-align:right">${unitarioFmt} €</td>
+                <td style="text-align:center">${ivaPorc}%</td>
+                <td style="text-align:right">${pvpFmt} €</td>
             </tr>`;
         });
 
-        // Calcular descuento aplicado
-        let importeDescuento = 0;
+        // Calcular descuento aplicado sobre el total PVP
+        let importeDescuentoPVP = 0;
         if (ultimaVenta.descuentoTipo === 'porcentaje') {
-            importeDescuento = sumaTotalesNumeric * (ultimaVenta.descuentoValor / 100);
+            importeDescuentoPVP = sumaTotalesNumeric * (ultimaVenta.descuentoValor / 100);
         } else if (ultimaVenta.descuentoTipo === 'fijo') {
-            importeDescuento = ultimaVenta.descuentoValor;
+            importeDescuentoPVP = ultimaVenta.descuentoValor;
         }
 
-        // Calcular base imponible y cuota de IVA (21%)
-        const subtotalSinDescuento = sumaTotalesNumeric;
-        const totalVenta = Math.max(0, subtotalSinDescuento - importeDescuento);
-        const baseImponible = totalVenta / 1.21;    // Base imponible (sin IVA)
-        const cuotaIva = totalVenta - baseImponible; // Cuota de IVA
+        const totalVentaPVP = Math.max(0, sumaTotalesNumeric - importeDescuentoPVP);
+
+        // Si hay descuento, debemos prorratearlo en la base e IVA para el desglose (simplificado: aplicamos proporción al total)
+        // O simplemente mostrar el desglose de los productos y luego el descuento. 
+        // Normalmente el IVA se calcula sobre la base tras descuento.
+        let factorDescuento = sumaTotalesNumeric > 0 ? (totalVentaPVP / sumaTotalesNumeric) : 1;
 
         // Generar tabla de totales con desglose fiscal
         let totalesHtml = `
@@ -2331,34 +2552,48 @@
         `;
 
         // Si hay descuento, mostrar subtotal y línea de descuento
-        if (importeDescuento > 0) {
+        if (importeDescuentoPVP > 0.01) {
             totalesHtml += `
                 <tr>
                     <td><strong>Subtotal:</strong></td>
-                    <td style="text-align:right">${subtotalSinDescuento.toFixed(2).replace('.', ',')} €</td>
+                    <td style="text-align:right">${sumaTotalesNumeric.toFixed(2).replace('.', ',')} €</td>
                 </tr>
                 <tr>
                     <td style="color: #16a34a;"><strong>Descuento (${ultimaVenta.descuentoTipo === 'porcentaje' ? ultimaVenta.descuentoValor + '%' : 'Cupón ' + ultimaVenta.descuentoCupon}):</strong></td>
-                    <td style="text-align:right; color: #16a34a;">- ${importeDescuento.toFixed(2).replace('.', ',')} €</td>
+                    <td style="text-align:right; color: #16a34a;">- ${importeDescuentoPVP.toFixed(2).replace('.', ',')} €</td>
                 </tr>
             `;
         }
 
-        // Base imponible, cuota IVA y total con IVA incluido
+        // Base imponible y cuota IVA por cada tipo
         totalesHtml += `
-            <tr>
-                <td><strong>Base Imponible:</strong></td>
-                <td style="text-align:right">${baseImponible.toFixed(2).replace('.', ',')} €</td>
+            <tr style="border-top: 1px solid #eee;">
+                <td colspan="2" style="padding-top:10px;"><strong>Desglose de IVA:</strong></td>
             </tr>
-            <tr>
-                <td><strong>Cuota IVA (21%):</strong></td>
-                <td style="text-align:right">${cuotaIva.toFixed(2).replace('.', ',')} €</td>
+        `;
+
+        Object.keys(desgloseIva).sort().forEach(porc => {
+            const baseFinal = desgloseIva[porc].base * factorDescuento;
+            const cuotaFinal = desgloseIva[porc].cuota * factorDescuento;
+
+            totalesHtml += `
+                <tr style="font-size: 0.8rem; color: #444;">
+                    <td>Base al ${porc}%:</td>
+                    <td style="text-align:right">${baseFinal.toFixed(2).replace('.', ',')} €</td>
+                </tr>
+                <tr style="font-size: 0.8rem; color: #444;">
+                    <td>Cuota IVA (${porc}%):</td>
+                    <td style="text-align:right">${cuotaFinal.toFixed(2).replace('.', ',')} €</td>
+                </tr>
+            `;
+        });
+
+        totalesHtml += `
+            <tr style="border-top: 1px solid #000;">
+                <td style="font-size: 1.1rem; padding-top:10px;"><strong>TOTAL (PVP):</strong></td>
+                <td style="font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;">${totalVentaPVP.toFixed(2).replace('.', ',')} €</td>
             </tr>
-            <tr>
-                <td style="font-size: 1.1rem; padding-top:10px;"><strong>TOTAL (IVA INCLUIDO):</strong></td>
-                <td style="font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;">${ultimaVenta.total} €</td>
-            </tr>
-        </table>
+            </table>
         `;
 
         // Observaciones del cliente (si las hay)
@@ -2423,7 +2658,6 @@
         </body>
         </html>
         `;
-
         // Crear un iframe oculto para imprimir sin afectar la página actual
         const iframe = document.createElement('iframe');
         iframe.style.position = 'absolute';
@@ -2447,6 +2681,7 @@
         const categoria = document.getElementById('nuevoProductoCategoria').value;
         const precio = document.getElementById('nuevoProductoPrecio').value;
         const stock = document.getElementById('nuevoProductoStock').value;
+        const iva = document.getElementById('nuevoProductoIva').value;
         const activo = document.getElementById('nuevoProductoEstado').value;
         const imgInput = document.getElementById('editProductoImagenInput');
 
@@ -2461,6 +2696,7 @@
         formData.append('categoria', categoria);
         formData.append('precio', precio);
         formData.append('stock', stock);
+        formData.append('iva', iva);
         formData.append('activo', activo);
         if (imgInput.files[0]) {
             formData.append('imagen', imgInput.files[0]);
@@ -2619,6 +2855,28 @@
     }
 
     /**
+    * validarRetiro()
+    * Valida que el importe a retirar no exceda el efectivo disponible.
+    */
+    function validarRetiro() {
+        const importeInput = document.getElementById('importeRetiro');
+        const importe = parseFloat(importeInput.value);
+        const efectivoDisponible = <?php echo $sesionCaja ? $sesionCaja->getImporteActual() : 0; ?>;
+
+        if (isNaN(importe) || importe <= 0) {
+            alert('Por favor, ingresa un importe válido mayor a 0.');
+            return false;
+        }
+
+        if (importe > efectivoDisponible) {
+            alert('No hay suficiente efectivo en la caja. Efectivo disponible: ' + efectivoDisponible.toFixed(2).replace('.', ',') + ' €');
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
     * Actualiza la interfaz visual de los chips de método de pago en el modal de devolución.
     * Resalta el chip seleccionado con borde rojo y desactiva los demás.
     * @param { HTMLInputElement } radio - El radio button seleccionado
@@ -2684,6 +2942,17 @@
                 ticketActualDevolucion = data.venta;
                 lineasVentaDevolucion = data.lineas;
 
+                // Verificar si hay productos disponibles para devolver
+                const totalDisponible = lineasVentaDevolucion.reduce((acc, linea) => {
+                    return acc + (parseInt(linea.cantidad) - (parseInt(linea.cantidad_devuelta) || 0));
+                }, 0);
+
+                if (totalDisponible <= 0) {
+                    errorEl.textContent = 'Este ticket no tiene productos disponibles para devolver (ya se han devuelto todos).';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
                 // Actualizar UI - Paso 2
                 document.getElementById('devolucionPaso1').style.display = 'none';
                 document.getElementById('devolucionPaso2').style.display = 'block';
@@ -2716,30 +2985,56 @@
             const devuelto = parseInt(linea.cantidad_devuelta);
             const disponible = comprado - devuelto;
 
+            // Usar precio con IVA (el que se pagó en el momento de la compra)
+            const precioMostrar = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
+
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid #f1f5f9';
             tr.innerHTML = `
-                <td style="padding: 12px 15px;">
-                    <div style="font-weight: 600; color: #1e293b;">${linea.producto_nombre}</div>
-                    <div style="font-size: 0.75rem; color: #64748b;">Precio: ${parseFloat(linea.precioUnitario).toFixed(2)} €</div>
+            <td style="padding: 12px 15px;">
+                    <div class="producto-nombre-dev" style="font-weight: 600;">${linea.producto_nombre}</div>
+                    <div class="producto-precio-dev" style="font-size: 0.75rem;">Precio: ${precioMostrar.toFixed(2)} € (IVA incl.)</div>
                 </td>
                 <td style="padding: 12px; text-align: center; color: #64748b; font-weight: 500;">${disponible}</td>
                 <td style="padding: 12px 15px; text-align: center;">
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <div class="cantidad-control" style="justify-content: center;">
+                        <button onclick="cambiarCantidadDev(${index}, -1)" ${disponible <= 0 ? 'disabled' : ''}>−</button>
                         <input type="number" class="cant-dev-input" 
                             data-index="${index}" 
                             min="0" max="${disponible}" value="0" 
-                            style="width: 70px; text-align: center; padding: 8px; border: 2px solid #e2e8f0; border-radius: 8px; font-weight: 700; color: var(--accent-danger); outline: none; transition: all 0.2s;"
-                            onfocus="this.style.borderColor = 'var(--accent-danger)'"
-                            onblur="this.style.borderColor = '#e2e8f0'"
-                            onchange="recalcularTotalReembolso()"
+                            style="width: 50px; text-align: center; padding: 5px; border: 1px solid #e2e8f0; border-radius: 4px;"
+                            onchange="cambiarCantidadDev(${index}, 0)"
                             ${disponible <= 0 ? 'disabled' : ''}>
+                        <button onclick="cambiarCantidadDev(${index}, 1)" ${disponible <= 0 ? 'disabled' : ''}>+</button>
                     </div>
                 </td>
-            `;
+        `;
             tbody.appendChild(tr);
         });
 
+        recalcularTotalReembolso();
+    }
+
+    /**
+     * cambiarCantidadDev(index, delta)
+     * Incrementa o decrementa la cantidad a devolver.
+     * @param {number} index - Índice del producto en lineasVentaDevolucion
+     * @param {number} delta - Cambio a aplicar (+1, -1, 0 para onchange)
+     */
+    function cambiarCantidadDev(index, delta) {
+        const input = document.querySelector('.cant-dev-input[data-index="' + index + '"]');
+        if (!input) return;
+
+        const linea = lineasVentaDevolucion[index];
+        const disponible = parseInt(linea.cantidad) - parseInt(linea.cantidad_devuelta);
+
+        let cant = (parseInt(input.value) || 0) + delta;
+
+        // Limitar entre 0 y el disponible
+        if (cant < 0) cant = 0;
+        if (cant > disponible) cant = disponible;
+
+        input.value = cant;
         recalcularTotalReembolso();
     }
 
@@ -2753,8 +3048,25 @@
 
         inputs.forEach(input => {
             const index = input.dataset.index;
-            const cant = parseInt(input.value) || 0;
-            const precio = parseFloat(lineasVentaDevolucion[index].precioUnitario);
+            const linea = lineasVentaDevolucion[index];
+            const comprado = parseInt(linea.cantidad);
+            const devuelto = parseInt(linea.cantidad_devuelta);
+            const disponible = comprado - devuelto;
+
+            let cant = parseInt(input.value) || 0;
+
+            // Forzar que no sea mayor al disponible
+            if (cant > disponible) {
+                cant = disponible;
+                input.value = disponible;
+            }
+            if (cant < 0) {
+                cant = 0;
+                input.value = 0;
+            }
+
+            // Usar precio con IVA (el que se pagó en el momento de la compra)
+            const precio = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
 
             if (cant > 0) {
                 total += cant * precio;
@@ -2763,7 +3075,27 @@
         });
 
         document.getElementById('totalReembolsoDisplay').textContent = total.toFixed(2).replace('.', ',') + ' €';
-        document.getElementById('btnConfirmarMultiDev').disabled = !hayDevolucion;
+
+        // Validación de efectivo disponible
+        const errorEl = document.getElementById('errorEfectivoInsuficiente');
+        const btnConfirmar = document.getElementById('btnConfirmarMultiDev');
+        const dispEl = document.getElementById('efectivoDisponibleDisplay');
+
+        const totalRedondeado = Math.round(total * 100) / 100;
+        const efectivoRedondeado = Math.round(efectivoActualCaja * 100) / 100;
+
+        if (totalRedondeado > efectivoRedondeado) {
+            errorEl.style.display = 'block';
+            dispEl.textContent = efectivoActualCaja.toFixed(2).replace('.', ',') + ' €';
+            btnConfirmar.disabled = true;
+            btnConfirmar.style.opacity = '0.5';
+            btnConfirmar.style.cursor = 'not-allowed';
+        } else {
+            errorEl.style.display = 'none';
+            btnConfirmar.disabled = !hayDevolucion;
+            btnConfirmar.style.opacity = hayDevolucion ? '1' : '0.5';
+            btnConfirmar.style.cursor = hayDevolucion ? 'pointer' : 'not-allowed';
+        }
     }
 
     /**
@@ -2796,7 +3128,9 @@
             if (cant > 0) {
                 const index = input.dataset.index;
                 const linea = lineasVentaDevolucion[index];
-                const subtotal = cant * parseFloat(linea.precioUnitario);
+                // Usar precio con IVA (el que se pagó en el momento de la compra)
+                const precioConIva = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
+                const subtotal = cant * precioConIva;
 
                 productosDev.push({
                     idProducto: linea.idProducto,
@@ -2954,6 +3288,15 @@
                 <div class="editar-prod-fila">
                     <label>Stock</label>
                     <input type="number" id="nuevoProductoStock" min="0" value="0">
+                </div>
+                <div class="editar-prod-fila">
+                    <label>Tipo de IVA (%)</label>
+                    <select id="nuevoProductoIva" style="padding: 8px; border-radius: 4px; border: 1px solid #d1d5db;">
+                        <option value="21">21% (General)</option>
+                        <option value="10">10% (Reducido)</option>
+                        <option value="4">4% (Superreducido)</option>
+                        <option value="0">0% (Exento)</option>
+                    </select>
                 </div>
                 <div class="editar-prod-fila">
                     <label>Estado</label>

@@ -9,6 +9,9 @@ let categoriasAdmin = [];
 // Variable para identificar la sección actual
 let seccionActual = '';
 
+// Variable para controlar si se muestra el precio con o sin IVA
+let mostrarConIva = false;
+
 /**
  * Carga las categorías desde la API y las guarda en la variable global.
  */
@@ -74,6 +77,10 @@ function getAdminTablaHeader(textoBusqueda = '', idCategoriaSeleccionada = '', o
                         ${opcionesOrden}
                     </select>
                 </div>
+                <button class="btn-admin-accion ${mostrarConIva ? 'btn-ver' : 'btn-editar'}" onclick="toggleMostrarIva()" style="min-width: 150px;">
+                    <i class="fas ${mostrarConIva ? 'fa-file-invoice-dollar' : 'fa-coins'}"></i> 
+                    ${mostrarConIva ? 'Ver Sin IVA' : 'Ver Con IVA'}
+                </button>
                 <button class="btn-admin-accion btn-nuevo" onclick="nuevoProducto()">
                     <i class="fas fa-plus"></i> Nuevo Producto
                 </button>
@@ -87,9 +94,10 @@ function getAdminTablaHeader(textoBusqueda = '', idCategoriaSeleccionada = '', o
                         <th>Imagen</th>
                         <th>Nombre</th>
                         <th>Categoría</th>
-                        <th>Precio</th>
+                        <th>Precio ${mostrarConIva ? '(PVP)' : '(Base)'}</th>
                         <th>Stock</th>
                         <th>Estado</th>
+                        <th>IVA</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -112,11 +120,11 @@ function renderProductosAdmin(productos, esPrimeraVez = true, idCategoria = '', 
         if (esPrimeraVez || adminTablaHeaderHTML === '') {
             // Primera vez o header vacío: generar estructura completa con mensaje
             adminTablaHeaderHTML = getAdminTablaHeader('', idCategoria, orden);
-            contenedor.innerHTML = adminTablaHeaderHTML + '<tr><td colspan="8" class="sin-productos">No hay productos disponibles.</td></tr></tbody></table></div>';
+            contenedor.innerHTML = adminTablaHeaderHTML + '<tr><td colspan="9" class="sin-productos">No hay productos disponibles.</td></tr></tbody></table></div>';
         } else {
             // Búsquedas posteriores: solo actualizar el tbody
             const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="sin-productos">No hay productos disponibles.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="sin-productos">No hay productos disponibles.</td></tr>';
         }
         return;
     }
@@ -166,8 +174,16 @@ function renderProductosAdmin(productos, esPrimeraVez = true, idCategoria = '', 
 
     // Iterar sobre cada producto para generar las filas de la tabla.
     productos.forEach(prod => {
+        // Calcular el precio a mostrar según el estado del toggle
+        let precioMostrado = parseFloat(prod.precio);
+        if (mostrarConIva) {
+            // Usar check estricto para evitar que el 0 sea tratado como falsy
+            const ivaPorcentaje = (prod.iva !== null && prod.iva !== undefined && prod.iva !== "") ? parseInt(prod.iva) : 21;
+            precioMostrado = precioMostrado * (1 + (ivaPorcentaje / 100));
+        }
+
         // Formatear el precio con 2 decimales y coma como separador decimal (formato europeo).
-        const precioFmt = parseFloat(prod.precio).toFixed(2).replace('.', ',');
+        const precioFmt = precioMostrado.toFixed(2).replace('.', ',');
 
         // Usar la imagen del producto si existe; de lo contrario, usar el logo por defecto.
         const imgSrc = prod.imagen && prod.imagen !== '' ? prod.imagen : 'webroot/img/logo.PNG';
@@ -192,7 +208,9 @@ function renderProductosAdmin(productos, esPrimeraVez = true, idCategoria = '', 
         // - Las filas de productos inactivos reciben la clase 'fila-inactiva'.
         // - Cada fila incluye botones de acción: ver, editar y eliminar.
         html += `
-                    <tr class="${prod.stock <= 0 ? 'fila-agotada' : ''}${prod.activo == 0 ? 'fila-inactiva' : ''}">
+                    <tr class="${prod.stock <= 0 ? 'fila-agotada' : ''}${prod.activo == 0 ? 'fila-inactiva' : ''}" 
+                        data-precio-base="${prod.precio}" 
+                        data-iva="${prod.iva}">
                         <td class="col-id">${prod.id}</td>
                         <td class="col-img">
                             <img src="${imgSrc}" alt="${prod.nombre.replace(/"/g, '&quot;')}" class="admin-tabla-img">
@@ -204,6 +222,7 @@ function renderProductosAdmin(productos, esPrimeraVez = true, idCategoria = '', 
                             <span class="admin-badge ${stockBadge}">${prod.stock}</span>
                         </td>
                         <td class="col-estado">${estadoHtml}</td>
+                        <td class="col-iva">${prod.iva}%</td>
                         <td class="col-acciones" style="${prod.stock <= 0 ? 'opacity: 1;' : ''}${prod.activo == 0 ? 'opacity: 1;' : ''}">
                             <button class="btn-admin-accion btn-ver" onclick="verProducto(${prod.id})" title="Ver">
                                 <i class="fas fa-eye"></i>
@@ -320,6 +339,7 @@ function nuevoProducto() {
     document.getElementById('editProductoPrecio').value = '';
     document.getElementById('editProductoStock').value = '';
     document.getElementById('editProductoEstado').value = '1';
+    document.getElementById('editProductoIva').value = '21';
     document.getElementById('editProductoImagen').src = 'webroot/img/logo.PNG';
     document.getElementById('editProductoImagen').alt = '';
     document.getElementById('editProductoImagenInput').value = '';
@@ -352,12 +372,13 @@ function editarProducto(id) {
     const fila = document.querySelector(`tr [onclick="editarProducto(${id})"]`).closest('tr');
     const celdas = fila.querySelectorAll('td');
 
-    // Extraer los datos del producto desde las celdas de la fila.
+    // Extraer los datos del producto desde los atributos data de la fila y el DOM.
     const nombre = celdas[2].textContent.trim();
     const categoria = celdas[3].textContent.trim();
-    const precio = celdas[4].textContent.replace('€', '').replace(',', '.').trim(); // Convertir formato europeo a decimal.
+    const precio = fila.dataset.precioBase; // Usar el precio base real del atributo data
     const stock = celdas[5].textContent.trim();
-    const activo = celdas[6].querySelector('.badge-activo') ? 1 : 0; // Determinar si está activo por la presencia del badge.
+    const activo = celdas[6].querySelector('.badge-activo') ? 1 : 0;
+    const iva = fila.dataset.iva; // Usar el IVA del atributo data
     const imgSrc = celdas[1].querySelector('img')?.src ?? 'webroot/img/logo.PNG';
 
     // Guardar el ID del producto en un campo oculto para usarlo al guardar los cambios.
@@ -374,6 +395,7 @@ function editarProducto(id) {
     document.getElementById('editProductoPrecio').value = precio;
     document.getElementById('editProductoStock').value = stock;
     document.getElementById('editProductoEstado').value = activo;
+    document.getElementById('editProductoIva').value = iva;
 
     // Limpiar el input de archivo de imagen por si había una previsualización anterior.
     document.getElementById('editProductoImagenInput').value = '';
@@ -439,6 +461,7 @@ function guardarCambiosProducto() {
     formData.append('precio', precio);
     formData.append('stock', stock);
     formData.append('activo', activo);
+    formData.append('iva', document.getElementById('editProductoIva').value);
     if (imgInput.files[0]) {
         formData.append('imagen', imgInput.files[0]); // Adjuntar el archivo de imagen si existe.
     }
@@ -503,12 +526,16 @@ function verProducto(id) {
     const fila = document.querySelector(`tr [onclick="verProducto(${id})"]`).closest('tr');
     const celdas = fila.querySelectorAll('td');
 
-    // Extraer los datos del producto desde las celdas de la fila.
+    // Extraer los datos del producto desde los atributos data y celdas del DOM.
     const nombre = celdas[2].textContent.trim();
     const categoria = celdas[3].textContent.trim();
-    const precio = celdas[4].textContent.trim();
+    const precioBase = parseFloat(fila.dataset.precioBase);
+    const ivaValue = parseInt(fila.dataset.iva) || 0;
+    const precioPVP = precioBase * (1 + (ivaValue / 100));
+
     const stock = celdas[5].textContent.trim();
     const estado = celdas[6].querySelector('.admin-badge')?.textContent.trim() ?? '—';
+    const iva = fila.dataset.iva + '%';
     const imgSrc = celdas[1].querySelector('img')?.src ?? 'webroot/img/logo.PNG';
 
     // Configurar la imagen del modal con funcionalidad de zoom al hacer clic.
@@ -521,8 +548,9 @@ function verProducto(id) {
     // Rellenar los campos de texto del modal con los datos del producto.
     document.getElementById('verProductoNombre').textContent = nombre;
     document.getElementById('verProductoCategoria').textContent = categoria;
-    document.getElementById('verProductoPrecio').textContent = precio;
+    document.getElementById('verProductoPrecio').textContent = (mostrarConIva ? precioPVP.toFixed(2).replace('.', ',') : precioBase.toFixed(2).replace('.', ',')) + ' €';
     document.getElementById('verProductoStock').textContent = stock;
+    document.getElementById('verProductoIva').textContent = iva;
 
     // Mostrar el badge de estado (activo/inactivo) con el estilo correspondiente.
     document.getElementById('verProductoEstado').innerHTML =
@@ -1560,11 +1588,7 @@ const FUENTES_DISPONIBLES = [
  */
 const TEMA_DEFAULTS = {
     header_bg: '#1a1a2e', header_color: '#ffffff', header_font: 'Inter',
-    footer_bg: '#1a1a2e', footer_color: '#e5e7eb', footer_font: 'Inter',
-    primary_bg: '#2563eb', primary_color: '#ffffff', primary_font: 'Inter',
-    sidebar_bg: '#ffffff', sidebar_color: '#1a1a2e', sidebar_font: 'Inter',
-    btn_bg: '#1a1a2e', btn_color: '#ffffff', btn_font: 'Inter',
-    btn_white_bg: '#ffffff', btn_white_color: '#1a1a2e', btn_white_font: 'Inter'
+    footer_bg: '#1a1a2e', footer_color: '#e5e7eb', footer_font: 'Inter'
 };
 
 /**
@@ -1577,11 +1601,7 @@ let temaActual = { ...TEMA_DEFAULTS };
  */
 const SECCIONES_TEMA = [
     { id: 'header', titulo: 'Header (Cabecera)', icono: 'fa-heading', bgKey: 'header_bg', colorKey: 'header_color', fontKey: 'header_font' },
-    { id: 'footer', titulo: 'Footer (Pie de página)', icono: 'fa-shoe-prints', bgKey: 'footer_bg', colorKey: 'footer_color', fontKey: 'footer_font' },
-    { id: 'primary', titulo: 'Color Principal', icono: 'fa-palette', bgKey: 'primary_bg', colorKey: 'primary_color', fontKey: 'primary_font' },
-    { id: 'sidebar', titulo: 'Menús Laterales / Categorías', icono: 'fa-bars', bgKey: 'sidebar_bg', colorKey: 'sidebar_color', fontKey: 'sidebar_font' },
-    { id: 'btn', titulo: 'Botones (Default)', icono: 'fa-square', bgKey: 'btn_bg', colorKey: 'btn_color', fontKey: 'btn_font' },
-    { id: 'btn_white', titulo: 'Botones (Blancos/Secundarios)', icono: 'fa-square-full', bgKey: 'btn_white_bg', colorKey: 'btn_white_color', fontKey: 'btn_white_font' }
+    { id: 'footer', titulo: 'Footer (Pie de página)', icono: 'fa-shoe-prints', bgKey: 'footer_bg', colorKey: 'footer_color', fontKey: 'footer_font' }
 ];
 
 /**
@@ -1928,6 +1948,300 @@ function cargarDevolucionesAdmin(orden = 'fecha_desc') {
 }
 
 /**
+ * Carga los retiros de caja desde la API y los renderiza en una tabla.
+ */
+function cargarRetirosAdmin(orden = 'fecha_desc') {
+    if (seccionActual !== 'retiros') {
+        adminTablaHeaderHTML = '';
+        seccionActual = 'retiros';
+    }
+
+    const contenedor = document.getElementById('adminContenido');
+    const tableExisting = contenedor.querySelector('.admin-tabla');
+    const isFirstTime = !tableExisting || adminTablaHeaderHTML === '';
+
+    let url = 'api/retiros.php';
+    if (orden !== 'fecha_desc') {
+        url += '?orden=' + orden;
+    }
+
+    fetch(url)
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => { throw new Error(err.error || 'Error al cargar retiros'); });
+            }
+            return res.json();
+        })
+        .then(data => renderRetirosAdmin(data, isFirstTime, orden))
+        .catch(err => {
+            console.error('Error cargando retiros:', err);
+            contenedor.innerHTML = '<p class="sin-productos">Error: ' + (err.message || 'Error desconocido') + '</p>';
+        });
+}
+
+/**
+ * Genera el HTML del header de la tabla de retiros.
+ */
+function getRetirosTablaHeader(orden = 'fecha_desc') {
+    return `
+        <div class="admin-tabla-header retiros-header">
+            <div class="ventas-filtros">
+                <div class="filtro-group">
+                    <label for="retirosOrdenar">Ordenar por:</label>
+                    <select id="retirosOrdenar" class="filtro-select" onchange="cargarRetirosAdmin(this.value)">
+                        <option value="fecha_desc" ${orden === 'fecha_desc' ? 'selected' : ''}>Más recientes</option>
+                        <option value="fecha_asc" ${orden === 'fecha_asc' ? 'selected' : ''}>Más antiguos</option>
+                        <option value="importe_desc" ${orden === 'importe_desc' ? 'selected' : ''}>Mayor importe</option>
+                        <option value="importe_asc" ${orden === 'importe_asc' ? 'selected' : ''}>Menor importe</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="admin-tabla-wrapper">
+            <table class="admin-tabla">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Importe</th>
+                        <th>Motivo</th>
+                        <th>Sesión Caja</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+}
+
+/**
+ * Renderiza los retiros en la tabla.
+ */
+function renderRetirosAdmin(retiros, isFirstTime = true, orden = 'fecha_desc') {
+    const contenedor = document.getElementById('adminContenido');
+
+    if (!retiros || retiros.length === 0) {
+        if (isFirstTime || adminTablaHeaderHTML === '') {
+            adminTablaHeaderHTML = getRetirosTablaHeader(orden);
+            contenedor.innerHTML = adminTablaHeaderHTML +
+                '<tr><td colspan="6" class="sin-productos">No hay retiros de caja registrados.</td></tr></tbody></table></div>';
+        } else {
+            const tbody = contenedor.querySelector('tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="sin-productos">No hay retiros de caja registrados.</td></tr>';
+        }
+        return;
+    }
+
+    if (isFirstTime || adminTablaHeaderHTML === '') {
+        adminTablaHeaderHTML = getRetirosTablaHeader(orden);
+        let html = adminTablaHeaderHTML;
+
+        retiros.forEach((retiro, index) => {
+            const fecha = new Date(retiro.fecha).toLocaleString('es-ES', {
+                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+            const usuario = retiro.usuario_nombre ?
+                retiro.usuario_nombre + ' ' + (retiro.usuario_apellidos || '') : 'Usuario #' + retiro.idUsuario;
+            const motivo = retiro.motivo || 'Sin motivo';
+            const cajaSesion = retiro.caja_fecha_apertura ?
+                new Date(retiro.caja_fecha_apertura).toLocaleDateString('es-ES') : '#' + retiro.idCajaSesion;
+
+            html += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${fecha}</td>
+                    <td>${usuario}</td>
+                    <td style="color: #dc2626; font-weight: bold;">-${parseFloat(retiro.importe).toFixed(2)} €</td>
+                    <td>${motivo}</td>
+                    <td>${cajaSesion}</td>
+                </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        contenedor.innerHTML = html;
+    } else {
+        const tbody = contenedor.querySelector('tbody');
+        if (tbody) {
+            let html = '';
+            retiros.forEach((retiro, index) => {
+                const fecha = new Date(retiro.fecha).toLocaleString('es-ES', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+                const usuario = retiro.usuario_nombre ?
+                    retiro.usuario_nombre + ' ' + (retiro.usuario_apellidos || '') : 'Usuario #' + retiro.idUsuario;
+                const motivo = retiro.motivo || 'Sin motivo';
+                const cajaSesion = retiro.caja_fecha_apertura ?
+                    new Date(retiro.caja_fecha_apertura).toLocaleDateString('es-ES') : '#' + retiro.idCajaSesion;
+
+                html += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${fecha}</td>
+                        <td>${usuario}</td>
+                        <td style="color: #dc2626; font-weight: bold;">-${parseFloat(retiro.importe).toFixed(2)} €</td>
+                        <td>${motivo}</td>
+                        <td>${cajaSesion}</td>
+                    </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+    }
+}
+
+/**
+ * Carga las sesiones de caja desde la API y las renderiza en una tabla.
+ */
+function cargarCajaSesionesAdmin(orden = 'fecha_desc') {
+    if (seccionActual !== 'caja-sesiones') {
+        adminTablaHeaderHTML = '';
+        seccionActual = 'caja-sesiones';
+    }
+
+    const contenedor = document.getElementById('adminContenido');
+    const tableExisting = contenedor.querySelector('.admin-tabla');
+    const isFirstTime = !tableExisting || adminTablaHeaderHTML === '';
+
+    let url = 'api/caja-sesiones.php';
+    if (orden !== 'fecha_desc') {
+        url += '?orden=' + orden;
+    }
+
+    fetch(url)
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => { throw new Error(err.error || 'Error al cargar sesiones de caja'); });
+            }
+            return res.json();
+        })
+        .then(data => renderCajaSesionesAdmin(data, isFirstTime, orden))
+        .catch(err => {
+            console.error('Error cargando sesiones de caja:', err);
+            contenedor.innerHTML = '<p class="sin-productos">Error: ' + (err.message || 'Error desconocido') + '</p>';
+        });
+}
+
+/**
+ * Genera el HTML del header de la tabla de sesiones de caja.
+ */
+function getCajaSesionesTablaHeader(orden = 'fecha_desc') {
+    return `
+        <div class="admin-tabla-header caja-sesiones-header">
+            <div class="ventas-filtros">
+                <div class="filtro-group">
+                    <label for="cajaSesionesOrdenar">Ordenar por:</label>
+                    <select id="cajaSesionesOrdenar" class="filtro-select" onchange="cargarCajaSesionesAdmin(this.value)">
+                        <option value="fecha_desc" ${orden === 'fecha_desc' ? 'selected' : ''}>Más recientes</option>
+                        <option value="fecha_asc" ${orden === 'fecha_asc' ? 'selected' : ''}>Más antiguos</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="admin-tabla-wrapper">
+            <table class="admin-tabla">
+                <thead>
+                    <tr>
+                        <th style="width: 40px; text-align: center;">#</th>
+                        <th style="width: 120px;">Usuario</th>
+                        <th style="text-align: center;">Apertura</th>
+                        <th style="text-align: center;">Cierre</th>
+                        <th style="text-align: center;">Importe Inicial</th>
+                        <th style="text-align: center;">Importe Final</th>
+                        <th style="text-align: center;">Ventas</th>
+                        <th style="text-align: center;">Productos</th>
+                        <th style="text-align: center;">Retiros</th>
+                        <th style="text-align: center;">Devoluciones</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+}
+
+/**
+ * Renderiza las sesiones de caja en la tabla.
+ */
+function renderCajaSesionesAdmin(sesiones, isFirstTime = true, orden = 'fecha_desc') {
+    const contenedor = document.getElementById('adminContenido');
+
+    if (!sesiones || sesiones.length === 0) {
+        if (isFirstTime || adminTablaHeaderHTML === '') {
+            adminTablaHeaderHTML = getCajaSesionesTablaHeader(orden);
+            contenedor.innerHTML = adminTablaHeaderHTML +
+                '<tr><td colspan="10" class="sin-productos">No hay sesiones de caja registradas.</td></tr></tbody></table></div>';
+        } else {
+            const tbody = contenedor.querySelector('tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="sin-productos">No hay sesiones de caja registradas.</td></tr>';
+        }
+        return;
+    }
+
+    if (isFirstTime || adminTablaHeaderHTML === '') {
+        adminTablaHeaderHTML = getCajaSesionesTablaHeader(orden);
+        let html = adminTablaHeaderHTML;
+
+        sesiones.forEach((sesion, index) => {
+            const fechaApertura = sesion.fechaApertura ? new Date(sesion.fechaApertura).toLocaleString('es-ES', {
+                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            }) : '-';
+            const fechaCierre = sesion.fechaCierre ? new Date(sesion.fechaCierre).toLocaleString('es-ES', {
+                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            }) : '-';
+            const usuario = sesion.usuario_nombre || 'Usuario #' + sesion.idUsuario;
+            const retiros = parseFloat(sesion.total_retiros || 0);
+            const devoluciones = parseFloat(sesion.total_devoluciones || 0);
+            const totalProductos = parseInt(sesion.total_productos || 0);
+            const totalVentas = parseInt(sesion.total_ventas || 0);
+
+            html += `
+                <tr>
+                    <td style="text-align: center; width: 40px;">${index + 1}</td>
+                    <td style="width: 120px;">${usuario}</td>
+                    <td style="text-align: center;">${fechaApertura}</td>
+                    <td style="text-align: center;">${fechaCierre}</td>
+                    <td style="text-align: center;">${parseFloat(sesion.importeInicial).toFixed(2)} €</td>
+                    <td style="text-align: center;">${parseFloat(sesion.importeActual).toFixed(2)} €</td>
+                    <td style="text-align: center; font-weight: bold;">${totalVentas}</td>
+                    <td style="text-align: center; font-weight: bold;">${totalProductos}</td>
+                    <td style="text-align: center; color: #ea580c; font-weight: bold;">-${retiros.toFixed(2)} €</td>
+                    <td style="text-align: center; color: #dc2626; font-weight: bold;">-${devoluciones.toFixed(2)} €</td>
+                </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        contenedor.innerHTML = html;
+    } else {
+        const tbody = contenedor.querySelector('tbody');
+        if (tbody) {
+            let html = '';
+            sesiones.forEach((sesion, index) => {
+                const fechaApertura = sesion.fechaApertura ? new Date(sesion.fechaApertura).toLocaleString('es-ES', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                }) : '-';
+                const fechaCierre = sesion.fechaCierre ? new Date(sesion.fechaCierre).toLocaleString('es-ES', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                }) : '-';
+                const usuario = sesion.usuario_nombre || 'Usuario #' + sesion.idUsuario;
+                const retiros = parseFloat(sesion.total_retiros || 0);
+                const devoluciones = parseFloat(sesion.total_devoluciones || 0);
+                const totalProductos = parseInt(sesion.total_productos || 0);
+                const totalVentas = parseInt(sesion.total_ventas || 0);
+
+                html += `
+                    <tr>
+                        <td style="text-align: center; width: 40px;">${index + 1}</td>
+                        <td style="width: 120px;">${usuario}</td>
+                        <td style="text-align: center;">${fechaApertura}</td>
+                        <td style="text-align: center;">${fechaCierre}</td>
+                        <td style="text-align: center;">${parseFloat(sesion.importeInicial).toFixed(2)} €</td>
+                        <td style="text-align: center;">${parseFloat(sesion.importeActual).toFixed(2)} €</td>
+                        <td style="text-align: center; font-weight: bold;">${totalVentas}</td>
+                        <td style="text-align: center; font-weight: bold;">${totalProductos}</td>
+                        <td style="text-align: center; color: #ea580c; font-weight: bold;">-${retiros.toFixed(2)} €</td>
+                        <td style="text-align: center; color: #dc2626; font-weight: bold;">-${devoluciones.toFixed(2)} €</td>
+                    </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+    }
+}
+
+/**
  * Genera el HTML del header de la tabla de devoluciones.
  */
 function getDevolucionesTablaHeader(orden = 'fecha_desc') {
@@ -2068,3 +2382,512 @@ function verDetalleDevolucion(id) {
             alert('Error al cargar detalles');
         });
 }
+
+/**
+ * Alterna el estado de mostrarConIva y recarga la tabla de productos.
+ */
+function toggleMostrarIva() {
+    mostrarConIva = !mostrarConIva;
+
+    // Forzar la regeneración del header para actualizar el texto del botón
+    adminTablaHeaderHTML = '';
+
+    // Obtener los filtros actuales para mantener la vista
+    const texto = document.getElementById('inputBuscarProducto')?.value || '';
+    const idCat = document.getElementById('selectCategoria')?.value || 'todas';
+    const orden = document.getElementById('selectOrden')?.value || '';
+
+    cargarProductosAdmin(idCat, texto, orden);
+}
+
+// ======================== GESTIÓN DE PROVEEDORES ========================
+
+/** Temporizador para debounce de búsqueda de proveedores */
+let debounceTimerProveedores = null;
+
+/**
+ * Genera el HTML del header de la tabla de proveedores con buscador.
+ * @param {string} textoBusqueda
+ * @returns {string}
+ */
+function getProveedoresTablaHeader(textoBusqueda = '') {
+    return `
+        <div class="admin-tabla-header">
+            <div style="display: flex; gap: 10px; width: 100%; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="inputBuscarProveedor" class="admin-label">Buscar:</label>
+                    <input type="text" id="inputBuscarProveedor" class="input-buscarProducto"
+                        placeholder="Escribe el nombre del proveedor..." oninput="buscarProveedores()" autocomplete="off"
+                        value="${textoBusqueda.replace(/"/g, '&quot;')}" style="width: 400px;" />
+                </div>
+                <button class="btn-admin-accion btn-nuevo" onclick="nuevoProveedor()">
+                    <i class="fas fa-plus"></i> Nuevo Proveedor
+                </button>
+            </div>
+        </div>
+        <div class="admin-tabla-wrapper">
+            <table class="admin-tabla">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Nombre</th>
+                        <th>Contacto</th>
+                        <th>Email</th>
+                        <th>Dirección</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+}
+
+/**
+ * Carga los proveedores desde la API y los renderiza en la tabla.
+ * @param {string} textoBusqueda
+ * @returns {Promise}
+ */
+function cargarProveedoresAdmin(textoBusqueda = '') {
+    const contenedor = document.getElementById('adminContenido');
+    const tablaExistente = contenedor.querySelector('.admin-tabla');
+
+    if (seccionActual !== 'proveedores') {
+        adminTablaHeaderHTML = '';
+        seccionActual = 'proveedores';
+    }
+
+    const esPrimeraVez = !tablaExistente || adminTablaHeaderHTML === '';
+
+    const params = new URLSearchParams();
+    if (textoBusqueda) params.append('buscar', textoBusqueda);
+
+    return fetch('api/proveedores.php?' + params.toString())
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => { throw new Error(err.error || 'Error al cargar proveedores'); });
+            }
+            return res.json();
+        })
+        .then(data => renderProveedoresAdmin(data, esPrimeraVez))
+        .catch(err => {
+            console.error('Error cargando proveedores:', err);
+            document.getElementById('adminContenido').innerHTML =
+                '<p class="sin-productos">' + err.message + '</p>';
+        });
+}
+
+/**
+ * Renderiza un array de proveedores en formato tabla.
+ * @param {Array} proveedores
+ * @param {boolean} esPrimeraVez
+ */
+function renderProveedoresAdmin(proveedores, esPrimeraVez = true) {
+    const contenedor = document.getElementById('adminContenido');
+
+    if (!proveedores || proveedores.length === 0) {
+        if (esPrimeraVez || adminTablaHeaderHTML === '') {
+            adminTablaHeaderHTML = getProveedoresTablaHeader();
+            contenedor.innerHTML = adminTablaHeaderHTML +
+                '<tr><td colspan="7" class="sin-productos">No hay proveedores disponibles.</td></tr></tbody></table></div>';
+        } else {
+            const tbody = contenedor.querySelector('tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="sin-productos">No hay proveedores disponibles.</td></tr>';
+        }
+        return;
+    }
+
+    if (esPrimeraVez || adminTablaHeaderHTML === '') {
+        adminTablaHeaderHTML = getProveedoresTablaHeader();
+    }
+
+    let html = adminTablaHeaderHTML;
+
+    proveedores.forEach(prov => {
+        const estadoHtml = prov.activo === 1
+            ? '<span class="admin-badge badge-activo">Activo</span>'
+            : '<span class="admin-badge badge-inactivo">Inactivo</span>';
+
+        html += `
+            <tr class="${prov.activo == 0 ? 'fila-inactiva' : ''}"
+                data-contacto="${(prov.contacto || '').replace(/"/g, '&quot;')}"
+                data-email="${(prov.email || '').replace(/"/g, '&quot;')}"
+                data-direccion="${(prov.direccion || '').replace(/"/g, '&quot;')}"
+                data-activo="${prov.activo}">
+                <td class="col-id">${prov.id}</td>
+                <td class="col-nombre">${prov.nombre}</td>
+                <td>${prov.contacto || '—'}</td>
+                <td>${prov.email || '—'}</td>
+                <td>${prov.direccion || '—'}</td>
+                <td class="col-estado">${estadoHtml}</td>
+                <td class="col-acciones">
+                    <button class="btn-admin-accion btn-ver" onclick="verProveedor(${prov.id})" title="Ver">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn-admin-accion btn-editar" onclick="editarProveedor(${prov.id})" title="Editar">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                    <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarProveedor(${prov.id}, '${prov.nombre.replace(/'/g, "\\'")}')" title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>`;
+
+    if (esPrimeraVez) {
+        contenedor.innerHTML = html;
+    } else {
+        const tbody = contenedor.querySelector('tbody');
+        if (tbody) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const nuevoTbody = tempDiv.querySelector('tbody');
+            tbody.innerHTML = nuevoTbody.innerHTML;
+        } else {
+            contenedor.innerHTML = html;
+        }
+    }
+}
+
+/**
+ * Busca proveedores por nombre con debounce.
+ */
+function buscarProveedores() {
+    clearTimeout(debounceTimerProveedores);
+    debounceTimerProveedores = setTimeout(() => {
+        const texto = document.getElementById('inputBuscarProveedor').value;
+        const params = new URLSearchParams();
+        if (texto) params.append('buscar', texto);
+
+        fetch('api/proveedores.php?' + params.toString())
+            .then(res => {
+                if (!res.ok) {
+                    return res.json().then(err => { throw new Error(err.error || 'Error al buscar'); });
+                }
+                return res.json();
+            })
+            .then(data => renderProveedoresAdmin(data, false))
+            .catch(err => {
+                console.error('Error buscando proveedores:', err);
+                document.getElementById('adminContenido').innerHTML =
+                    '<p class="sin-productos">Error: ' + err.message + '</p>';
+            });
+    }, 300);
+}
+
+/**
+ * Muestra el modal de detalle (solo lectura) de un proveedor.
+ * @param {number} id
+ */
+function verProveedor(id) {
+    const fila = document.querySelector(`tr [onclick="verProveedor(${id})"]`).closest('tr');
+    const celdas = fila.querySelectorAll('td');
+
+    const nombre = celdas[1].textContent.trim();
+    const contacto = fila.dataset.contacto || '—';
+    const email = fila.dataset.email || '—';
+    const direccion = fila.dataset.direccion || '—';
+    const estado = celdas[5].querySelector('.admin-badge')?.textContent.trim() ?? '—';
+
+    document.getElementById('verProveedorNombre').textContent = nombre;
+    document.getElementById('verProveedorContacto').textContent = contacto || '—';
+    document.getElementById('verProveedorEmail').textContent = email || '—';
+    document.getElementById('verProveedorDireccion').textContent = direccion || '—';
+    document.getElementById('verProveedorEstado').innerHTML =
+        estado === 'Activo'
+            ? '<span class="admin-badge badge-activo">Activo</span>'
+            : '<span class="admin-badge badge-inactivo">Inactivo</span>';
+
+    document.getElementById('modalVerProveedor').style.display = 'flex';
+}
+
+/**
+ * Abre el formulario para crear un nuevo proveedor.
+ */
+function nuevoProveedor() {
+    document.getElementById('editProveedorId').value = '';
+    document.getElementById('editProveedorNombre').value = '';
+    document.getElementById('editProveedorContacto').value = '';
+    document.getElementById('editProveedorEmail').value = '';
+    document.getElementById('editProveedorDireccion').value = '';
+    document.getElementById('editProveedorEstado').value = '1';
+
+    document.getElementById('editProveedorTitulo').textContent = 'Nuevo Proveedor';
+
+    abrirModal('modalEditarProveedor');
+}
+
+/**
+ * Abre el formulario de edición de un proveedor con datos precargados.
+ * @param {number} id
+ */
+function editarProveedor(id) {
+    const fila = document.querySelector(`tr [onclick="editarProveedor(${id})"]`).closest('tr');
+    const celdas = fila.querySelectorAll('td');
+
+    const nombre = celdas[1].textContent.trim();
+    const contacto = fila.dataset.contacto || '';
+    const email = fila.dataset.email || '';
+    const direccion = fila.dataset.direccion || '';
+    const activo = fila.dataset.activo;
+
+    document.getElementById('editProveedorId').value = id;
+    document.getElementById('editProveedorNombre').value = nombre;
+    document.getElementById('editProveedorContacto').value = contacto;
+    document.getElementById('editProveedorEmail').value = email;
+    document.getElementById('editProveedorDireccion').value = direccion;
+    document.getElementById('editProveedorEstado').value = activo;
+
+    document.getElementById('editProveedorTitulo').textContent = 'Editar Proveedor';
+
+    abrirModal('modalEditarProveedor');
+}
+
+/**
+ * Guarda los cambios del proveedor (crear o actualizar).
+ */
+function guardarCambiosProveedor() {
+    const id = document.getElementById('editProveedorId').value;
+    const nombre = document.getElementById('editProveedorNombre').value.trim();
+    const contacto = document.getElementById('editProveedorContacto').value.trim();
+    const email = document.getElementById('editProveedorEmail').value.trim();
+    const direccion = document.getElementById('editProveedorDireccion').value.trim();
+    const activo = document.getElementById('editProveedorEstado').value;
+
+    if (!nombre) {
+        alert('El nombre del proveedor es obligatorio.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('id', id);
+    formData.append('nombre', nombre);
+    formData.append('contacto', contacto);
+    formData.append('email', email);
+    formData.append('direccion', direccion);
+    formData.append('activo', activo);
+
+    fetch('api/proveedores.php', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                cerrarModal('modalEditarProveedor');
+                cargarProveedoresAdmin();
+            } else {
+                alert('Error al guardar: ' + (data.error ?? ''));
+            }
+        })
+        .catch(err => console.error('Error guardando proveedor:', err));
+}
+
+/**
+ * Muestra un diálogo de confirmación antes de eliminar un proveedor.
+ * @param {number} id
+ * @param {string} nombre
+ */
+function confirmarEliminarProveedor(id, nombre) {
+    if (confirm(`¿Seguro que quieres eliminar "${nombre}"?`)) {
+        eliminarProveedor(id);
+    }
+}
+
+/**
+ * Elimina un proveedor enviando una petición DELETE a la API.
+ * @param {number} id
+ */
+function eliminarProveedor(id) {
+    fetch(`api/proveedores.php?eliminar=${id}`, { method: 'DELETE' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                cargarProveedoresAdmin();
+            } else {
+                alert('Error al eliminar el proveedor.');
+            }
+        })
+        .catch(err => console.error('Error eliminando proveedor:', err));
+}
+
+// ======================== PRODUCTOS DEL PROVEEDOR ========================
+
+// Mantenemos el ID del proveedor actual para las operaciones de sus productos
+let proveedorActualId = null;
+
+let verProveedorOriginal = verProveedor;
+
+// Sobrescribimos la función verProveedor para cargar también los productos
+verProveedor = function (id) {
+    proveedorActualId = id;
+    verProveedorOriginal(id);
+    cargarProductosProveedor(id);
+};
+
+/**
+ * Carga la lista de productos suministrados por un proveedor
+ */
+function cargarProductosProveedor(idProveedor) {
+    const tbody = document.getElementById('listaProductosProveedor');
+    const msgSinProductos = document.getElementById('msgSinProductosProveedor');
+
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Cargando productos...</td></tr>';
+    msgSinProductos.style.display = 'none';
+
+    fetch(`api/proveedores.php?productos=${idProveedor}`)
+        .then(res => res.json())
+        .then(productos => {
+            tbody.innerHTML = '';
+            if (!productos || productos.length === 0) {
+                msgSinProductos.style.display = 'block';
+                return;
+            }
+
+            msgSinProductos.style.display = 'none';
+            productos.forEach(prod => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="padding: 8px; min-width: 150px;">${prod.nombre}</td>
+                    <td style="padding: 8px; text-align: center; width: 150px;">${parseFloat((prod.precio * 0.70) || 0).toFixed(2)} €</td>
+                    <td style="padding: 8px; text-align: center; width: 130px;">${parseFloat(prod.recargoEquivalencia).toFixed(2)}%</td>
+                    <td style="padding: 8px; text-align: center; width: 100px;">
+                        <span style="font-size: 0.75rem; color: #6b7280;">C: ${parseFloat(prod.precio * 0.70 * (1 + parseFloat(prod.recargoEquivalencia || 0) / 100)).toFixed(2)} €</span><br>
+                        <span style="font-size: 0.75rem; color: #22c55e;">V: ${parseFloat(prod.precio || 0).toFixed(2)} €</span>
+                    </td>
+                    <td style="padding: 8px; text-align: center; width: 100px;">
+                        <button class="btn-admin-accion btn-editar" onclick="editarRecargoProveedor(${prod.idAsociacion}, ${prod.idProducto}, '${prod.nombre.replace(/'/g, "\\'")}', ${prod.recargoEquivalencia}, ${prod.precioProveedor || 0})" title="Editar Recargo" style="padding: 4px; font-size: 0.8rem;">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarProductoProveedor(${prod.idAsociacion}, '${prod.nombre.replace(/'/g, "\\'")}')" title="Eliminar Asociación" style="padding: 4px; font-size: 0.8rem;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        })
+        .catch(err => {
+            console.error('Error cargando productos del proveedor:', err);
+            tbody.innerHTML = '<tr><td colspan="5" class="sin-productos" style="color: red;">Error al cargar los productos.</td></tr>';
+        });
+}
+
+/**
+ * Prepara y abre el modal para asociar un nuevo producto al proveedor
+ */
+function agregarProductoProveedor() {
+    document.getElementById('asociarProductoTitulo').textContent = 'Añadir Producto';
+    document.getElementById('asociarProductoSubtitulo').textContent = 'Selecciona un producto disponible y fija su recargo';
+
+    document.getElementById('asociarProvIdAsociacion').value = '';
+    document.getElementById('asociarProvIdProveedor').value = proveedorActualId;
+    document.getElementById('asociarProvPrecio').value = '0.00';
+    document.getElementById('asociarProvRecargo').value = '0.00';
+
+    const selectProducto = document.getElementById('asociarProvIdProducto');
+    document.getElementById('contenedorSelectProducto').style.display = 'flex';
+    document.getElementById('contenedorTextoProducto').style.display = 'none';
+
+    // Cargar productos disponibles (no asociados aún)
+    fetch(`api/proveedores.php?productosDisponibles=${proveedorActualId}`)
+        .then(res => res.json())
+        .then(productos => {
+            selectProducto.innerHTML = '';
+            if (!productos || productos.length === 0) {
+                selectProducto.innerHTML = '<option value="">Cargando...</option>';
+                alert('No hay productos disponibles para asociar o hubo un error.');
+                return;
+            }
+
+            productos.forEach(prod => {
+                const option = document.createElement('option');
+                option.value = prod.id;
+                option.textContent = prod.nombre;
+                selectProducto.appendChild(option);
+            });
+
+            cerrarModal('modalVerProveedor');
+            abrirModal('modalAsociarProducto');
+        })
+        .catch(err => console.error('Error cargando productos disponibles:', err));
+}
+
+/**
+ * Prepara y abre el modal para editar el recargo de equivalencia
+ */
+function editarRecargoProveedor(idAsociacion, idProducto, nombreProducto, recargo, precioProv) {
+    document.getElementById('asociarProductoTitulo').textContent = 'Editar Producto de Proveedor';
+    document.getElementById('asociarProductoSubtitulo').textContent = 'Modifica el precio y recargo de equivalencia';
+
+    document.getElementById('asociarProvIdAsociacion').value = idAsociacion;
+    document.getElementById('asociarProvIdProveedor').value = proveedorActualId;
+    document.getElementById('asociarProvPrecio').value = precioProv;
+    document.getElementById('asociarProvRecargo').value = recargo;
+
+    document.getElementById('contenedorSelectProducto').style.display = 'none';
+    document.getElementById('contenedorTextoProducto').style.display = 'flex';
+    document.getElementById('asociarProvNombreProducto').value = nombreProducto;
+
+    cerrarModal('modalVerProveedor');
+    abrirModal('modalAsociarProducto');
+}
+
+/**
+ * Guarda la asociación del producto o actualiza su recargo
+ */
+function guardarCambiosAsociarProducto() {
+    const idAsociacion = document.getElementById('asociarProvIdAsociacion').value;
+    const idProveedor = document.getElementById('asociarProvIdProveedor').value;
+    const idProducto = document.getElementById('asociarProvIdProducto').value;
+    const precio = document.getElementById('asociarProvPrecio').value;
+    const recargo = document.getElementById('asociarProvRecargo').value;
+
+    const formData = new FormData();
+    formData.append('precioProveedor', precio);
+    formData.append('recargoEquivalencia', recargo);
+
+    if (idAsociacion) {
+        // Modo Edición: Actualizar recargo
+        formData.append('accion', 'actualizarRecargo');
+        formData.append('idAsociacion', idAsociacion);
+    } else {
+        // Modo Creación: Asociar nuevo producto
+        formData.append('accion', 'agregarProducto');
+        formData.append('idProveedor', idProveedor);
+        formData.append('idProducto', idProducto);
+    }
+
+    fetch('api/proveedores.php', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                cerrarModal('modalAsociarProducto');
+                abrirModal('modalVerProveedor');
+                cargarProductosProveedor(idProveedor);
+            } else {
+                alert('Error: ' + (data.error ?? 'Error desconocido'));
+            }
+        })
+        .catch(err => console.error('Error guardando asociación:', err));
+}
+
+/**
+ * Confirma la eliminación de la asociación proveedor-producto
+ */
+function confirmarEliminarProductoProveedor(idAsociacion, nombreProducto) {
+    if (confirm(`¿Seguro que quieres dejar de suministrar el producto "${nombreProducto}" a través de este proveedor?`)) {
+        fetch(`api/proveedores.php?eliminarAsociacion=${idAsociacion}`, { method: 'DELETE' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.ok) {
+                    cargarProductosProveedor(proveedorActualId);
+                } else {
+                    alert('Error al eliminar: ' + (data.error ?? ''));
+                }
+            })
+            .catch(err => console.error('Error eliminando asociación:', err));
+    }
+}
+
+

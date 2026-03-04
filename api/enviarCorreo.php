@@ -124,55 +124,71 @@ if ($isFactura || $clienteNif || $clienteNombre) {
 
 // C. Generación de las filas de productos (Tabla de líneas)
 $filasLineas = '';
-$sumaTotalesNumeric = 0;
+$sumaTotalesNumeric = 0; // PVP acumulado
+$desgloseIva = []; // Para el resumen final por cada %
 
 foreach ($lineas as $linea) {
-    // Calculamos los subtotales para recalcular impuestos si fuera necesario
-    $subtotalNumeric = $linea['precio'] * $linea['cantidad'];
-    $sumaTotalesNumeric += $subtotalNumeric;
+    $cantidad = (float) ($linea['cantidad'] ?? 1);
+    $precioBase = (float) ($linea['precio'] ?? 0);
+    $ivaPorc = (int) ($linea['iva'] ?? 21);
 
-    $subtotal = number_format($subtotalNumeric, 2, ',', '.');
-    $precioFmt = number_format($linea['precio'], 2, ',', '.');
+    // Cálculos por unidad
+    $cuotaIvaUnidad = $precioBase * ($ivaPorc / 100);
+    $precioPVP = $precioBase + $cuotaIvaUnidad;
+
+    // Cálculos totales de la línea
+    $subtotalBase = $precioBase * $cantidad;
+    $subtotalIva = $cuotaIvaUnidad * $cantidad;
+    $subtotalPVP = $precioPVP * $cantidad;
+
+    $sumaTotalesNumeric += $subtotalPVP;
+
+    // Acumular para el desglose fiscal final
+    if (!isset($desgloseIva[$ivaPorc])) {
+        $desgloseIva[$ivaPorc] = ['base' => 0, 'cuota' => 0];
+    }
+    $desgloseIva[$ivaPorc]['base'] += $subtotalBase;
+    $desgloseIva[$ivaPorc]['cuota'] += $subtotalIva;
+
+    // Formatear precios
+    $baseFmt = number_format($subtotalBase, 2, ',', '.');
+    $pvpFmt = number_format($subtotalPVP, 2, ',', '.');
+    $unitarioFmt = number_format($precioBase, 2, ',', '.');
 
     $filasLineas .= "
         <tr>
             <td>{$linea['nombre']}</td>
-            <td style='text-align:center;'>{$linea['cantidad']}</td>
-            <td style='text-align:right;'>{$precioFmt} €</td>
-            <td style='text-align:center;'>21%</td>
-            <td style='text-align:right;'>{$subtotal} €</td>
+            <td style='text-align:center;'>{$cantidad}</td>
+            <td style='text-align:right;'>{$unitarioFmt} €</td>
+            <td style='text-align:center;'>{$ivaPorc}%</td>
+            <td style='text-align:right;'>{$pvpFmt} €</td>
         </tr>";
 }
 
 // D. Desglose de impuestos (IVA) y Descuentos
-// Asumimos un IVA general del 21% incluido en el precio final
-$importeDescuento = 0;
+$importeDescuentoPVP = 0;
 if ($descuentoTipo === 'porcentaje') {
-    $importeDescuento = $sumaTotalesNumeric * ($descuentoValor / 100);
+    $importeDescuentoPVP = $sumaTotalesNumeric * ($descuentoValor / 100);
 } else if ($descuentoTipo === 'fijo') {
-    $importeDescuento = $descuentoValor;
+    $importeDescuentoPVP = $descuentoValor;
 }
 
-$subtotalSinDescuento = $sumaTotalesNumeric;
-$totalFinalVenta = max(0, $subtotalSinDescuento - $importeDescuento);
+$subtotalPVP = $sumaTotalesNumeric;
+$totalFinalPVP = max(0, $subtotalPVP - $importeDescuentoPVP);
+$factorDescuento = $subtotalPVP > 0 ? ($totalFinalPVP / $subtotalPVP) : 1;
 
-$baseImponible = $totalFinalVenta / 1.21;
-$cuotaIva = $totalFinalVenta - $baseImponible;
-
-$subtotalSinDescFmt = number_format($subtotalSinDescuento, 2, ',', '.');
-$descFmt = number_format($importeDescuento, 2, ',', '.');
-$baseImpFmt = number_format($baseImponible, 2, ',', '.');
-$cuotaIvaFmt = number_format($cuotaIva, 2, ',', '.');
+$subtotalPVFmt = number_format($subtotalPVP, 2, ',', '.');
+$descFmt = number_format($importeDescuentoPVP, 2, ',', '.');
 
 // Bloque de pie de tabla con los sumatorios
 $totalesHtml = "<table style='width:100%; border: none; margin-top:10px;'>";
 
-if ($importeDescuento > 0) {
+if ($importeDescuentoPVP > 0) {
     $descEtiqueta = ($descuentoTipo === 'porcentaje') ? "Descuento ({$descuentoValor}%):" : "Descuento (Cupón {$descuentoCupon}):";
     $totalesHtml .= "
         <tr>
-            <td style='border: none;'><strong>Subtotal:</strong></td>
-            <td style='border: none; text-align:right'>{$subtotalSinDescFmt} €</td>
+            <td style='border: none;'><strong>Subtotal (PVP):</strong></td>
+            <td style='border: none; text-align:right'>{$subtotalPVFmt} €</td>
         </tr>
         <tr>
             <td style='border: none; color: #16a34a;'><strong>{$descEtiqueta}</strong></td>
@@ -181,16 +197,32 @@ if ($importeDescuento > 0) {
 }
 
 $totalesHtml .= "
-    <tr>
-        <td style='border: none;'><strong>Base Imponible:</strong></td>
-        <td style='border: none; text-align:right'>{$baseImpFmt} €</td>
-    </tr>
-    <tr>
-        <td style='border: none;'><strong>Cuota IVA (21%):</strong></td>
-        <td style='border: none; text-align:right'>{$cuotaIvaFmt} €</td>
-    </tr>
-    <tr>
-        <td style='border: none; font-size: 1.1rem; padding-top:10px;'><strong>TOTAL (IVA INCLUIDO):</strong></td>
+    <tr style='border-top: 1px solid #eee;'>
+        <td colspan='2' style='border: none; padding-top:10px;'><strong>Desglose Fiscal:</strong></td>
+    </tr>";
+
+ksort($desgloseIva);
+foreach ($desgloseIva as $porc => $valores) {
+    $baseFinal = $valores['base'] * $factorDescuento;
+    $cuotaFinal = $valores['cuota'] * $factorDescuento;
+
+    $bf = number_format($baseFinal, 2, ',', '.');
+    $cf = number_format($cuotaFinal, 2, ',', '.');
+
+    $totalesHtml .= "
+        <tr style='font-size: 12px; color: #555;'>
+            <td style='border: none;'>Base al {$porc}%:</td>
+            <td style='border: none; text-align:right'>{$bf} €</td>
+        </tr>
+        <tr style='font-size: 12px; color: #555;'>
+            <td style='border: none;'>IVA ({$porc}%):</td>
+            <td style='border: none; text-align:right'>{$cf} €</td>
+        </tr>";
+}
+
+$totalesHtml .= "
+    <tr style='border-top: 1px solid #000;'>
+        <td style='border: none; font-size: 1.1rem; padding-top:10px;'><strong>TOTAL (PVP):</strong></td>
         <td style='border: none; font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;'>{$total} €</td>
     </tr>
 </table>";
@@ -242,7 +274,7 @@ $cuerpo = "
 
         <table class='tabla-lineas'>
             <thead>
-                <tr><th>Desc.</th><th style='text-align:center;'>Cant</th><th style='text-align:right;'>Precio</th><th style='text-align:center;'>IVA</th><th style='text-align:right;'>Subt.</th></tr>
+                <tr><th>Desc.</th><th style='text-align:center;'>Cant</th><th style='text-align:right;'>Base</th><th style='text-align:center;'>IVA</th><th style='text-align:right;'>PVP</th></tr>
             </thead>
             <tbody>{$filasLineas}</tbody>
         </table>

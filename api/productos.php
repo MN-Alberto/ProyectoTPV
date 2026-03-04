@@ -64,6 +64,7 @@ try {
         $stock = (int) ($_POST['stock'] ?? 0);
         $activo = (int) ($_POST['activo'] ?? 1);
         $categoria = trim($_POST['categoria'] ?? '');
+        $iva = (int) ($_POST['iva'] ?? 21);
 
         // Validar que los campos obligatorios no estén vacíos
         if (empty($nombre) || empty($categoria)) {
@@ -90,6 +91,7 @@ try {
             $producto->setPrecio($precio);
             $producto->setStock($stock);
             $producto->setActivo($activo);
+            $producto->setIva($iva);
         } else {
             // Es un nuevo producto - buscar la categoría para obtener su ID
             $categorias = Categoria::obtenerTodas();
@@ -115,6 +117,7 @@ try {
             $producto->setActivo($activo);
             $producto->setIdCategoria($idCategoria);
             $producto->setImagen('webroot/img/logo.PNG');
+            $producto->setIva($iva);
         }
 
         // Subida de imagen (opcional)
@@ -210,7 +213,8 @@ try {
             'idCategoria' => $idCat,
             'categoria' => $mapCategorias[$idCat] ?? '—',   // ← nombre legible
             'activo' => (int) $prod->getActivo(),         // ← 1 = activo, 0 = inactivo
-            'imagen' => $prod->getImagen()
+            'imagen' => $prod->getImagen(),
+            'iva' => (int) $prod->getIva()
         ];
     }
 

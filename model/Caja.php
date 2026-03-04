@@ -212,6 +212,86 @@ class Caja
     }
 
     /**
+     * Registra un retiro de dinero de la caja.
+     * @param float $importe Importe a retirar
+     * @param int $idUsuario ID del usuario que realiza el retiro
+     * @param string|null $motivo Motivo del retiro (opcional)
+     * @return bool
+     */
+    public function registrarRetiro($importe, $idUsuario, $motivo = null)
+    {
+        // Obtenemos la instancia de la conexión
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
+        $stmt = $conexion->prepare(
+            "INSERT INTO retiros (idCajaSesion, idUsuario, importe, motivo) VALUES (:idCajaSesion, :idUsuario, :importe, :motivo)"
+        );
+        // Vinculamos los parámetros
+        $stmt->bindParam(':idCajaSesion', $this->id, PDO::PARAM_INT);
+        $stmt->bindParam(':idUsuario', $idUsuario, PDO::PARAM_INT);
+        $stmt->bindParam(':importe', $importe, PDO::PARAM_STR);
+        $stmt->bindParam(':motivo', $motivo, PDO::PARAM_STR);
+        return $stmt->execute();
+    }
+
+    /**
+     * Obtiene todos los retiros de una sesión de caja.
+     * @return array
+     */
+    public function getRetiros()
+    {
+        // Obtenemos la instancia de la conexión
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
+        $stmt = $conexion->prepare(
+            "SELECT r.*, u.nombre as usuario_nombre FROM retiros r 
+             LEFT JOIN usuarios u ON r.idUsuario = u.id 
+             WHERE r.idCajaSesion = :idCajaSesion 
+             ORDER BY r.fecha DESC"
+        );
+        $stmt->bindParam(':idCajaSesion', $this->id, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Obtiene el total de retiros de una sesión de caja.
+     * @return float
+     */
+    public function getTotalRetiros()
+    {
+        // Obtenemos la instancia de la conexión
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
+        $stmt = $conexion->prepare(
+            "SELECT COALESCE(SUM(importe), 0) as total FROM retiros WHERE idCajaSesion = :idCajaSesion"
+        );
+        $stmt->bindParam(':idCajaSesion', $this->id, PDO::PARAM_INT);
+        $stmt->execute();
+        $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+        return (float) $resultado['total'];
+    }
+
+    /**
+     * Obtiene el total de retiros de una sesión de caja por su ID.
+     * @param int $idCajaSesion ID de la sesión de caja
+     * @return float
+     */
+    public static function getTotalRetirosPorSesion($idCajaSesion)
+    {
+        // Obtenemos la instancia de la conexión
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
+        $stmt = $conexion->prepare(
+            "SELECT COALESCE(SUM(importe), 0) as total FROM retiros WHERE idCajaSesion = :idCajaSesion"
+        );
+        $stmt->bindParam(':idCajaSesion', $idCajaSesion, PDO::PARAM_INT);
+        $stmt->execute();
+        $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+        return (float) $resultado['total'];
+    }
+
+    /**
      * Crea una instancia de Caja desde un array.
      * @param array $fila
      * @return Caja

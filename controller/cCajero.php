@@ -20,9 +20,13 @@ if (!isset($_SESSION['idUsuario'])) {
     exit();
 }
 
-// Si el usuario solicita cerrar sesión redirigimos al login
+// Si el usuario solicita cerrar sesión destruimos la sesión completamente
 if (isset($_REQUEST['cerrarSesion'])) {
-    $_SESSION['paginaEnCurso'] = 'login';
+    // Destruir todas las variables de sesión
+    $_SESSION = array();
+    // Destruir la sesión
+    session_destroy();
+    // Redirigir al login
     header('Location: index.php');
     exit();
 }
@@ -67,17 +71,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             //Calculamos el total y validamos el stock.
             $total = 0;
             $stockValido = true;
-            // Recorremos los productos del carrito para validar el stock y calcular el total
+            // Recorremos los productos del carrito para validar el stock y calcular el total con IVA
             foreach ($carrito as $item) {
-                // Buscamos el producto por id
+                // Buscamos el producto por id para asegurar datos frescos y obtener su IVA
                 $producto = Producto::buscarPorId($item['idProducto']);
+
                 // Si el producto no existe o no hay stock suficiente
-                if ($producto && $producto->getStock() < $item['cantidad']) {
+                if (!$producto || $producto->getStock() < $item['cantidad']) {
                     $stockValido = false;
                     break;
                 }
-                // Sumamos el total
-                $total += $item['precio'] * $item['cantidad'];
+
+                // Calcular el precio con IVA (PVP) para este producto
+                $ivaPorcentaje = (float) $producto->getIva();
+                $precioUnitarioBase = (float) $item['precio']; // Precio base guardado en el carrito
+                $precioUnitarioConIva = $precioUnitarioBase * (1 + ($ivaPorcentaje / 100));
+
+                // Sumamos al total acumulado
+                $total += $precioUnitarioConIva * $item['cantidad'];
             }
 
             // Si el stock no es válido, guardamos un error en la sesión y recargamos la página
@@ -138,6 +149,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $lineasVenta = [];
             // Recorremos los productos del carrito
             foreach ($carrito as $item) {
+                // Re-buscamos el producto para obtener su IVA y stock individual
+                $producto = Producto::buscarPorId($item['idProducto']);
                 // Creamos una nueva línea de venta
                 $linea = new LineaVenta();
                 // Indicamos el id de la venta
@@ -148,22 +161,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 $linea->setCantidad($item['cantidad']);
                 // Indicamos el precio unitario
                 $linea->setPrecioUnitario($item['precio']);
+                // Indicamos el IVA aplicado
+                $linea->setIva($producto ? $producto->getIva() : 21);
                 // Insertamos la línea de venta
                 $linea->insertar();
 
-                // Buscamos el producto por id
-                $producto = Producto::buscarPorId($item['idProducto']);
                 // Si el producto existe
                 if ($producto) {
                     // Actualizamos el stock
                     $producto->actualizarStock(-$item['cantidad']);
                 }
 
-                // Guardamos la línea de venta
+                // Guardamos la línea de venta (ahora incluye IVA)
                 $lineasVenta[] = [
                     'nombre' => $item['nombre'],
                     'cantidad' => $item['cantidad'],
-                    'precio' => $item['precio']
+                    'precio' => $item['precio'],
+                    'iva' => $producto ? $producto->getIva() : 21
                 ];
             }
 
@@ -207,16 +221,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $idSesion = $sesionCaja->getId();
             // Obtenemos el total de devoluciones
             $totalDevoluciones = Devolucion::obtenerTotalPorSesion($idSesion);
+            // Obtenemos el total de retiros
+            $totalRetiros = $sesionCaja->getTotalRetiros();
 
             // Obtenemos el importe inicial y actual de la sesión de caja y indicamos el total de las devoluciones que se han hecho
             $resumenCaja['importeInicial'] = $sesionCaja->getImporteInicial();
             $resumenCaja['importeActual'] = $sesionCaja->getImporteActual();
             $resumenCaja['totalDevoluciones'] = $totalDevoluciones;
+            $resumenCaja['totalRetiros'] = $totalRetiros;
         } else {
-            // Si no existe una sesión de caja, indicamos que el importe inicial y actual es 0 y el total de devoluciones es 0
+            // Si no existe una sesión de caja, indicamos que el importe inicial y actual es 0 y el total de devoluciones y retiros es 0
             $resumenCaja['importeInicial'] = 0;
             $resumenCaja['importeActual'] = 0;
             $resumenCaja['totalDevoluciones'] = 0;
+            $resumenCaja['totalRetiros'] = 0;
         }
 
         // Guardamos en la sesión que se ha previsualizado la caja y el resumen de caja y recargamos la página
@@ -271,12 +289,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
         $totalReembolso = (float) ($_POST['totalReembolso'] ?? 0);
 
         if (!empty($productos)) {
+            // Verificar si hay suficiente efectivo en caja para el reembolso
+            if ($sesionCaja && $sesionCaja->getImporteActual() < $totalReembolso) {
+                $_SESSION['ventaError'] = "Error: No hay suficiente efectivo en caja para realizar esta devolución (" . number_format($totalReembolso, 2, ',', '.') . " €). Efectivo disponible: " . number_format($sesionCaja->getImporteActual(), 2, ',', '.') . " €";
+                header('Location: index.php');
+                exit();
+            }
+
             $todasOk = true;
+            $detalleTicket = LineaVenta::obtenerDetalleParaDevolucion($idVenta);
+
             foreach ($productos as $item) {
+                $idProducto = (int) $item['idProducto'];
+                $cantidadSolicitada = (int) $item['cantidad'];
+
+                // Buscar la línea correspondiente en el detalle del ticket
+                $lineaOriginal = null;
+                foreach ($detalleTicket as $detalle) {
+                    if ((int) $detalle['idProducto'] === $idProducto) {
+                        $lineaOriginal = $detalle;
+                        break;
+                    }
+                }
+
+                if (!$lineaOriginal) {
+                    $todasOk = false;
+                    $_SESSION['ventaError'] = "Error: El producto no pertenece a este ticket.";
+                    break;
+                }
+
+                $disponible = (int) $lineaOriginal['cantidad'] - (int) $lineaOriginal['cantidad_devuelta'];
+
+                if ($cantidadSolicitada > $disponible) {
+                    $todasOk = false;
+                    $_SESSION['ventaError'] = "Error: La cantidad solicitada para " . $lineaOriginal['producto_nombre'] . " ($cantidadSolicitada) excede lo disponible ($disponible).";
+                    break;
+                }
+
                 $devolucion = new Devolucion();
                 $devolucion->setIdUsuario($_SESSION['idUsuario']);
-                $devolucion->setIdProducto((int) $item['idProducto']);
-                $devolucion->setCantidad((int) $item['cantidad']);
+                $devolucion->setIdProducto($idProducto);
+                $devolucion->setCantidad($cantidadSolicitada);
                 $devolucion->setImporteTotal((float) $item['importe']);
                 $devolucion->setIdVenta($idVenta);
                 $devolucion->setIdSesionCaja($sesionCaja ? $sesionCaja->getId() : null);
@@ -294,8 +347,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             }
 
             if ($todasOk) {
-                // Si la devolución es en efectivo, restamos el total del reembolso de la caja
-                if ($sesionCaja && $metodoPago === 'Efectivo') {
+                // Se resta el total del reembolso del efectivo en caja siempre (según petición del usuario)
+                if ($sesionCaja) {
                     $sesionCaja->actualizarEfectivo(-$totalReembolso);
                 }
                 $_SESSION['devolucionExito'] = true;
@@ -312,12 +365,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
     if ($_POST['accion'] === 'retirarDinero' && isset($_POST['importeRetiro'])) {
         // Obtenemos el importe a retirar del modal del retiro de dinero
         $importe = (float) $_POST['importeRetiro'];
+        $motivo = isset($_POST['motivoRetiro']) ? $_POST['motivoRetiro'] : null;
         // Si la sesión de caja existe y el importe es mayor a 0
         if ($sesionCaja && $importe > 0) {
-            // Actualizamos el efectivo de la caja restandole el dinero que se ha retirado
-            $sesionCaja->actualizarEfectivo(-$importe);
-            // Guardamos en la sesión que se ha realizado un retiro
-            $_SESSION['retiroExito'] = true;
+            // Verificar que hay suficiente efectivo en la caja
+            $importeActual = $sesionCaja->getImporteActual();
+            if ($importe > $importeActual) {
+                // No hay suficiente efectivo, guardamos mensaje de error
+                $_SESSION['retiroError'] = 'No hay suficiente efectivo en la caja. Disponible: ' . number_format($importeActual, 2, ',', '.') . ' €';
+            } else {
+                // Actualizamos el efectivo de la caja restandole el dinero que se ha retirado
+                $sesionCaja->actualizarEfectivo(-$importe);
+                // Registramos el retiro en la base de datos
+                $sesionCaja->registrarRetiro($importe, $_SESSION['idUsuario'], $motivo);
+                // Guardamos en la sesión que se ha realizado un retiro
+                $_SESSION['retiroExito'] = true;
+            }
         }
         // Recargamos la página
         header('Location: index.php');

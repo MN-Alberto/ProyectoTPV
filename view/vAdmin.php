@@ -11,6 +11,9 @@
             <button class="cat-btn activa" data-seccion="dashboard" style="width: 100%; text-align: left;">
                 <i class="fas fa-chart-line" style="margin-right: 10px;"></i> Dashboard
             </button>
+            <button class="cat-btn" data-seccion="caja-sesiones" style="width: 100%; text-align: left;">
+                <i class="fas fa-cash-register" style="margin-right: 10px;"></i> Sesiones de Caja
+            </button>
             <button class="cat-btn" data-seccion="productos" style="width: 100%; text-align: left;">
                 <i class="fas fa-box" style="margin-right: 10px;"></i> Productos
             </button>
@@ -20,8 +23,14 @@
             <button class="cat-btn" data-seccion="ventas" style="width: 100%; text-align: left;">
                 <i class="fas fa-file-invoice-dollar" style="margin-right: 10px;"></i> Ventas
             </button>
+            <button class="cat-btn" data-seccion="retiros" style="width: 100%; text-align: left;">
+                <i class="fas fa-money-bill-wave" style="margin-right: 10px;"></i> Retiros de Caja
+            </button>
             <button class="cat-btn" data-seccion="devoluciones" style="width: 100%; text-align: left;">
                 <i class="fas fa-undo" style="margin-right: 10px;"></i> Devoluciones
+            </button>
+            <button class="cat-btn" data-seccion="proveedores" style="width: 100%; text-align: left;">
+                <i class="fas fa-truck" style="margin-right: 10px;"></i> Proveedores
             </button>
             <button class="cat-btn" data-seccion="configuracion" style="width: 100%; text-align: left;">
                 <i class="fas fa-cog" style="margin-right: 10px;"></i> Configuración
@@ -58,6 +67,18 @@
             <div class="admin-stat-card">
                 <span class="admin-stat-label">Alertas Stock</span>
                 <span class="admin-stat-value" style="color: #dc2626;"><?php echo $stats['alertasStock']; ?></span>
+            </div>
+            <div class="admin-stat-card">
+                <span class="admin-stat-label"><?php echo $tituloRetiros; ?></span>
+                <span class="admin-stat-value"
+                    style="color: #ea580c;">-<?php echo number_format($stats['retirosHoy'] ?? 0, 2, ',', '.'); ?>
+                    €</span>
+            </div>
+            <div class="admin-stat-card">
+                <span class="admin-stat-label"><?php echo $tituloDevoluciones; ?></span>
+                <span class="admin-stat-value"
+                    style="color: #dc2626;">-<?php echo number_format($stats['devolucionesHoy'] ?? 0, 2, ',', '.'); ?>
+                    €</span>
             </div>
         </div>
 
@@ -107,6 +128,10 @@
                 <div class="ver-prod-fila">
                     <span class="ver-prod-label">Estado</span>
                     <span id="verProductoEstado" class="ver-prod-valor"></span>
+                </div>
+                <div class="ver-prod-fila">
+                    <span class="ver-prod-label">IVA</span>
+                    <span id="verProductoIva" class="ver-prod-valor"></span>
                 </div>
             </div>
         </div>
@@ -165,6 +190,15 @@
                     <select id="editProductoEstado">
                         <option value="1">Activo</option>
                         <option value="0">Inactivo</option>
+                    </select>
+                </div>
+                <div class="editar-prod-fila">
+                    <label>Tipo de IVA (%)</label>
+                    <select id="editProductoIva">
+                        <option value="21">21% (General)</option>
+                        <option value="10">10% (Reducido)</option>
+                        <option value="4">4% (Superreducido)</option>
+                        <option value="0">0% (Exento)</option>
                     </select>
                 </div>
             </div>
@@ -324,6 +358,163 @@
     </div>
 </div>
 
+<!-- ##-----------------------------------MODAL VER PROVEEDOR-----------------------------------## -->
+
+<div class="modal-overlay" id="modalVerProveedor" style="display:none;">
+    <div class="modal-content modal-verProducto" style="max-width: 900px;">
+        <h3>Detalle del Proveedor</h3>
+        <p class="modal-subtitulo">Información completa</p>
+
+        <div style="display: flex; flex-direction: column; gap: 15px; margin: 20px 0;">
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Nombre</span>
+                <span id="verProveedorNombre" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Contacto</span>
+                <span id="verProveedorContacto" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Email</span>
+                <span id="verProveedorEmail" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Dirección</span>
+                <span id="verProveedorDireccion" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Estado</span>
+                <span id="verProveedorEstado" class="ver-prod-valor"></span>
+            </div>
+        </div>
+
+        <div style="border-top: 1px solid #e5e7eb; padding-top: 15px; margin-top: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h4 style="color: #374151; font-size: 1.1rem; margin: 0;">Productos Suministrados</h4>
+                <button class="btn-admin-accion btn-nuevo" onclick="agregarProductoProveedor()"
+                    style="padding: 4px 10px; font-size: 0.85rem;">
+                    <i class="fas fa-plus"></i> Añadir Producto
+                </button>
+            </div>
+
+            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 4px;">
+                <table class="admin-tabla" id="tablaProductosProveedor"
+                    style="font-size: 0.85rem; margin-bottom: 0; table-layout: fixed; width: 100%;">
+                    <thead style="position: sticky; top: 0;">
+                        <tr>
+                            <th style="padding: 8px; min-width: 150px;">Producto</th>
+                            <th style="padding: 8px; width: 150px; text-align: center;">Precio Compra</th>
+                            <th style="padding: 8px; width: 130px; text-align: center;">R. Eq (%)</th>
+                            <th style="padding: 8px; width: 100px; text-align: center;">Precios</th>
+                            <th style="padding: 8px; width: 100px; text-align: center;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="listaProductosProveedor">
+                        <!-- Rellenado con Javascript -->
+                    </tbody>
+                </table>
+            </div>
+            <p id="msgSinProductosProveedor" class="sin-productos" style="display: none; padding: 15px 0;">Este
+                proveedor no tiene productos asignados.</p>
+        </div>
+
+        <div style="display: flex; justify-content: center; margin-top: 20px;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerProveedor')" style="min-width: 100px;">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ##-----------------------------------MODAL ASOCIAR PRODUCTO PROVEEDOR-----------------------------------## -->
+
+<div class="modal-overlay" id="modalAsociarProducto" style="display:none; z-index: 9999;">
+    <div class="modal-content modal-editarProducto" style="max-width: 420px;">
+        <h3 id="asociarProductoTitulo">Asociar Producto</h3>
+        <p class="modal-subtitulo" id="asociarProductoSubtitulo">Selecciona un producto y fija su recargo</p>
+
+        <input type="hidden" id="asociarProvIdAsociacion">
+        <input type="hidden" id="asociarProvIdProveedor">
+
+        <div class="editar-prod-campos" style="max-width: 100%;">
+            <div class="editar-prod-fila" id="contenedorSelectProducto">
+                <label>Producto <span style="color:red">*</span></label>
+                <select id="asociarProvIdProducto" style="padding: 8px; border-radius: 4px; border: 1px solid #d1d5db;">
+                    <!-- Rellenado con Javascript -->
+                </select>
+            </div>
+
+            <div class="editar-prod-fila" id="contenedorTextoProducto" style="display: none;">
+                <label>Producto</label>
+                <input type="text" id="asociarProvNombreProducto" readonly
+                    style="background-color: #f3f4f6; color: #6b7280; pointer-events: none;">
+            </div>
+
+            <div class="editar-prod-fila">
+                <label>Precio Proveedor (€) <span style="color:red">*</span></label>
+                <input type="number" id="asociarProvPrecio" step="0.01" min="0" value="0.00" required>
+            </div>
+
+            <div class="editar-prod-fila">
+                <label>Recargo Equivalencia (%) <span style="color:red">*</span></label>
+                <input type="number" id="asociarProvRecargo" step="0.01" min="0" value="0.00" required>
+            </div>
+        </div>
+
+        <div class="editar-prod-botones">
+            <button class="btn-modal-cancelar"
+                onclick="cerrarModal('modalAsociarProducto'); abrirModal('modalVerProveedor')">Cancelar</button>
+            <button class="btn-exito" onclick="guardarCambiosAsociarProducto()">
+                <i class="fas fa-save"></i> Guardar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ##-----------------------------------MODAL EDITAR/CREAR PROVEEDOR-----------------------------------## -->
+
+<div class="modal-overlay" id="modalEditarProveedor" style="display:none;">
+    <div class="modal-content modal-editarProducto">
+        <h3 id="editProveedorTitulo">Editar Proveedor</h3>
+        <p class="modal-subtitulo">Modifica los datos del proveedor</p>
+
+        <input type="hidden" id="editProveedorId">
+
+        <div class="editar-prod-campos" style="max-width: 100%;">
+            <div class="editar-prod-fila">
+                <label>Nombre <span style="color:red">*</span></label>
+                <input type="text" id="editProveedorNombre" required>
+            </div>
+            <div class="editar-prod-fila">
+                <label>Contacto (Teléfono)</label>
+                <input type="text" id="editProveedorContacto">
+            </div>
+            <div class="editar-prod-fila">
+                <label>Email</label>
+                <input type="email" id="editProveedorEmail">
+            </div>
+            <div class="editar-prod-fila">
+                <label>Dirección</label>
+                <input type="text" id="editProveedorDireccion">
+            </div>
+            <div class="editar-prod-fila">
+                <label>Estado</label>
+                <select id="editProveedorEstado">
+                    <option value="1">Activo</option>
+                    <option value="0">Inactivo</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="editar-prod-botones">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalEditarProveedor')">Cancelar</button>
+            <button class="btn-exito" onclick="guardarCambiosProveedor()">
+                <i class="fas fa-save"></i> Guardar Cambios
+            </button>
+        </div>
+    </div>
+</div>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <script>
@@ -336,7 +527,10 @@
         usuarios: 'Gestión de Usuarios',
         ventas: 'Historial de Ventas',
         devoluciones: 'Gestión de Devoluciones',
-        configuracion: 'Configuración'
+        proveedores: 'Gestión de Proveedores',
+        configuracion: 'Configuración',
+        retiros: 'Retiros de Caja',
+        'caja-sesiones': 'Sesiones de Caja'
     };
 
     document.querySelectorAll('.cat-btn[data-seccion]').forEach(btn => {
@@ -362,11 +556,20 @@
                 case 'ventas':
                     cargarVentasAdmin();
                     break;
+                case 'retiros':
+                    cargarRetirosAdmin();
+                    break;
                 case 'devoluciones':
                     cargarDevolucionesAdmin();
                     break;
+                case 'proveedores':
+                    cargarProveedoresAdmin();
+                    break;
                 case 'configuracion':
                     cargarConfiguracion();
+                    break;
+                case 'caja-sesiones':
+                    cargarCajaSesionesAdmin();
                     break;
             }
         });

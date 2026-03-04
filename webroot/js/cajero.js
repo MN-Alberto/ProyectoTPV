@@ -124,8 +124,10 @@ function renderProductos(productos) {
     // Construir el HTML de todas las tarjetas de producto.
     let html = '';
     productos.forEach(prod => {
-        // Formatear el precio con 2 decimales y coma como separador decimal (formato europeo).
-        let precioFmt = parseFloat(prod.precio).toFixed(2).replace('.', ',');
+        // Formatear el precio con 2 decimales y coma.
+        const ivaProd = (prod.iva !== null && prod.iva !== undefined && prod.iva !== "") ? parseInt(prod.iva) : 21;
+        const precioPVP = parseFloat(prod.precio) * (1 + (ivaProd / 100));
+        let precioFmt = precioPVP.toFixed(2).replace('.', ',');
 
         // Usar la imagen del producto si existe; de lo contrario, usar el logo por defecto.
         let imgSrc = prod.imagen && prod.imagen !== '' ? prod.imagen : 'webroot/img/logo.PNG';
@@ -135,7 +137,9 @@ function renderProductos(productos) {
         // (opacidad reducida, cursor no permitido, sin animaciones de hover).
         html += `<div class="producto-card" data-id="${prod.id}"
                     data-nombre="${prod.nombre.replace(/"/g, '"')}"
-                    data-precio="${prod.precio}" data-stock="${prod.stock}"
+                    data-precio="${prod.precio}" 
+                    data-iva="${ivaProd}"
+                    data-stock="${prod.stock}"
                     onclick="agregarAlCarrito(this)" style="${prod.stock <= 0 ? 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);' : ''}">
                     <div class="producto-nombre">${prod.nombre}</div>
                     <div class="producto-imagen">

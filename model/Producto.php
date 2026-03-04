@@ -21,6 +21,7 @@ class Producto
     private $idCategoria;
     private $imagen;
     private $activo;
+    private $iva;
 
     // ======================== GETTERS ========================
 
@@ -64,6 +65,11 @@ class Producto
         return $this->activo;
     }
 
+    public function getIva()
+    {
+        return $this->iva;
+    }
+
     // ======================== SETTERS ========================
 
     public function setId($id)
@@ -104,6 +110,11 @@ class Producto
     public function setActivo($activo)
     {
         $this->activo = $activo;
+    }
+
+    public function setIva($iva)
+    {
+        $this->iva = $iva;
     }
 
     // ======================== MÉTODOS CRUD ========================
@@ -274,8 +285,8 @@ class Producto
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "INSERT INTO productos (nombre, descripcion, precio, stock, idCategoria, imagen, activo) 
-             VALUES (:nombre, :descripcion, :precio, :stock, :idCategoria, :imagen, :activo)"
+            "INSERT INTO productos (nombre, descripcion, precio, stock, idCategoria, imagen, activo, iva) 
+             VALUES (:nombre, :descripcion, :precio, :stock, :idCategoria, :imagen, :activo, :iva)"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':nombre', $this->nombre);
@@ -285,6 +296,7 @@ class Producto
         $stmt->bindParam(':idCategoria', $this->idCategoria, PDO::PARAM_INT);
         $stmt->bindParam(':imagen', $this->imagen);
         $stmt->bindParam(':activo', $this->activo, PDO::PARAM_BOOL);
+        $stmt->bindParam(':iva', $this->iva, PDO::PARAM_INT);
         // Ejecutamos la consulta
         $resultado = $stmt->execute();
         // Obtenemos el último ID insertado
@@ -305,7 +317,7 @@ class Producto
         $stmt = $conexion->prepare(
             "UPDATE productos SET nombre = :nombre, descripcion = :descripcion, precio = :precio, 
              stock = :stock, idCategoria = :idCategoria, 
-             imagen = :imagen, activo = :activo WHERE id = :id"
+             imagen = :imagen, activo = :activo, iva = :iva WHERE id = :id"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':nombre', $this->nombre);
@@ -315,6 +327,7 @@ class Producto
         $stmt->bindParam(':idCategoria', $this->idCategoria, PDO::PARAM_INT);
         $stmt->bindParam(':imagen', $this->imagen);
         $stmt->bindParam(':activo', $this->activo, PDO::PARAM_INT);
+        $stmt->bindParam(':iva', $this->iva, PDO::PARAM_INT);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
         return $stmt->execute();
     }
@@ -377,6 +390,7 @@ class Producto
         $producto->setIdCategoria($fila['idCategoria']);
         $producto->setImagen($fila['imagen']);
         $producto->setActivo($fila['activo']);
+        $producto->setIva($fila['iva'] ?? 21);
         // Devolvemos el producto
         return $producto;
     }
