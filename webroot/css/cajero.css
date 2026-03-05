@@ -89,7 +89,7 @@ body.dark-mode {
     gap: 0;
     height: calc(100vh - 110px);
     overflow: hidden;
-    max-height: 89vh;
+    max-height: 88.6vh;
 }
 
 #link-repositorio {
@@ -743,6 +743,10 @@ body.dark-mode .cajero-opciones-extra {
 .detalle-venta-tabla thead tr {
     background: var(--text-main);
     color: var(--bg-main);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    box-shadow: 0 2px 2px rgba(0, 0, 0, 0.1);
 }
 
 .detalle-venta-body tr {
@@ -1976,4 +1980,98 @@ input[readonly] {
 
 .historial-ventas-tabla tr:hover {
     background: var(--bg-main);
+}
+
+/* ============================================================
+   Estilos para el modal de cliente habitual
+   ============================================================ */
+
+#modalClienteHabitual .modal-content {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    max-width: 500px;
+    width: 90%;
+}
+
+#modalClienteHabitual h3 {
+    color: #1f2937;
+    margin-bottom: 5px;
+}
+
+#modalClienteHabitual .modal-subtitulo {
+    color: #6b7280;
+    margin-bottom: 20px;
+}
+
+#modalClienteHabitual label {
+    color: #374151;
+}
+
+#modalClienteHabitual input[type="text"],
+#modalClienteHabitual input[type="date"] {
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    color: #1f2937;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+#modalClienteHabitual input[type="text"]:focus,
+#modalClienteHabitual input[type="date"]:focus {
+    border-color: #3b82f6;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Modo oscuro para modal de cliente habitual */
+body.dark-mode #modalClienteHabitual .modal-content {
+    background: #1f2937;
+}
+
+body.dark-mode #modalClienteHabitual h3 {
+    color: #f3f4f6;
+}
+
+body.dark-mode #modalClienteHabitual .modal-subtitulo {
+    color: #9ca3af;
+}
+
+body.dark-mode #modalClienteHabitual label {
+    color: #e5e7eb;
+}
+
+body.dark-mode #modalClienteHabitual input[type="text"],
+body.dark-mode #modalClienteHabitual input[type="date"] {
+    background: #374151;
+    border: 1px solid #4b5563;
+    color: #e5e7eb;
+}
+
+body.dark-mode #modalClienteHabitual input[type="text"]::placeholder {
+    color: #9ca3af;
+}
+
+body.dark-mode #modalClienteHabitual input[type="text"]:focus,
+body.dark-mode #modalClienteHabitual input[type="date"]:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+}
+
+/* Botón verde para cliente habitual */
+#btnClienteHabitual {
+    background: #10b981 !important;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s;
+}
+
+#btnClienteHabitual:hover {
+    background: #059669 !important;
 }

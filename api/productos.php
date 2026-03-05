@@ -17,6 +17,131 @@ require_once(__DIR__ . '/../model/Categoria.php');
 header('Content-Type: application/json; charset=utf-8');
 
 try {
+    // PREVISUALIZAR CAMBIO DE IVA
+    if (isset($_GET['previsualizarIVA'])) {
+        $nuevoIVA = floatval($_GET['previsualizarIVA']);
+
+        if ($nuevoIVA < 0 || $nuevoIVA > 100) {
+            http_response_code(400);
+            echo json_encode(['error' => 'IVA inválido']);
+            exit();
+        }
+
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->query("SELECT id, nombre, precio, iva FROM productos ORDER BY nombre ASC LIMIT 100");
+        $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $resultado = [];
+        foreach ($productos as $prod) {
+            $resultado[] = [
+                'id' => $prod['id'],
+                'nombre' => $prod['nombre'],
+                'precio' => floatval($prod['precio']),
+                'iva_actual' => intval($prod['iva']),
+                'iva_nuevo' => $nuevoIVA
+            ];
+        }
+
+        echo json_encode(['ok' => true, 'productos' => $resultado]);
+        exit();
+    }
+
+    // PREVISUALIZAR AJUSTE DE PRECIOS
+    if (isset($_GET['previsualizarAjuste'])) {
+        $porcentaje = floatval($_GET['previsualizarAjuste']);
+
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->query("SELECT id, nombre, precio, iva FROM productos ORDER BY nombre ASC LIMIT 100");
+        $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $resultado = [];
+        foreach ($productos as $prod) {
+            $precioActual = floatval($prod['precio']);
+            $nuevoPrecio = round($precioActual * (1 + ($porcentaje / 100)), 2);
+            $resultado[] = [
+                'id' => $prod['id'],
+                'nombre' => $prod['nombre'],
+                'precio_actual' => $precioActual,
+                'precio_nuevo' => $nuevoPrecio,
+                'diferencia' => round($nuevoPrecio - $precioActual, 2)
+            ];
+        }
+
+        echo json_encode(['ok' => true, 'productos' => $resultado]);
+        exit();
+    }
+
+    // CAMBIAR IVA A TODOS LOS PRODUCTOS
+    if (isset($_GET['cambiarIVA'])) {
+        $nuevoIVA = floatval($_GET['cambiarIVA']);
+        $excluidos = [];
+
+        if ($nuevoIVA < 0 || $nuevoIVA > 100) {
+            http_response_code(400);
+            echo json_encode(['error' => 'IVA inválido']);
+            exit();
+        }
+
+        $conexion = ConexionDB::getInstancia()->getConexion();
+
+        // Obtener productos excluidos si se proporcionan
+        if (isset($_GET['excluidos']) && !empty($_GET['excluidos'])) {
+            $excluidos = array_map('intval', explode(',', $_GET['excluidos']));
+        }
+
+        // Actualizar IVA excluyendo productos si hay
+        if (count($excluidos) > 0) {
+            $placeholders = implode(',', array_fill(0, count($excluidos), '?'));
+            $stmt = $conexion->prepare("UPDATE productos SET iva = :iva WHERE id NOT IN ($placeholders)");
+            $params = array_merge([$nuevoIVA], $excluidos);
+            $stmt->execute($params);
+        } else {
+            $stmt = $conexion->prepare("UPDATE productos SET iva = :iva");
+            $stmt->bindParam(':iva', $nuevoIVA, PDO::PARAM_INT);
+            $stmt->execute();
+        }
+        $actualizados = $stmt->rowCount();
+
+        echo json_encode(['ok' => true, 'actualizados' => $actualizados]);
+        exit();
+    }
+
+    // AJUSTAR PRECIOS DE TODOS LOS PRODUCTOS
+    if (isset($_GET['ajustePrecios'])) {
+        $porcentaje = floatval($_GET['ajustePrecios']);
+        $excluidos = [];
+
+        if (isset($_GET['excluidos']) && !empty($_GET['excluidos'])) {
+            $excluidos = array_map('intval', explode(',', $_GET['excluidos']));
+        }
+
+        $conexion = ConexionDB::getInstancia()->getConexion();
+
+        if (count($excluidos) > 0) {
+            $placeholders = implode(',', array_fill(0, count($excluidos), '?'));
+            $stmt = $conexion->prepare("SELECT id, precio FROM productos WHERE id NOT IN ($placeholders)");
+            $stmt->execute($excluidos);
+        } else {
+            $stmt = $conexion->query("SELECT id, precio FROM productos");
+        }
+        $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $actualizados = 0;
+        foreach ($productos as $prod) {
+            $nuevoPrecio = $prod['precio'] * (1 + ($porcentaje / 100));
+            $nuevoPrecio = round($nuevoPrecio, 2);
+
+            $update = $conexion->prepare("UPDATE productos SET precio = :precio WHERE id = :id");
+            $update->bindParam(':precio', $nuevoPrecio);
+            $update->bindParam(':id', $prod['id'], PDO::PARAM_INT);
+            $update->execute();
+            $actualizados++;
+        }
+
+        echo json_encode(['ok' => true, 'actualizados' => $actualizados]);
+        exit();
+    }
+
     // Verificar si el usuario tiene permiso para crear productos
     if (isset($_GET['checkPermisoCrear'])) {
         $permisos = $_SESSION['permisosUsuario'] ?? '';

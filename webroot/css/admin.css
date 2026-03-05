@@ -214,6 +214,11 @@
     color: #991b1b;
 }
 
+.btn-activar {
+    background: #dcfce7;
+    color: #166534;
+}
+
 .admin-tabla-wrapper {
     overflow: hidden;
 }
@@ -305,9 +310,473 @@
     text-align: right;
 }
 
+/* Estilos para modal de ver categoría */
+.ver-cat-fila {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-main);
+    padding-bottom: 6px;
+}
+
+.ver-cat-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.ver-cat-valor {
+    font-size: 0.95rem;
+    color: var(--text-main);
+    font-weight: 500;
+    text-align: right;
+}
+
+/* ======================== PREVISUALIZACIÓN TARIFAS (MODO OSCURO) ======================== */
+body.dark-mode #previsualizacionCambios>div {
+    background: #1f2937 !important;
+}
+
+body.dark-mode #previsualizacionCambios h3 {
+    color: #e5e7eb !important;
+}
+
+body.dark-mode #previsualizacionCambios table {
+    background: #1f2937;
+}
+
+body.dark-mode #previsualizacionCambios thead th {
+    background: #374151 !important;
+    color: #e5e7eb !important;
+    border-bottom-color: #4b5563 !important;
+}
+
+body.dark-mode #previsualizacionCambios tbody td {
+    background: #1f2937 !important;
+    color: #e5e7eb !important;
+    border-bottom-color: #374151 !important;
+}
+
+body.dark-mode #previsualizacionCambios tbody tr:hover {
+    background: #374151 !important;
+}
+
+/* Estilos para tablas de previsualización de tarifas */
+.previsualizacion-tabla-container {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    height: 450px;
+}
+
+.previsualizacion-tabla-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.previsualizacion-tabla-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.previsualizacion-botones {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.previsualizacion-hint {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.btn-excluir-todos {
+    padding: 6px 12px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.btn-incluir-todos {
+    padding: 6px 12px;
+    background: #22c55e;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.previsualizacion-tabla-wrapper {
+    overflow-x: auto;
+    height: calc(100% - 60px);
+    overflow-y: auto;
+}
+
+.previsualizacion-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.previsualizacion-tabla thead {
+    position: sticky;
+    top: 0;
+    background: #f9fafb;
+}
+
+.previsualizacion-tabla thead th {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.previsualizacion-tabla tbody td {
+    padding: 8px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.previsualizacion-tabla tbody tr {
+    cursor: pointer;
+}
+
+.previsualizacion-tabla tbody tr.fila-destacada {
+    background: #fef3c7;
+}
+
+.previsualizacion-tabla tbody tr.fila-excluida {
+    background: #f3f4f6;
+    opacity: 0.6;
+}
+
+.previsualizacion-tabla tbody tr:hover {
+    background: #f3f4f6;
+}
+
+.precio-destacado {
+    color: #10b981;
+    font-weight: bold;
+}
+
+.precio-iva-nuevo {
+    color: #6366f1;
+    font-weight: bold;
+}
+
+.diferencia-subida {
+    color: #dc2626;
+    font-weight: bold;
+}
+
+.diferencia-bajada {
+    color: #16a34a;
+    font-weight: bold;
+}
+
+/* Panel de inputs para tarifas */
+.tarifa-panel-inputs {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    width: 400px;
+    flex-shrink: 0;
+    border: 1px solid #e5e7eb;
+}
+
+.tarifa-panel-desc {
+    margin-bottom: 20px;
+    color: #6b7280;
+}
+
+.tarifa-input-group {
+    margin-bottom: 20px;
+}
+
+.tarifa-input-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.tarifa-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-size: 15px;
+}
+
+.tarifa-input::placeholder {
+    color: #9ca3af;
+}
+
+.tarifa-input::-webkit-input-placeholder {
+    color: #9ca3af;
+}
+
+.tarifa-input::-moz-placeholder {
+    color: #9ca3af;
+}
+
+.tarifa-hint {
+    display: block;
+    margin-top: 5px;
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.tarifa-btn-aplicar {
+    padding: 12px 24px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.tarifa-btn-precios {
+    background: #10b981;
+}
+
+/* Modo oscuro para paneles de tarifas */
+body.dark-mode .tarifa-panel-inputs {
+    background: #1f2937;
+    border: 1px solid #374151;
+}
+
+body.dark-mode .tarifa-panel-desc {
+    color: #9ca3af;
+}
+
+body.dark-mode .tarifa-input-group label {
+    color: #e5e7eb;
+}
+
+body.dark-mode .tarifa-input {
+    background: #374151;
+    border-color: #4b5563;
+    color: #e5e7eb;
+}
+
+body.dark-mode .tarifa-input::placeholder {
+    color: #9ca3af;
+}
+
+body.dark-mode .tarifa-input::-webkit-input-placeholder {
+    color: #9ca3af;
+}
+
+body.dark-mode .tarifa-input::-moz-placeholder {
+    color: #9ca3af;
+}
+
+/* Modal Nueva Categoría */
+.modal-nueva-cat-container {
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.modal-nueva-cat-header {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    padding: 20px;
+}
+
+.modal-nueva-cat-header h3 {
+    margin: 0;
+}
+
+.modal-nueva-cat-body {
+    padding: 20px;
+}
+
+.modal-nueva-cat-field {
+    margin-bottom: 15px;
+}
+
+.modal-nueva-cat-field label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.modal-nueva-cat-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+
+.modal-nueva-cat-field:last-of-type {
+    margin-bottom: 20px;
+}
+
+.modal-nueva-cat-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.modal-nueva-cat-btn-cancelar {
+    padding: 10px 20px;
+    background: #6b7280;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.modal-nueva-cat-btn-guardar {
+    padding: 10px 20px;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+/* Modo oscuro para modal nueva categoría */
+body.dark-mode .modal-nueva-cat-container {
+    background: #1f2937;
+}
+
+body.dark-mode .modal-nueva-cat-field label {
+    color: #e5e7eb;
+}
+
+body.dark-mode .modal-nueva-cat-input {
+    background: #374151;
+    border-color: #4b5563;
+    color: #e5e7eb;
+}
+
+body.dark-mode .modal-nueva-cat-input::placeholder {
+    color: #9ca3af;
+}
+
+body.dark-mode .tarifa-hint {
+    color: #9ca3af;
+}
+
+/* Modal Cliente Habitual */
+#modalClienteHabitual .modal-content {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    max-width: 500px;
+    width: 90%;
+}
+
+#modalClienteHabitual h3 {
+    color: #1f2937;
+    margin-bottom: 5px;
+}
+
+#modalClienteHabitual .modal-subtitulo {
+    color: #6b7280;
+    margin-bottom: 20px;
+}
+
+#modalClienteHabitual label {
+    color: #374151;
+}
+
+#modalClienteHabitual input[type="text"],
+#modalClienteHabitual input[type="date"] {
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    color: #1f2937;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+#modalClienteHabitual input[type="text"]:focus,
+#modalClienteHabitual input[type="date"]:focus {
+    border-color: #3b82f6;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Modo oscuro para modal cliente habitual */
+body.dark-mode #modalClienteHabitual .modal-content {
+    background: #1f2937;
+}
+
+body.dark-mode #modalClienteHabitual h3 {
+    color: #f3f4f6;
+}
+
+body.dark-mode #modalClienteHabitual .modal-subtitulo {
+    color: #9ca3af;
+}
+
+body.dark-mode #modalClienteHabitual label {
+    color: #e5e7eb;
+}
+
+body.dark-mode #modalClienteHabitual input[type="text"],
+body.dark-mode #modalClienteHabitual input[type="date"] {
+    background: #374151;
+    border: 1px solid #4b5563;
+    color: #e5e7eb;
+}
+
+body.dark-mode #modalClienteHabitual input[type="text"]::placeholder {
+    color: #9ca3af;
+}
+
+body.dark-mode #modalClienteHabitual input[type="text"]:focus,
+body.dark-mode #modalClienteHabitual input[type="date"]:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+}
+
+/* Modal Ver Cliente (dark mode) */
+body.dark-mode #modalVerCliente .modal-content {
+    background: #1f2937;
+}
+
+body.dark-mode #modalVerCliente h3 {
+    color: #f3f4f6;
+}
+
+body.dark-mode #modalVerCliente .modal-content>div>div {
+    border-bottom-color: #4b5563 !important;
+}
+
+body.dark-mode #modalVerCliente span:first-child {
+    color: #9ca3af !important;
+}
+
+body.dark-mode #modalVerCliente span:last-child {
+    color: #e5e7eb !important;
+}
+
 .btn-ver {
     background: #fef2db;
     color: #92400e;
+}
+
+.btn-editar {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.btn-editar:hover {
+    background: #bfdbfe;
 }
 
 @keyframes fadeIn {
@@ -1158,4 +1627,14 @@ body.dark-mode .tema-botones {
 
 .tema-btn-guardar:active {
     transform: translateY(1px);
+}
+
+#nuevoIVA {
+    width: 100px;
+    text-align: center;
+}
+
+#porcentajeAjuste {
+    width: 150px;
+    text-align: center;
 }

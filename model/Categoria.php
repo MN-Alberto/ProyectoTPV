@@ -16,6 +16,7 @@ class Categoria
     private $id;
     private $nombre;
     private $descripcion;
+    private $fecha_creacion;
 
     // ======================== GETTERS ========================
 
@@ -34,6 +35,11 @@ class Categoria
         return $this->descripcion;
     }
 
+    public function getFechaCreacion()
+    {
+        return $this->fecha_creacion;
+    }
+
     // ======================== SETTERS ========================
 
     public function setId($id)
@@ -49,6 +55,11 @@ class Categoria
     public function setDescripcion($descripcion)
     {
         $this->descripcion = $descripcion;
+    }
+
+    public function setFechaCreacion($fecha_creacion)
+    {
+        $this->fecha_creacion = $fecha_creacion;
     }
 
     // ======================== MÉTODOS CRUD ========================
@@ -97,6 +108,20 @@ class Categoria
             $categorias[] = self::crearDesdeArray($fila);
         }
         return $categorias;
+    }
+
+    /**
+     * Obtiene el número de productos en una categoría.
+     * @return int
+     */
+    public function contarProductos()
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->prepare("SELECT COUNT(*) as total FROM productos WHERE idCategoria = :id AND activo = 1");
+        $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
+        $stmt->execute();
+        $fila = $stmt->fetch();
+        return $fila['total'] ?? 0;
     }
 
     /**
@@ -170,6 +195,7 @@ class Categoria
         $categoria->setId($fila['id']);
         $categoria->setNombre($fila['nombre']);
         $categoria->setDescripcion($fila['descripcion']);
+        $categoria->setFechaCreacion(isset($fila['fecha_creacion']) ? $fila['fecha_creacion'] : null);
         // Devolvemos la instancia
         return $categoria;
     }

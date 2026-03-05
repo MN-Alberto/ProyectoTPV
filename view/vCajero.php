@@ -304,6 +304,12 @@
                 title="Recuperar venta">
                 🔄
             </button>
+
+            <!-- Botón CLIENTE HABITUAL: abre el modal para gestionar clientes habituales -->
+            <button class="btn-descuento" id="btnClienteHabitual" onclick="abrirModalClienteHabitual()"
+                style="background: #10b981;" title="Añadir cliente habitual">
+                👤+
+            </button>
         </div>
     </div>
 
@@ -542,6 +548,62 @@
             <button class="btn-modal-cancelar" onclick="cerrarModal('modalDatosCliente')">Atrás</button>
             <button class="btn-exito" id="btnConfirmarDatos" onclick="validarYConfirmarVenta()"
                 style="margin: 0;">Finalizar Venta</button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: CLIENTE HABITUAL ===========================## -->
+<!-- Modal para añadir un cliente habitual (DNI, nombre, apellidos, fecha alta, compras) -->
+<div class="modal-overlay" id="modalClienteHabitual" style="display:none;">
+    <div class="modal-content" style="max-width: 500px; text-align: left;">
+        <h3 style="margin-bottom: 5px;">Nuevo Cliente Habitual</h3>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;">Complete los datos del cliente</p>
+
+        <div style="display: grid; gap: 15px;">
+            <!-- Campo DNI -->
+            <div>
+                <label for="clienteHabitualDni"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">DNI <span
+                        style="color: #ef4444;">*</span></label>
+                <input type="text" id="clienteHabitualDni"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="12345678A" maxlength="20">
+            </div>
+
+            <!-- Campo Nombre -->
+            <div>
+                <label for="clienteHabitualNombre"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Nombre <span
+                        style="color: #ef4444;">*</span></label>
+                <input type="text" id="clienteHabitualNombre"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="Juan" maxlength="100">
+            </div>
+
+            <!-- Campo Apellidos -->
+            <div>
+                <label for="clienteHabitualApellidos"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Apellidos <span
+                        style="color: #ef4444;">*</span></label>
+                <input type="text" id="clienteHabitualApellidos"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="García López" maxlength="150">
+            </div>
+
+            <!-- Campo Fecha de Alta -->
+            <div>
+                <label for="clienteHabitualFecha"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Fecha de
+                    Alta</label>
+                <input type="datetime-local" id="clienteHabitualFecha"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;">
+            </div>
+        </div>
+
+        <!-- Botones: Cancelar y Guardar -->
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalClienteHabitual')">Cancelar</button>
+            <button class="btn-exito" id="btnGuardarClienteHabitual" style="margin: 0;">Guardar</button>
         </div>
     </div>
 </div>
@@ -1545,6 +1607,7 @@
                 html += '<div><strong>Pago:</strong> ' + (venta.metodoPago || '💵 Efectivo') + '</div>';
                 html += '</div>';
 
+                html += '<div style="max-height: 300px; overflow-y: auto; margin: 15px 0;">';
                 html += '<table class="detalle-venta-tabla">';
                 html += '<thead><tr>';
                 html += '<th style="padding: 10px; text-align: left;">Producto</th>';
@@ -1564,6 +1627,7 @@
                 });
 
                 html += '</tbody></table>';
+                html += '</div>';
                 html += '<div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border-radius: 8px; text-align: center; font-weight: bold; font-size: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">';
                 html += 'TOTAL: ' + parseFloat(venta.total).toFixed(2).replace('.', ',') + ' €';
                 html += '</div>';
@@ -3247,6 +3311,80 @@
             selectPago.addEventListener('change', verificarLimiteEfectivo);
         }
     });
+
+    // ============================================================
+    // FUNCIONES PARA CLIENTES HABITUALES
+    // ============================================================
+
+    /**
+     * Abre el modal para añadir un nuevo cliente habitual
+     */
+    function abrirModalClienteHabitual() {
+        // Limpiar campos
+        document.getElementById('clienteHabitualDni').value = '';
+        document.getElementById('clienteHabitualNombre').value = '';
+        document.getElementById('clienteHabitualApellidos').value = '';
+        // Función para obtener la fecha local en formato datetime-local
+        const now = new Date();
+        const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+        document.getElementById('clienteHabitualFecha').value = localDate;
+
+        // Configurar el onclick del botón guardar para el cajero
+        const btnGuardar = document.getElementById('btnGuardarClienteHabitual');
+        btnGuardar.onclick = guardarClienteHabitual;
+
+        // Mostrar modal
+        document.getElementById('modalClienteHabitual').style.display = 'flex';
+        document.getElementById('clienteHabitualDni').focus();
+    }
+
+    /**
+     * Guarda un nuevo cliente habitual
+     */
+    async function guardarClienteHabitual() {
+        const dni = document.getElementById('clienteHabitualDni').value.trim();
+        const nombre = document.getElementById('clienteHabitualNombre').value.trim();
+        const apellidos = document.getElementById('clienteHabitualApellidos').value.trim();
+        const fecha_alta = document.getElementById('clienteHabitualFecha').value || new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+
+        // Validar campos obligatorios
+        if (!dni || !nombre || !apellidos) {
+            alert('Por favor, complete todos los campos obligatorios (DNI, Nombre, Apellidos)');
+            return;
+        }
+
+        const btnGuardar = document.getElementById('btnGuardarClienteHabitual');
+        btnGuardar.disabled = true;
+        btnGuardar.textContent = 'Guardando...';
+
+        try {
+            const formData = new FormData();
+            formData.append('dni', dni);
+            formData.append('nombre', nombre);
+            formData.append('apellidos', apellidos);
+            formData.append('fecha_alta', fecha_alta);
+
+            const response = await fetch('api/clientes.php', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.ok) {
+                alert('Cliente habitual guardado correctamente');
+                cerrarModal('modalClienteHabitual');
+            } else {
+                alert(data.error || 'Error al guardar el cliente');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error al comunicar con el servidor');
+        } finally {
+            btnGuardar.disabled = false;
+            btnGuardar.textContent = 'Guardar';
+        }
+    }
 </script>
 
 <!-- Modal para crear nuevo producto (permiso: crear_productos) -->

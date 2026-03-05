@@ -17,6 +17,9 @@
             <button class="cat-btn" data-seccion="productos" style="width: 100%; text-align: left;">
                 <i class="fas fa-box" style="margin-right: 10px;"></i> Productos
             </button>
+            <button class="cat-btn" data-seccion="categorias" style="width: 100%; text-align: left;">
+                <i class="fas fa-tags" style="margin-right: 10px;"></i> Categorías
+            </button>
             <button class="cat-btn" data-seccion="usuarios" style="width: 100%; text-align: left;">
                 <i class="fas fa-users" style="margin-right: 10px;"></i> Usuarios
             </button>
@@ -32,9 +35,25 @@
             <button class="cat-btn" data-seccion="proveedores" style="width: 100%; text-align: left;">
                 <i class="fas fa-truck" style="margin-right: 10px;"></i> Proveedores
             </button>
+            <button class="cat-btn" data-seccion="clientes" style="width: 100%; text-align: left;">
+                <i class="fas fa-user-friends" style="margin-right: 10px;"></i> Clientes
+            </button>
             <button class="cat-btn" data-seccion="configuracion" style="width: 100%; text-align: left;">
                 <i class="fas fa-cog" style="margin-right: 10px;"></i> Configuración
             </button>
+            <button class="cat-btn" id="btnTarifas" style="width: 100%; text-align: left;">
+                <i class="fas fa-tags" style="margin-right: 10px;"></i> Tarifas Generales ▾
+            </button>
+            <div id="submenuTarifas" style="display: none; padding-left: 20px;">
+                <button class="cat-btn submenu-btn" data-seccion="tarifa-iva"
+                    style="width: 100%; text-align: left; font-size: 13px;">
+                    <i class="fas fa-percent" style="margin-right: 10px;"></i> Cambiar IVA
+                </button>
+                <button class="cat-btn submenu-btn" data-seccion="tarifa-ajuste"
+                    style="width: 100%; text-align: left; font-size: 13px;">
+                    <i class="fas fa-sliders-h" style="margin-right: 10px;"></i> Ajuste de Precios
+                </button>
+            </div>
         </div>
     </div>
 
@@ -93,6 +112,46 @@
         </div>
     </div>
 </section>
+
+<!-- ##-----------------------------------MODAL VER PRODUCTO-----------------------------------## -->
+
+<!-- ##-----------------------------------MODAL VER CATEGORÍA-----------------------------------## -->
+
+<div class="modal-overlay" id="modalVerCategoria" style="display:none;">
+    <div class="modal-content modal-verCategoria" style="max-width: 420px;">
+        <h3>Detalle de Categoría</h3>
+        <p class="modal-subtitulo">Información completa</p>
+
+        <div style="display: flex; flex-direction: column; gap: 12px; margin: 15px 0;">
+            <div class="ver-cat-fila">
+                <span class="ver-cat-label">ID</span>
+                <span id="verCategoriaId" class="ver-cat-valor"></span>
+            </div>
+            <div class="ver-cat-fila">
+                <span class="ver-cat-label">Nombre</span>
+                <span id="verCategoriaNombre" class="ver-cat-valor"></span>
+            </div>
+            <div class="ver-cat-fila">
+                <span class="ver-cat-label">Productos</span>
+                <span id="verCategoriaProductos" class="ver-cat-valor"></span>
+            </div>
+            <div class="ver-cat-fila">
+                <span class="ver-cat-label">Fecha de Creación</span>
+                <span id="verCategoriaFecha" class="ver-cat-valor"></span>
+            </div>
+            <div class="ver-cat-fila">
+                <span class="ver-cat-label">Descripción</span>
+                <span id="verCategoriaDescripcion" class="ver-cat-valor"></span>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: center; margin-top: 20px;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCategoria')" style="min-width: 100px;">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
 
 <!-- ##-----------------------------------MODAL VER PRODUCTO-----------------------------------## -->
 
@@ -515,6 +574,112 @@
     </div>
 </div>
 
+<!-- ##=========================== MODAL: NUEVO CLIENTE (ADMIN) ===========================## -->
+<!-- Modal para añadir un cliente habitual (DNI, nombre, apellidos, fecha alta) -->
+<div class="modal-overlay" id="modalClienteHabitual" style="display:none;">
+    <div class="modal-content" style="max-width: 500px; text-align: left;">
+        <h3 style="margin-bottom: 5px;">Nuevo Cliente</h3>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;">Complete los datos del cliente</p>
+
+        <div style="display: grid; gap: 15px;">
+            <!-- Campo DNI -->
+            <div>
+                <label for="clienteHabitualDni"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">DNI <span
+                        style="color: #ef4444;">*</span></label>
+                <input type="text" id="clienteHabitualDni"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="12345678A" maxlength="20">
+            </div>
+
+            <!-- Campo Nombre -->
+            <div>
+                <label for="clienteHabitualNombre"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Nombre <span
+                        style="color: #ef4444;">*</span></label>
+                <input type="text" id="clienteHabitualNombre"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="Juan" maxlength="100">
+            </div>
+
+            <!-- Campo Apellidos -->
+            <div>
+                <label for="clienteHabitualApellidos"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Apellidos <span
+                        style="color: #ef4444;">*</span></label>
+                <input type="text" id="clienteHabitualApellidos"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="García López" maxlength="150">
+            </div>
+
+            <!-- Campo Fecha de Alta -->
+            <div>
+                <label for="clienteHabitualFecha"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Fecha de
+                    Alta</label>
+                <input type="datetime-local" id="clienteHabitualFecha"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;">
+            </div>
+        </div>
+
+        <!-- Botones: Cancelar y Guardar -->
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalClienteHabitual')">Cancelar</button>
+            <button class="btn-exito" id="btnGuardarClienteHabitual" onclick="guardarClienteHabitualAdmin()"
+                style="margin: 0;">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: EDITAR CLIENTE (ADMIN) ===========================## -->
+<div class="modal-overlay" id="modalEditarCliente" style="display:none;">
+    <div class="modal-content" style="max-width: 500px; text-align: left;">
+        <h3 style="margin-bottom: 5px;">Editar Cliente</h3>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;">Modifique los datos del cliente</p>
+
+        <input type="hidden" id="editarClienteId">
+
+        <div style="display: grid; gap: 15px;">
+            <!-- Campo DNI -->
+            <div>
+                <label for="editarClienteDni"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">DNI <span
+                        style="color: #ef4444;">*</span></label>
+                <input type="text" id="editarClienteDni"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="12345678A" maxlength="20">
+            </div>
+
+            <!-- Campo Nombre -->
+            <div>
+                <label for="editarClienteNombre"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Nombre <span
+                        style="color: #ef4444;">*</span></label>
+                <input type="text" id="editarClienteNombre"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="Juan" maxlength="100">
+            </div>
+
+            <!-- Campo Apellidos -->
+            <div>
+                <label for="editarClienteApellidos"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Apellidos <span
+                        style="color: #ef4444;">*</span></label>
+                <input type="text" id="editarClienteApellidos"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="García López" maxlength="150">
+            </div>
+        </div>
+
+        <!-- Botones: Cancelar y Guardar -->
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalEditarCliente')">Cancelar</button>
+            <button class="btn-exito" id="btnGuardarClienteEditado" onclick="guardarClienteEditado()"
+                style="margin: 0;">Guardar</button>
+        </div>
+    </div>
+</div>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <script>
@@ -530,7 +695,11 @@
         proveedores: 'Gestión de Proveedores',
         configuracion: 'Configuración',
         retiros: 'Retiros de Caja',
-        'caja-sesiones': 'Sesiones de Caja'
+        'caja-sesiones': 'Sesiones de Caja',
+        categorias: 'Gestión de Categorías',
+        'tarifa-iva': 'Cambiar IVA General',
+        'tarifa-ajuste': 'Ajuste de Precios',
+        clientes: 'Gestión de Clientes'
     };
 
     document.querySelectorAll('.cat-btn[data-seccion]').forEach(btn => {
@@ -571,11 +740,42 @@
                 case 'caja-sesiones':
                     cargarCajaSesionesAdmin();
                     break;
+                case 'categorias':
+                    cargarCategoriasAdmin().then(() => mostrarPanelCategorias());
+                    break;
+                case 'tarifa-iva':
+                    mostrarPanelCambiarIVA();
+                    break;
+                case 'tarifa-ajuste':
+                    mostrarPanelAjustePrecios();
+                    break;
+                case 'clientes':
+                    cargarClientesAdmin();
+                    break;
             }
         });
     });
+
+    // Toggle submenu de Tarifas
+    document.getElementById('btnTarifas').addEventListener('click', function (e) {
+        e.stopPropagation();
+        var submenu = document.getElementById('submenuTarifas');
+        submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // Cerrar submenu al hacer click fuera
+    document.addEventListener('click', function (e) {
+        var submenu = document.getElementById('submenuTarifas');
+        var btn = document.getElementById('btnTarifas');
+        if (!btn.contains(e.target) && !submenu.contains(e.target)) {
+            submenu.style.display = 'none';
+        }
+    });
     document.getElementById('adminContenido').innerHTML = HTML_DASHBOARD;
     cargarGraficoDashboard();
+
+    // Cargar categorías al inicio para el panel de productos
+    cargarCategoriasAdmin();
 </script>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
