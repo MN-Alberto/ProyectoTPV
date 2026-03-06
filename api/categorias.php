@@ -38,6 +38,36 @@ try {
         exit;
     }
 
+    // Manejar POST para editar categoría
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar'])) {
+        $id = $_POST['editar'];
+        $nombre = $_POST['nombre'] ?? '';
+        $descripcion = $_POST['descripcion'] ?? '';
+
+        if (empty($nombre)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'El nombre es obligatorio']);
+            exit();
+        }
+
+        $categoria = Categoria::buscarPorId($id);
+        if (!$categoria) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Categoría no encontrada']);
+            exit();
+        }
+
+        $categoria->setNombre($nombre);
+        $categoria->setDescripcion($descripcion);
+        if ($categoria->actualizar()) {
+            echo json_encode(['ok' => true]);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Error al actualizar la categoría']);
+        }
+        exit();
+    }
+
     // Manejar DELETE para eliminar categoría
     if ($_SERVER['REQUEST_METHOD'] === 'DELETE' && isset($_GET['eliminar'])) {
         $id = $_GET['eliminar'];

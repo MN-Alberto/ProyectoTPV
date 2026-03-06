@@ -465,8 +465,35 @@ body.dark-mode .cajero-opciones-extra {
 .ticket-acciones {
     padding: 15px 20px;
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    gap: 10px;
     border-top: 1px solid #e5e7eb;
+}
+
+.ticket-acciones-fila {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.ticket-acciones-fila .btn-descuento,
+.ticket-acciones-fila .btn-cancelar {
+    flex: 1;
+    justify-content: center;
+}
+
+/* Estilos para mensajes de resultado de búsqueda de cliente */
+.mensaje-exito {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #34d399;
+}
+
+.mensaje-error {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #f87171;
 }
 
 .ticket-acciones select {

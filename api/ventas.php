@@ -75,7 +75,7 @@ if (isset($_GET['detalleVenta'])) {
 
         // Obtener las líneas de venta
         $stmtLineas = $conexion->prepare("
-            SELECT lv.*, p.nombre as producto_nombre
+            SELECT lv.*, p.nombre as producto_nombre, p.iva as iva_producto
             FROM lineasVenta lv
             LEFT JOIN productos p ON lv.idProducto = p.id
             WHERE lv.idVenta = ?
@@ -83,9 +83,36 @@ if (isset($_GET['detalleVenta'])) {
         $stmtLineas->execute([$idVenta]);
         $lineas = $stmtLineas->fetchAll(PDO::FETCH_ASSOC);
 
+        // Añadir campo iva a cada línea (priorizar lv.iva si existe, si no usar p.iva)
+        foreach ($lineas as &$linea) {
+            if (!isset($linea['iva']) || $linea['iva'] === null) {
+                $linea['iva'] = $linea['iva_producto'] ?? 21;
+            }
+        }
+
+        // Obtener datos de descuento de la venta (si existen)
+        $stmtDescuento = $conexion->prepare("SHOW COLUMNS FROM ventas LIKE 'descuento%'");
+        $stmtDescuento->execute();
+        $camposDescuento = $stmtDescuento->fetchAll(PDO::FETCH_COLUMN);
+
+        $descuentosVenta = [];
+        if (!empty($camposDescuento)) {
+            $stmtDesc = $conexion->prepare("SELECT * FROM ventas WHERE id = ?");
+            $stmtDesc->execute([$idVenta]);
+            $ventaDesc = $stmtDesc->fetch(PDO::FETCH_ASSOC);
+            if ($ventaDesc) {
+                foreach ($camposDescuento as $campo) {
+                    if (isset($ventaDesc[$campo]) && $ventaDesc[$campo] !== '' && $ventaDesc[$campo] !== 'ninguno') {
+                        $descuentosVenta[$campo] = $ventaDesc[$campo];
+                    }
+                }
+            }
+        }
+
         echo json_encode([
             'venta' => $venta,
-            'lineas' => $lineas
+            'lineas' => $lineas,
+            'descuentos' => $descuentosVenta
         ]);
         exit();
     } catch (Exception $e) {

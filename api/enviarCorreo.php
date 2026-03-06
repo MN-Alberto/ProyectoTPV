@@ -91,6 +91,26 @@ $descuentoTipo = $datos['descuentoTipo'] ?? 'ninguno';
 $descuentoValor = (float) ($datos['descuentoValor'] ?? 0);
 $descuentoCupon = $datos['descuentoCupon'] ?? '';
 
+// Datos de Descuento de Tarifa (Cliente registrado, Mayorista)
+$descuentoTarifaTipo = $datos['descuentoTarifaTipo'] ?? 'ninguno';
+$descuentoTarifaValor = (float) ($datos['descuentoTarifaValor'] ?? 0);
+$descuentoTarifaCupon = $datos['descuentoTarifaCupon'] ?? '';
+
+// Datos de Descuento Manual (Código promocional)
+// Si no se proporcionan los nuevos campos, usamos los originales como respaldo
+$descuentoManualTipo = $datos['descuentoManualTipo'] ?? $descuentoTipo;
+$descuentoManualValor = (float) ($datos['descuentoManualValor'] ?? $descuentoValor);
+$descuentoManualCupon = $datos['descuentoManualCupon'] ?? $descuentoCupon;
+
+// Si hay descuento de tarifa, usarlo como respaldo si no hay descuento manual
+if ($descuentoTarifaCupon && $descuentoTarifaCupon !== '') {
+    if ((!$descuentoManualCupon || $descuentoManualCupon === '') && $descuentoManualValor == 0) {
+        $descuentoManualTipo = $descuentoTarifaTipo;
+        $descuentoManualValor = $descuentoTarifaValor;
+        $descuentoManualCupon = $descuentoTarifaCupon;
+    }
+}
+
 // Determinamos el título principal del documento según la elección del usuario
 $isFactura = ($tipoDocumento === 'factura');
 $tipoTitulo = $isFactura ? 'FACTURA' : 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
@@ -166,12 +186,46 @@ foreach ($lineas as $linea) {
 }
 
 // D. Desglose de impuestos (IVA) y Descuentos
-$importeDescuentoPVP = 0;
-if ($descuentoTipo === 'porcentaje') {
-    $importeDescuentoPVP = $sumaTotalesNumeric * ($descuentoValor / 100);
-} else if ($descuentoTipo === 'fijo') {
-    $importeDescuentoPVP = $descuentoValor;
+$importeDescuentoTarifa = 0;
+$importeDescuentoManual = 0;
+$textoDescuentoTarifa = '';
+$textoDescuentoManual = '';
+
+// Calcular descuento de tarifa (Cliente registrado, Mayorista nivel 1, Mayorista nivel 2)
+// Solo si hay un cupón de tarifa específico
+if (
+    $descuentoTarifaCupon && $descuentoTarifaCupon !== '' &&
+    ($descuentoTarifaCupon === 'CLIENTE_REGISTRADO' || $descuentoTarifaCupon === 'MAYORISTA_NIVEL1' || $descuentoTarifaCupon === 'MAYORISTA_NIVEL2')
+) {
+    if ($descuentoTarifaTipo === 'porcentaje') {
+        $importeDescuentoTarifa = $sumaTotalesNumeric * ($descuentoTarifaValor / 100);
+        if ($descuentoTarifaCupon === 'CLIENTE_REGISTRADO') {
+            $textoDescuentoTarifa = "Cliente registrado ({$descuentoTarifaValor}%)";
+        } else if ($descuentoTarifaCupon === 'MAYORISTA_NIVEL1') {
+            $textoDescuentoTarifa = "Mayorista nivel 1 ({$descuentoTarifaValor}%)";
+        } else if ($descuentoTarifaCupon === 'MAYORISTA_NIVEL2') {
+            $textoDescuentoTarifa = "Mayorista nivel 2 ({$descuentoTarifaValor}%)";
+        }
+    }
 }
+
+// Calcular descuento manual (código promocional o porcentaje manual)
+// Si el descuento manual tiene los mismos valores que el original, usarlo
+if ($descuentoManualCupon && $descuentoManualCupon !== '') {
+    if ($descuentoManualTipo === 'porcentaje') {
+        $importeDescuentoManual = $sumaTotalesNumeric * ($descuentoManualValor / 100);
+        $textoDescuentoManual = "{$descuentoManualValor}%";
+    } else if ($descuentoManualTipo === 'fijo') {
+        $importeDescuentoManual = $descuentoManualValor;
+        $textoDescuentoManual = "Cupón {$descuentoManualCupon}";
+    } else {
+        // También puede haber un cupón sin tipo definido
+        $textoDescuentoManual = "Cupón {$descuentoManualCupon}";
+    }
+}
+
+// Descuento total
+$importeDescuentoPVP = $importeDescuentoTarifa + $importeDescuentoManual;
 
 $subtotalPVP = $sumaTotalesNumeric;
 $totalFinalPVP = max(0, $subtotalPVP - $importeDescuentoPVP);
@@ -181,19 +235,34 @@ $subtotalPVFmt = number_format($subtotalPVP, 2, ',', '.');
 $descFmt = number_format($importeDescuentoPVP, 2, ',', '.');
 
 // Bloque de pie de tabla con los sumatorios
-$totalesHtml = "<table style='width:100%; border: none; margin-top:10px;'>";
+$totalesHtml = "<table style='width:100%; border: none; margin-top:10px;' >";
 
 if ($importeDescuentoPVP > 0) {
-    $descEtiqueta = ($descuentoTipo === 'porcentaje') ? "Descuento ({$descuentoValor}%):" : "Descuento (Cupón {$descuentoCupon}):";
     $totalesHtml .= "
         <tr>
             <td style='border: none;'><strong>Subtotal (PVP):</strong></td>
             <td style='border: none; text-align:right'>{$subtotalPVFmt} €</td>
-        </tr>
-        <tr>
-            <td style='border: none; color: #16a34a;'><strong>{$descEtiqueta}</strong></td>
-            <td style='border: none; text-align:right; color: #16a34a;'>- {$descFmt} €</td>
         </tr>";
+
+    // Mostrar descuento de tarifa si existe
+    if ($importeDescuentoTarifa > 0.01 && $textoDescuentoTarifa) {
+        $descTarifaFmt = number_format($importeDescuentoTarifa, 2, ',', '.');
+        $totalesHtml .= "
+        <tr>
+            <td style='border: none; color: #16a34a;'><strong>Descuento ({$textoDescuentoTarifa}):</strong></td>
+            <td style='border: none; text-align:right; color: #16a34a;'>- {$descTarifaFmt} €</td>
+        </tr>";
+    }
+
+    // Mostrar descuento manual si existe
+    if ($importeDescuentoManual > 0.01 && $textoDescuentoManual) {
+        $descManualFmt = number_format($importeDescuentoManual, 2, ',', '.');
+        $totalesHtml .= "
+        <tr>
+            <td style='border: none; color: #16a34a;'><strong>Descuento ({$textoDescuentoManual}):</strong></td>
+            <td style='border: none; text-align:right; color: #16a34a;'>- {$descManualFmt} €</td>
+        </tr>";
+    }
 }
 
 $totalesHtml .= "
@@ -220,10 +289,12 @@ foreach ($desgloseIva as $porc => $valores) {
         </tr>";
 }
 
+$totalFinalPVFmt = number_format($totalFinalPVP, 2, ',', '.');
+
 $totalesHtml .= "
     <tr style='border-top: 1px solid #000;'>
         <td style='border: none; font-size: 1.1rem; padding-top:10px;'><strong>TOTAL (PVP):</strong></td>
-        <td style='border: none; font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;'>{$total} €</td>
+        <td style='border: none; font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;'>{$totalFinalPVFmt} €</td>
     </tr>
 </table>";
 

@@ -1275,12 +1275,33 @@ function verDetalleVenta(idVenta) {
 
             const venta = data.venta;
             const lineas = data.lineas;
+            const descuentos = data.descuentos || {};
 
             const fecha = new Date(venta.fecha).toLocaleString('es-ES', {
                 day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
             });
 
             const tipoDoc = venta.tipoDocumento === 'factura' ? '📄 Factura' : '🧾 Ticket';
+
+            // Procesar descuentos para mostrar
+            let descuentoHtml = '';
+            if (descuentos.descuentoTarifaCupon === 'CLIENTE_REGISTRADO') {
+                descuentoHtml += `<div style="color: #16a34a;"><strong>Cliente registrado:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
+            } else if (descuentos.descuentoTarifaCupon === 'MAYORISTA_NIVEL1') {
+                descuentoHtml += `<div style="color: #16a34a;"><strong>Mayorista nivel 1:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
+            } else if (descuentos.descuentoTarifaCupon === 'MAYORISTA_NIVEL2') {
+                descuentoHtml += `<div style="color: #16a34a;"><strong>Mayorista nivel 2:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
+            }
+            if (descuentos.descuentoManualCupon && descuentos.descuentoManualCupon !== '') {
+                if (descuentos.descuentoManualTipo === 'porcentaje') {
+                    descuentoHtml += `<div style="color: #16a34a;"><strong>Descuento:</strong> ${descuentos.descuentoManualValor}%</div>`;
+                } else {
+                    descuentoHtml += `<div style="color: #16a34a;"><strong>Cupón:</strong> ${descuentos.descuentoManualCupon}</div>`;
+                }
+            } else if (descuentos.descuentoCupon && descuentos.descuentoCupon !== '' && descuentos.descuentoCupon !== 'CLIENTE_REGISTRADO' && descuentos.descuentoCupon !== 'MAYORISTA_NIVEL1' && descuentos.descuentoCupon !== 'MAYORISTA_NIVEL2') {
+                descuentoHtml += `<div style="color: #16a34a;"><strong>Cupón:</strong> ${descuentos.descuentoCupon}</div>`;
+            }
+
             let html = `
                 <div style="border-radius: 12px; overflow: hidden; background: #fff;">
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px;">
@@ -1294,8 +1315,16 @@ function verDetalleVenta(idVenta) {
                             <div><strong>👤 Usuario:</strong><br>${venta.usuario_nombre || '—'}</div>
                             <div><strong>📄 Tipo:</strong><br>${tipoDoc}</div>
                             <div><strong>💳 Pago:</strong><br>${venta.metodoPago || '💵 Efectivo'}</div>
-                        </div>
-                        <h4 style="margin: 0 0 10px 0; color: #374151;">Productos:</h4>
+                        </div>`;
+
+            if (descuentoHtml) {
+                html += `<div style="margin-bottom: 20px; padding: 15px; background: #ecfdf5; border-radius: 8px; border: 1px solid #a7f3d0;">
+                            <strong style="color: #065f46;">💰 Descuentos aplicados:</strong><br>
+                            ${descuentoHtml}
+                        </div>`;
+            }
+
+            html += `<h4 style="margin: 0 0 10px 0; color: #374151;">Productos:</h4>
                         <div style="max-height: 250px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px;">
                             <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
                                 <thead>
@@ -1303,18 +1332,21 @@ function verDetalleVenta(idVenta) {
                                         <th style="padding: 10px; text-align: left;">Producto</th>
                                         <th style="padding: 10px; text-align: center;">Cant.</th>
                                         <th style="padding: 10px; text-align: right;">P.U.</th>
+                                        <th style="padding: 10px; text-align: center;">IVA</th>
                                         <th style="padding: 10px; text-align: right;">Subtotal</th>
                                     </tr>
                                 </thead>
                                 <tbody>`;
 
             lineas.forEach(linea => {
+                const iva = linea.iva || 21;
                 const subtotal = (linea.cantidad * linea.precioUnitario).toFixed(2).replace('.', ',');
                 html += `
                     <tr>
                         <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${linea.producto_nombre || 'Producto #' + linea.idProducto}</td>
                         <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: center;">${linea.cantidad}</td>
                         <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">${parseFloat(linea.precioUnitario).toFixed(2).replace('.', ',')} €</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: center;">${iva}%</td>
                         <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: 600;">${subtotal} €</td>
                     </tr>`;
             });
@@ -2697,16 +2729,16 @@ function renderClientesAdmin(clientes, esPrimeraVez = true) {
             ? '<span class="admin-badge badge-activo">Activo</span>'
             : '<span class="admin-badge badge-inactivo">Inactivo</span>';
 
-        const btnEliminar = `<button class="btn-admin-accion btn-eliminar" onclick="eliminarCliente(${cli.id})" title="Eliminar cliente" style="padding: 4px 8px; font-size: 12px;">
+        const btnEliminar = `<button class="btn-admin-accion btn-eliminar" onclick="eliminarCliente(${cli.id})" title="Eliminar">
                 <i class="fas fa-trash"></i>
                </button>`;
 
-        const btnVer = `<button class="btn-admin-accion btn-ver" onclick="verCliente(${cli.id})" title="Ver detalles" style="padding: 4px 8px; font-size: 12px;">
+        const btnVer = `<button class="btn-admin-accion btn-ver" onclick="verCliente(${cli.id})" title="Ver">
                 <i class="fas fa-eye"></i>
                </button>`;
 
-        const btnEditar = `<button class="btn-admin-accion btn-editar" onclick="editarCliente(${cli.id})" title="Editar cliente" style="padding: 4px 8px; font-size: 12px;">
-                <i class="fas fa-edit"></i>
+        const btnEditar = `<button class="btn-admin-accion btn-editar" onclick="editarCliente(${cli.id})" title="Editar">
+                <i class="fas fa-pen"></i>
                </button>`;
 
         html += `
@@ -2725,7 +2757,7 @@ function renderClientesAdmin(clientes, esPrimeraVez = true) {
                 <td>${cli.productos_comprados || 0}</td>
                 <td>${cli.compras_realizadas || 0}</td>
                 <td>${estadoHtml}</td>
-                <td style="text-align: center;">${btnVer} ${btnEditar} ${btnEliminar}</td>
+                <td class="col-acciones">${btnVer} ${btnEditar} ${btnEliminar}</td>
             </tr>`;
     });
 
@@ -3348,6 +3380,9 @@ function mostrarPanelCategorias(textoBusqueda = '') {
                         <button class="btn-admin-accion btn-ver" onclick="verCategoria(${cat.id})" title="Ver">
                             <i class="fas fa-eye"></i>
                         </button>
+                        <button class="btn-admin-accion btn-editar" onclick="abrirModalEditarCategoria(${cat.id}, '${cat.nombre}', '${cat.descripcion || ''}')" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
                         <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarCategoria(${cat.id}, '${cat.nombre}')" title="Eliminar">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -3519,6 +3554,88 @@ function confirmarEliminarCategoria(id, nombre) {
     if (confirm('¿Seguro que quieres eliminar la categoría "' + nombre + '"?')) {
         eliminarCategoria(id);
     }
+}
+
+/**
+ * Abre el modal para editar una categoría
+ */
+function abrirModalEditarCategoria(id, nombre, descripcion = '') {
+    const modal = document.getElementById('modalEditarCategoria');
+    if (!modal) {
+        // Crear el modal si no existe
+        const modalHtml = `
+            <div id="modalEditarCategoria" class="modal-overlay" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+                <div class="modal-content" style="background: white; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); max-width: 500px; width: 90%; overflow: hidden;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0; font-size: 18px;">Editar Categoría</h3>
+                        <button onclick="cerrarModal('modalEditarCategoria')" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+                    </div>
+                    <div style="padding: 25px;">
+                        <input type="hidden" id="editarCategoriaId">
+                        <div style="margin-bottom: 20px;">
+                            <label for="editarCategoriaNombre" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Nombre:</label>
+                            <input type="text" id="editarCategoriaNombre" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;" required>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label for="editarCategoriaDescripcion" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Descripción:</label>
+                            <textarea id="editarCategoriaDescripcion" rows="4" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; resize: vertical; font-family: inherit;"></textarea>
+                        </div>
+                    </div>
+                    <div style="padding: 15px 25px; background: #f9fafb; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e5e7eb;">
+                        <button onclick="cerrarModal('modalEditarCategoria')" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; color: #374151; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s;">Cancelar</button>
+                        <button onclick="guardarEditarCategoria()" style="padding: 10px 20px; background: #4f46e5; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s;">Guardar</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    // Rellenar los datos
+    document.getElementById('editarCategoriaId').value = id;
+    document.getElementById('editarCategoriaNombre').value = nombre;
+    document.getElementById('editarCategoriaDescripcion').value = descripcion || '';
+
+    // Mostrar el modal
+    document.getElementById('modalEditarCategoria').style.display = 'flex';
+}
+
+/**
+ * Guarda los cambios de la categoría editada
+ */
+function guardarEditarCategoria() {
+    const id = document.getElementById('editarCategoriaId').value;
+    const nombre = document.getElementById('editarCategoriaNombre').value.trim();
+    const descripcion = document.getElementById('editarCategoriaDescripcion').value.trim();
+
+    if (!nombre) {
+        alert('El nombre de la categoría es obligatorio');
+        return;
+    }
+
+    fetch('api/categorias.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'editar=' + id + '&nombre=' + encodeURIComponent(nombre) + '&descripcion=' + encodeURIComponent(descripcion)
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            cerrarModal('modalEditarCategoria');
+            // Recargar categorías
+            categoriasAdmin = [];
+            cargarCategoriasAdmin().then(() => {
+                adminTablaHeaderHTML = '';
+                mostrarPanelCategorias();
+            });
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al guardar los cambios');
+        });
 }
 
 function eliminarCategoria(id) {
@@ -3990,6 +4107,7 @@ function confirmarEliminarProductoProveedor(idAsociacion, nombreProducto) {
             .catch(err => console.error('Error eliminando asociación:', err));
     }
 }
+
 
 
 

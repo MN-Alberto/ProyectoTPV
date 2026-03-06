@@ -133,7 +133,20 @@
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
-                    Nuevo
+                    Nuevo Producto
+                </button>
+
+                <!-- Botón CLIENTE HABITUAL: abre el modal para gestionar clientes habituales -->
+                <button type="button" class="btn-nuevo-producto" id="btnClienteHabitual"
+                    onclick="abrirModalClienteHabitual()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <line x1="19" y1="8" x2="19" y2="14"></line>
+                        <line x1="22" y1="11" x2="16" y2="11"></line>
+                    </svg>
+                    Nuevo Cliente
                 </button>
             </div>
 
@@ -215,7 +228,7 @@
             <!-- Reloj que se actualiza cada segundo mostrando fecha y hora actual -->
             <span class="ticket-fecha">
                 <script>
-                    /                        * *
+                    /*
                         * actualizarFechaHora()
                         * Actualiza el elemento.ticket - fecha con la fecha y hora actual
                             * en formato DD / MM / AAAA HH: MM: SS.Se ejecuta cada segundo.
@@ -264,52 +277,60 @@
         <!-- ==================== ACCIONES DEL TICKET ==================== -->
         <!-- Selector de método de pago, aviso de límite de efectivo y botones de acción -->
         <div class="ticket-acciones">
-            <!-- Selector de método de pago: Efectivo, Tarjeta o Bizum -->
-            <select id="metodoPago">
-                <option value="efectivo">Efectivo</option>
-                <option value="tarjeta">Tarjeta</option>
-                <option value="bizum">Bizum</option>
-            </select>
+            <!-- Fila 1: Botones de descuento, vaciar, posponer y recuperar -->
+            <div class="ticket-acciones-fila">
+                <!-- Botón DESCUENTO: abre el modal para aplicar descuento porcentual o por cupón -->
+                <button class="btn-descuento" id="btnDescuento" onclick="aplicarDescuento()" disabled
+                    title="Aplicar descuento">
+                    🏷️
+                </button>
 
-            <!-- Aviso legal: no se permite pago en efectivo superior a 1.000€ -->
-            <div id="avisoLimiteEfectivo"
-                style="display: none; color: #dc2626; font-size: 0.75rem; margin-top: 5px; font-weight: 600;">
-                ⚠️ No se permite pago en efectivo > 1.000€
+                <!-- Botón VACIAR: elimina todos los productos del carrito -->
+                <button class="btn-cancelar" onclick="vaciarCarrito()" title="Vaciar carrito">
+                    🗑️
+                </button>
+
+                <!-- Botón POSPONER: guarda la venta sin terminar para recuperarla después -->
+                <button class="btn-descuento" id="btnPosponer" onclick="posponerVenta()" disabled
+                    style="background: #8b5cf6;" title="Posponer venta">
+                    ⏳
+                </button>
+
+                <!-- Botón RECUPERAR: recupera la última venta pospuesta -->
+                <button class="btn-descuento" id="btnRecuperar" onclick="recuperarVenta()" style="background: #f59e0b;"
+                    title="Recuperar venta">
+                    🔄
+                </button>
             </div>
 
-            <!-- Botón COBRAR: inicia el proceso de cobro (modal de cambio o tipo de documento) -->
-            <button class="btn-cobrar" id="btnCobrar" onclick="intentarCobrar()" disabled>
-                Cobrar
-            </button>
+            <!-- Fila 2: Método de pago y botón cobrar -->
+            <div class="ticket-acciones-fila">
+                <!-- Selector de método de pago: Efectivo, Tarjeta o Bizum -->
+                <select id="metodoPago">
+                    <option value="efectivo">Efectivo</option>
+                    <option value="tarjeta">Tarjeta</option>
+                    <option value="bizum">Bizum</option>
+                </select>
 
-            <!-- Botón DESCUENTO: abre el modal para aplicar descuento porcentual o por cupón -->
-            <button class="btn-descuento" id="btnDescuento" onclick="aplicarDescuento()" disabled
-                title="Aplicar descuento">
-                🏷️
-            </button>
+                <!-- Selector de tarifa: Cliente, Cliente registrado, Mayorista nivel 1, Mayorista nivel 2 -->
+                <select id="tarifaVenta">
+                    <option value="cliente">Cliente</option>
+                    <option value="registrado">Cliente registrado</option>
+                    <option value="mayorista1">Mayorista nivel 1</option>
+                    <option value="mayorista2">Mayorista nivel 2</option>
+                </select>
 
-            <!-- Botón VACIAR: elimina todos los productos del carrito -->
-            <button class="btn-cancelar" onclick="vaciarCarrito()" title="Vaciar carrito">
-                🗑️
-            </button>
+                <!-- Aviso legal: no se permite pago en efectivo superior a 1.000€ -->
+                <div id="avisoLimiteEfectivo"
+                    style="display: none; color: #dc2626; font-size: 0.75rem; margin-top: 5px; font-weight: 600;">
+                    ⚠️ No se permite pago en efectivo > 1.000€
+                </div>
 
-            <!-- Botón POSPONER: guarda la venta sin terminar para recuperarla después -->
-            <button class="btn-descuento" id="btnPosponer" onclick="posponerVenta()" disabled
-                style="background: #8b5cf6;" title="Posponer venta">
-                ⏳
-            </button>
-
-            <!-- Botón RECUPERAR: recupera la última venta pospuesta -->
-            <button class="btn-descuento" id="btnRecuperar" onclick="recuperarVenta()" style="background: #f59e0b;"
-                title="Recuperar venta">
-                🔄
-            </button>
-
-            <!-- Botón CLIENTE HABITUAL: abre el modal para gestionar clientes habituales -->
-            <button class="btn-descuento" id="btnClienteHabitual" onclick="abrirModalClienteHabitual()"
-                style="background: #10b981;" title="Añadir cliente habitual">
-                👤+
-            </button>
+                <!-- Botón COBRAR: inicia el proceso de cobro (modal de cambio o tipo de documento) -->
+                <button class="btn-cobrar" id="btnCobrar" onclick="intentarCobrar()" disabled>
+                    Cobrar
+                </button>
+            </div>
         </div>
     </div>
 
@@ -338,6 +359,12 @@
         <input type="hidden" name="descuentoTipo" id="inputDescuentoTipo">
         <input type="hidden" name="descuentoValor" id="inputDescuentoValor">
         <input type="hidden" name="descuentoCupon" id="inputDescuentoCupon">
+        <input type="hidden" name="descuentoTarifaCupon" id="inputDescuentoTarifaCupon">
+        <input type="hidden" name="descuentoTarifaValor" id="inputDescuentoTarifaValor">
+        <input type="hidden" name="descuentoTarifaTipo" id="inputDescuentoTarifaTipo">
+        <input type="hidden" name="descuentoManualCupon" id="inputDescuentoManualCupon">
+        <input type="hidden" name="descuentoManualValor" id="inputDescuentoManualValor">
+        <input type="hidden" name="descuentoManualTipo" id="inputDescuentoManualTipo">
     </form>
 </section>
 
@@ -596,7 +623,7 @@
                     style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Fecha de
                     Alta</label>
                 <input type="datetime-local" id="clienteHabitualFecha"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;">
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" disabled>
             </div>
         </div>
 
@@ -604,6 +631,36 @@
         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
             <button class="btn-modal-cancelar" onclick="cerrarModal('modalClienteHabitual')">Cancelar</button>
             <button class="btn-exito" id="btnGuardarClienteHabitual" style="margin: 0;">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: BUSCAR CLIENTE REGISTRADO ===========================## -->
+<!-- Modal para buscar un cliente registrado por DNI y aplicar descuento del 2% -->
+<div class="modal-overlay" id="modalBuscarClienteRegistrado" style="display:none;">
+    <div class="modal-content" style="max-width: 400px; text-align: left;">
+        <h3 style="margin-bottom: 5px;">Cliente Registrado</h3>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;">Introduce el DNI del cliente</p>
+
+        <div>
+            <label for="dniBusquedaCliente"
+                style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">DNI <span
+                    style="color: #ef4444;">*</span></label>
+            <input type="text" id="dniBusquedaCliente"
+                style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                placeholder="12345678A" maxlength="20" onkeypress="if(event.key==='Enter') buscarClienteRegistrado()">
+        </div>
+
+        <div id="mensajeResultadoBusqueda" style="margin-top: 15px; padding: 10px; border-radius: 6px; display: none;">
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalBuscarClienteRegistrado')" style="flex: 1;">
+                Cancelar
+            </button>
+            <button class="btn-exito" onclick="buscarClienteRegistrado()" style="flex: 1;">
+                Buscar
+            </button>
         </div>
     </div>
 </div>
@@ -689,7 +746,13 @@
             clienteObs: '<?php echo addslashes($_SESSION['ultimaVentaClienteObs'] ?? ''); ?>',       // Observaciones
             descuentoTipo: '<?php echo $_SESSION['ultimaVentaDescuentoTipo'] ?? 'ninguno'; ?>',      // Tipo de descuento
             descuentoValor: <?php echo $_SESSION['ultimaVentaDescuentoValor'] ?? 0; ?>,              // Valor del descuento
-            descuentoCupon: '<?php echo $_SESSION['ultimaVentaDescuentoCupon'] ?? ''; ?>'            // Código de cupón usado
+            descuentoCupon: '<?php echo $_SESSION['ultimaVentaDescuentoCupon'] ?? ''; ?>',           // Código de cupón usado
+            descuentoTarifaTipo: '<?php echo $_SESSION['ultimaVentaDescuentoTarifaTipo'] ?? 'ninguno'; ?>',      // Tipo de descuento de tarifa
+            descuentoTarifaValor: <?php echo $_SESSION['ultimaVentaDescuentoTarifaValor'] ?? 0; ?>,              // Valor del descuento de tarifa
+            descuentoTarifaCupon: '<?php echo $_SESSION['ultimaVentaDescuentoTarifaCupon'] ?? ''; ?>',           // Código de cupón de tarifa (CLIENTE_REGISTRADO, MAYORISTA_NIVEL1, MAYORISTA_NIVEL2)
+            descuentoManualTipo: '<?php echo $_SESSION['ultimaVentaDescuentoManualTipo'] ?? 'ninguno'; ?>',      // Tipo de descuento manual
+            descuentoManualValor: <?php echo $_SESSION['ultimaVentaDescuentoManualValor'] ?? 0; ?>,            // Valor del descuento manual
+            descuentoManualCupon: '<?php echo $_SESSION['ultimaVentaDescuentoManualCupon'] ?? ''; ?>'           // Código de cupón manual
         };
     </script>
 
@@ -707,6 +770,12 @@
     unset($_SESSION['ultimaVentaDescuentoTipo']);
     unset($_SESSION['ultimaVentaDescuentoValor']);
     unset($_SESSION['ultimaVentaDescuentoCupon']);
+    unset($_SESSION['ultimaVentaDescuentoTarifaTipo']);
+    unset($_SESSION['ultimaVentaDescuentoTarifaValor']);
+    unset($_SESSION['ultimaVentaDescuentoTarifaCupon']);
+    unset($_SESSION['ultimaVentaDescuentoManualTipo']);
+    unset($_SESSION['ultimaVentaDescuentoManualValor']);
+    unset($_SESSION['ultimaVentaDescuentoManualCupon']);
 ?>
 <?php endif; ?>
 
@@ -1917,6 +1986,7 @@
      * cupon: código del cupón usado (si aplica)
      */
     let descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+    let descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
 
     /**
      * Flag que indica si la caja está abierta (true) o cerrada (false).
@@ -1957,11 +2027,17 @@
                 alert('Este producto no tiene stock disponible.');
                 return;
             }
+            let ivaValue = elemento.dataset.iva;
+            let ivaParseado = parseInt(ivaValue);
+            // Si el IVA es NaN o undefined, usar 21 por defecto
+            if (isNaN(ivaParseado)) {
+                ivaParseado = 21;
+            }
             carrito.push({
                 idProducto: id,
                 nombre: nombre,
                 precio: precio,
-                iva: (elemento.dataset.iva !== undefined && elemento.dataset.iva !== "") ? parseInt(elemento.dataset.iva) : 21,
+                iva: ivaParseado,
                 cantidad: 1,
                 stockMax: stockMax
             });
@@ -2007,6 +2083,9 @@
     function vaciarCarrito() {
         carrito = [];
         descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+        descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
+        // Resetear también el select de tarifa
+        document.getElementById('tarifaVenta').value = 'cliente';
         actualizarTicket();
     }
 
@@ -2024,6 +2103,8 @@
         const ventaPospuesta = {
             carrito: carrito,
             descuento: descuento,
+            descuentoTarifa: descuentoTarifa,
+            tarifa: document.getElementById('tarifaVenta').value,
             fecha: new Date().toLocaleString('es-ES')
         };
 
@@ -2033,6 +2114,8 @@
         // Vaciar el carrito
         carrito = [];
         descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+        descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
+        document.getElementById('tarifaVenta').value = 'cliente';
         actualizarTicket();
 
         // Mostrar mensaje
@@ -2061,14 +2144,29 @@
             if (!confirm('⚠️ Ya hay productos en el carrito. ¿Quieres añadir los productos pospuestos?')) {
                 return;
             }
-            // Añadir los productos pospuestos al carrito existente
+            // Añadir los productos pospuestos al carrito existente manteniendo su IVA
             ventaPospuesta.carrito.forEach(producto => {
-                agregarAlCarrito(producto.idProducto, producto.nombre, producto.precio, producto.cantidad);
+                // Crear un objeto temporal con los datos del producto para usar con agregarAlCarrito
+                const productoTemp = {
+                    dataset: {
+                        id: producto.idProducto,
+                        nombre: producto.nombre,
+                        precio: producto.precio,
+                        iva: producto.iva || 21,
+                        stock: producto.stockMax || 999
+                    }
+                };
+                agregarAlCarrito(productoTemp);
             });
         } else {
             // Restaurar el carrito y descuento
             carrito = ventaPospuesta.carrito;
             descuento = ventaPospuesta.descuento || { tipo: 'ninguno', valor: 0, cupon: '' };
+            descuentoTarifa = ventaPospuesta.descuentoTarifa || { tipo: 'ninguno', valor: 0, cupon: '' };
+            // Restaurar la tarifa
+            if (ventaPospuesta.tarifa) {
+                document.getElementById('tarifaVenta').value = ventaPospuesta.tarifa;
+            }
             actualizarTicket();
         }
 
@@ -2106,26 +2204,47 @@
     /**
      * obtenerTotalCalculado()
      * Calcula el total del carrito aplicando el descuento vigente.
+     * Los descuentos se aplican sobre la BASE IMPONIBLE (sin IVA), y luego se suma el IVA.
      * @returns {number} Total final (mínimo 0)
      */
     function obtenerTotalCalculado() {
-        // Calcular subtotal sumando (precio * (1 + iva/100)) * cantidad de cada producto
-        let subtotalPVP = carrito.reduce((sum, item) => {
-            const precioPVP = item.precio * (1 + (item.iva / 100));
-            return sum + (precioPVP * item.cantidad);
+        // Calcular base imponible (suma de precio * cantidad de cada producto)
+        let baseImponible = carrito.reduce((sum, item) => {
+            return sum + (item.precio * item.cantidad);
         }, 0);
 
         let importeDescuento = 0;
 
-        // Aplicar descuento según el tipo
-        if (descuento.tipo === 'porcentaje') {
-            importeDescuento = subtotalPVP * (descuento.valor / 100);
-        } else if (descuento.tipo === 'fijo') {
-            importeDescuento = descuento.valor;
+        // Aplicar descuento de tarifa (porcentaje sobre base imponible)
+        if (descuentoTarifa.tipo === 'porcentaje') {
+            importeDescuento += baseImponible * (descuentoTarifa.valor / 100);
+        } else if (descuentoTarifa.tipo === 'fijo') {
+            importeDescuento += descuentoTarifa.valor;
         }
 
-        // Retornar total (nunca negativo) redondeado a 2 decimales
-        return Math.max(0, Math.round((subtotalPVP - importeDescuento) * 100) / 100);
+        // Aplicar descuento manual (porcentaje o cupón sobre base imponible)
+        if (descuento.tipo === 'porcentaje') {
+            importeDescuento += baseImponible * (descuento.valor / 100);
+        } else if (descuento.tipo === 'fijo') {
+            importeDescuento += descuento.valor;
+        }
+
+        // Calcular base imponible con descuento
+        let baseConDescuento = baseImponible - importeDescuento;
+
+        // Calcular el IVA sobre la base imponible con descuento
+        let ivaTotal = 0;
+        if (baseImponible > 0) {
+            ivaTotal = carrito.reduce((sum, item) => {
+                // Calcular la parte proporcional del IVA para cada producto
+                let proporcion = (item.precio * item.cantidad) / baseImponible;
+                let baseProductoConDescuento = baseConDescuento * proporcion;
+                return sum + (baseProductoConDescuento * (item.iva / 100));
+            }, 0);
+        }
+
+        // Retornar total (base con descuento + IVA) redondeado a 2 decimales
+        return Math.max(0, Math.round((baseConDescuento + ivaTotal) * 100) / 100);
     }
 
     /**
@@ -2182,24 +2301,88 @@
         contenedor.innerHTML = html;
 
         // Calcular desglose de totales con descuento
-        let subtotalPVP = carrito.reduce((sum, item) => sum + (item.precio * (1 + (item.iva / 100)) * item.cantidad), 0);
+        let baseImponible = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
         let totalPVP = obtenerTotalCalculado();
-        let importeDescuento = subtotalPVP - totalPVP;
+
+        // Calcular descuentos (sobre base imponible)
+        let descuentoTarifaImporte = 0;
+        let descuentoManualImporte = 0;
+
+        if (descuentoTarifa.tipo === 'porcentaje') {
+            descuentoTarifaImporte = baseImponible * (descuentoTarifa.valor / 100);
+        } else if (descuentoTarifa.tipo === 'fijo') {
+            descuentoTarifaImporte = descuentoTarifa.valor;
+        }
+
+        if (descuento.tipo === 'porcentaje') {
+            descuentoManualImporte = baseImponible * (descuento.valor / 100);
+        } else if (descuento.tipo === 'fijo') {
+            descuentoManualImporte = descuento.valor;
+        }
+
+        let importeDescuento = descuentoTarifaImporte + descuentoManualImporte;
 
         // Generar HTML del desglose (solo si hay descuento aplicado real > 0)
         let htmlDesglose = '';
         if (importeDescuento > 0.01) {
+            // Calcular descuento de tarifa y descuento manual por separado
+            let lineasDescuento = [];
+
+            // Construir líneas de descuento separadas
+            if (descuentoTarifaImporte > 0.01) {
+                const textoTarifa = descuentoTarifa.cupon === 'CLIENTE_REGISTRADO' ? 'Cliente registrado (' + descuentoTarifa.valor + '%)' :
+                    descuentoTarifa.cupon === 'MAYORISTA_NIVEL1' ? 'Mayorista nivel 1 (' + descuentoTarifa.valor + '%)' :
+                        descuentoTarifa.cupon === 'MAYORISTA_NIVEL2' ? 'Mayorista nivel 2 (' + descuentoTarifa.valor + '%)' :
+                            (descuentoTarifa.tipo === 'porcentaje' ? descuentoTarifa.valor + '%' : 'Cupón ' + descuentoTarifa.cupon);
+                lineasDescuento.push(`
+                    <div class="resumen-fila-mini descuento-texto">
+                        <span>${textoTarifa}:</span>
+                        <span>- ${descuentoTarifaImporte.toFixed(2).replace('.', ',')} €</span>
+                    </div>`);
+            }
+
+            if (descuentoManualImporte > 0.01) {
+                const textoManual = descuento.tipo === 'porcentaje' ? 'Descuento (' + descuento.valor + '%)' : 'Cupón ' + descuento.cupon;
+                lineasDescuento.push(`
+                    <div class="resumen-fila-mini descuento-texto">
+                        <span>${textoManual}:</span>
+                        <span>- ${descuentoManualImporte.toFixed(2).replace('.', ',')} €</span>
+                    </div>`);
+            }
+
             htmlDesglose = `
                 <div class="resumen-final-premium">
                     <div class="resumen-fila-mini">
-                        <span>Subtotal:</span>
-                        <span>${subtotalPVP.toFixed(2).replace('.', ',')} €</span>
+                        <span>Base Imponible:</span>
+                        <span>${baseImponible.toFixed(2).replace('.', ',')} €</span>
                     </div>
-                    <div class="resumen-fila-mini descuento-texto">
-                        <span>Descuento (${descuento.tipo === 'porcentaje' ? descuento.valor + '%' : 'Cupón ' + descuento.cupon}):</span>
-                        <span>- ${importeDescuento.toFixed(2).replace('.', ',')} €</span>
+                    ${lineasDescuento.join('')}
+                    <div class="resumen-fila-mini" style="font-weight: bold; border-top: 1px solid #e5e7eb; padding-top: 8px;">
+                        <span>Total (IVA incl.):</span>
+                        <span>${totalPVP.toFixed(2).replace('.', ',')} €</span>
                     </div>
                 </div>`;
+        } else {
+            // No hay descuento - mostrar base imponible, IVA y total
+            if (baseImponible > 0) {
+                // Calcular IVA total
+                let ivaTotal = totalPVP - baseImponible;
+                htmlDesglose = `
+                    <div class="resumen-final-premium">
+                        <div class="resumen-fila-mini">
+                            <span>Base Imponible:</span>
+                            <span>${baseImponible.toFixed(2).replace('.', ',')} €</span>
+                        </div>
+                        <div class="resumen-fila-mini">
+                            <span>IVA:</span>
+                            <span>${ivaTotal.toFixed(2).replace('.', ',')} €</span>
+                        </div>
+                        <div class="resumen-fila-mini" style="font-weight: bold; border-top: 1px solid #e5e7eb; padding-top: 8px;">
+                            <span>Total:</span>
+                            <span>${totalPVP.toFixed(2).replace('.', ',')} €</span>
+                        </div>
+                    </div>`;
+            }
         }
 
         // Actualizar el DOM con el desglose y el total
@@ -2501,9 +2684,24 @@
         document.getElementById('inputObservacionesFinal').value = observaciones;
 
         // Datos del descuento
-        document.getElementById('inputDescuentoTipo').value = descuento.tipo;
-        document.getElementById('inputDescuentoValor').value = descuento.valor;
-        document.getElementById('inputDescuentoCupon').value = descuento.cupon;
+        // Si hay descuento de tarifa, guardarlo (se prioriza para mostrar en ticket)
+        if (descuentoTarifa.cupon && descuentoTarifa.cupon !== '') {
+            document.getElementById('inputDescuentoTipo').value = descuentoTarifa.tipo;
+            document.getElementById('inputDescuentoValor').value = descuentoTarifa.valor;
+            document.getElementById('inputDescuentoCupon').value = descuentoTarifa.cupon;
+        } else {
+            document.getElementById('inputDescuentoTipo').value = descuento.tipo;
+            document.getElementById('inputDescuentoValor').value = descuento.valor;
+            document.getElementById('inputDescuentoCupon').value = descuento.cupon;
+        }
+        // Guardar también los valores de descuentoTarifa por separado
+        document.getElementById('inputDescuentoTarifaTipo').value = descuentoTarifa.tipo;
+        document.getElementById('inputDescuentoTarifaValor').value = descuentoTarifa.valor;
+        document.getElementById('inputDescuentoTarifaCupon').value = descuentoTarifa.cupon;
+        // Guardar descuento manual por separado también
+        document.getElementById('inputDescuentoManualTipo').value = descuento.tipo;
+        document.getElementById('inputDescuentoManualValor').value = descuento.valor;
+        document.getElementById('inputDescuentoManualCupon').value = descuento.cupon;
 
         // Enviar el formulario al servidor
         document.getElementById('formVenta').submit();
@@ -2561,7 +2759,11 @@
         ultimaVenta.carrito.forEach(item => {
             const cantidad = parseFloat(item.cantidad);
             const precioBase = parseFloat(item.precio);
-            const ivaPorc = parseInt(item.iva) || 21;
+            let ivaPorc = parseInt(item.iva);
+            // Si el IVA es NaN, usar 21 por defecto
+            if (isNaN(ivaPorc)) {
+                ivaPorc = 21;
+            }
 
             // Cálculos por unidad
             const cuotaIvaUnidad = precioBase * (ivaPorc / 100);
@@ -2595,14 +2797,44 @@
             </tr>`;
         });
 
-        // Calcular descuento aplicado sobre el total PVP
-        let importeDescuentoPVP = 0;
-        if (ultimaVenta.descuentoTipo === 'porcentaje') {
-            importeDescuentoPVP = sumaTotalesNumeric * (ultimaVenta.descuentoValor / 100);
-        } else if (ultimaVenta.descuentoTipo === 'fijo') {
-            importeDescuentoPVP = ultimaVenta.descuentoValor;
+        // Calcular descuentos aplicados sobre el total PVP
+        let importeDescuentoTarifa = 0;
+        let importeDescuentoManual = 0;
+        let textoDescuentoTarifa = '';
+        let textoDescuentoManual = '';
+
+        // Calcular descuento de tarifa (Cliente registrado, Mayorista nivel 1, Mayorista nivel 2)
+        if (ultimaVenta.descuentoTarifaCupon && ultimaVenta.descuentoTarifaCupon !== '') {
+            if (ultimaVenta.descuentoTarifaTipo === 'porcentaje') {
+                importeDescuentoTarifa = sumaTotalesNumeric * (ultimaVenta.descuentoTarifaValor / 100);
+                if (ultimaVenta.descuentoTarifaCupon === 'CLIENTE_REGISTRADO') {
+                    textoDescuentoTarifa = 'Cliente registrado (' + ultimaVenta.descuentoTarifaValor + '%)';
+                } else if (ultimaVenta.descuentoTarifaCupon === 'MAYORISTA_NIVEL1') {
+                    textoDescuentoTarifa = 'Mayorista nivel 1 (' + ultimaVenta.descuentoTarifaValor + '%)';
+                } else if (ultimaVenta.descuentoTarifaCupon === 'MAYORISTA_NIVEL2') {
+                    textoDescuentoTarifa = 'Mayorista nivel 2 (' + ultimaVenta.descuentoTarifaValor + '%)';
+                }
+            }
         }
 
+        // Calcular descuento manual (código promocional o porcentaje manual)
+        let tipoManual = ultimaVenta.descuentoManualTipo || ultimaVenta.descuentoTipo;
+        let valorManual = ultimaVenta.descuentoManualValor || ultimaVenta.descuentoValor;
+        let cuponManual = ultimaVenta.descuentoManualCupon || ultimaVenta.descuentoCupon;
+
+        if (tipoManual === 'porcentaje') {
+            importeDescuentoManual = sumaTotalesNumeric * (valorManual / 100);
+            textoDescuentoManual = valorManual + '%';
+        } else if (tipoManual === 'fijo') {
+            importeDescuentoManual = valorManual;
+            textoDescuentoManual = 'Cupón ' + (cuponManual || '');
+        } else if (cuponManual && cuponManual !== '') {
+            // También puede haber un cupón sin tipo definido
+            textoDescuentoManual = 'Cupón ' + cuponManual;
+        }
+
+        // Descuento total
+        let importeDescuentoPVP = importeDescuentoTarifa + importeDescuentoManual;
         const totalVentaPVP = Math.max(0, sumaTotalesNumeric - importeDescuentoPVP);
 
         // Si hay descuento, debemos prorratearlo en la base e IVA para el desglose (simplificado: aplicamos proporción al total)
@@ -2615,18 +2847,34 @@
             <table class="tabla-totales" style="width:100%; font-size: 0.9rem; margin-top:10px;">
         `;
 
-        // Si hay descuento, mostrar subtotal y línea de descuento
+        // Si hay descuento, mostrar subtotal y líneas de descuento
         if (importeDescuentoPVP > 0.01) {
             totalesHtml += `
                 <tr>
                     <td><strong>Subtotal:</strong></td>
                     <td style="text-align:right">${sumaTotalesNumeric.toFixed(2).replace('.', ',')} €</td>
                 </tr>
-                <tr>
-                    <td style="color: #16a34a;"><strong>Descuento (${ultimaVenta.descuentoTipo === 'porcentaje' ? ultimaVenta.descuentoValor + '%' : 'Cupón ' + ultimaVenta.descuentoCupon}):</strong></td>
-                    <td style="text-align:right; color: #16a34a;">- ${importeDescuentoPVP.toFixed(2).replace('.', ',')} €</td>
-                </tr>
             `;
+
+            // Mostrar descuento de tarifa si existe
+            if (importeDescuentoTarifa > 0.01 && textoDescuentoTarifa) {
+                totalesHtml += `
+                    <tr>
+                        <td style="color: #16a34a;"><strong>Descuento (${textoDescuentoTarifa}):</strong></td>
+                        <td style="text-align:right; color: #16a34a;">- ${importeDescuentoTarifa.toFixed(2).replace('.', ',')} €</td>
+                    </tr>
+                `;
+            }
+
+            // Mostrar descuento manual si existe
+            if (importeDescuentoManual > 0.01 && textoDescuentoManual) {
+                totalesHtml += `
+                    <tr>
+                        <td style="color: #16a34a;"><strong>Descuento (${textoDescuentoManual}):</strong></td>
+                        <td style="text-align:right; color: #16a34a;">- ${importeDescuentoManual.toFixed(2).replace('.', ',')} €</td>
+                    </tr>
+                `;
+            }
         }
 
         // Base imponible y cuota IVA por cada tipo
@@ -2840,7 +3088,13 @@
                 clienteObs: ultimaVenta.clienteObs,
                 descuentoTipo: ultimaVenta.descuentoTipo,
                 descuentoValor: ultimaVenta.descuentoValor,
-                descuentoCupon: ultimaVenta.descuentoCupon
+                descuentoCupon: ultimaVenta.descuentoCupon,
+                descuentoTarifaTipo: ultimaVenta.descuentoTarifaTipo,
+                descuentoTarifaValor: ultimaVenta.descuentoTarifaValor,
+                descuentoTarifaCupon: ultimaVenta.descuentoTarifaCupon,
+                descuentoManualTipo: ultimaVenta.descuentoManualTipo,
+                descuentoManualValor: ultimaVenta.descuentoManualValor,
+                descuentoManualCupon: ultimaVenta.descuentoManualCupon
             })
         })
             .then(res => res.json())
@@ -3110,6 +3364,44 @@
         let hayDevolucion = false;
         const inputs = document.querySelectorAll('.cant-dev-input');
 
+        // Obtener los descuentos de la venta original
+        const venta = ticketActualDevolucion;
+        let factorDescuento = 1;
+
+        // Calcular el factor de descuento aplicable
+        // Usar los nuevos campos si existen, si no usar los antiguos
+        const descuentoTarifaCupon = venta.descuentoTarifaCupon || '';
+        const descuentoTarifaValor = parseFloat(venta.descuentoTarifaValor) || 0;
+        const descuentoManualCupon = venta.descuentoManualCupon || venta.descuentoCupon || '';
+        const descuentoManualValor = parseFloat(venta.descuentoManualValor || venta.descuentoValor) || 0;
+        const descuentoManualTipo = venta.descuentoManualTipo || venta.descuentoTipo || 'ninguno';
+
+        // Calcular descuento total aplicado a la venta
+        let descuentoTotal = 0;
+
+        // Descuento de tarifa (Cliente registrado, Mayorista)
+        if (descuentoTarifaCupon && descuentoTarifaCupon !== '' && descuentoTarifaValor > 0) {
+            descuentoTotal += descuentoTarifaValor;
+        }
+
+        // Descuento manual (porcentaje o fijo)
+        if (descuentoManualTipo === 'porcentaje' && descuentoManualValor > 0) {
+            descuentoTotal += descuentoManualValor;
+        } else if (descuentoManualTipo === 'fijo') {
+            // Para descuento fijo, calculamos el porcentaje equivalente
+            // Esto es aproximado ya que no sabemos el subtotal original
+            // Usamos una estimación basada en el total de la venta
+        }
+
+        // Si hay descuento fijo sin tipo porcentaje, calculamos el porcentaje basado en el total
+        if (descuentoManualTipo === 'fijo' && descuentoManualValor > 0 && venta.total > 0) {
+            const totalSinDescuento = parseFloat(venta.total) / (1 - descuentoTotal / 100);
+            descuentoTotal = ((totalSinDescuento - parseFloat(venta.total)) / totalSinDescuento) * 100;
+        }
+
+        factorDescuento = 1 - (descuentoTotal / 100);
+        if (factorDescuento < 0) factorDescuento = 0;
+
         inputs.forEach(input => {
             const index = input.dataset.index;
             const linea = lineasVentaDevolucion[index];
@@ -3130,13 +3422,18 @@
             }
 
             // Usar precio con IVA (el que se pagó en el momento de la compra)
-            const precio = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
+            // Y aplicar el factor de descuento
+            const precioBase = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
+            const precioConDescuento = precioBase * factorDescuento;
 
             if (cant > 0) {
-                total += cant * precio;
+                total += cant * precioConDescuento;
                 hayDevolucion = true;
             }
         });
+
+        // Redondear el total hacia abajo a 2 decimales
+        total = Math.floor(total * 100) / 100;
 
         document.getElementById('totalReembolsoDisplay').textContent = total.toFixed(2).replace('.', ',') + ' €';
 
@@ -3310,7 +3607,115 @@
         if (selectPago) {
             selectPago.addEventListener('change', verificarLimiteEfectivo);
         }
+
+        // Listener para el selector de tarifa
+        const selectTarifa = document.getElementById('tarifaVenta');
+        if (selectTarifa) {
+            selectTarifa.addEventListener('change', cambiarTarifa);
+        }
     });
+
+    /**
+     * Maneja el cambio de tarifa para aplicar descuentos según el tipo de cliente
+     */
+    function cambiarTarifa() {
+        const tarifa = document.getElementById('tarifaVenta').value;
+
+        if (tarifa === 'registrado') {
+            // Abrir modal para buscar cliente registrado
+            abrirModalBuscarClienteRegistrado();
+        } else if (tarifa === 'cliente') {
+            // Tarifa normal de cliente - sin descuento
+            eliminarDescuentoPorTarifa();
+        } else if (tarifa === 'mayorista1') {
+            // Mayorista nivel 1 - 12% descuento
+            descuentoTarifa = { tipo: 'porcentaje', valor: 12, cupon: 'MAYORISTA_NIVEL1' };
+            actualizarTicket();
+        } else if (tarifa === 'mayorista2') {
+            // Mayorista nivel 2 - 16% descuento
+            descuentoTarifa = { tipo: 'porcentaje', valor: 16, cupon: 'MAYORISTA_NIVEL2' };
+            actualizarTicket();
+        }
+    }
+
+    /**
+     * Abre el modal para buscar un cliente registrado por DNI
+     */
+    function abrirModalBuscarClienteRegistrado() {
+        document.getElementById('dniBusquedaCliente').value = '';
+        document.getElementById('mensajeResultadoBusqueda').textContent = '';
+        document.getElementById('mensajeResultadoBusqueda').className = '';
+        document.getElementById('modalBuscarClienteRegistrado').style.display = 'flex';
+        document.getElementById('dniBusquedaCliente').focus();
+    }
+
+    /**
+     * Busca un cliente por DNI y aplica el descuento del 2%
+     */
+    async function buscarClienteRegistrado() {
+        const dni = document.getElementById('dniBusquedaCliente').value.trim();
+        const mensajeDiv = document.getElementById('mensajeResultadoBusqueda');
+
+        if (!dni) {
+            mensajeDiv.textContent = 'Por favor, introduce un DNI';
+            mensajeDiv.className = 'mensaje-error';
+            mensajeDiv.style.display = 'block';
+            return;
+        }
+
+        try {
+            const response = await fetch('api/clientes.php?dni=' + encodeURIComponent(dni));
+
+            if (!response.ok) {
+                // Cliente no encontrado (404)
+                mensajeDiv.textContent = 'No se encuentra ningún cliente con ese DNI';
+                mensajeDiv.className = 'mensaje-error';
+                mensajeDiv.style.display = 'block';
+                // Cambiar la tarifa a Cliente
+                document.getElementById('tarifaVenta').value = 'cliente';
+                return;
+            }
+
+            const cliente = await response.json();
+
+            if (cliente && cliente.activo == 1) {
+                // Cliente encontrado y activo - aplicar descuento del 2%
+                descuentoTarifa = { tipo: 'porcentaje', valor: 2, cupon: 'CLIENTE_REGISTRADO' };
+                actualizarTicket();
+                mensajeDiv.textContent = 'Cliente encontrado: ' + cliente.nombre + ' ' + cliente.apellidos + '. Descuento del 2% aplicado.';
+                mensajeDiv.className = 'mensaje-exito';
+                mensajeDiv.style.display = 'block';
+                setTimeout(() => {
+                    cerrarModal('modalBuscarClienteRegistrado');
+                }, 1500);
+            } else if (cliente && cliente.activo == 0) {
+                mensajeDiv.textContent = 'El cliente está inactivo';
+                mensajeDiv.className = 'mensaje-error';
+                mensajeDiv.style.display = 'block';
+            } else {
+                mensajeDiv.textContent = 'No se encuentra ningún cliente con ese DNI';
+                mensajeDiv.className = 'mensaje-error';
+                mensajeDiv.style.display = 'block';
+                document.getElementById('tarifaVenta').value = 'cliente';
+            }
+        } catch (error) {
+            console.error('Error al buscar cliente:', error);
+            mensajeDiv.textContent = 'Error al buscar el cliente';
+            mensajeDiv.className = 'mensaje-error';
+            mensajeDiv.style.display = 'block';
+        }
+    }
+
+    /**
+     * Elimina el descuento aplicado por tarifa de cliente registrado o mayorista
+     */
+    function eliminarDescuentoPorTarifa() {
+        // Solo eliminar si hay descuento de tarifa activo
+        if (descuentoTarifa.cupon === 'CLIENTE_REGISTRADO' || descuentoTarifa.cupon === 'MAYORISTA_NIVEL1' || descuentoTarifa.cupon === 'MAYORISTA_NIVEL2') {
+            descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
+            actualizarTicket();
+        }
+    }
 
     // ============================================================
     // FUNCIONES PARA CLIENTES HABITUALES

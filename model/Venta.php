@@ -24,6 +24,17 @@ class Venta
     private $importeEntregado;
     private $cambioDevuelto;
 
+    // Campos de descuento
+    private $descuentoTipo;
+    private $descuentoValor;
+    private $descuentoCupon;
+    private $descuentoTarifaTipo;
+    private $descuentoTarifaValor;
+    private $descuentoTarifaCupon;
+    private $descuentoManualTipo;
+    private $descuentoManualValor;
+    private $descuentoManualCupon;
+
     // ======================== GETTERS ========================
 
     public function getId()
@@ -124,6 +135,88 @@ class Venta
     public function setCambioDevuelto($cambioDevuelto)
     {
         $this->cambioDevuelto = $cambioDevuelto;
+    }
+
+    // Getters y Setters de descuentos
+    public function getDescuentoTipo()
+    {
+        return $this->descuentoTipo;
+    }
+    public function setDescuentoTipo($v)
+    {
+        $this->descuentoTipo = $v;
+    }
+
+    public function getDescuentoValor()
+    {
+        return $this->descuentoValor;
+    }
+    public function setDescuentoValor($v)
+    {
+        $this->descuentoValor = $v;
+    }
+
+    public function getDescuentoCupon()
+    {
+        return $this->descuentoCupon;
+    }
+    public function setDescuentoCupon($v)
+    {
+        $this->descuentoCupon = $v;
+    }
+
+    public function getDescuentoTarifaTipo()
+    {
+        return $this->descuentoTarifaTipo;
+    }
+    public function setDescuentoTarifaTipo($v)
+    {
+        $this->descuentoTarifaTipo = $v;
+    }
+
+    public function getDescuentoTarifaValor()
+    {
+        return $this->descuentoTarifaValor;
+    }
+    public function setDescuentoTarifaValor($v)
+    {
+        $this->descuentoTarifaValor = $v;
+    }
+
+    public function getDescuentoTarifaCupon()
+    {
+        return $this->descuentoTarifaCupon;
+    }
+    public function setDescuentoTarifaCupon($v)
+    {
+        $this->descuentoTarifaCupon = $v;
+    }
+
+    public function getDescuentoManualTipo()
+    {
+        return $this->descuentoManualTipo;
+    }
+    public function setDescuentoManualTipo($v)
+    {
+        $this->descuentoManualTipo = $v;
+    }
+
+    public function getDescuentoManualValor()
+    {
+        return $this->descuentoManualValor;
+    }
+    public function setDescuentoManualValor($v)
+    {
+        $this->descuentoManualValor = $v;
+    }
+
+    public function getDescuentoManualCupon()
+    {
+        return $this->descuentoManualCupon;
+    }
+    public function setDescuentoManualCupon($v)
+    {
+        $this->descuentoManualCupon = $v;
     }
 
     // ======================== MÉTODOS CRUD ========================
@@ -242,8 +335,8 @@ class Venta
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "INSERT INTO ventas (idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto) 
-             VALUES (:idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto)"
+            "INSERT INTO ventas (idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon) 
+             VALUES (:idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon)"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':idUsuario', $this->idUsuario, PDO::PARAM_INT);
@@ -256,6 +349,15 @@ class Venta
         $stmt->bindParam(':cerrada', $cerradaVal, PDO::PARAM_INT);
         $stmt->bindParam(':importeEntregado', $this->importeEntregado);
         $stmt->bindParam(':cambioDevuelto', $this->cambioDevuelto);
+        $stmt->bindParam(':descuentoTipo', $this->descuentoTipo);
+        $stmt->bindParam(':descuentoValor', $this->descuentoValor);
+        $stmt->bindParam(':descuentoCupon', $this->descuentoCupon);
+        $stmt->bindParam(':descuentoTarifaTipo', $this->descuentoTarifaTipo);
+        $stmt->bindParam(':descuentoTarifaValor', $this->descuentoTarifaValor);
+        $stmt->bindParam(':descuentoTarifaCupon', $this->descuentoTarifaCupon);
+        $stmt->bindParam(':descuentoManualTipo', $this->descuentoManualTipo);
+        $stmt->bindParam(':descuentoManualValor', $this->descuentoManualValor);
+        $stmt->bindParam(':descuentoManualCupon', $this->descuentoManualCupon);
         // Ejecutamos la consulta
         $resultado = $stmt->execute();
         // Obtenemos el ID de la nueva venta

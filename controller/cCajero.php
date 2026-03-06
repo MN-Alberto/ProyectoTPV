@@ -103,15 +103,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             // Obtenemos el tipo de descuento y el valor
             $descuentoTipo = $_POST['descuentoTipo'] ?? 'ninguno';
             $descuentoValor = (float) ($_POST['descuentoValor'] ?? 0);
-            $importeDescuento = 0;
-            // Si el descuento es en porcentaje
-            if ($descuentoTipo === 'porcentaje') {
-                // Calculamos el importe del descuento
-                $importeDescuento = $total * ($descuentoValor / 100);
-            } elseif ($descuentoTipo === 'fijo') {
-                // Si el descuento es fijo
-                $importeDescuento = $descuentoValor;
+
+            // Obtenemos los datos del descuento de tarifa
+            $descuentoTarifaTipo = $_POST['descuentoTarifaTipo'] ?? 'ninguno';
+            $descuentoTarifaValor = (float) ($_POST['descuentoTarifaValor'] ?? 0);
+            $descuentoTarifaCupon = $_POST['descuentoTarifaCupon'] ?? '';
+
+            // Obtenemos los datos del descuento manual
+            $descuentoManualTipo = $_POST['descuentoManualTipo'] ?? $descuentoTipo;
+            $descuentoManualValor = (float) ($_POST['descuentoManualValor'] ?? $descuentoValor);
+
+            $importeDescuentoTarifa = 0;
+            $importeDescuentoManual = 0;
+
+            // Calcular descuento de tarifa (Cliente registrado, Mayorista)
+            if ($descuentoTarifaCupon && $descuentoTarifaCupon !== '') {
+                if ($descuentoTarifaTipo === 'porcentaje') {
+                    $importeDescuentoTarifa = $total * ($descuentoTarifaValor / 100);
+                }
             }
+
+            // Calcular descuento manual (código promocional)
+            if ($descuentoManualTipo === 'porcentaje') {
+                $importeDescuentoManual = $total * ($descuentoManualValor / 100);
+            } elseif ($descuentoManualTipo === 'fijo') {
+                $importeDescuentoManual = $descuentoManualValor;
+            }
+
+            // Descuento total
+            $importeDescuento = $importeDescuentoTarifa + $importeDescuentoManual;
+
             // Restamos el descuento al total
             $total = max(0, $total - $importeDescuento);
 
@@ -125,6 +146,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 
             // Indicamos el precio total de la venta
             $venta->setTotal($total);
+
+            // Guardamos los datos del descuento en la venta
+            $venta->setDescuentoTipo($_POST['descuentoTipo'] ?? 'ninguno');
+            $venta->setDescuentoValor((float) ($_POST['descuentoValor'] ?? 0));
+            $venta->setDescuentoCupon($_POST['descuentoCupon'] ?? '');
+            $venta->setDescuentoTarifaTipo($_POST['descuentoTarifaTipo'] ?? 'ningeno');
+            $venta->setDescuentoTarifaValor((float) ($_POST['descuentoTarifaValor'] ?? 0));
+            $venta->setDescuentoTarifaCupon($_POST['descuentoTarifaCupon'] ?? '');
+            $venta->setDescuentoManualTipo($_POST['descuentoManualTipo'] ?? 'ninguno');
+            $venta->setDescuentoManualValor((float) ($_POST['descuentoManualValor'] ?? 0));
+            $venta->setDescuentoManualCupon($_POST['descuentoManualCupon'] ?? '');
 
             // Si el pago es en efectivo, guardar datos extras para el control de caja
             if (($venta->getMetodoPago() === 'efectivo')) {
@@ -196,6 +228,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $_SESSION['ultimaVentaDescuentoTipo'] = $_POST['descuentoTipo'] ?? 'ninguno';
             $_SESSION['ultimaVentaDescuentoValor'] = $_POST['descuentoValor'] ?? 0;
             $_SESSION['ultimaVentaDescuentoCupon'] = $_POST['descuentoCupon'] ?? '';
+
+            // Guardamos los datos del descuento de tarifa (cliente registrado, mayorista)
+            $_SESSION['ultimaVentaDescuentoTarifaTipo'] = $_POST['descuentoTarifaTipo'] ?? 'ninguno';
+            $_SESSION['ultimaVentaDescuentoTarifaValor'] = $_POST['descuentoTarifaValor'] ?? 0;
+            $_SESSION['ultimaVentaDescuentoTarifaCupon'] = $_POST['descuentoTarifaCupon'] ?? '';
+
+            // Guardamos los datos del descuento manual (código promocional)
+            $_SESSION['ultimaVentaDescuentoManualTipo'] = $_POST['descuentoManualTipo'] ?? 'ninguno';
+            $_SESSION['ultimaVentaDescuentoManualValor'] = $_POST['descuentoManualValor'] ?? 0;
+            $_SESSION['ultimaVentaDescuentoManualCupon'] = $_POST['descuentoManualCupon'] ?? '';
 
             // Guardamos los datos del cliente en la sesión
             $_SESSION['ultimaVentaClienteNif'] = $_POST['clienteNif'] ?? '';
