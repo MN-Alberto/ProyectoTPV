@@ -7,7 +7,7 @@
  * electrónico proporcionado utilizando la librería PHPMailer y el servidor SMTP de Gmail.
  * 
  * @author Alberto Méndez
- * @version 1.2 (26/02/2026)
+ * @version 1.2 (02/03/2026)
  */
 
 // Iniciamos la sesión para acceder a posibles variables de entorno o estado del usuario
@@ -91,6 +91,26 @@ $descuentoTipo = $datos['descuentoTipo'] ?? 'ninguno';
 $descuentoValor = (float) ($datos['descuentoValor'] ?? 0);
 $descuentoCupon = $datos['descuentoCupon'] ?? '';
 
+// Datos de Descuento de Tarifa (Cliente registrado, Mayorista)
+$descuentoTarifaTipo = $datos['descuentoTarifaTipo'] ?? 'ninguno';
+$descuentoTarifaValor = (float) ($datos['descuentoTarifaValor'] ?? 0);
+$descuentoTarifaCupon = $datos['descuentoTarifaCupon'] ?? '';
+
+// Datos de Descuento Manual (Código promocional)
+// Si no se proporcionan los nuevos campos, usamos los originales como respaldo
+$descuentoManualTipo = $datos['descuentoManualTipo'] ?? $descuentoTipo;
+$descuentoManualValor = (float) ($datos['descuentoManualValor'] ?? $descuentoValor);
+$descuentoManualCupon = $datos['descuentoManualCupon'] ?? $descuentoCupon;
+
+// Si hay descuento de tarifa, usarlo como respaldo si no hay descuento manual
+if ($descuentoTarifaCupon && $descuentoTarifaCupon !== '') {
+    if ((!$descuentoManualCupon || $descuentoManualCupon === '') && $descuentoManualValor == 0) {
+        $descuentoManualTipo = $descuentoTarifaTipo;
+        $descuentoManualValor = $descuentoTarifaValor;
+        $descuentoManualCupon = $descuentoTarifaCupon;
+    }
+}
+
 // Determinamos el título principal del documento según la elección del usuario
 $isFactura = ($tipoDocumento === 'factura');
 $tipoTitulo = $isFactura ? 'FACTURA' : 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
@@ -105,7 +125,7 @@ $tipoTitulo = $isFactura ? 'FACTURA' : 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
 $emisorHtml = "
     <strong>TPV Bazar — Productos Informáticos</strong><br>
     NIF: B12345678<br>
-    C/ Falsa 123, 28000 Madrid<br>
+    C/ Falsa 123, 23000 León<br>
 ";
 
 // B. Bloque del Receptor (Solo se muestra si hay datos del cliente o es factura)
@@ -114,84 +134,167 @@ if ($isFactura || $clienteNif || $clienteNombre) {
     $receptorHtml = "<div style='margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc;'>
         <strong>Datos del Cliente:</strong><br>";
     if ($clienteNombre)
-        $receptorHtml .= htmlspecialchars($clienteNombre) . "<br>";
+        $receptorHtml .= htmlspecialchars($clienteNombre) . "<br>"; // Mostramos el nombre del cliente
     if ($clienteNif)
-        $receptorHtml .= "NIF/CIF: " . htmlspecialchars($clienteNif) . "<br>";
+        $receptorHtml .= "NIF/CIF: " . htmlspecialchars($clienteNif) . "<br>"; // Mostramos el NIF del cliente
     if ($clienteDir)
-        $receptorHtml .= htmlspecialchars($clienteDir) . "<br>";
+        $receptorHtml .= htmlspecialchars($clienteDir) . "<br>"; // Mostramos la dirección del cliente
     $receptorHtml .= "</div>";
 }
 
 // C. Generación de las filas de productos (Tabla de líneas)
 $filasLineas = '';
-$sumaTotalesNumeric = 0;
+$sumaTotalesNumeric = 0; // PVP acumulado
+$desgloseIva = []; // Para el resumen final por cada %
 
 foreach ($lineas as $linea) {
-    // Calculamos los subtotales para recalcular impuestos si fuera necesario
-    $subtotalNumeric = $linea['precio'] * $linea['cantidad'];
-    $sumaTotalesNumeric += $subtotalNumeric;
+    $cantidad = (float) ($linea['cantidad'] ?? 1);
+    $precioBase = (float) ($linea['precio'] ?? 0);
+    $ivaPorc = (int) ($linea['iva'] ?? 21);
 
-    $subtotal = number_format($subtotalNumeric, 2, ',', '.');
-    $precioFmt = number_format($linea['precio'], 2, ',', '.');
+    // Cálculos por unidad
+    $cuotaIvaUnidad = $precioBase * ($ivaPorc / 100);
+    $precioPVP = $precioBase + $cuotaIvaUnidad;
+
+    // Cálculos totales de la línea
+    $subtotalBase = $precioBase * $cantidad;
+    $subtotalIva = $cuotaIvaUnidad * $cantidad;
+    $subtotalPVP = $precioPVP * $cantidad;
+
+    $sumaTotalesNumeric += $subtotalPVP;
+
+    // Acumular para el desglose fiscal final
+    if (!isset($desgloseIva[$ivaPorc])) {
+        $desgloseIva[$ivaPorc] = ['base' => 0, 'cuota' => 0];
+    }
+    $desgloseIva[$ivaPorc]['base'] += $subtotalBase;
+    $desgloseIva[$ivaPorc]['cuota'] += $subtotalIva;
+
+    // Formatear precios
+    $baseFmt = number_format($subtotalBase, 2, ',', '.');
+    $pvpFmt = number_format($subtotalPVP, 2, ',', '.');
+    $unitarioFmt = number_format($precioBase, 2, ',', '.');
 
     $filasLineas .= "
         <tr>
             <td>{$linea['nombre']}</td>
-            <td style='text-align:center;'>{$linea['cantidad']}</td>
-            <td style='text-align:right;'>{$precioFmt} €</td>
-            <td style='text-align:center;'>21%</td>
-            <td style='text-align:right;'>{$subtotal} €</td>
+            <td style='text-align:center;'>{$cantidad}</td>
+            <td style='text-align:right;'>{$unitarioFmt} €</td>
+            <td style='text-align:center;'>{$ivaPorc}%</td>
+            <td style='text-align:right;'>{$pvpFmt} €</td>
         </tr>";
 }
 
 // D. Desglose de impuestos (IVA) y Descuentos
-// Asumimos un IVA general del 21% incluido en el precio final
-$importeDescuento = 0;
-if ($descuentoTipo === 'porcentaje') {
-    $importeDescuento = $sumaTotalesNumeric * ($descuentoValor / 100);
-} else if ($descuentoTipo === 'fijo') {
-    $importeDescuento = $descuentoValor;
+$importeDescuentoTarifa = 0;
+$importeDescuentoManual = 0;
+$textoDescuentoTarifa = '';
+$textoDescuentoManual = '';
+
+// Calcular descuento de tarifa (Cliente registrado, Mayorista nivel 1, Mayorista nivel 2)
+// Solo si hay un cupón de tarifa específico
+if (
+    $descuentoTarifaCupon && $descuentoTarifaCupon !== '' &&
+    ($descuentoTarifaCupon === 'CLIENTE_REGISTRADO' || $descuentoTarifaCupon === 'MAYORISTA_NIVEL1' || $descuentoTarifaCupon === 'MAYORISTA_NIVEL2')
+) {
+    if ($descuentoTarifaTipo === 'porcentaje') {
+        $importeDescuentoTarifa = $sumaTotalesNumeric * ($descuentoTarifaValor / 100);
+        if ($descuentoTarifaCupon === 'CLIENTE_REGISTRADO') {
+            $textoDescuentoTarifa = "Cliente registrado ({$descuentoTarifaValor}%)";
+        } else if ($descuentoTarifaCupon === 'MAYORISTA_NIVEL1') {
+            $textoDescuentoTarifa = "Mayorista nivel 1 ({$descuentoTarifaValor}%)";
+        } else if ($descuentoTarifaCupon === 'MAYORISTA_NIVEL2') {
+            $textoDescuentoTarifa = "Mayorista nivel 2 ({$descuentoTarifaValor}%)";
+        }
+    }
 }
 
-$subtotalSinDescuento = $sumaTotalesNumeric;
-$totalFinalVenta = max(0, $subtotalSinDescuento - $importeDescuento);
+// Calcular descuento manual (código promocional o porcentaje manual)
+// Si el descuento manual tiene los mismos valores que el original, usarlo
+if ($descuentoManualCupon && $descuentoManualCupon !== '') {
+    if ($descuentoManualTipo === 'porcentaje') {
+        $importeDescuentoManual = $sumaTotalesNumeric * ($descuentoManualValor / 100);
+        $textoDescuentoManual = "{$descuentoManualValor}%";
+    } else if ($descuentoManualTipo === 'fijo') {
+        $importeDescuentoManual = $descuentoManualValor;
+        $textoDescuentoManual = "Cupón {$descuentoManualCupon}";
+    } else {
+        // También puede haber un cupón sin tipo definido
+        $textoDescuentoManual = "Cupón {$descuentoManualCupon}";
+    }
+}
 
-$baseImponible = $totalFinalVenta / 1.21;
-$cuotaIva = $totalFinalVenta - $baseImponible;
+// Descuento total
+$importeDescuentoPVP = $importeDescuentoTarifa + $importeDescuentoManual;
 
-$subtotalSinDescFmt = number_format($subtotalSinDescuento, 2, ',', '.');
-$descFmt = number_format($importeDescuento, 2, ',', '.');
-$baseImpFmt = number_format($baseImponible, 2, ',', '.');
-$cuotaIvaFmt = number_format($cuotaIva, 2, ',', '.');
+$subtotalPVP = $sumaTotalesNumeric;
+$totalFinalPVP = max(0, $subtotalPVP - $importeDescuentoPVP);
+$factorDescuento = $subtotalPVP > 0 ? ($totalFinalPVP / $subtotalPVP) : 1;
+
+$subtotalPVFmt = number_format($subtotalPVP, 2, ',', '.');
+$descFmt = number_format($importeDescuentoPVP, 2, ',', '.');
 
 // Bloque de pie de tabla con los sumatorios
-$totalesHtml = "<table style='width:100%; border: none; margin-top:10px;'>";
+$totalesHtml = "<table style='width:100%; border: none; margin-top:10px;' >";
 
-if ($importeDescuento > 0) {
-    $descEtiqueta = ($descuentoTipo === 'porcentaje') ? "Descuento ({$descuentoValor}%):" : "Descuento (Cupón {$descuentoCupon}):";
+if ($importeDescuentoPVP > 0) {
     $totalesHtml .= "
         <tr>
-            <td style='border: none;'><strong>Subtotal:</strong></td>
-            <td style='border: none; text-align:right'>{$subtotalSinDescFmt} €</td>
-        </tr>
-        <tr>
-            <td style='border: none; color: #16a34a;'><strong>{$descEtiqueta}</strong></td>
-            <td style='border: none; text-align:right; color: #16a34a;'>- {$descFmt} €</td>
+            <td style='border: none;'><strong>Subtotal (PVP):</strong></td>
+            <td style='border: none; text-align:right'>{$subtotalPVFmt} €</td>
         </tr>";
+
+    // Mostrar descuento de tarifa si existe
+    if ($importeDescuentoTarifa > 0.01 && $textoDescuentoTarifa) {
+        $descTarifaFmt = number_format($importeDescuentoTarifa, 2, ',', '.');
+        $totalesHtml .= "
+        <tr>
+            <td style='border: none; color: #16a34a;'><strong>Descuento ({$textoDescuentoTarifa}):</strong></td>
+            <td style='border: none; text-align:right; color: #16a34a;'>- {$descTarifaFmt} €</td>
+        </tr>";
+    }
+
+    // Mostrar descuento manual si existe
+    if ($importeDescuentoManual > 0.01 && $textoDescuentoManual) {
+        $descManualFmt = number_format($importeDescuentoManual, 2, ',', '.');
+        $totalesHtml .= "
+        <tr>
+            <td style='border: none; color: #16a34a;'><strong>Descuento ({$textoDescuentoManual}):</strong></td>
+            <td style='border: none; text-align:right; color: #16a34a;'>- {$descManualFmt} €</td>
+        </tr>";
+    }
 }
 
 $totalesHtml .= "
-    <tr>
-        <td style='border: none;'><strong>Base Imponible:</strong></td>
-        <td style='border: none; text-align:right'>{$baseImpFmt} €</td>
-    </tr>
-    <tr>
-        <td style='border: none;'><strong>Cuota IVA (21%):</strong></td>
-        <td style='border: none; text-align:right'>{$cuotaIvaFmt} €</td>
-    </tr>
-    <tr>
-        <td style='border: none; font-size: 1.1rem; padding-top:10px;'><strong>TOTAL (IVA INCLUIDO):</strong></td>
-        <td style='border: none; font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;'>{$total} €</td>
+    <tr style='border-top: 1px solid #eee;'>
+        <td colspan='2' style='border: none; padding-top:10px;'><strong>Desglose Fiscal:</strong></td>
+    </tr>";
+
+ksort($desgloseIva);
+foreach ($desgloseIva as $porc => $valores) {
+    $baseFinal = $valores['base'] * $factorDescuento;
+    $cuotaFinal = $valores['cuota'] * $factorDescuento;
+
+    $bf = number_format($baseFinal, 2, ',', '.');
+    $cf = number_format($cuotaFinal, 2, ',', '.');
+
+    $totalesHtml .= "
+        <tr style='font-size: 12px; color: #555;'>
+            <td style='border: none;'>Base al {$porc}%:</td>
+            <td style='border: none; text-align:right'>{$bf} €</td>
+        </tr>
+        <tr style='font-size: 12px; color: #555;'>
+            <td style='border: none;'>IVA ({$porc}%):</td>
+            <td style='border: none; text-align:right'>{$cf} €</td>
+        </tr>";
+}
+
+$totalFinalPVFmt = number_format($totalFinalPVP, 2, ',', '.');
+
+$totalesHtml .= "
+    <tr style='border-top: 1px solid #000;'>
+        <td style='border: none; font-size: 1.1rem; padding-top:10px;'><strong>TOTAL (PVP):</strong></td>
+        <td style='border: none; font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;'>{$totalFinalPVFmt} €</td>
     </tr>
 </table>";
 
@@ -242,7 +345,7 @@ $cuerpo = "
 
         <table class='tabla-lineas'>
             <thead>
-                <tr><th>Desc.</th><th style='text-align:center;'>Cant</th><th style='text-align:right;'>Precio</th><th style='text-align:center;'>IVA</th><th style='text-align:right;'>Subt.</th></tr>
+                <tr><th>Desc.</th><th style='text-align:center;'>Cant</th><th style='text-align:right;'>Base</th><th style='text-align:center;'>IVA</th><th style='text-align:right;'>PVP</th></tr>
             </thead>
             <tbody>{$filasLineas}</tbody>
         </table>

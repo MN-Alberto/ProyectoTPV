@@ -1,17 +1,49 @@
+<!-- ============================================================================
+     vCajero.php - Vista principal del Terminal Punto de Venta (TPV)
+     ============================================================================
+     Este archivo define la interfaz completa del cajero del TPV. Incluye:
+       - Panel izquierdo: buscador de productos, categorías, botones de acción
+         (Hacer Caja, Abrir Caja, Devolución, Retirar Dinero) y grid de productos
+       - Panel derecho: ticket/carrito con líneas de venta, totales, método de pago
+         y botones de cobro/descuento/vaciar
+       - Modales: Cambio en efectivo, Tipo de documento, Descuento, Datos del cliente,
+         Venta exitosa, Abrir Caja, Devolución, Retiro de dinero, Cierre de caja, Errores
+       - Scripts JS: lógica del carrito, descuentos, cobro, impresión, envío por correo,
+         devoluciones y utilidades
+     
+     Variables PHP disponibles (inyectadas desde el controlador cCajero.php):
+       - $categorias: array de objetos Categoria para los filtros
+       - $productos: array de objetos Producto para mostrar en el grid
+       - $sesionCaja: objeto Caja con la sesión activa (o null si la caja está cerrada)
+       - $_SESSION: variables de sesión para modales de éxito/error/cierre de caja
+     ============================================================================ -->
+
+<!-- ##=========================== SECCIÓN PRINCIPAL DEL CAJERO ===========================## -->
+<!-- Contenedor principal dividido en dos paneles: productos (izquierda) y ticket (derecha) -->
 <section id="cajero">
-    <!-- Panel izquierdo: Categorías y productos -->
+
+    <!-- ======================== PANEL IZQUIERDO: CATEGORÍAS Y PRODUCTOS ======================== -->
+    <!-- Contiene el buscador, filtros de categoría, botones de acción y el grid de productos -->
     <div class="cajero-productos">
+
+        <!-- ==================== BUSCADOR DE PRODUCTOS ==================== -->
+        <!-- Input de búsqueda que filtra productos en tiempo real mediante la función buscarProductos() -->
         <div id="formBuscarProducto" style="align-items: center;">
-            <label for="inputBuscarProducto"
-                style="font-weight: 600; color: #1a1a2e; white-space: nowrap;">Buscar:</label>
+            <label for="inputBuscarProducto" style="font-weight: 600; white-space: nowrap;">Buscar:</label>
             <input type="text" id="inputBuscarProducto" class="input-buscarProducto"
                 placeholder="Escribe el nombre del producto a buscar..." oninput="buscarProductos()" autocomplete="off"
                 style="width: 100%;" />
         </div>
+
+        <!-- ==================== FILTROS DE CATEGORÍA ==================== -->
+        <!-- Botones generados dinámicamente desde PHP para filtrar productos por categoría -->
+        <!-- El botón "Todos" (data-categoria="") muestra todos los productos sin filtro -->
         <div class="cajero-categorias">
+            <!-- Botón "Todos": muestra todos los productos, activo por defecto -->
             <button class="cat-btn activa" data-categoria="" onclick="seleccionarCategoria(this, null)">
                 Todos
             </button>
+            <!-- Bucle PHP: genera un botón por cada categoría existente en la base de datos -->
             <?php foreach ($categorias as $cat): ?>
                 <button class="cat-btn" data-categoria="<?php echo $cat->getId(); ?>"
                     onclick="seleccionarCategoria(this, <?php echo $cat->getId(); ?>)">
@@ -19,15 +51,20 @@
                 </button>
             <?php endforeach; ?>
         </div>
-        <div class="cajero-opciones-extra"
-            style="padding: 15px 20px; background: #fff; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
-            
+
+        <!-- ==================== BARRA DE OPCIONES EXTRA ==================== -->
+        <!-- Contiene los botones de acción principales y el indicador de efectivo en caja -->
+        <div class="cajero-opciones-extra">
+
             <div style="display: flex; gap: 10px; align-items: center;">
+
+                <!-- Botón HACER CAJA: envía formulario POST para previsualizar el cierre de caja -->
+                <!-- Se deshabilita si no hay sesión de caja activa ($sesionCaja es null) -->
                 <form method="POST" action="index.php" style="margin: 0;">
                     <input type="hidden" name="accion" value="previsualizarCaja">
-                    <button type="submit" class="btn-hacerCaja" id="btnHacerCaja"
-                        <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                    <button type="submit" class="btn-hacerCaja" id="btnHacerCaja" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
                         style="<?php echo !$sesionCaja ? 'opacity: 0.3; background: red; cursor: not-allowed;' : ''; ?>">
+                        <!-- Icono SVG de símbolo de dólar/moneda -->
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -37,10 +74,12 @@
                     </button>
                 </form>
 
-                <button type="button" class="btn-abrirCaja" id="btnAbrirCaja" onclick="mostrarModalAbrirCaja()" 
-                    <?php echo $sesionCaja ? 'disabled' : ''; ?>
+                <!-- Botón ABRIR CAJA: abre el modal para introducir el fondo de caja inicial -->
+                <!-- Se deshabilita si ya hay una sesión de caja activa -->
+                <button type="button" class="btn-abrirCaja" id="btnAbrirCaja" onclick="mostrarModalAbrirCaja()" <?php echo $sesionCaja ? 'disabled' : ''; ?>
                     style="<?php echo $sesionCaja ? 'opacity: 0.3; background: red; cursor: not-allowed;' : ''; ?>">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
+                    <!-- Icono SVG de candado abierto -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                         <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
@@ -48,10 +87,12 @@
                     Abrir Caja
                 </button>
 
-                <button type="button" class="btn-devolucion" id="btnDevolucion" onclick="mostrarModalDevolucion()"
-                    <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                <!-- Botón DEVOLUCIÓN: abre el modal para tramitar una devolución de producto -->
+                <!-- Se deshabilita si no hay sesión de caja activa -->
+                <button type="button" class="btn-devolucion" id="btnDevolucion" onclick="mostrarModalDevolucion()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
                     style="<?php echo !$sesionCaja ? 'opacity: 0.3; background: #991b1b; cursor: not-allowed;' : ''; ?>">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
+                    <!-- Icono SVG de flecha de retorno (devolución) -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M1 4v6h6"></path>
                         <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
@@ -59,10 +100,12 @@
                     Devolución
                 </button>
 
-                <button type="button" class="btn-retiro" id="btnRetiro" onclick="mostrarModalRetiro()"
-                    <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                <!-- Botón RETIRAR DINERO: abre el modal para retirar efectivo de la caja -->
+                <!-- Se deshabilita si no hay sesión de caja activa -->
+                <button type="button" class="btn-retiro" id="btnRetiro" onclick="mostrarModalRetiro()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
                     style="<?php echo !$sesionCaja ? 'opacity: 0.3; background: #ea580c; cursor: not-allowed;' : ''; ?>">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
+                    <!-- Icono SVG de billete/dinero -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect width="20" height="12" x="2" y="6" rx="2"></rect>
                         <circle cx="12" cy="12" r="2"></circle>
@@ -70,42 +113,101 @@
                     </svg>
                     Retirar Dinero
                 </button>
+
+                <!-- Botón HISTORIAL DE VENTAS: abre el modal con el historial de ventas de la sesión actual -->
+                <button type="button" class="btn-historial" id="btnHistorial" onclick="mostrarHistorialVentas()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                    style="<?php echo !$sesionCaja ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 8v4l3 3"></path>
+                        <circle cx="12" cy="12" r="10"></circle>
+                    </svg>
+                    Historial Ventas
+                </button>
+
+                <!-- Botón NUEVO PRODUCTO: abre el modal para crear un nuevo producto (requiere permiso: crear_productos) -->
+                <button type="button" class="btn-nuevo-producto" id="btnNuevoProducto"
+                    onclick="abrirModalNuevoProducto()" style="display:none;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Nuevo Producto
+                </button>
+
+                <!-- Botón CLIENTE HABITUAL: abre el modal para gestionar clientes habituales -->
+                <button type="button" class="btn-nuevo-producto" id="btnClienteHabitual"
+                    onclick="abrirModalClienteHabitual()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <line x1="19" y1="8" x2="19" y2="14"></line>
+                        <line x1="22" y1="11" x2="16" y2="11"></line>
+                    </svg>
+                    Nuevo Cliente
+                </button>
             </div>
 
+            <!-- INDICADOR DE EFECTIVO EN CAJA -->
+            <!-- Muestra el importe actual en caja si hay sesión activa, o "Caja Cerrada" si no -->
             <?php if ($sesionCaja): ?>
-            <div class="indicador-efectivo" title="Efectivo actual en caja">
-                <span class="label">Efectivo en caja:</span>
-                <span class="amount"><?php echo number_format($sesionCaja->getImporteActual(), 2, ',', '.'); ?> €</span>
-            </div>
+                <div class="indicador-efectivo" title="Efectivo actual en caja">
+                    <span class="label">Efectivo en caja:</span>
+                    <span class="amount"><?php echo number_format($sesionCaja->getImporteActual(), 2, ',', '.'); ?> €</span>
+                </div>
             <?php else: ?>
-            <div class="indicador-efectivo caja-cerrada">
-                <span class="label">Caja Cerrada</span>
-            </div>
+                <div class="indicador-efectivo caja-cerrada">
+                    <span class="label">Caja Cerrada</span>
+                </div>
             <?php endif; ?>
         </div>
 
+        <!-- ==================== GRID DE PRODUCTOS ==================== -->
+        <!-- Muestra las tarjetas de producto en formato grid -->
+        <!-- Cada tarjeta contiene: nombre, imagen, precio y stock -->
+        <!-- Al hacer clic en una tarjeta se ejecuta agregarAlCarrito(this) -->
         <div class="productos-grid" id="productosGrid">
             <?php if (empty($productos)): ?>
+                <!-- Mensaje cuando no hay productos disponibles -->
                 <p class="sin-productos">No hay productos disponibles.</p>
             <?php else: ?>
+                <!-- Bucle PHP: genera una tarjeta por cada producto -->
                 <?php foreach ($productos as $prod): ?>
+                    <!-- Tarjeta de producto con atributos data-* para el carrito JS -->
+                    <!-- data-id: ID del producto -->
+                    <!-- data-nombre: nombre del producto (escapado con htmlspecialchars) -->
+                    <!-- data-precio: precio unitario -->
+                    <!-- data-stock: stock disponible -->
+                    <!-- Si el stock es 0, la tarjeta se muestra con opacidad reducida y sin interacción -->
                     <div class="producto-card" data-id="<?php echo $prod->getId(); ?>"
                         data-nombre="<?php echo htmlspecialchars($prod->getNombre()); ?>"
-                        data-precio="<?php echo $prod->getPrecio(); ?>" data-stock="<?php echo $prod->getStock(); ?>"
-                        onclick="agregarAlCarrito(this)" style="<?php if ($prod->getStock() <= 0) {
-                            echo 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);';
-                        } ?>">
+                        data-precio="<?php echo $prod->getPrecio(); ?>" data-iva="<?php echo $prod->getIva(); ?>"
+                        data-stock="<?php echo $prod->getStock(); ?>" onclick="agregarAlCarrito(this)" style="<?php if ($prod->getStock() <= 0) {
+                               echo 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);';
+                           } ?>">
+
+                        <!-- Nombre del producto -->
                         <div class="producto-nombre">
                             <?php echo htmlspecialchars($prod->getNombre()); ?>
                         </div>
+
+                        <!-- Imagen del producto (usa logo.PNG como fallback si no tiene imagen) -->
                         <div class="producto-imagen">
                             <?php
                             $imgSrc = !empty($prod->getImagen()) ? $prod->getImagen() : 'webroot/img/logo.PNG';
                             echo '<img src="' . htmlspecialchars($imgSrc) . '" alt="' . htmlspecialchars($prod->getNombre()) . '">';
                             ?>
                         </div>
+
+                        <!-- Precio y stock del producto -->
+                        <!-- El stock se muestra en rojo y subrayado si es 0 o menor -->
                         <div class="producto-info-inferior">
-                            <span class="producto-precio"><?php echo number_format($prod->getPrecio(), 2, ',', '.'); ?> €</span>
+                            <?php
+                            $precioPVP = $prod->getPrecio() * (1 + ($prod->getIva() / 100));
+                            ?>
+                            <span class="producto-precio"><?php echo number_format($precioPVP, 2, ',', '.'); ?> €</span>
                             <span class="producto-stock" <?php if ($prod->getStock() <= 0) {
                                 echo 'style="color: red; text-decoration: underline;"';
                             } ?>>Stock: <?php echo $prod->getStock(); ?></span>
@@ -116,98 +218,176 @@
         </div>
     </div>
 
-    <!-- Panel derecho: Ticket / Carrito -->
+    <!-- ======================== PANEL DERECHO: TICKET / CARRITO ======================== -->
+    <!-- Muestra los productos añadidos al carrito, el total, método de pago y acciones -->
     <div class="cajero-ticket">
+
+        <!-- Cabecera del ticket: título y reloj en tiempo real -->
         <div class="ticket-header">
             <h3>Productos añadidos</h3>
+            <!-- Reloj que se actualiza cada segundo mostrando fecha y hora actual -->
             <span class="ticket-fecha">
                 <script>
+                    /*
+                        * actualizarFechaHora()
+                        * Actualiza el elemento.ticket - fecha con la fecha y hora actual
+                            * en formato DD / MM / AAAA HH: MM: SS.Se ejecuta cada segundo.
+                     */
                     function actualizarFechaHora() {
                         const ahora = new Date();
 
+                        // Formatear día, mes y año con padding de ceros
                         const dia = String(ahora.getDate()).padStart(2, '0');
                         const mes = String(ahora.getMonth() + 1).padStart(2, '0');
                         const anio = ahora.getFullYear();
 
+                        // Formatear horas, minutos y segundos con padding de ceros
                         const horas = String(ahora.getHours()).padStart(2, '0');
                         const minutos = String(ahora.getMinutes()).padStart(2, '0');
                         const segundos = String(ahora.getSeconds()).padStart(2, '0');
 
+                        // Componer la cadena de fecha y hora
                         const fechaHora = `${dia}/${mes}/${anio} ${horas}:${minutos}:${segundos}`;
 
+                        // Inyectar en el DOM
                         document.querySelector('.ticket-fecha').textContent = fechaHora;
                     }
 
+                    // Ejecutar inmediatamente y luego cada 1000ms (1 segundo)
                     actualizarFechaHora();
                     setInterval(actualizarFechaHora, 1000);
                 </script>
             </span>
         </div>
 
+        <!-- Contenedor de las líneas del ticket (se rellena dinámicamente con JS) -->
         <div class="ticket-lineas" id="ticketLineas">
             <p class="ticket-vacio">Añade productos para realizar la venta</p>
         </div>
 
+        <!-- Contenedor para el desglose de subtotal y descuento (se rellena con JS) -->
         <div id="ticketDesglose"></div>
+
+        <!-- Total del ticket -->
         <div class="ticket-total">
             <span>TOTAL:</span>
             <span id="ticketTotal">0,00 €</span>
         </div>
 
+        <!-- ==================== ACCIONES DEL TICKET ==================== -->
+        <!-- Selector de método de pago, aviso de límite de efectivo y botones de acción -->
         <div class="ticket-acciones">
-            <select id="metodoPago">
-                <option value="efectivo">Efectivo</option>
-                <option value="tarjeta">Tarjeta</option>
-                <option value="bizum">Bizum</option>
-            </select>
-            <div id="avisoLimiteEfectivo" style="display: none; color: #dc2626; font-size: 0.75rem; margin-top: 5px; font-weight: 600;">
-                ⚠️ No se permite pago en efectivo > 1.000€
+            <!-- Fila 1: Botones de descuento, vaciar, posponer y recuperar -->
+            <div class="ticket-acciones-fila">
+                <!-- Botón DESCUENTO: abre el modal para aplicar descuento porcentual o por cupón -->
+                <button class="btn-descuento" id="btnDescuento" onclick="aplicarDescuento()" disabled
+                    title="Aplicar descuento">
+                    🏷️
+                </button>
+
+                <!-- Botón VACIAR: elimina todos los productos del carrito -->
+                <button class="btn-cancelar" onclick="vaciarCarrito()" title="Vaciar carrito">
+                    🗑️
+                </button>
+
+                <!-- Botón POSPONER: guarda la venta sin terminar para recuperarla después -->
+                <button class="btn-descuento" id="btnPosponer" onclick="posponerVenta()" disabled
+                    style="background: #8b5cf6;" title="Posponer venta">
+                    ⏳
+                </button>
+
+                <!-- Botón RECUPERAR: recupera la última venta pospuesta -->
+                <button class="btn-descuento" id="btnRecuperar" onclick="recuperarVenta()" style="background: #f59e0b;"
+                    title="Recuperar venta">
+                    🔄
+                </button>
             </div>
-            <button class="btn-cobrar" id="btnCobrar" onclick="intentarCobrar()" disabled>
-                Cobrar
-            </button>
-            <button class="btn-descuento" id="btnDescuento" onclick="aplicarDescuento()" disabled>
-                Descuento
-            </button>
-            <button class="btn-cancelar" onclick="vaciarCarrito()">
-                Vaciar
-            </button>
+
+            <!-- Fila 2: Método de pago y botón cobrar -->
+            <div class="ticket-acciones-fila">
+                <!-- Selector de método de pago: Efectivo, Tarjeta o Bizum -->
+                <select id="metodoPago">
+                    <option value="efectivo">Efectivo</option>
+                    <option value="tarjeta">Tarjeta</option>
+                    <option value="bizum">Bizum</option>
+                </select>
+
+                <!-- Selector de tarifa: Cliente, Cliente registrado, Mayorista nivel 1, Mayorista nivel 2 -->
+                <select id="tarifaVenta">
+                    <option value="cliente">Cliente</option>
+                    <option value="registrado">Cliente registrado</option>
+                    <option value="mayorista1">Mayorista nivel 1</option>
+                    <option value="mayorista2">Mayorista nivel 2</option>
+                </select>
+
+                <!-- Aviso legal: no se permite pago en efectivo superior a 1.000€ -->
+                <div id="avisoLimiteEfectivo"
+                    style="display: none; color: #dc2626; font-size: 0.75rem; margin-top: 5px; font-weight: 600;">
+                    ⚠️ No se permite pago en efectivo > 1.000€
+                </div>
+
+                <!-- Botón COBRAR: inicia el proceso de cobro (modal de cambio o tipo de documento) -->
+                <button class="btn-cobrar" id="btnCobrar" onclick="intentarCobrar()" disabled>
+                    Cobrar
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Formulario oculto para enviar la venta -->
+    <!-- ==================== FORMULARIO OCULTO PARA ENVIAR LA VENTA ==================== -->
+    <!-- Este formulario se rellena con JavaScript y se envía por POST al confirmar la venta -->
+    <!-- Contiene todos los datos necesarios: carrito, método de pago, tipo de documento,
+         dinero entregado/cambio, datos del cliente y descuento aplicado -->
     <form id="formVenta" method="POST" action="index.php" style="display:none;">
         <input type="hidden" name="accion" value="registrarVenta">
+        <!-- Carrito serializado como JSON -->
         <input type="hidden" name="carrito" id="inputCarrito">
+        <!-- Método de pago seleccionado (efectivo/tarjeta/bizum) -->
         <input type="hidden" name="metodoPago" id="inputMetodoPago">
+        <!-- Tipo de documento (ticket/factura) -->
         <input type="hidden" name="tipoDocumento" id="inputTipoDocumento">
+        <!-- Dinero entregado por el cliente (en pago efectivo) -->
         <input type="hidden" name="dineroEntregado" id="inputDineroEntregadoFinal">
+        <!-- Cambio devuelto al cliente -->
         <input type="hidden" name="cambioDevuelto" id="inputCambioDevueltoFinal">
-        <!-- Campos de cliente (Nuevos) -->
+        <!-- Campos de datos del cliente -->
         <input type="hidden" name="clienteNif" id="inputClienteNifFinal">
         <input type="hidden" name="clienteNombre" id="inputClienteNombreFinal">
         <input type="hidden" name="clienteDireccion" id="inputClienteDireccionFinal">
         <input type="hidden" name="observaciones" id="inputObservacionesFinal">
-        <!-- Campos de descuento -->
+        <!-- Campos de descuento aplicado -->
         <input type="hidden" name="descuentoTipo" id="inputDescuentoTipo">
         <input type="hidden" name="descuentoValor" id="inputDescuentoValor">
         <input type="hidden" name="descuentoCupon" id="inputDescuentoCupon">
+        <input type="hidden" name="descuentoTarifaCupon" id="inputDescuentoTarifaCupon">
+        <input type="hidden" name="descuentoTarifaValor" id="inputDescuentoTarifaValor">
+        <input type="hidden" name="descuentoTarifaTipo" id="inputDescuentoTarifaTipo">
+        <input type="hidden" name="descuentoManualCupon" id="inputDescuentoManualCupon">
+        <input type="hidden" name="descuentoManualValor" id="inputDescuentoManualValor">
+        <input type="hidden" name="descuentoManualTipo" id="inputDescuentoManualTipo">
     </form>
 </section>
 
-<!-- ==================== MODAL: CALCULAR CAMBIO (EFECTIVO) ==================== -->
+<!-- ##=========================== MODAL: CALCULAR CAMBIO (EFECTIVO) ===========================## -->
+<!-- Modal que aparece cuando el método de pago es "efectivo" -->
+<!-- Permite al cajero introducir la cantidad entregada por el cliente y calcula el cambio -->
 <div class="modal-overlay" id="modalCambio" style="display:none;">
     <div class="modal-content modal-cambio" style="max-width: 400px;">
         <h3>Pago en Efectivo</h3>
         <p class="modal-subtitulo">Introduce la cantidad entregada por el cliente</p>
 
-        <div class="calculo-cambio-container"
-            style="text-align: left; background: #f9fafb; padding: 20px; border-radius: 8px; margin: 15px 0;">
+        <!-- Contenedor del cálculo de cambio -->
+        <div class="calculo-cambio-container">
+
+            <!-- Fila 1: Total a pagar (se rellena con JS) -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <span style="font-size: 1.1rem; color: #4b5563;">Total a pagar:</span>
-                <span id="cambioTotalPagar" style="font-size: 1.4rem; font-weight: bold; color: #1f2937;">0,00 €</span>
+                <span id="cambioTotalPagar" class="cambio-total-monto">0,00 €</span>
             </div>
 
+            <!-- Fila 2: Input para la cantidad entregada por el cliente -->
+            <!-- oninput: recalcula el cambio en tiempo real -->
+            <!-- onkeypress Enter: confirma el cambio directamente -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <label for="inputDineroEntregado" style="font-size: 1.1rem; color: #4b5563;">Entregado:</label>
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -218,17 +398,20 @@
                 </div>
             </div>
 
+            <!-- Fila 3: Cambio a devolver (calculado automáticamente) -->
             <div
                 style="display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #e5e7eb; padding-top: 15px;">
                 <span style="font-size: 1.1rem; font-weight: bold; color: #4b5563;">Cambio a devolver:</span>
                 <span id="cambioDevolver" style="font-size: 1.8rem; font-weight: bold; color: #22c55e;">0,00 €</span>
             </div>
 
+            <!-- Mensaje de error: se muestra si la cantidad entregada es insuficiente -->
             <p id="cambioError"
                 style="color: #ef4444; font-size: 0.9rem; margin-top: 15px; text-align: center; display: none;">La
                 cantidad entregada es insuficiente para realizar el cobro.</p>
         </div>
 
+        <!-- Botones: Cancelar (cierra el modal) y Continuar (valida y avanza al tipo de documento) -->
         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
             <button class="btn-modal-cancelar" onclick="cerrarModal('modalCambio')" style="flex: 1;">Cancelar</button>
             <button class="btn-exito" onclick="confirmarCambio()"
@@ -237,13 +420,18 @@
     </div>
 </div>
 
-<!-- ==================== MODAL: TIPO DE DOCUMENTO ==================== -->
+<!-- ##=========================== MODAL: TIPO DE DOCUMENTO ===========================## -->
+<!-- Modal que permite al usuario elegir entre Ticket (simplificado) o Factura (completa) -->
+<!-- Aparece después del modal de cambio (efectivo) o directamente (tarjeta/bizum) -->
 <div class="modal-overlay" id="modalTipoDoc" style="display:none;">
     <div class="modal-content modal-tipodoc">
         <h3>¿Cómo desea el comprobante?</h3>
         <p class="modal-subtitulo">Seleccione el tipo de documento para esta venta</p>
         <div class="modal-opciones-doc">
+
+            <!-- Opción TICKET: comprobante simplificado (datos del cliente opcionales) -->
             <button class="opcion-doc" onclick="seleccionarDatosCliente('ticket')">
+                <!-- Icono SVG de libro/ticket -->
                 <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
@@ -252,7 +440,10 @@
                 <span class="opcion-titulo">Ticket</span>
                 <span class="opcion-desc">Comprobante de venta simplificado</span>
             </button>
+
+            <!-- Opción FACTURA: documento fiscal completo (datos del cliente obligatorios) -->
             <button class="opcion-doc" onclick="seleccionarDatosCliente('factura')">
+                <!-- Icono SVG de documento/factura -->
                 <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -269,11 +460,15 @@
     </div>
 </div>
 
-<!-- ==================== MODAL: DESCUENTO ==================== -->
+<!-- ##=========================== MODAL: DESCUENTO ===========================## -->
+<!-- Modal para aplicar un descuento a la venta actual -->
+<!-- Permite dos opciones: porcentaje manual (0-100%) o código de cupón promocional -->
 <div class="modal-overlay" id="modalDescuento" style="display:none;">
     <div class="modal-content modal-premium" style="max-width: 420px;">
+        <!-- Cabecera del modal con icono de descuento -->
         <div class="modal-header-premium">
             <div class="icon-container-discount">
+                <!-- Icono SVG de tijeras/descuento -->
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="19" y1="5" x2="5" y2="19"></line>
@@ -286,6 +481,7 @@
         </div>
 
         <div class="modal-body-premium">
+            <!-- Opción 1: Descuento por porcentaje (0% a 100%) -->
             <div class="form-group-premium">
                 <label for="inputPorcentajeDescuento">Porcentaje de Descuento</label>
                 <div class="input-with-icon">
@@ -295,8 +491,11 @@
                 <span class="input-hint">Rango permitido: 0% a 100%</span>
             </div>
 
+            <!-- Separador visual entre las dos opciones -->
             <div class="divider-text">o bien</div>
 
+            <!-- Opción 2: Descuento por código de cupón -->
+            <!-- Cupones válidos: PROMO10 (10%), BIENVENIDA5 (5%), FIJO5 (5€ fijo) -->
             <div class="form-group-premium">
                 <label for="inputCuponDescuento">Código de Cupón</label>
                 <div class="input-cupon">
@@ -306,6 +505,7 @@
             </div>
         </div>
 
+        <!-- Botones: Cancelar y Aplicar Descuento -->
         <div class="modal-footer-premium">
             <button class="btn-cancel-flat" onclick="cerrarModal('modalDescuento')">Cancelar</button>
             <button class="btn-apply-premium" onclick="procesarDescuento()">Aplicar Descuento</button>
@@ -313,14 +513,19 @@
     </div>
 </div>
 
-<!-- ==================== MODAL: DATOS DEL CLIENTE ==================== -->
+<!-- ##=========================== MODAL: DATOS DEL CLIENTE ===========================## -->
+<!-- Modal para introducir los datos del cliente antes de finalizar la venta -->
+<!-- En modo Ticket: los campos son opcionales -->
+<!-- En modo Factura: NIF, Nombre y Dirección son obligatorios (marcados con *) -->
 <div class="modal-overlay" id="modalDatosCliente" style="display:none;">
     <div class="modal-content" style="max-width: 500px; text-align: left;">
-        <h3 id="tituloDatosCliente" style="margin-bottom: 5px; color: #1a1a2e;">Datos del Cliente</h3>
-        <p id="subtituloDatosCliente" style="color: #6b7280; font-size: 0.9rem; margin-bottom: 20px;">Complete los datos
-            (Opcional en Ticket)</p>
+        <!-- Título dinámico que cambia según sea Ticket o Factura -->
+        <h3 id="tituloDatosCliente" style="margin-bottom: 5px;">Datos del Cliente</h3>
+        <p id="subtituloDatosCliente" class="modal-subtitulo-cliente">Complete los datos (Opcional en Ticket)</p>
 
         <div style="display: grid; gap: 15px;">
+            <!-- Campo NIF/CIF del cliente -->
+            <!-- El asterisco rojo (*) se muestra solo en modo Factura -->
             <div>
                 <label for="clienteNif"
                     style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">NIF/CIF <span
@@ -329,6 +534,8 @@
                     style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
                     placeholder="B12345678">
             </div>
+
+            <!-- Campo Razón Social / Nombre del cliente -->
             <div>
                 <label for="clienteNombre"
                     style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Razón Social /
@@ -337,6 +544,8 @@
                     style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
                     placeholder="Nombre de la empresa o persona">
             </div>
+
+            <!-- Campo Domicilio Fiscal (solo visible en modo Factura) -->
             <div id="divDireccionCliente" style="display: none;">
                 <label for="clienteDireccion"
                     style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Domicilio Fiscal
@@ -345,6 +554,8 @@
                     style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
                     placeholder="Calle, Número, C.P, Ciudad">
             </div>
+
+            <!-- Campo Observaciones (solo visible en modo Factura, siempre opcional) -->
             <div id="divObservacionesCliente" style="display: none;">
                 <label for="clienteObservaciones"
                     style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Observaciones
@@ -354,9 +565,12 @@
                     placeholder="Opcional">
             </div>
         </div>
+
+        <!-- Mensaje de error: se muestra si faltan campos obligatorios en modo Factura -->
         <p id="errorDatosCliente" style="color: #ef4444; font-size: 0.9rem; margin-top: 15px; display: none;">Por favor,
             rellene todos los campos obligatorios (*).</p>
 
+        <!-- Botones: Atrás (vuelve al modal anterior) y Finalizar Venta (valida y envía) -->
         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
             <button class="btn-modal-cancelar" onclick="cerrarModal('modalDatosCliente')">Atrás</button>
             <button class="btn-exito" id="btnConfirmarDatos" onclick="validarYConfirmarVenta()"
@@ -365,23 +579,116 @@
     </div>
 </div>
 
-<!-- ==================== MODAL: VENTA EXITOSA ==================== -->
+<!-- ##=========================== MODAL: CLIENTE HABITUAL ===========================## -->
+<!-- Modal para añadir un cliente habitual (DNI, nombre, apellidos, fecha alta, compras) -->
+<div class="modal-overlay" id="modalClienteHabitual" style="display:none;">
+    <div class="modal-content" style="max-width: 500px; text-align: left;">
+        <h3 style="margin-bottom: 5px;">Nuevo Cliente Habitual</h3>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;">Complete los datos del cliente</p>
+
+        <div style="display: grid; gap: 15px;">
+            <!-- Campo DNI -->
+            <div>
+                <label for="clienteHabitualDni"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">DNI <span
+                        style="color: #ef4444;">*</span></label>
+                <input type="text" id="clienteHabitualDni"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="12345678A" maxlength="20">
+            </div>
+
+            <!-- Campo Nombre -->
+            <div>
+                <label for="clienteHabitualNombre"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Nombre <span
+                        style="color: #ef4444;">*</span></label>
+                <input type="text" id="clienteHabitualNombre"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="Juan" maxlength="100">
+            </div>
+
+            <!-- Campo Apellidos -->
+            <div>
+                <label for="clienteHabitualApellidos"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Apellidos <span
+                        style="color: #ef4444;">*</span></label>
+                <input type="text" id="clienteHabitualApellidos"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="García López" maxlength="150">
+            </div>
+
+            <!-- Campo Fecha de Alta -->
+            <div>
+                <label for="clienteHabitualFecha"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Fecha de
+                    Alta</label>
+                <input type="datetime-local" id="clienteHabitualFecha"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" disabled>
+            </div>
+        </div>
+
+        <!-- Botones: Cancelar y Guardar -->
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalClienteHabitual')">Cancelar</button>
+            <button class="btn-exito" id="btnGuardarClienteHabitual" style="margin: 0;">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: BUSCAR CLIENTE REGISTRADO ===========================## -->
+<!-- Modal para buscar un cliente registrado por DNI y aplicar descuento del 2% -->
+<div class="modal-overlay" id="modalBuscarClienteRegistrado" style="display:none;">
+    <div class="modal-content" style="max-width: 400px; text-align: left;">
+        <h3 style="margin-bottom: 5px;">Cliente Registrado</h3>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;">Introduce el DNI del cliente</p>
+
+        <div>
+            <label for="dniBusquedaCliente"
+                style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">DNI <span
+                    style="color: #ef4444;">*</span></label>
+            <input type="text" id="dniBusquedaCliente"
+                style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                placeholder="12345678A" maxlength="20" onkeypress="if(event.key==='Enter') buscarClienteRegistrado()">
+        </div>
+
+        <div id="mensajeResultadoBusqueda" style="margin-top: 15px; padding: 10px; border-radius: 6px; display: none;">
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalBuscarClienteRegistrado')" style="flex: 1;">
+                Cancelar
+            </button>
+            <button class="btn-exito" onclick="buscarClienteRegistrado()" style="flex: 1;">
+                Buscar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: VENTA EXITOSA ===========================## -->
+<!-- Se muestra automáticamente cuando $_SESSION['ventaExito'] es true -->
+<!-- Contiene: resumen de la venta, botones para imprimir y enviar por correo -->
 <?php if (isset($_SESSION['ventaExito']) && $_SESSION['ventaExito']): ?>
     <div class="modal-overlay" id="ventaExito">
         <div class="modal-content modal-exito">
+            <!-- Icono de check/éxito animado -->
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icono-exito">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
             <h3>¡Venta registrada!</h3>
+
+            <!-- Detalle de la venta: tipo de documento, número y total -->
             <p class="exito-detalle">
                 <?php echo ($_SESSION['ultimaVentaTipo'] === 'factura') ? 'Factura' : 'Ticket'; ?>
                 #<?php echo $_SESSION['ultimaVentaId']; ?> — Total:
                 <?php echo number_format($_SESSION['ultimaVentaTotal'], 2, ',', '.'); ?> €
             </p>
 
+            <!-- Botones de acción post-venta -->
             <div class="exito-acciones">
+                <!-- Botón IMPRIMIR: genera el documento en una ventana de impresión -->
                 <button class="btn-exito btn-imprimir" onclick="imprimirDocumento()">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -392,6 +699,8 @@
                     </svg>
                     Imprimir
                 </button>
+
+                <!-- Botón ENVIAR POR CORREO: muestra el formulario de email -->
                 <button class="btn-exito btn-email" onclick="mostrarFormEmail()">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -403,41 +712,52 @@
                 </button>
             </div>
 
+            <!-- Formulario de envío por email (oculto por defecto, se muestra al pulsar "Enviar por correo") -->
             <div class="form-email" id="formEmail" style="display:none;">
                 <label for="inputEmail">Correo electrónico:</label>
                 <div class="email-input-group">
                     <input type="email" id="inputEmail" placeholder="cliente@ejemplo.com" />
                     <button class="btn-enviar-email" onclick="enviarPorCorreo()">Enviar</button>
                 </div>
+                <!-- Estado del envío: enviando, éxito o error -->
                 <p class="email-status" id="emailStatus"></p>
             </div>
 
+            <!-- Botón para cerrar el modal de éxito -->
             <button class="btn-cerrar-exito" onclick="cerrarExito()">Aceptar</button>
         </div>
     </div>
 
-    <!-- Datos de la última venta para JS -->
+    <!-- Script: datos de la última venta pasados de PHP a JavaScript -->
+    <!-- Se usa para las funciones de impresión y envío por correo -->
     <script>
         const ultimaVenta = {
-            id: <?php echo $_SESSION['ultimaVentaId']; ?>,
-            total: '<?php echo number_format($_SESSION['ultimaVentaTotal'], 2, ',', '.'); ?>',
-            tipo: '<?php echo $_SESSION['ultimaVentaTipo']; ?>',
-            carrito: <?php echo $_SESSION['ultimaVentaCarrito']; ?>,
-            metodoPago: '<?php echo $_SESSION['ultimaVentaMetodoPago']; ?>',
-            fecha: '<?php echo $_SESSION['ultimaVentaFecha']; ?>',
-            entregado: '<?php echo number_format($_SESSION['ultimaVentaEntregado'] ?? $_SESSION['ultimaVentaTotal'], 2, ',', '.'); ?>',
-            cambio: '<?php echo number_format($_SESSION['ultimaVentaCambio'] ?? 0, 2, ',', '.'); ?>',
-            clienteNif: '<?php echo addslashes($_SESSION['ultimaVentaClienteNif'] ?? ''); ?>',
-            clienteNombre: '<?php echo addslashes($_SESSION['ultimaVentaClienteNombre'] ?? ''); ?>',
-            clienteDir: '<?php echo addslashes($_SESSION['ultimaVentaClienteDir'] ?? ''); ?>',
-            clienteObs: '<?php echo addslashes($_SESSION['ultimaVentaClienteObs'] ?? ''); ?>',
-            descuentoTipo: '<?php echo $_SESSION['ultimaVentaDescuentoTipo'] ?? 'ninguno'; ?>',
-            descuentoValor: <?php echo $_SESSION['ultimaVentaDescuentoValor'] ?? 0; ?>,
-            descuentoCupon: '<?php echo $_SESSION['ultimaVentaDescuentoCupon'] ?? ''; ?>'
+            id: <?php echo $_SESSION['ultimaVentaId'] ?? 'null'; ?>,                                          // ID de        la venta
+            total: '<?php echo number_format($_SESSION['ultimaVentaTotal'] ?? 0, 2, ',', '.'); ?>',       // Total formateado
+            tipo: '<?php echo $_SESSION['ultimaVentaTipo'] ?? 'ticket'; ?>',                                     // 'ticket' o 'factura'
+            carrito: <?php echo $_SESSION['ultimaVentaCarrito'] ?? '[]'; ?>,                                  // Array de productos (JSON)
+            metodoPago: '<?php echo $_SESSION['ultimaVentaMetodoPago'] ?? 'efectivo'; ?>',                         // Método de pago usado
+            fecha: '<?php echo $_SESSION['ultimaVentaFecha'] ?? ''; ?>',                                   // Fecha de la venta
+            entregado: '<?php echo number_format($_SESSION['ultimaVentaEntregado'] ?? ($_SESSION['ultimaVentaTotal'] ?? 0), 2, ',', '.'); ?>', // Dinero entregado
+            cambio: '<?php echo number_format($_SESSION['ultimaVentaCambio'] ?? 0, 2, ',', '.'); ?>', // Cambio devuelto
+            clienteNif: '<?php echo addslashes($_SESSION['ultimaVentaClienteNif'] ?? ''); ?>',       // NIF del cliente
+            clienteNombre: '<?php echo addslashes($_SESSION['ultimaVentaClienteNombre'] ?? ''); ?>', // Nombre del cliente
+            clienteDir: '<?php echo addslashes($_SESSION['ultimaVentaClienteDir'] ?? ''); ?>',       // Dirección del cliente
+            clienteObs: '<?php echo addslashes($_SESSION['ultimaVentaClienteObs'] ?? ''); ?>',       // Observaciones
+            descuentoTipo: '<?php echo $_SESSION['ultimaVentaDescuentoTipo'] ?? 'ninguno'; ?>',      // Tipo de descuento
+            descuentoValor: <?php echo $_SESSION['ultimaVentaDescuentoValor'] ?? 0; ?>,              // Valor del descuento
+            descuentoCupon: '<?php echo $_SESSION['ultimaVentaDescuentoCupon'] ?? ''; ?>',           // Código de cupón usado
+            descuentoTarifaTipo: '<?php echo $_SESSION['ultimaVentaDescuentoTarifaTipo'] ?? 'ninguno'; ?>',      // Tipo de descuento de tarifa
+            descuentoTarifaValor: <?php echo $_SESSION['ultimaVentaDescuentoTarifaValor'] ?? 0; ?>,              // Valor del descuento de tarifa
+            descuentoTarifaCupon: '<?php echo $_SESSION['ultimaVentaDescuentoTarifaCupon'] ?? ''; ?>',           // Código de cupón de tarifa (CLIENTE_REGISTRADO, MAYORISTA_NIVEL1, MAYORISTA_NIVEL2)
+            descuentoManualTipo: '<?php echo $_SESSION['ultimaVentaDescuentoManualTipo'] ?? 'ninguno'; ?>',      // Tipo de descuento manual
+            descuentoManualValor: <?php echo $_SESSION['ultimaVentaDescuentoManualValor'] ?? 0; ?>,            // Valor del descuento manual
+            descuentoManualCupon: '<?php echo $_SESSION['ultimaVentaDescuentoManualCupon'] ?? ''; ?>'           // Código de cupón manual
         };
     </script>
 
     <?php
+    // Limpiar todas las variables de sesión de la última venta para evitar que se muestren de nuevo
     unset($_SESSION['ventaExito']);
     unset($_SESSION['ultimaVentaId']);
     unset($_SESSION['ultimaVentaTotal']);
@@ -450,13 +770,22 @@
     unset($_SESSION['ultimaVentaDescuentoTipo']);
     unset($_SESSION['ultimaVentaDescuentoValor']);
     unset($_SESSION['ultimaVentaDescuentoCupon']);
+    unset($_SESSION['ultimaVentaDescuentoTarifaTipo']);
+    unset($_SESSION['ultimaVentaDescuentoTarifaValor']);
+    unset($_SESSION['ultimaVentaDescuentoTarifaCupon']);
+    unset($_SESSION['ultimaVentaDescuentoManualTipo']);
+    unset($_SESSION['ultimaVentaDescuentoManualValor']);
+    unset($_SESSION['ultimaVentaDescuentoManualCupon']);
 ?>
 <?php endif; ?>
 
-<!-- ==================== MODAL: ABRIR CAJA ==================== -->
+<!-- ##=========================== MODAL: ABRIR CAJA ===========================## -->
+<!-- Modal para iniciar una nueva sesión de caja introduciendo el fondo de caja inicial -->
+<!-- Se envía por POST con la acción "abrirCaja" al controlador -->
 <div class="modal-overlay" id="modalAbrirCaja" style="display:none;">
     <div class="modal-content modal-premium" style="max-width: 450px;">
-        <div class="modal-header-premium" style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);">
+        <!-- Cabecera con gradiente verde y icono de candado -->
+        <div class="modal-header-premiummodal-header-green">
             <div class="icon-container-discount">
                 <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
                     stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -467,31 +796,68 @@
             <h3>Apertura de Caja</h3>
             <p>Introduce el efectivo inicial para comenzar la jornada</p>
         </div>
-        
+
         <div class="modal-body-premium">
+            <!-- Formulario de apertura de caja -->
             <form id="formAbrirCaja" method="POST" action="index.php">
                 <input type="hidden" name="accion" value="abrirCaja">
-                <div class="form-group-premium">
+                <input type="hidden" name="cambioRecovery" id="cambioRecovery" value="0">
+
+                <?php if ($cambioAnterior > 0): ?>
+                    <!-- Opción para recuperar cambio anterior -->
+                    <div class="resumen-caja-container" style="margin-bottom: 15px; border-color: #10b981;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="opcionCambio" value="recuperar" checked onclick="toggleCambio(false)"
+                                style="margin-right: 8px;">
+                            <span>💰 Recuperar cambio anterior:
+                                <strong><?php echo number_format($cambioAnterior, 2, ',', '.'); ?> €</strong></span>
+                        </label>
+                    </div>
+                    <div class="resumen-caja-container" style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="opcionCambio" value="nuevo" onclick="toggleCambio(true)"
+                                style="margin-right: 8px;">
+                            <span>✨ Introducir nuevo cambio</span>
+                        </label>
+                    </div>
+                <?php else: ?>
+                    <input type="radio" name="opcionCambio" value="nuevo" checked style="display:none;">
+                <?php endif; ?>
+
+                <!-- Input para el importe inicial (fondo de caja) -->
+                <div class="form-group-premium" id="divImporteInicial"
+                    style="<?php echo ($cambioAnterior > 0) ? 'opacity: 0.5;' : ''; ?>">
                     <label for="importeInicial">Fondo de caja inicial (€)</label>
                     <div class="input-cupon">
-                        <input type="number" name="importeInicial" id="importeInicial" step="0.01" min="0" placeholder="0,00" required
+                        <input type="number" name="importeInicial" id="importeInicial" step="0.01" min="0"
+                            placeholder="0,00" <?php echo ($cambioAnterior > 0) ? '' : 'required'; ?>
                             style="text-align: center; padding-right: 15px;">
                     </div>
                 </div>
-                
+
+                <!-- Botones: Cancelar y Confirmar Apertura -->
                 <div style="display: flex; gap: 15px; margin-top: 30px;">
-                    <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalAbrirCaja')" style="flex: 1;">Cancelar</button>
-                    <button type="submit" class="btn-apply-premium" style="flex: 1; background: #16a34a; color: white; border:none; border-radius:12px; cursor:pointer;">Confirmar Apertura</button>
+                    <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalAbrirCaja')"
+                        style="flex: 1;">Cancelar</button>
+                    <button type="submit" class="btn-apply-premium"
+                        style="flex: 1; background: #16a34a; color: white;">Confirmar
+                        Apertura</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- ==================== MODAL: DEVOLUCIÓN (REMBOLSO) ==================== -->
+<!-- ##=========================== MODAL: DEVOLUCIÓN (REEMBOLSO) ===========================## -->
+<!-- Modal para tramitar la devolución de un producto -->
+<!-- Permite buscar un producto, seleccionar cantidad y método de devolución -->
+<!-- ##=========================== MODAL: DEVOLUCIÓN (REEMBOLSO) ===========================## -->
+<!-- Modal rediseñado para devoluciones con verificación de ticket -->
 <div class="modal-overlay" id="modalDevolucion" style="display:none;">
-    <div class="modal-content modal-premium" style="max-width: 550px;">
-        <div class="modal-header-premium" style="background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);">
+    <div class="modal-content modal-premium"
+        style="max-width: 700px; display: flex; flex-direction: column; max-height: 90vh;">
+        <!-- Cabecera con gradiente rojo -->
+        <div class="modal-header-premium modal-header-red" style="flex-shrink: 0;">
             <div class="icon-container-discount">
                 <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
                     stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -499,95 +865,190 @@
                     <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
                 </svg>
             </div>
-            <h3>Tramitar Devolución</h3>
-            <p>Selecciona un producto y la cantidad a devolver</p>
+            <h3 style="margin-bottom: 5px;">Tramitar Devolución</h3>
+            <p id="devolucionSubtitulo" style="opacity: 0.9;">Introduce el ID del Ticket para comenzar</p>
         </div>
-        
-        <div class="modal-body-premium">
-            <form id="formDevolucion" method="POST" action="index.php">
-                <input type="hidden" name="accion" value="tramitarDevolucion">
-                
-                <div class="form-group-premium">
-                    <label for="buscarProductoDev">Buscar Producto</label>
-                    <div style="position: relative;">
-                        <input type="text" id="buscarProductoDev" placeholder="Escribe el nombre del producto..." 
-                               onkeyup="filtrarProductosDev(this.value)" autocomplete="off">
-                        <div id="resultadosBusquedaDev" class="resultados-busqueda-dev" style="display: none;"></div>
+
+        <div class="modal-body-premium" style="flex: 1; overflow-y: auto; padding: 25px;">
+            <!-- PASO 1: Búsqueda de Ticket -->
+            <div id="devolucionPaso1">
+                <div style="text-align: center; padding: 20px 0;">
+                    <!-- Icono representativo grande -->
+                    <div
+                        style="background: rgba(220, 38, 38, 0.1); width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px; color: var(--accent-danger); border: 2px solid rgba(220, 38, 38, 0.2); box-shadow: 0 8px 16px -4px rgba(220, 38, 38, 0.15);">
+                        <i class="fas fa-receipt" style="font-size: 2.2rem;"></i>
+                    </div>
+
+                    <h4 style="color: var(--text-main); font-size: 1.4rem; margin-bottom: 10px; font-weight: 700;">
+                        Recuperar Ticket</h4>
+                    <p
+                        style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 30px; max-width: 400px; margin-left: auto; margin-right: auto;">
+                        Introduce el número identificador para procesar la devolución de los productos.
+                    </p>
+
+                    <div style="max-width: 340px; margin: 0 auto;">
+                        <input type="number" id="inputTicketIdDev" placeholder="Ej: 123"
+                            style="width: 100%; padding: 18px; font-size: 1.6rem; text-align: center; border-radius: 14px; border: 2px solid var(--border-main); background: var(--bg-input); color: var(--text-main); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transition: all 0.2s; outline: none; font-weight: 600;"
+                            onkeypress="if(event.key === 'Enter') buscarTicketParaDevolucion()"
+                            onfocus="this.style.borderColor = 'var(--accent-danger)'; this.style.boxShadow = '0 0 0 4px rgba(220, 38, 38, 0.1)'; this.style.transform = 'translateY(-2px)'"
+                            onblur="this.style.borderColor = 'var(--border-main)'; this.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)'; this.style.transform = 'translateY(0)'">
+
+                        <button type="button" class="btn-apply-premium" onclick="buscarTicketParaDevolucion()"
+                            style="width: 100%; background: var(--accent-danger); color: white; margin-top: 20px; padding: 16px; border-radius: 14px; font-size: 1.1rem; font-weight: 700; border: none; box-shadow: 0 6px 15px rgba(220, 38, 38, 0.3); transition: all 0.2s; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                            <span>Continuar</span>
+                            <i class="fas fa-arrow-right" style="font-size: 0.9rem;"></i>
+                        </button>
+                    </div>
+
+                    <p id="errorTicketDev"
+                        style="color: var(--accent-danger); font-size: 0.85rem; margin-top: 20px; font-weight: 600; display: none; background: rgba(220, 38, 38, 0.05); padding: 10px; border-radius: 8px;">
+                    </p>
+
+                    <div
+                        style="margin-top: 45px; padding: 15px 20px; background: var(--bg-panel); border-radius: 12px; border: 1px dashed var(--border-main); display: inline-flex; align-items: center; gap: 12px; opacity: 0.8;">
+                        <i class="fas fa-info-circle" style="color: var(--accent-danger);"></i>
+                        <span style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
+                            El número de ticket se encuentra en la parte superior del comprobante.
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PASO 2: Selección de Productos -->
+            <div id="devolucionPaso2" style="display: none;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding: 15px; background: var(--bg-accent-danger); border-radius: 12px; border: 1px solid var(--accent-danger); opacity: 0.9;">
+                    <div>
+                        <div style="font-weight: 700; color: var(--text-main); font-size: 1rem; margin-bottom: 5px;">
+                            Información
+                            del Ticket</div>
+                        <div style="font-size: 0.9rem; color: var(--text-muted);">
+                            <span id="infoTicketId" style="font-weight: 600;"></span> ·
+                            <span id="infoTicketFecha"></span>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div
+                            style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">
+                            Total Original</div>
+                        <div id="infoTicketTotal"
+                            style="font-size: 1.2rem; font-weight: 800; color: var(--accent-danger);"></div>
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 15px; margin-top: 15px;">
-                    <div class="form-group-premium" style="flex: 2;">
-                        <label>Producto Seleccionado</label>
-                        <input type="text" id="nombreProductoDev" readonly placeholder="Ninguno seleccionado" 
-                               style="background: #f3f4f6; color: #4b5563;">
-                        <input type="hidden" name="idProductoDev" id="idProductoDev" required>
-                    </div>
-                    <div class="form-group-premium" style="flex: 1;">
-                        <label for="cantidadDev">Cantidad</label>
-                        <input type="number" name="cantidadDev" id="cantidadDev" min="1" value="1" 
-                               onchange="calcularTotalDev()" onkeyup="calcularTotalDev()">
-                        <input type="hidden" id="precioUnitarioDev">
-                    </div>
+                <div
+                    style="border: 1px solid var(--border-main); border-radius: 12px; overflow: hidden; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                    <table class="tabla-productos-devolucion" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: var(--bg-panel); border-bottom: 2px solid var(--border-main);">
+                                <th
+                                    style="text-align: left; padding: 12px 15px; font-weight: 700; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">
+                                    Producto</th>
+                                <th
+                                    style="text-align: center; padding: 12px; font-weight: 700; font-size: 0.8rem; color: #64748b; text-transform: uppercase; width: 80px;">
+                                    Disp.</th>
+                                <th
+                                    style="text-align: center; padding: 12px 15px; font-weight: 700; font-size: 0.8rem; color: #64748b; text-transform: uppercase; width: 120px;">
+                                    A Devolver</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaProductosDev">
+                            <!-- Se rellena dinámicamente -->
+                        </tbody>
+                    </table>
                 </div>
 
-                <div class="form-group-premium" style="margin-top: 15px;">
-                    <label>Método de Devolución</label>
-                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <div class="form-group-premium" style="margin-top: 25px;">
+                    <label style="font-size: 1rem;">Método de Reembolso</label>
+                    <div style="display: flex; gap: 12px; margin-top: 10px;">
                         <label style="flex: 1; cursor: pointer;">
-                            <input type="radio" name="metodoPagoDev" value="Efectivo" checked style="display: none;" onchange="updateMethodUI(this)">
-                            <div class="method-chip active" id="chip-Efectivo" style="padding: 10px; border: 2px solid #b91c1c; border-radius: 8px; text-align: center; color: #b91c1c; font-weight: 600;">Efectivo</div>
+                            <input type="radio" name="metodoPagoDev" value="Efectivo" checked style="display: none;"
+                                onchange="updateMethodUI(this)">
+                            <div class="method-chip active" id="chip-Efectivo"
+                                style="padding: 12px; text-align: center; border-radius: 10px; border: 2px solid var(--accent-danger); color: var(--accent-danger); font-weight: 700; transition: all 0.2s;">
+                                <i class="fas fa-money-bill-wave" style="margin-right: 8px;"></i> Efectivo
+                            </div>
                         </label>
                         <label style="flex: 1; cursor: pointer;">
-                            <input type="radio" name="metodoPagoDev" value="Tarjeta" style="display: none;" onchange="updateMethodUI(this)">
-                            <div class="method-chip" id="chip-Tarjeta" style="padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; text-align: center; color: #6b7280;">Tarjeta</div>
+                            <input type="radio" name="metodoPagoDev" value="Tarjeta" style="display: none;"
+                                onchange="updateMethodUI(this)">
+                            <div class="method-chip" id="chip-Tarjeta"
+                                style="padding: 12px; text-align: center; border-radius: 10px; border: 2px solid var(--border-main); color: var(--text-muted); font-weight: 600; transition: all 0.2s;">
+                                <i class="fas fa-credit-card" style="margin-right: 8px;"></i> Tarjeta
+                            </div>
                         </label>
                         <label style="flex: 1; cursor: pointer;">
-                            <input type="radio" name="metodoPagoDev" value="Bizum" style="display: none;" onchange="updateMethodUI(this)">
-                            <div class="method-chip" id="chip-Bizum" style="padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; text-align: center; color: #6b7280;">Bizum</div>
+                            <input type="radio" name="metodoPagoDev" value="Bizum" style="display: none;"
+                                onchange="updateMethodUI(this)">
+                            <div class="method-chip" id="chip-Bizum"
+                                style="padding: 12px; text-align: center; border-radius: 10px; border: 2px solid var(--border-main); color: var(--text-muted); font-weight: 600; transition: all 0.2s;">
+                                <i class="fas fa-mobile-alt" style="margin-right: 8px;"></i> Bizum
+                            </div>
                         </label>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <div style="margin-top: 25px; padding: 15px; background: #fee2e2; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight: 600; color: #991b1b;">TOTAL A DEVOLVER:</span>
-                    <span id="totalDevDisplay" style="font-size: 1.5rem; font-weight: 800; color: #b91c1c;">0,00 €</span>
-                    <input type="hidden" name="importeTotalDev" id="importeTotalDev">
+        <!-- Footer siempre visible -->
+        <div class="modal-footer-premium"
+            style="flex-shrink: 0; background: var(--bg-panel); border-top: 1px solid var(--border-main); display: flex; justify-content: space-between; align-items: center; padding: 20px 30px;">
+            <div id="resumenReembolso" style="display: none;">
+                <span
+                    style="display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Total
+                    a reembolsar</span>
+                <span id="totalReembolsoDisplay"
+                    style="font-size: 1.6rem; font-weight: 800; color: var(--accent-danger);">0,00 €</span>
+                <div id="errorEfectivoInsuficiente"
+                    style="display: none; color: var(--accent-danger); font-size: 0.8rem; font-weight: 600; margin-top: 5px; background: rgba(220, 38, 38, 0.1); padding: 5px 10px; border-radius: 6px;">
+                    <i class="fas fa-exclamation-triangle"></i> No hay suficiente efectivo en caja (Disponible: <span
+                        id="efectivoDisponibleDisplay"></span>)
                 </div>
-                
-                <div style="display: flex; gap: 15px; margin-top: 25px;">
-                    <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalDevolucion')" style="flex: 1;">Cancelar</button>
-                    <button type="submit" class="btn-apply-premium" id="btnConfirmarDev" disabled 
-                            style="flex: 1; background: #b91c1c; color: white; border:none; border-radius:12px; cursor:pointer; opacity: 0.5;">Confirmar Devolución</button>
-                </div>
-            </form>
+            </div>
+            <div style="margin-left: auto; display: flex; gap: 15px;">
+                <button type="button" class="btn-cancel-flat" onclick="cerrarModalDevolucion()"
+                    style="padding: 10px 20px;">Cancelar</button>
+                <button type="button" class="btn-apply-premium" id="btnConfirmarMultiDev" disabled
+                    style="background: var(--accent-danger); color: white; margin: 0; padding: 12px 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); display: none;"
+                    onclick="procesarMultiDevolucion()">
+                    Confirmar Devolución
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- ==================== MODAL: DEVOLUCIÓN ÉXITO ==================== -->
+<!-- ##=========================== MODAL: DEVOLUCIÓN ÉXITO ===========================## -->
+<!-- Se muestra automáticamente cuando $_SESSION['devolucionExito'] está definida -->
+<!-- Confirma que la devolución se ha procesado correctamente -->
 <?php if (isset($_SESSION['devolucionExito'])): ?>
     <div class="modal-overlay" id="devolucionExito">
-        <div class="modal-content modal-exito" style="max-width: 400px; border-top: 5px solid #b91c1c;">
-            <div class="icon-container-discount" style="background: #fee2e2;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="#b91c1c"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <div class="modal-content modal-exito modal-border-red" style="max-width: 400px;">
+            <!-- Icono de devolución en fondo rojo claro -->
+            <div class="icon-container-discount icon-bg-red">
+                <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none"
+                    stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M1 4v6h6"></path>
                     <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
                 </svg>
             </div>
-            <h3 style="color: #991b1b; margin-top: 10px;">Devolución Realizada</h3>
-            <p style="color: #6b7280; font-size: 0.9rem;">El importe ha sido restado de las ganancias del método seleccionado correctamente.</p>
-            <button class="btn-cerrar-exito" style="background: #b91c1c; margin-top: 20px;" onclick="document.getElementById('devolucionExito').remove()">Aceptar</button>
+            <h3 class="total-devolucion-label" style="margin-top: 10px;">Devolución Realizada</h3>
+            <p class="modal-subtitulo-cliente">El importe ha sido restado de las ganancias del método
+                seleccionado correctamente.</p>
+            <button class="btn-cerrar-exito" style="background: #b91c1c; margin-top: 20px;"
+                onclick="document.getElementById('devolucionExito').remove()">Aceptar</button>
         </div>
     </div>
     <?php unset($_SESSION['devolucionExito']); ?>
 <?php endif; ?>
 
-<!-- ==================== MODAL: RETIRAR DINERO ==================== -->
+<!-- ##=========================== MODAL: RETIRAR DINERO ===========================## -->
+<!-- Modal para retirar efectivo de la caja (ej: pago a proveedor, ingreso en banco) -->
+<!-- Se envía por POST con la acción "retirarDinero" al controlador -->
 <div class="modal-overlay" id="modalRetiro" style="display:none;">
     <div class="modal-content modal-premium" style="max-width: 450px;">
-        <div class="modal-header-premium" style="background: linear-gradient(135deg, #ea580c 0%, #9a3412 100%);">
+        <!-- Cabecera con gradiente naranja y icono de billete -->
+        <div class="modal-header-premium modal-header-orange">
             <div class="icon-container-discount">
                 <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
                     stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -599,72 +1060,127 @@
             <h3>Retirar Dinero</h3>
             <p>Ingresa la cantidad que deseas retirar de la caja</p>
         </div>
-        
+
         <div class="modal-body-premium">
-            <form id="formRetiro" method="POST" action="index.php">
+            <!-- Formulario de retiro de dinero -->
+            <form id="formRetiro" method="POST" action="index.php" onsubmit="return validarRetiro()">
                 <input type="hidden" name="accion" value="retirarDinero">
-                
+
+                <!-- Campo: cantidad a retirar en euros -->
                 <div class="form-group-premium">
                     <label for="importeRetiro">Cantidad a Retirar (€)</label>
-                    <input type="number" name="importeRetiro" id="importeRetiro" step="0.01" min="0.01" placeholder="0.00" required>
+                    <input type="number" name="importeRetiro" id="importeRetiro" step="0.01" min="0.01"
+                        placeholder="0.00" required>
+                    <small style="color: var(--text-muted); display: block; margin-top: 5px;">
+                        Efectivo disponible: <span
+                            id="efectivoDisponible"><?php echo number_format($sesionCaja ? $sesionCaja->getImporteActual() : 0, 2, ',', '.'); ?></span>
+                        €
+                    </small>
                 </div>
 
+                <!-- Campo: motivo del retiro (opcional) -->
                 <div class="form-group-premium" style="margin-top: 15px;">
                     <label for="motivoRetiro">Motivo (Opcional)</label>
-                    <input type="text" name="motivoRetiro" id="motivoRetiro" placeholder="Ej: Pago a proveedor, ingreso banco...">
+                    <input type="text" name="motivoRetiro" id="motivoRetiro"
+                        placeholder="Ej: Pago a proveedor, ingreso banco...">
                 </div>
-                
+
+                <!-- Botones: Cancelar y Confirmar Retiro -->
                 <div style="display: flex; gap: 15px; margin-top: 25px;">
-                    <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalRetiro')" style="flex: 1;">Cancelar</button>
-                    <button type="submit" class="btn-apply-premium" style="flex: 1; background: #ea580c; color: white; border:none; border-radius:12px; cursor:pointer;">Confirmar Retiro</button>
+                    <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalRetiro')"
+                        style="flex: 1;">Cancelar</button>
+                    <button type="submit" class="btn-apply-premium"
+                        style="flex: 1; background: #ea580c; color: white;">Confirmar
+                        Retiro</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- ==================== MODAL: RETIRO ÉXITO ==================== -->
+<!-- ##=========================== MODAL: RETIRO ÉXITO ===========================## -->
+<!-- Se muestra automáticamente cuando $_SESSION['retiroExito'] está definida -->
+<!-- Confirma que el retiro de dinero se ha procesado correctamente -->
 <?php if (isset($_SESSION['retiroExito'])): ?>
     <div class="modal-overlay" id="retiroExito">
-        <div class="modal-content modal-exito" style="max-width: 400px; border-top: 5px solid #ea580c;">
-            <div class="icon-container-discount" style="background: #ffedd5;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="#ea580c"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <div class="modal-content modal-exito modal-border-orange" style="max-width: 400px;">
+            <!-- Icono de billete en fondo naranja claro -->
+            <div class="icon-container-discount icon-bg-orange">
+                <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none"
+                    stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect width="20" height="12" x="2" y="6" rx="2"></rect>
                     <circle cx="12" cy="12" r="2"></circle>
                     <path d="M6 12h.01M18 12h.01"></path>
                 </svg>
             </div>
-            <h3 style="color: #9a3412; margin-top: 10px;">Retiro Realizado</h3>
-            <p style="color: #6b7280; font-size: 0.9rem;">El importe ha sido restado del efectivo en caja correctamente.</p>
-            <button class="btn-cerrar-exito" style="background: #ea580c; margin-top: 20px;" onclick="document.getElementById('retiroExito').remove()">Aceptar</button>
+            <h3 class="resumen-total-ventas" style="margin-top: 10px; border-top:none; padding-top:0;">Retiro Realizado</h3>
+            <p class="modal-subtitulo-cliente">El importe ha sido restado del efectivo en caja correctamente.</p>
+            <button class="btn-cerrar-exito" style="background: #ea580c; margin-top: 20px;"
+                onclick="document.getElementById('retiroExito').remove()">Aceptar</button>
         </div>
     </div>
     <?php unset($_SESSION['retiroExito']); ?>
 <?php endif; ?>
 
-<!-- ==================== MODAL: ERROR ==================== -->
-<?php if (isset($_SESSION['ventaError'])): ?>
-    <div class="modal-overlay" id="ventaError">
-        <div class="modal-content modal-error-content">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#dc2626"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<!-- ##=========================== MODAL: RETIRO ERROR ===========================## -->
+<!-- Se muestra automáticamente cuando $_SESSION['retiroError'] está definida -->
+<!-- Muestra el mensaje de error del retiro fallido -->
+<?php if (isset($_SESSION['retiroError'])): ?>
+    <div class="modal-overlay" id="retiroError">
+        <div class="modal-content modal-error-content modal-border-red" style="max-width: 400px;">
+            <!-- Icono SVG de X/error en rojo -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                stroke="var(--accent-danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                style="margin-bottom: 15px;">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="15" y1="9" x2="9" y2="15"></line>
                 <line x1="9" y1="9" x2="15" y2="15"></line>
             </svg>
-            <h3>Error en la venta</h3>
-            <p><?php echo htmlspecialchars($_SESSION['ventaError']); ?></p>
-            <button onclick="cerrarModal('ventaError')">Aceptar</button>
+            <h3 style="color: var(--accent-danger);">Error en el retiro</h3>
+            <!-- Mensaje de error escapado con htmlspecialchars para seguridad XSS -->
+            <p style="color: var(--text-main); margin-bottom: 25px;">
+                <?php echo htmlspecialchars($_SESSION['retiroError']); ?>
+            </p>
+            <button class="btn-modal-cancelar" onclick="document.getElementById('retiroError').remove()"
+                style="width: 100%;">Aceptar</button>
+        </div>
+    </div>
+    <?php unset($_SESSION['retiroError']); ?>
+<?php endif; ?>
+
+<!-- ##=========================== MODAL: ERROR ===========================## -->
+<!-- Se muestra automáticamente cuando $_SESSION['ventaError'] está definida -->
+<!-- Muestra el mensaje de error de la venta fallida -->
+<?php if (isset($_SESSION['ventaError'])): ?>
+    <div class="modal-overlay" id="ventaError">
+        <div class="modal-content modal-error-content modal-border-red" style="max-width: 400px;">
+            <!-- Icono SVG de X/error en rojo -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                stroke="var(--accent-danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                style="margin-bottom: 15px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+            <h3 style="color: var(--accent-danger);">Error en la venta</h3>
+            <!-- Mensaje de error escapado con htmlspecialchars para seguridad XSS -->
+            <p style="color: var(--text-main); margin-bottom: 25px;">
+                <?php echo htmlspecialchars($_SESSION['ventaError']); ?>
+            </p>
+            <button class="btn-modal-cancelar" onclick="cerrarModal('ventaError')" style="width: 100%;">Aceptar</button>
         </div>
     </div>
     <?php unset($_SESSION['ventaError']); ?>
 <?php endif; ?>
 
-<!-- ==================== MODAL: PREVISUALIZACIÓN DE CIERRE DE CAJA ==================== -->
+<!-- ##=========================== MODAL: PREVISUALIZACIÓN DE CIERRE DE CAJA ===========================## -->
+<!-- Se muestra cuando el cajero pulsa "Hacer Caja" y se genera la previsualización -->
+<!-- Muestra el resumen de ventas del día desglosado por método de pago -->
+<!-- Permite cancelar o confirmar el cierre definitivo de la caja -->
 <?php if (isset($_SESSION['cajaPrevisualizacion']) && $_SESSION['cajaPrevisualizacion'] && isset($_SESSION['resumenCaja'])): ?>
     <div class="modal-overlay" id="cajaPrevisualizacion">
         <div class="modal-content modal-exito" style="max-width: 450px;">
+            <!-- Icono de caja/billete en azul -->
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2563eb"
                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 15px;">
                 <rect x="2" y="6" width="20" height="12" rx="2"></rect>
@@ -674,104 +1190,157 @@
             </svg>
             <h3 style="color: #1a1a2e; font-size: 1.4rem; margin-bottom: 20px;">Cierre de Caja</h3>
 
-            <div id="cajaResumenImprimible"
-                style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; text-align: left; margin-bottom: 20px;">
-                <!-- Header visible solo al imprimir -->
+            <!-- Contenedor imprimible del resumen de caja -->
+            <div id="cajaResumenImprimible" class="resumen-caja-container">
+
+                <!-- Header visible solo al imprimir (clase .solo-impresion) -->
                 <div class="solo-impresion" style="text-align: center; margin-bottom: 15px;">
                     <h2>TPV Bazar</h2>
                     <p>Cierre de Caja - <?php echo date('d/m/Y H:i'); ?></p>
                 </div>
 
-                <h4
-                    style="margin: 0 0 15px 0; font-size: 1.1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; color: #374151;">
+                <h4 class="resumen-caja-titulo">
                     Resumen de Ventas de Hoy</h4>
 
+                <!-- Desglose por EFECTIVO: cantidad de tickets, total y devoluciones -->
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem;">
                     <span><strong style="color: #4b5563;">Efectivo:</strong>
                         (<?php echo $_SESSION['resumenCaja']['efectivo']['cantidad']; ?> tickets)</span>
                     <div style="text-align: right;">
-                        <span style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['efectivo']['total'], 2, ',', '.'); ?> €</span>
+                        <span
+                            style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['efectivo']['total'], 2, ',', '.'); ?>
+                            €</span>
                         <?php if ($_SESSION['resumenCaja']['efectivo']['devoluciones'] > 0): ?>
-                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev: -<?php echo number_format($_SESSION['resumenCaja']['efectivo']['devoluciones'], 2, ',', '.'); ?> €)</span>
+                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev:
+                                -<?php echo number_format($_SESSION['resumenCaja']['efectivo']['devoluciones'], 2, ',', '.'); ?>
+                                €)</span>
+                        <?php endif; ?>
+                        <?php if (isset($_SESSION['resumenCaja']['totalRetiros']) && $_SESSION['resumenCaja']['totalRetiros'] > 0): ?>
+                            <br><span style="font-size: 0.75rem; color: #ea580c;">(Retiros:
+                                -<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'], 2, ',', '.'); ?>
+                                €)</span>
                         <?php endif; ?>
                     </div>
                 </div>
 
+                <!-- Desglose por TARJETA: cantidad de tickets, total y devoluciones -->
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem;">
                     <span><strong style="color: #4b5563;">Tarjeta:</strong>
                         (<?php echo $_SESSION['resumenCaja']['tarjeta']['cantidad']; ?> tickets)</span>
                     <div style="text-align: right;">
-                        <span style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['tarjeta']['total'], 2, ',', '.'); ?> €</span>
+                        <span
+                            style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['tarjeta']['total'], 2, ',', '.'); ?>
+                            €</span>
                         <?php if ($_SESSION['resumenCaja']['tarjeta']['devoluciones'] > 0): ?>
-                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev: -<?php echo number_format($_SESSION['resumenCaja']['tarjeta']['devoluciones'], 2, ',', '.'); ?> €)</span>
+                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev:
+                                -<?php echo number_format($_SESSION['resumenCaja']['tarjeta']['devoluciones'], 2, ',', '.'); ?>
+                                €)</span>
                         <?php endif; ?>
                     </div>
                 </div>
 
+                <!-- Desglose por BIZUM: cantidad de tickets, total y devoluciones -->
                 <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.95rem;">
                     <span><strong style="color: #4b5563;">Bizum:</strong>
                         (<?php echo $_SESSION['resumenCaja']['bizum']['cantidad']; ?> tickets)</span>
                     <div style="text-align: right;">
-                        <span style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['bizum']['total'], 2, ',', '.'); ?> €</span>
+                        <span
+                            style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['bizum']['total'], 2, ',', '.'); ?>
+                            €</span>
                         <?php if ($_SESSION['resumenCaja']['bizum']['devoluciones'] > 0): ?>
-                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev: -<?php echo number_format($_SESSION['resumenCaja']['bizum']['devoluciones'], 2, ',', '.'); ?> €)</span>
+                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev:
+                                -<?php echo number_format($_SESSION['resumenCaja']['bizum']['devoluciones'], 2, ',', '.'); ?>
+                                €)</span>
                         <?php endif; ?>
                     </div>
                 </div>
 
-                <div
-                    style="display: flex; justify-content: space-between; border-top: 2px solid #1a1a2e; padding-top: 15px; font-size: 1.2rem;">
-                    <strong style="color: #1a1a2e;">TOTAL VENTAS:</strong>
+                <!-- TOTAL GENERAL de ventas del día (suma de todos los métodos) -->
+                <div class="resumen-total-ventas">
+                    <strong>TOTAL VENTAS:</strong>
                     <strong
-                        style="color: #059669;"><?php echo number_format($_SESSION['resumenCaja']['totalGeneral'], 2, ',', '.'); ?>
+                        class="total-monto-verde"><?php echo number_format($_SESSION['resumenCaja']['totalGeneral'], 2, ',', '.'); ?>
                         €</strong>
                 </div>
 
-                <!-- Detalles de Caja Reales -->
-                <div style="margin-top: 20px; border-top: 1px dashed #d1d5db; padding-top: 15px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; color: #4b5563;">
+                <!-- Detalles reales de la caja: fondo inicial, devoluciones y efectivo real -->
+                <div class="resumen-caja-detalles">
+                    <!-- Fondo de caja inicial (importe con el que se abrió la caja) -->
+                    <div class="resumen-detalle-fila">
                         <span>Fondo inicial:</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['importeInicial'], 2, ',', '.'); ?> €</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; color: #b91c1c;">
+                    <!-- Total de devoluciones realizadas durante la sesión -->
+                    <div class="resumen-detalle-fila" style="color: #ef4444;">
                         <span>Total Devoluciones:</span>
-                        <span style="font-weight: 600;">- <?php echo number_format($_SESSION['resumenCaja']['totalDevoluciones'], 2, ',', '.'); ?> €</span>
+                        <span
+                            style="font-weight: 600;">-<?php echo number_format($_SESSION['resumenCaja']['totalDevoluciones'], 2, ',', '.'); ?>
+                            €</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: bold; color: #1a1a2e;">
+                    <!-- Total de retiros realizados durante la sesión -->
+                    <div class="resumen-detalle-fila" style="color: #ef4444;">
+                        <span>Total Retiros:</span>
+                        <span
+                            style="font-weight: 600;">-<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'] ?? 0, 2, ',', '.'); ?>
+                            €</span>
+                    </div>
+                    <!-- Efectivo real que debería haber en la caja física -->
+                    <div class="caja-efectivo-real">
                         <span>EFECTIVO REAL EN CAJA:</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?> €</span>
                     </div>
                 </div>
 
-                <!-- Footer visible solo al imprimir -->
-                <div class="solo-impresion"
-                    style="text-align: center; margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 10px; font-size: 0.9rem; color: #666;">
+                <!-- Footer visible solo al imprimir: espacio para firma y sello -->
+                <div class="solo-impresion solo-impresion-footer">
                     <p>Firma y sello:</p>
                     <br><br><br>
                 </div>
             </div>
 
+            <!-- Opción para guardar cambio para el siguiente turno -->
+            <div class="cambio-turno-container">
+                <label for="cambio" class="cambio-turno-label">
+                    💰 Cambio a guardar para el siguiente turno:
+                </label>
+                <input type="number" id="cambio" name="cambio" step="0.01" min="0"
+                    value="<?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, '.', ''); ?>"
+                    placeholder="0,00"
+                    style="width: 100%; padding: 10px; text-align: center; font-size: 16px; border-radius: 6px;">
+                <p class="cambio-turno-subtitulo">
+                    Cantidad de efectivo que se quedará en la caja para el próximo turno
+                </p>
+            </div>
+
+            <!-- Botones: Cancelar (cierra sin cerrar caja) y Confirmar Cierre (cierra la caja definitivamente) -->
             <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
                 <button class="btn-modal-cancelar"
                     onclick="document.getElementById('cajaPrevisualizacion').style.display='none';">Cancelar</button>
                 <form method="POST" action="index.php" style="margin: 0;">
                     <input type="hidden" name="accion" value="confirmarCaja">
-                    <button type="submit" class="btn-cerrar-exito" style="margin-top: 0; background: #2563eb;">Confirmar
+                    <input type="hidden" name="cambio" id="cambioHidden"
+                        value="<?php echo $_SESSION['resumenCaja']['importeActual']; ?>">
+                    <button type="submit" class="btn-cerrar-exito" style="margin-top: 0; background: #2563eb;"
+                        onclick="document.getElementById('cambioHidden').value = document.getElementById('cambio').value">Confirmar
                         Cierre</button>
                 </form>
             </div>
         </div>
     </div>
     <?php
+    // Limpiamos la flag de previsualización pero NO el resumenCaja,
+    // ya que se necesita si el usuario confirma el cierre e imprime
     unset($_SESSION['cajaPrevisualizacion']);
-        // No borramos resumenCaja aquí porque lo utilizaremos si confirman e imprimen.
-    ?>
+?>
 <?php endif; ?>
 
-<!-- ==================== MODAL: COMPLETADO (Imprimir y resetear) ==================== -->
+<!-- ##=========================== MODAL: CONFIRMACIÓN DE CIERRE DE CAJA ===========================## -->
+<!-- Se muestra después de confirmar el cierre de caja -->
+<!-- Permite imprimir el resumen final antes de cerrar -->
 <?php if (isset($_SESSION['cajaConfirmacion']) && $_SESSION['cajaConfirmacion'] && isset($_SESSION['resumenCaja'])): ?>
     <div class="modal-overlay" id="cajaConfirmacion">
         <div class="modal-content modal-exito" style="max-width: 450px;">
+            <!-- Icono de check/éxito en verde -->
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#059669"
                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icono-exito">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
@@ -781,69 +1350,105 @@
             <p style="color: #6b7280; font-size: 0.95rem; margin-bottom: 20px;">El recuento de ventas ha vuelto a 0 para el
                 contador del día de mañana.</p>
 
+            <!-- Bloque oculto con el HTML del resumen para imprimir -->
+            <!-- Se inyecta en una ventana nueva al pulsar "Imprimir Resumen" -->
             <div id="cajaOcultaImprimible" style="display: none;">
-                <!-- Usamos este bloque inyectado para imprimir -->
+                <!-- Cabecera del documento impreso -->
                 <div style="text-align: center; margin-bottom: 15px; font-family: 'Inter', sans-serif;">
                     <h2 style="margin:0;">TPV Bazar</h2>
                     <p style="margin:5px 0 15px 0;">Cierre de Caja - <?php echo date('d/m/Y H:i'); ?></p>
                 </div>
+
+                <!-- Desglose por método de pago para impresión -->
                 <div
                     style="border-top: 1px solid #000; padding-top: 10px; padding-bottom: 5px; font-family: 'Inter', sans-serif;">
+                    <!-- Efectivo -->
                     <p style="margin: 5px 0; display:flex; justify-content:space-between;">
                         <span>Efectivo (<?php echo $_SESSION['resumenCaja']['efectivo']['cantidad']; ?>):</span>
-                        <span><?php echo number_format($_SESSION['resumenCaja']['efectivo']['total'], 2, ',', '.'); ?> €</span>
+                        <span><?php echo number_format($_SESSION['resumenCaja']['efectivo']['total'], 2, ',', '.'); ?>
+                            €</span>
                     </p>
                     <?php if ($_SESSION['resumenCaja']['efectivo']['devoluciones'] > 0): ?>
                         <p style="margin: 0px 0 5px 0; display:flex; justify-content:flex-end; font-size: 0.8rem;">
-                            <span>(Devolución: -<?php echo number_format($_SESSION['resumenCaja']['efectivo']['devoluciones'], 2, ',', '.'); ?> €)</span>
+                            <span>(Devolución:
+                                -<?php echo number_format($_SESSION['resumenCaja']['efectivo']['devoluciones'], 2, ',', '.'); ?>
+                                €)</span>
+                        </p>
+                    <?php endif; ?>
+                    <?php if (isset($_SESSION['resumenCaja']['totalRetiros']) && $_SESSION['resumenCaja']['totalRetiros'] > 0): ?>
+                        <p style="margin: 0px 0 5px 0; display:flex; justify-content:flex-end; font-size: 0.8rem;">
+                            <span>(Retiros:
+                                -<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'], 2, ',', '.'); ?>
+                                €)</span>
                         </p>
                     <?php endif; ?>
 
+                    <!-- Tarjeta -->
                     <p style="margin: 5px 0; display:flex; justify-content:space-between;">
                         <span>Tarjeta (<?php echo $_SESSION['resumenCaja']['tarjeta']['cantidad']; ?>):</span>
-                        <span><?php echo number_format($_SESSION['resumenCaja']['tarjeta']['total'], 2, ',', '.'); ?> €</span>
+                        <span><?php echo number_format($_SESSION['resumenCaja']['tarjeta']['total'], 2, ',', '.'); ?>
+                            €</span>
                     </p>
                     <?php if ($_SESSION['resumenCaja']['tarjeta']['devoluciones'] > 0): ?>
                         <p style="margin: 0px 0 5px 0; display:flex; justify-content:flex-end; font-size: 0.8rem;">
-                            <span>(Devolución: -<?php echo number_format($_SESSION['resumenCaja']['tarjeta']['devoluciones'], 2, ',', '.'); ?> €)</span>
+                            <span>(Devolución:
+                                -<?php echo number_format($_SESSION['resumenCaja']['tarjeta']['devoluciones'], 2, ',', '.'); ?>
+                                €)</span>
                         </p>
                     <?php endif; ?>
 
+                    <!-- Bizum -->
                     <p style="margin: 5px 0; display:flex; justify-content:space-between;">
                         <span>Bizum (<?php echo $_SESSION['resumenCaja']['bizum']['cantidad']; ?>):</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['bizum']['total'], 2, ',', '.'); ?> €</span>
                     </p>
                     <?php if ($_SESSION['resumenCaja']['bizum']['devoluciones'] > 0): ?>
                         <p style="margin: 0px 0 5px 0; display:flex; justify-content:flex-end; font-size: 0.8rem;">
-                            <span>(Devolución: -<?php echo number_format($_SESSION['resumenCaja']['bizum']['devoluciones'], 2, ',', '.'); ?> €)</span>
+                            <span>(Devolución:
+                                -<?php echo number_format($_SESSION['resumenCaja']['bizum']['devoluciones'], 2, ',', '.'); ?>
+                                €)</span>
                         </p>
                     <?php endif; ?>
                 </div>
+
+                <!-- Total general de ventas para impresión -->
                 <div
                     style="border-top: 1px solid #000; padding-top: 10px; margin-top: 10px; font-weight: bold; display:flex; justify-content:space-between; font-family: 'Inter', sans-serif;">
                     <span>TOTAL VENTAS:</span>
                     <span><?php echo number_format($_SESSION['resumenCaja']['totalGeneral'], 2, ',', '.'); ?> €</span>
                 </div>
 
-                <div style="border-top: 1px dashed #000; margin-top: 15px; padding-top: 10px; font-family: 'Inter', sans-serif;">
+                <!-- Detalles de caja para impresión: fondo, devoluciones y efectivo real -->
+                <div
+                    style="border-top: 1px dashed #000; margin-top: 15px; padding-top: 10px; font-family: 'Inter', sans-serif;">
                     <p style="margin: 5px 0; display:flex; justify-content:space-between; font-size: 0.9em;">
                         <span>Fondo inicial:</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['importeInicial'], 2, ',', '.'); ?> €</span>
                     </p>
                     <p style="margin: 5px 0; display:flex; justify-content:space-between; font-size: 0.9em; color: #000;">
                         <span>Total Devoluciones:</span>
-                        <span>- <?php echo number_format($_SESSION['resumenCaja']['totalDevoluciones'], 2, ',', '.'); ?> €</span>
+                        <span>- <?php echo number_format($_SESSION['resumenCaja']['totalDevoluciones'], 2, ',', '.'); ?>
+                            €</span>
                     </p>
-                    <p style="margin: 5px 0; display:flex; justify-content:space-between; font-weight: bold; font-size: 1.1em;">
+                    <p style="margin: 5px 0; display:flex; justify-content:space-between; font-size: 0.9em; color: #000;">
+                        <span>Total Retiros:</span>
+                        <span>- <?php echo number_format($_SESSION['resumenCaja']['totalRetiros'] ?? 0, 2, ',', '.'); ?>
+                            €</span>
+                    </p>
+                    <p
+                        style="margin: 5px 0; display:flex; justify-content:space-between; font-weight: bold; font-size: 1.1em;">
                         <span>EFECTIVO REAL CAJA:</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?> €</span>
                     </p>
                 </div>
+
+                <!-- Espacio para firma/sello en el documento impreso -->
                 <div style="text-align: center; margin-top: 30px; font-size: 0.8rem; font-family: 'Inter', sans-serif;">
                     <p>Firma / Sello</p>
                 </div>
             </div>
 
+            <!-- Botones: Imprimir Resumen y Aceptar (cierra el modal) -->
             <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
                 <button class="btn-cerrar-exito" onclick="imprimirCierreCaja()">Imprimir Resumen</button>
                 <button class="btn-modal-cancelar"
@@ -851,9 +1456,18 @@
             </div>
         </div>
     </div>
+
     <script>
+        /**
+    * imprimirCierreCaja()
+    * Abre una ventana emergente con el contenido del resumen de cierre de caja
+    * formateado para impresión. Tras imprimir, cierra la ventan    a y oculta el modal.
+    */
         function imprimirCierreCaja() {
+            // Obtener el HTML del bloque oculto de impresión
             const contenido = document.getElementById('cajaOcultaImprimible').innerHTML;
+
+            // Abrir ventana emergente para impresión
             const ventana = window.open('', '', 'width=400,height=600');
             ventana.document.write(`
                 <html>
@@ -868,6 +1482,8 @@
             `);
         ventana.document.close();
         ventana.focus();
+
+        // Esperar 500ms para que se renderice el contenido y luego imprimir
         setTimeout(() => {
             ventana.print();
             ventana.close();
@@ -876,51 +1492,583 @@
     }
 </script>
 <?php
+        // Limpiar las variables de sesión del cierre de caja
         unset($_SESSION['cajaConfirmacion']);
         unset($_SESSION['resumenCaja']);
 ?>
 <?php endif; ?>
 
+<!-- Carga del script externo del cajero (funciones de búsqueda y filtrado de productos) -->
 <script src="webroot/js/cajero.js"></script>
+
+<!-- ##=========================== MODAL: HISTORIAL DE VENTAS ===========================## -->
+<div class="modal-overlay" id="modalHistorialVentas" style="display:none;">
+    <div class="modal-content modal-premium" style="max-width: 650px;">
+        <!-- Cabecera con gradiente azul y icono de historial -->
+        <div class="modal-header-premium modal-header-blue">
+            <div class="icon-container-discount">
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
+                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 8v4l3 3"></path>
+                    <circle cx="12" cy="12" r="10"></circle>
+                </svg>
+            </div>
+            <h3>Historial de Ventas</h3>
+            <p id="historialFecha">Ventas desde la apertura de caja</p>
+        </div>
+
+        <div class="modal-body-premium">
+            <div id="historialVentasContenido" style="max-height: 400px; overflow-y: auto;">
+                <!-- Aquí se cargarán las ventas -->
+            </div>
+            <div
+                style="display: flex; justify-content: space-between; margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-main);">
+                <div id="historialTotal" style="font-weight: bold; font-size: 1.1rem;"></div>
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalHistorialVentas')"
+                    style="min-width: 100px;">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: DETALLE DE VENTA ===========================## -->
+<div class="modal-overlay" id="modalDetalleVenta" style="display:none;">
+    <div class="modal-content modal-premium" style="max-width: 700px; padding: 20px;">
+        <div class="modal-header-premium">
+            <h3>Detalle de Venta</h3>
+        </div>
+        <div class="modal-body-premium" style="padding: 10px;">
+            <div id="detalleVentaContenido">
+                <!-- Aquí se cargarán los detalles de la venta -->
+            </div>
+        </div>
+        <div
+            style="display: flex; justify-content: flex-end; margin-top: 20px; padding: 15px; border-top: 1px solid var(--border-main);">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalDetalleVenta')"
+                style="min-width: 100px; margin-right: 10px;">Cerrar</button>
+        </div>
+    </div>
+</div>
+
 <script>
-    // ======================== CARRITO (persiste en memoria) ========================
+    /**
+     * Muestra el modal con el historial de ventas de hoy
+     */
+    function mostrarHistorialVentas() {
+        const modal = document.getElementById('modalHistorialVentas');
+        const contenido = document.getElementById('historialVentasContenido');
+        const totalDiv = document.getElementById('historialTotal');
+        const fechaDiv = document.getElementById('historialFecha');
+
+        // Actualizar la fecha en el subtítulo
+        const hoy = new Date();
+        if (fechaDiv) {
+            fechaDiv.textContent = 'Ventas desde la apertura de caja - ' + hoy.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+
+        // Mostrar modal
+        modal.style.display = 'flex';
+
+        // Cargar ventas desde la API de la sesión de caja actual
+        fetch('api/ventas.php?historialCaja=1')
+            .then(res => {
+                console.log('Response status:', res.status);
+                if (!res.ok) {
+                    throw new Error('HTTP error ' + res.status);
+                }
+                return res.json();
+            })
+            .then(ventas => {
+                console.log('Ventas:', ventas);
+                if (ventas.error) {
+                    if (ventas.error.includes('No hay sesión')) {
+                        contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">No hay sesión de caja abierta.</p>';
+                        totalDiv.textContent = '';
+                        return;
+                    }
+                    throw new Error(ventas.error);
+                }
+                if (!ventas || ventas.length === 0) {
+                    contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">No hay ventas registradas hoy.</p>';
+                    totalDiv.textContent = 'Total: 0.00 €';
+                    return;
+                }
+
+                // Calcular total
+                let total = 0;
+                let html = '<table class="historial-ventas-tabla">';
+                html += '<thead><tr>';
+                html += '<th>Hora</th>';
+                html += '<th>Usuario</th>';
+                html += '<th>Cantidad</th>';
+                html += '<th>Forma de pago</th>';
+                html += '<th>Total</th>';
+                html += '<th>Acciones</th>';
+                html += '</tr></thead><tbody>';
+
+                ventas.forEach(v => {
+                    const fecha = new Date(v.fecha);
+                    const hora = fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                    const totalVenta = parseFloat(v.total);
+                    const cantidad = v.cantidad_productos || 0;
+                    total += totalVenta;
+
+                    let formaPago = v.forma_pago || 'Efectivo';
+                    let usuario = v.usuario_nombre || 'Cajero';
+
+                    html += '<tr>';
+                    html += '<td >' + hora + '</td>';
+                    html += '<td>' + usuario + '</td>';
+                    html += '<td>' + cantidad + '</td>';
+                    html += '<td>' + formaPago + '</td>';
+                    html += '<td style="font-weight: 600;">' + totalVenta.toFixed(2).replace('.', ',') + ' €</td>';
+                    html += '<td>';
+                    html += '<div style="display: flex; gap: 5px; justify-content: center;">';
+                    html += '<button class="btn-exito" onclick="verDetalleVenta(' + v.id + ')" title="Ver detalles" style="padding: 5px 10px; font-size: 12px;">👁️</button>';
+                    html += '<button class="btn-exito" onclick="reimprimirTicket(' + v.id + ')" title="Reimprimir ticket" style="padding: 5px 10px; font-size: 12px;">🖨️</button>';
+                    html += '</div>';
+                    html += '</td>';
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                contenido.innerHTML = html;
+                totalDiv.textContent = 'Total del día: ' + total.toFixed(2).replace('.', ',') + ' € (' + ventas.length + ' ventas)';
+            })
+            .catch(err => {
+                console.error('Error cargando historial:', err);
+                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 40px;">Error al cargar el historial de ventas: ' + err.message + '</p>';
+                totalDiv.textContent = '';
+            });
+    }
+
+    /**
+     * Muestra los detalles de una venta específica en un modal
+     */
+    function verDetalleVenta(idVenta) {
+        const modal = document.getElementById('modalDetalleVenta');
+        const contenido = document.getElementById('detalleVentaContenido');
+
+        modal.style.display = 'flex';
+        contenido.innerHTML = '<p style="text-align: center; padding: 20px;">Cargando...</p>';
+
+        fetch('api/ventas.php?detalleVenta=' + idVenta)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;">Error: ' + data.error + '</p>';
+                    return;
+                }
+
+                const venta = data.venta;
+                const lineas = data.lineas;
+                const fecha = new Date(venta.fecha).toLocaleString('es-ES');
+
+                let html = '<div class="detalle-venta-header">';
+                html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
+                html += '<div><strong style="font-size: 18px;">Venta #' + venta.id + '</strong></div>';
+                html += '<div style="font-size: 12px; opacity: 0.9;">' + fecha + '</div>';
+                html += '</div>';
+                html += '</div>';
+
+                html += '<div class="detalle-venta-info">';
+                html += '<div><strong>Tipo:</strong> ' + (venta.tipoDocumento === 'factura' ? '📄 Factura' : '🧾 Ticket') + '</div>';
+                html += '<div><strong>Pago:</strong> ' + (venta.metodoPago || '💵 Efectivo') + '</div>';
+                html += '</div>';
+
+                html += '<div style="max-height: 300px; overflow-y: auto; margin: 15px 0;">';
+                html += '<table class="detalle-venta-tabla">';
+                html += '<thead><tr>';
+                html += '<th style="padding: 10px; text-align: left;">Producto</th>';
+                html += '<th style="padding: 10px; text-align: center;">Cant.</th>';
+                html += '<th style="padding: 10px; text-align: right;">P.U.</th>';
+                html += '<th style="padding: 10px; text-align: right;">Subtotal</th>';
+                html += '</tr></thead><tbody class="detalle-venta-body">';
+
+                lineas.forEach(item => {
+                    const subtotal = (item.precioUnitario * item.cantidad).toFixed(2).replace('.', ',');
+                    html += '<tr>';
+                    html += '<td>' + item.producto_nombre + '</td>';
+                    html += '<td style="text-align: center;">' + item.cantidad + '</td>';
+                    html += '<td style="text-align: right;">' + parseFloat(item.precioUnitario).toFixed(2).replace('.', ',') + ' €</td>';
+                    html += '<td style="text-align: right; font-weight: 600;">' + subtotal + ' €</td>';
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                html += '</div>';
+                html += '<div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border-radius: 8px; text-align: center; font-weight: bold; font-size: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">';
+                html += 'TOTAL: ' + parseFloat(venta.total).toFixed(2).replace('.', ',') + ' €';
+                html += '</div>';
+
+                contenido.innerHTML = html;
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;">Error al cargar los detalles</p>';
+            });
+    }
+
+    /**
+     * Reimprime un ticket de una venta existente.
+     * @param {number} idVenta - El ID de la venta a reimprimir.
+     */
+    function reimprimirTicket(idVenta) {
+        // Abrir la ventana primero para evitar el bloqueo de popups (requiere contexto de usuario directo)
+        const ventana = window.open('', '_blank', 'width=450,height=700');
+
+        if (!ventana) {
+            alert('El navegador ha bloqueado la ventana de impresión. Por favor, permite los popups para poder imprimir el ticket.');
+            return;
+        }
+
+        // Mostrar un mensaje de carga mientras se obtienen los datos
+        ventana.document.write(`
+            <html>
+                <head><title>Cargando...</title></head>
+                <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 80vh; flex-direction: column; color: #666;">
+                    <div style="border: 4px solid #f3f3f3; border-top: 4px solid #2563eb; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+                    <p>Obteniendo datos del ticket #${idVenta}...</p>
+                    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+                </body>
+            </html>
+        `);
+
+        fetch('api/ventas.php?detalleVenta=' + idVenta)
+            .then(res => {
+                if (!res.ok) throw new Error('Error en la respuesta del servidor (HTTP ' + res.status + ')');
+                return res.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    ventana.close();
+                    alert('Error al obtener datos: ' + data.error);
+                    return;
+                }
+
+                const venta = data.venta;
+                const lineas = data.lineas;
+
+                const isFactura = (venta.tipoDocumento === 'factura');
+                const tipoTitulo = isFactura ? 'FACTURA' : 'TICKET DE VENTA';
+
+                let lineasHtml = '';
+                let desgloseIva = {};
+                let sumaPVP = 0;
+
+                lineas.forEach(item => {
+                    const priceBase = parseFloat(item.precioUnitario) || 0;
+                    const qty = parseInt(item.cantidad) || 0;
+                    const ivaPorc = parseInt(item.iva) || 21;
+
+                    const subtotalBase = priceBase * qty;
+                    const cuotaIva = subtotalBase * (ivaPorc / 100);
+                    const subtotalPVP = subtotalBase + cuotaIva;
+
+                    sumaPVP += subtotalPVP;
+
+                    if (!desgloseIva[ivaPorc]) {
+                        desgloseIva[ivaPorc] = { base: 0, cuota: 0 };
+                    }
+                    desgloseIva[ivaPorc].base += subtotalBase;
+                    desgloseIva[ivaPorc].cuota += cuotaIva;
+
+                    lineasHtml += `
+                        <tr>
+                            <td style="padding: 5px 0;">${item.producto_nombre}</td>
+                            <td style="text-align:center;">${qty}</td>
+                            <td style="text-align:right;">${priceBase.toFixed(2).replace('.', ',')} €</td>
+                            <td style="text-align:center;">${ivaPorc}%</td>
+                            <td style="text-align:right;">${subtotalPVP.toFixed(2).replace('.', ',')} €</td>
+                        </tr>
+                    `;
+                });
+
+                const total = parseFloat(venta.total).toFixed(2).replace('.', ',');
+                const fecha = new Date(venta.fecha).toLocaleString('es-ES', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
+                });
+
+                const contenido = `
+                    <html>
+                    <head>
+                        <title>${tipoTitulo} #${venta.id}</title>
+                        <style>
+                            body { font-family: 'Courier New', Courier, monospace; font-size: 13px; padding: 20px; line-height: 1.4; color: #000; }
+                            .header { text-align: center; margin-bottom: 20px; border-bottom: 1px dashed #000; padding-bottom: 15px; }
+                            table { width: 100%; border-collapse: collapse; }
+                            th { border-bottom: 1px solid #000; padding: 5px 0; text-align: left; font-size: 11px; text-transform: uppercase; }
+                            .total-row { border-top: 1px solid #000; margin-top: 15px; padding-top: 10px; font-weight: bold; font-size: 16px; text-align: right; }
+                            .footer { text-align: center; margin-top: 30px; font-size: 11px; font-style: italic; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <strong style="font-size: 16px;">TPV BAZAR</strong><br>
+                            NIF: B12345678<br>
+                            C/ Falsa 123, Madrid<br><br>
+                            <span style="font-size: 14px; font-weight: bold;">${tipoTitulo}</span><br>
+                            Nº Ticket: ${venta.id}<br>
+                            Fecha: ${fecha}
+                        </div>
+                        <table class="tabla-lineas">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th style="text-align:center">Uds.</th>
+                                    <th style="text-align:right">Base</th>
+                                    <th style="text-align:center">IVA</th>
+                                    <th style="text-align:right">PVP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${lineasHtml}
+                            </tbody>
+                        </table>
+
+                        <div style="margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px;">
+                            <strong style="font-size: 11px;">Desglose Fiscal:</strong>
+                            <table style="width: 100%; font-size: 11px; margin-top: 5px;">
+                                ${Object.keys(desgloseIva).map(porc => `
+                                    <tr>
+                                        <td>Base al ${porc}%:</td>
+                                        <td style="text-align:right;">${desgloseIva[porc].base.toFixed(2).replace('.', ',')} €</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Cuota IVA (${porc}%):</td>
+                                        <td style="text-align:right;">${desgloseIva[porc].cuota.toFixed(2).replace('.', ',')} €</td>
+                                    </tr>
+                                `).join('')}
+                            </table>
+                        </div>
+
+                        <div class="total-row">TOTAL (PVP): ${total} €</div>
+                        <div style="margin-top: 10px; font-size: 12px;">Método de pago: ${venta.metodoPago || 'Efectivo'}</div>
+                        <div class="footer">Este documento es una copia del original.<br>¡Gracias por su visita!</div>
+                    </body>
+                    </html>
+                `;
+
+                // Escribir el contenido final
+                ventana.document.open();
+                ventana.document.write(contenido);
+                ventana.document.close();
+
+                // Imprimir y cerrar
+                setTimeout(() => {
+                    ventana.focus();
+                    ventana.print();
+                    ventana.close();
+                }, 400);
+            })
+            .catch(err => {
+                if (ventana) ventana.close();
+                console.error('Error en reimprimirTicket:', err);
+                alert('No se pudo obtener la información del ticket para imprimir. ' + err.message);
+            });
+    }
+
+    /**
+     * Envía un ticket por correo electrónico
+     */
+    function enviarTicketCorreo(idVenta) {
+        const email = prompt('Introduce el correo electrónico del cliente:');
+        if (!email || !email.includes('@')) { alert('Por favor, introduce un correo válido.'); return; }
+
+        fetch('api/ventas.php?detalleVenta=' + idVenta)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) { alert('Error: ' + data.error); return; }
+
+                const venta = data.venta;
+                const lineas = data.lineas;
+
+                const formData = new FormData();
+                formData.append('idVenta', venta.id);
+                formData.append('email', email);
+                formData.append('tipo', venta.tipoDocumento || 'ticket');
+
+                let productosData = [];
+                lineas.forEach(item => {
+                    productosData.push({ nombre: item.producto_nombre, cantidad: item.cantidad, precio: item.precioUnitario, subtotal: item.subtotal });
+                });
+                formData.append('productos', JSON.stringify(productosData));
+                formData.append('total', venta.total);
+                formData.append('fecha', venta.fecha);
+                formData.append('metodoPago', venta.metodoPago);
+
+                fetch('api/enviarCorreo.php', { method: 'POST', body: formData })
+                    .then(res => res.json())
+                    .then(response => { alert(response.ok ? 'Ticket enviado correctamente al correo: ' + email : 'Error al enviar el correo'); })
+                    .catch(err => { console.error('Error:', err); alert('Error al enviar el correo'); });
+            })
+            .catch(err => { console.error('Error:', err); alert('Error al obtener los datos del ticket'); });
+    }
+
+    // Variable global para almacenar datos de venta del historial temporal
+    let ventaHistorialTemporal = null;
+
+    /**
+     * Reimprime un ticket de una venta existente usando la función existente
+     */
+    function reimprimirTicket(idVenta) {
+        fetch('api/ventas.php?detalleVenta=' + idVenta)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) { alert('Error: ' + data.error); return; }
+                const venta = data.venta;
+                const lineas = data.lineas;
+                ultimaVenta = {
+                    id: venta.id, tipo: venta.tipoDocumento, total: parseFloat(venta.total),
+                    fecha: venta.fecha, metodoPago: venta.metodoPago,
+                    entregado: parseFloat(venta.importeEntregado) || 0,
+                    cambio: parseFloat(venta.cambioDevuelto) || 0,
+                    descuentoTipo: 'ninguno', descuentoValor: 0,
+                    clienteNif: '', clienteNombre: '', clienteDir: '', clienteObs: '',
+                    carrito: lineas.map(l => ({ idProducto: l.idProducto, nombre: l.producto_nombre, precio: parseFloat(l.precioUnitario), iva: parseInt(l.iva) || 21, cantidad: l.cantidad }))
+                };
+                imprimirDocumento();
+            })
+            .catch(err => { console.error('Error:', err); alert('Error al obtener los datos del ticket'); });
+    }
+
+    /**
+     * Muestra el modal para enviar un ticket por correo electrónico
+     */
+    function mostrarModalEnviarCorreo(idVenta) {
+        console.log('Fetching sale details for ID:', idVenta);
+        fetch('api/ventas.php?detalleVenta=' + idVenta)
+            .then(res => {
+                console.log('Response status:', res.status);
+                return res.text();
+            })
+            .then(text => {
+                console.log('Response text:', text);
+                const data = JSON.parse(text);
+                if (data.error) { alert('Error: ' + data.error); return; }
+                const venta = data.venta;
+                const lineas = data.lineas;
+                ventaHistorialTemporal = {
+                    id: venta.id, tipo: venta.tipoDocumento, total: parseFloat(venta.total),
+                    fecha: venta.fecha, metodoPago: venta.metodoPago,
+                    entregado: parseFloat(venta.importeEntregado) || 0,
+                    cambio: parseFloat(venta.cambioDevuelto) || 0,
+                    descuentoTipo: 'ninguno', descuentoValor: 0,
+                    clienteNif: '', clienteNombre: '', clienteDir: '', clienteObs: '',
+                    carrito: lineas.map(l => ({ idProducto: l.idProducto, nombre: l.producto_nombre, precio: parseFloat(l.precioUnitario), iva: parseInt(l.iva) || 21, cantidad: l.cantidad }))
+                };
+                ultimaVenta = ventaHistorialTemporal;
+                // Abrir primero el modal de éxito y luego mostrar el formulario de email
+                document.getElementById('ventaExito').style.display = 'flex';
+                mostrarFormEmail();
+            })
+            .catch(err => { console.error('Error:', err); alert('Error al obtener los datos del ticket: ' + err.message); });
+    }
+</script>
+
+<!-- ##=========================== SCRIPT PRINCIPAL DEL CAJERO ===========================## -->
+<!-- Contiene toda la lógica JavaScript del carrito, descuentos, cobro, impresión,
+     envío por correo, devoluciones y utilidades -->
+<script>
+    // ======================== CARRITO (persiste en memoria durante la sesión del navegador) ========================
+
+    /**
+     * Array que almacena los productos del carrito.
+     * Cada elemento tiene: { idProducto, nombre, precio, cantidad, stockMax }
+     */
     let carrito = [];
+
+    /**
+     * Objeto que almacena el descuento aplicado actualmente.
+     * tipo: 'ninguno' | 'porcentaje' | 'fijo'
+     * valor: número (porcentaje o importe fijo)
+     * cupon: código del cupón usado (si aplica)
+     */
     let descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+    let descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
+
+    /**
+     * Flag que indica si la caja está abierta (true) o cerrada (false).
+     * Se inicializa desde PHP según el estado de $sesionCaja.
+     */
     let cajaAbierta = <?php echo $sesionCaja ? 'true' : 'false'; ?>;
 
+    /**
+     * Efectivo actual en caja para validaciones (p.ej. devoluciones).
+     */
+    const efectivoActualCaja = <?php echo $sesionCaja ? $sesionCaja->getImporteActual() : 0; ?>;
+
+    /**
+     * agregarAlCarrito(elemento)
+     * Añade un producto al carrito o incrementa su cantidad si ya existe.
+     * Lee los datos del producto desde los atributos data-* del elemento HTML.
+     * Valida que no se exceda el stock máximo disponible.
+     * @param {HTMLElement} elemento - La tarjeta de producto clickeada
+     */
     function agregarAlCarrito(elemento) {
         const id = parseInt(elemento.dataset.id);
         const nombre = elemento.dataset.nombre;
         const precio = parseFloat(elemento.dataset.precio);
         const stockMax = parseInt(elemento.dataset.stock);
 
+        // Buscar si el producto ya está en el carrito
         const existente = carrito.find(item => item.idProducto === id);
         if (existente) {
+            // Si ya existe, verificar stock antes de incrementar
             if (existente.cantidad >= stockMax) {
                 alert('No hay más stock disponible para este producto.');
                 return;
             }
             existente.cantidad++;
         } else {
+            // Si no existe, verificar que tenga stock y añadirlo
             if (stockMax <= 0) {
                 alert('Este producto no tiene stock disponible.');
                 return;
             }
-            carrito.push({ idProducto: id, nombre: nombre, precio: precio, cantidad: 1, stockMax: stockMax });
+            let ivaValue = elemento.dataset.iva;
+            let ivaParseado = parseInt(ivaValue);
+            // Si el IVA es NaN o undefined, usar 21 por defecto
+            if (isNaN(ivaParseado)) {
+                ivaParseado = 21;
+            }
+            carrito.push({
+                idProducto: id,
+                nombre: nombre,
+                precio: precio,
+                iva: ivaParseado,
+                cantidad: 1,
+                stockMax: stockMax
+            });
         }
 
+        // Actualizar la visualización del ticket
         actualizarTicket();
     }
 
+    /**
+     * eliminarDelCarrito(index)
+     * Elimina un producto del carrito por su índice.
+     * @param {number} index - Índice del producto en el array carrito
+     */
     function eliminarDelCarrito(index) {
         carrito.splice(index, 1);
         actualizarTicket();
     }
 
+    /**
+     * cambiarCantidad(indice, nuevaCantidad)
+     * Modifica la cantidad de un producto en el carrito.
+     * Valida que la cantidad esté entre 1 y el stock máximo.
+     * @param {number} indice - Índice del producto en el array carrito
+     * @param {number} nuevaCantidad - Nueva cantidad deseada
+     */
     function cambiarCantidad(indice, nuevaCantidad) {
         const item = carrito[indice];
         nuevaCantidad = parseInt(nuevaCantidad) || 1;
 
+        // Limitar entre 1 y el stock máximo
         if (nuevaCantidad < 1) nuevaCantidad = 1;
         if (nuevaCantidad > item.stockMax) nuevaCantidad = item.stockMax;
 
@@ -928,46 +2076,211 @@
         actualizarTicket();
     }
 
+    /**
+     * vaciarCarrito()
+     * Elimina todos los productos del carrito y resetea el descuento.
+     */
     function vaciarCarrito() {
         carrito = [];
         descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+        descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
+        // Resetear también el select de tarifa
+        document.getElementById('tarifaVenta').value = 'cliente';
         actualizarTicket();
     }
 
-    function obtenerTotalCalculado() {
-        let subtotal = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
-        let importeDescuento = 0;
-        if (descuento.tipo === 'porcentaje') {
-            importeDescuento = subtotal * (descuento.valor / 100);
-        } else if (descuento.tipo === 'fijo') {
-            importeDescuento = descuento.valor;
+    /**
+     * posponerVenta()
+     * Guarda la venta actual en sessionStorage para recuperarla después.
+     * Guarda: carrito, descuento, y fecha/hora de la posposición.
+     */
+    function posponerVenta() {
+        if (carrito.length === 0) {
+            alert('No hay productos en el carrito para posponer');
+            return;
         }
-        return Math.max(0, subtotal - importeDescuento);
+
+        const ventaPospuesta = {
+            carrito: carrito,
+            descuento: descuento,
+            descuentoTarifa: descuentoTarifa,
+            tarifa: document.getElementById('tarifaVenta').value,
+            fecha: new Date().toLocaleString('es-ES')
+        };
+
+        // Guardar en sessionStorage
+        sessionStorage.setItem('ventaPospuesta', JSON.stringify(ventaPospuesta));
+
+        // Vaciar el carrito
+        carrito = [];
+        descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+        descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
+        document.getElementById('tarifaVenta').value = 'cliente';
+        actualizarTicket();
+
+        // Mostrar mensaje
+        alert('✅ Venta pospuesta. Puedes recuperarla cuando quieras.');
+
+        // Actualizar estado del botón recuperar
+        actualizarBotonRecuperar();
     }
 
+    /**
+     * recuperarVenta()
+     * Recupera la última venta pospuesta y la vuelve al carrito.
+     */
+    function recuperarVenta() {
+        const ventaJson = sessionStorage.getItem('ventaPospuesta');
+
+        if (!ventaJson) {
+            alert('No hay ninguna venta pospuesta para recuperar');
+            return;
+        }
+
+        const ventaPospuesta = JSON.parse(ventaJson);
+
+        // Verificar si hay productos actuales en el carrito
+        if (carrito.length > 0) {
+            if (!confirm('⚠️ Ya hay productos en el carrito. ¿Quieres añadir los productos pospuestos?')) {
+                return;
+            }
+            // Añadir los productos pospuestos al carrito existente manteniendo su IVA
+            ventaPospuesta.carrito.forEach(producto => {
+                // Crear un objeto temporal con los datos del producto para usar con agregarAlCarrito
+                const productoTemp = {
+                    dataset: {
+                        id: producto.idProducto,
+                        nombre: producto.nombre,
+                        precio: producto.precio,
+                        iva: producto.iva || 21,
+                        stock: producto.stockMax || 999
+                    }
+                };
+                agregarAlCarrito(productoTemp);
+            });
+        } else {
+            // Restaurar el carrito y descuento
+            carrito = ventaPospuesta.carrito;
+            descuento = ventaPospuesta.descuento || { tipo: 'ninguno', valor: 0, cupon: '' };
+            descuentoTarifa = ventaPospuesta.descuentoTarifa || { tipo: 'ninguno', valor: 0, cupon: '' };
+            // Restaurar la tarifa
+            if (ventaPospuesta.tarifa) {
+                document.getElementById('tarifaVenta').value = ventaPospuesta.tarifa;
+            }
+            actualizarTicket();
+        }
+
+        // Limpiar la venta pospuesta
+        sessionStorage.removeItem('ventaPospuesta');
+
+        alert('✅ Venta recuperada: ' + ventaPospuesta.fecha);
+
+        // Actualizar estado del botón recuperar
+        actualizarBotonRecuperar();
+    }
+
+    /**
+     * actualizarBotonRecuperar()
+     * Habilita/deshabilita el botón de recuperar según si hay venta pospuesta.
+     */
+    function actualizarBotonRecuperar() {
+        const btnRecuperar = document.getElementById('btnRecuperar');
+        const ventaJson = sessionStorage.getItem('ventaPospuesta');
+
+        if (ventaJson) {
+            btnRecuperar.disabled = false;
+            btnRecuperar.style.opacity = '1';
+        } else {
+            btnRecuperar.disabled = true;
+            btnRecuperar.style.opacity = '0.5';
+        }
+    }
+
+    // Inicializar botón de recuperar al cargar la página
+    document.addEventListener('DOMContentLoaded', function () {
+        actualizarBotonRecuperar();
+    });
+
+    /**
+     * obtenerTotalCalculado()
+     * Calcula el total del carrito aplicando el descuento vigente.
+     * Los descuentos se aplican sobre la BASE IMPONIBLE (sin IVA), y luego se suma el IVA.
+     * @returns {number} Total final (mínimo 0)
+     */
+    function obtenerTotalCalculado() {
+        // Calcular base imponible (suma de precio * cantidad de cada producto)
+        let baseImponible = carrito.reduce((sum, item) => {
+            return sum + (item.precio * item.cantidad);
+        }, 0);
+
+        let importeDescuento = 0;
+
+        // Aplicar descuento de tarifa (porcentaje sobre base imponible)
+        if (descuentoTarifa.tipo === 'porcentaje') {
+            importeDescuento += baseImponible * (descuentoTarifa.valor / 100);
+        } else if (descuentoTarifa.tipo === 'fijo') {
+            importeDescuento += descuentoTarifa.valor;
+        }
+
+        // Aplicar descuento manual (porcentaje o cupón sobre base imponible)
+        if (descuento.tipo === 'porcentaje') {
+            importeDescuento += baseImponible * (descuento.valor / 100);
+        } else if (descuento.tipo === 'fijo') {
+            importeDescuento += descuento.valor;
+        }
+
+        // Calcular base imponible con descuento
+        let baseConDescuento = baseImponible - importeDescuento;
+
+        // Calcular el IVA sobre la base imponible con descuento
+        let ivaTotal = 0;
+        if (baseImponible > 0) {
+            ivaTotal = carrito.reduce((sum, item) => {
+                // Calcular la parte proporcional del IVA para cada producto
+                let proporcion = (item.precio * item.cantidad) / baseImponible;
+                let baseProductoConDescuento = baseConDescuento * proporcion;
+                return sum + (baseProductoConDescuento * (item.iva / 100));
+            }, 0);
+        }
+
+        // Retornar total (base con descuento + IVA) redondeado a 2 decimales
+        return Math.max(0, Math.round((baseConDescuento + ivaTotal) * 100) / 100);
+    }
+
+    /**
+     * actualizarTicket()
+     * Regenera completamente el HTML del ticket/carrito en el panel derecho.
+     * Incluye: tabla de productos, controles de cantidad, desglose de descuento,
+     * total y estado de los botones Cobrar/Descuento.
+     */
     function actualizarTicket() {
         const contenedor = document.getElementById('ticketLineas');
         const totalEl = document.getElementById('ticketTotal');
         const btnCobrar = document.getElementById('btnCobrar');
         const btnDescuento = document.getElementById('btnDescuento');
 
+        // Si el carrito está vacío, mostrar mensaje y deshabilitar botones
         if (carrito.length === 0) {
             contenedor.innerHTML = '<p class="ticket-vacio">Añade productos al ticket</p>';
             document.getElementById('ticketDesglose').innerHTML = '';
             totalEl.textContent = '0,00 €';
             btnCobrar.disabled = true;
             btnDescuento.disabled = true;
+            document.getElementById('btnPosponer').disabled = true;
             return;
         }
 
-        let html = '<table class="ticket-tabla"><thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subt.</th><th></th></tr></thead><tbody>';
-        let total = 0;
+        // Generar tabla HTML con las líneas del ticket
+        let html = '<table class="ticket-tabla"><thead><tr><th>Producto</th><th>Cant.</th><th>Precio (PVP)</th><th>Subt.</th><th></th></tr></thead><tbody>';
 
+        // Iterar sobre cada producto del carrito
         carrito.forEach((item, i) => {
-            const subtotal = item.precio * item.cantidad;
-            total += subtotal;
+            const precioPVP = item.precio * (1 + (item.iva / 100));
+            const subtotal = precioPVP * item.cantidad;
+
+            // Generar fila con: nombre, controles de cantidad (−/input/+), precio PVP, subtotal y botón eliminar
             html += `<tr>
-                <td>${item.nombre}</td>
+                <td>${item.nombre} <small style="color: #666; display: block; font-size: 0.7rem;">IVA: ${item.iva}%</small></td>
                 <td>
                     <div class="cantidad-control">
                         <button onclick="cambiarCantidad(${i}, ${item.cantidad - 1})">−</button>
@@ -978,7 +2291,7 @@
                         <button onclick="cambiarCantidad(${i}, ${item.cantidad + 1})">+</button>
                     </div>
                 </td>
-                <td>${item.precio.toFixed(2).replace('.', ',')} €</td>
+                <td>${precioPVP.toFixed(2).replace('.', ',')} €</td>
                 <td>${subtotal.toFixed(2).replace('.', ',')} €</td>
                 <td><button class="btn-quitar" onclick="eliminarDelCarrito(${i})">✕</button></td>
             </tr>`;
@@ -987,56 +2300,135 @@
         html += '</tbody></table>';
         contenedor.innerHTML = html;
 
-        // Desglose de totales
-        let subtotal = total;
-        total = obtenerTotalCalculado();
-        let importeDescuento = subtotal - total;
+        // Calcular desglose de totales con descuento
+        let baseImponible = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+        let totalPVP = obtenerTotalCalculado();
 
+        // Calcular descuentos (sobre base imponible)
+        let descuentoTarifaImporte = 0;
+        let descuentoManualImporte = 0;
+
+        if (descuentoTarifa.tipo === 'porcentaje') {
+            descuentoTarifaImporte = baseImponible * (descuentoTarifa.valor / 100);
+        } else if (descuentoTarifa.tipo === 'fijo') {
+            descuentoTarifaImporte = descuentoTarifa.valor;
+        }
+
+        if (descuento.tipo === 'porcentaje') {
+            descuentoManualImporte = baseImponible * (descuento.valor / 100);
+        } else if (descuento.tipo === 'fijo') {
+            descuentoManualImporte = descuento.valor;
+        }
+
+        let importeDescuento = descuentoTarifaImporte + descuentoManualImporte;
+
+        // Generar HTML del desglose (solo si hay descuento aplicado real > 0)
         let htmlDesglose = '';
-        if (importeDescuento > 0) {
+        if (importeDescuento > 0.01) {
+            // Calcular descuento de tarifa y descuento manual por separado
+            let lineasDescuento = [];
+
+            // Construir líneas de descuento separadas
+            if (descuentoTarifaImporte > 0.01) {
+                const textoTarifa = descuentoTarifa.cupon === 'CLIENTE_REGISTRADO' ? 'Cliente registrado (' + descuentoTarifa.valor + '%)' :
+                    descuentoTarifa.cupon === 'MAYORISTA_NIVEL1' ? 'Mayorista nivel 1 (' + descuentoTarifa.valor + '%)' :
+                        descuentoTarifa.cupon === 'MAYORISTA_NIVEL2' ? 'Mayorista nivel 2 (' + descuentoTarifa.valor + '%)' :
+                            (descuentoTarifa.tipo === 'porcentaje' ? descuentoTarifa.valor + '%' : 'Cupón ' + descuentoTarifa.cupon);
+                lineasDescuento.push(`
+                    <div class="resumen-fila-mini descuento-texto">
+                        <span>${textoTarifa}:</span>
+                        <span>- ${descuentoTarifaImporte.toFixed(2).replace('.', ',')} €</span>
+                    </div>`);
+            }
+
+            if (descuentoManualImporte > 0.01) {
+                const textoManual = descuento.tipo === 'porcentaje' ? 'Descuento (' + descuento.valor + '%)' : 'Cupón ' + descuento.cupon;
+                lineasDescuento.push(`
+                    <div class="resumen-fila-mini descuento-texto">
+                        <span>${textoManual}:</span>
+                        <span>- ${descuentoManualImporte.toFixed(2).replace('.', ',')} €</span>
+                    </div>`);
+            }
+
             htmlDesglose = `
                 <div class="resumen-final-premium">
                     <div class="resumen-fila-mini">
-                        <span>Subtotal:</span>
-                        <span>${subtotal.toFixed(2).replace('.', ',')} €</span>
+                        <span>Base Imponible:</span>
+                        <span>${baseImponible.toFixed(2).replace('.', ',')} €</span>
                     </div>
-                    <div class="resumen-fila-mini descuento-texto">
-                        <span>Descuento (${descuento.tipo === 'porcentaje' ? descuento.valor + '%' : 'Cupón ' + descuento.cupon}):</span>
-                        <span>- ${importeDescuento.toFixed(2).replace('.', ',')} €</span>
+                    ${lineasDescuento.join('')}
+                    <div class="resumen-fila-mini" style="font-weight: bold; border-top: 1px solid #e5e7eb; padding-top: 8px;">
+                        <span>Total (IVA incl.):</span>
+                        <span>${totalPVP.toFixed(2).replace('.', ',')} €</span>
                     </div>
                 </div>`;
+        } else {
+            // No hay descuento - mostrar base imponible, IVA y total
+            if (baseImponible > 0) {
+                // Calcular IVA total
+                let ivaTotal = totalPVP - baseImponible;
+                htmlDesglose = `
+                    <div class="resumen-final-premium">
+                        <div class="resumen-fila-mini">
+                            <span>Base Imponible:</span>
+                            <span>${baseImponible.toFixed(2).replace('.', ',')} €</span>
+                        </div>
+                        <div class="resumen-fila-mini">
+                            <span>IVA:</span>
+                            <span>${ivaTotal.toFixed(2).replace('.', ',')} €</span>
+                        </div>
+                        <div class="resumen-fila-mini" style="font-weight: bold; border-top: 1px solid #e5e7eb; padding-top: 8px;">
+                            <span>Total:</span>
+                            <span>${totalPVP.toFixed(2).replace('.', ',')} €</span>
+                        </div>
+                    </div>`;
+            }
         }
 
+        // Actualizar el DOM con el desglose y el total
         document.getElementById('ticketDesglose').innerHTML = htmlDesglose;
-        totalEl.textContent = total.toFixed(2).replace('.', ',') + ' €';
-        
-        // Verificar límite de efectivo
-        verificarLimiteEfectivo();
+        totalEl.textContent = totalPVP.toFixed(2).replace('.', ',') + ' €';
 
+        // Verificar si se supera el límite de 1.000€ en efectivo
+        // verificarLimiteEfectivo();
+
+        // Habilitar botones de cobro y descuento
         btnCobrar.disabled = false;
         btnDescuento.disabled = false;
+        document.getElementById('btnPosponer').disabled = false;
     }
 
     // ======================== DESCUENTOS ========================
+
+    /**
+     * aplicarDescuento()
+     * Abre el modal de descuento si hay productos en el carrito.
+     */
     function aplicarDescuento() {
         if (carrito.length === 0) return;
         document.getElementById('modalDescuento').style.display = 'flex';
         document.getElementById('inputPorcentajeDescuento').focus();
     }
 
+    /**
+     * procesarDescuento()
+     * Procesa el descuento introducido (porcentaje o cupón) y lo aplica al carrito.
+     * Cupones válidos: PROMO10 (10%), BIENVENIDA5 (5%), FIJO5 (5€ fijo).
+     * Si no se introduce nada, se elimina el descuento actual.
+     */
     function procesarDescuento() {
         let porcentaje = parseFloat(document.getElementById('inputPorcentajeDescuento').value);
         const cupon = document.getElementById('inputCuponDescuento').value.trim().toUpperCase();
 
         if (!isNaN(porcentaje) && document.getElementById('inputPorcentajeDescuento').value !== '') {
-            // Validación de rango 0-100
+            // Opción 1: Descuento por porcentaje manual
             if (porcentaje < 0 || porcentaje > 100) {
                 alert('El porcentaje de descuento debe estar entre 0 y 100');
                 return;
             }
             descuento = { tipo: 'porcentaje', valor: porcentaje, cupon: '' };
         } else if (cupon) {
-            // Ejemplo de cupones válidos
+            // Opción 2: Descuento por código de cupón
             if (cupon === 'PROMO10') {
                 descuento = { tipo: 'porcentaje', valor: 10, cupon: 'PROMO10' };
             } else if (cupon === 'BIENVENIDA5') {
@@ -1048,91 +2440,130 @@
                 return;
             }
         } else {
+            // Sin descuento: resetear
             descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
         }
 
-        // Limpiar inputs
+        // Limpiar los inputs del modal
         document.getElementById('inputPorcentajeDescuento').value = '';
         document.getElementById('inputCuponDescuento').value = '';
 
+        // Cerrar modal y actualizar ticket con el nuevo descuento
         cerrarModal('modalDescuento');
         actualizarTicket();
     }
 
     // ======================== PROCESO DE COBRO Y CAMBIO ========================
+
+    /**
+     * intentarCobrar()
+     * Inicia el proceso de cobro. Si el método es efectivo, muestra el modal de cambio.
+     * Si es tarjeta/bizum, va directamente al modal de tipo de documento.
+     * Valida el límite legal de 1.000€ para pagos en efectivo.
+     */
     function intentarCobrar() {
         if (carrito.length === 0) return;
         const metodoPago = document.getElementById('metodoPago').value;
 
         if (metodoPago === 'efectivo') {
+            // Verificar límite legal de efectivo (1.000€)
             const total = obtenerTotalCalculado();
             if (total > 1000) {
                 alert('No se permite el pago en efectivo para importes superiores a 1.000€. Por favor, selecciona otro método de pago.');
                 return;
             }
+            // Mostrar modal para calcular el cambio
             mostrarModalCambio();
         } else {
+            // Para tarjeta/bizum, ir directamente al tipo de documento
             mostrarModalTipoDocumento();
         }
     }
 
+    /**
+     * mostrarModalCambio()
+     * Muestra el modal de cálculo de cambio para pago en efectivo.
+     * Inicializa los valores y pone el foco en el input de dinero entregado.
+     */
     function mostrarModalCambio() {
         const total = obtenerTotalCalculado();
         document.getElementById('cambioTotalPagar').textContent = total.toFixed(2).replace('.', ',') + ' €';
 
+        // Resetear campos del modal
         const inputEntregado = document.getElementById('inputDineroEntregado');
         inputEntregado.value = '';
         document.getElementById('cambioDevolver').textContent = '0,00 €';
         document.getElementById('cambioDevolver').style.color = '#22c55e';
         document.getElementById('cambioError').style.display = 'none';
 
+        // Mostrar modal y enfocar el input
         document.getElementById('modalCambio').style.display = 'flex';
-        // Foco automático en el input
         setTimeout(() => inputEntregado.focus(), 100);
     }
 
+    /**
+     * calcularCambio()
+     * Calcula en tiempo real el cambio a devolver según la cantidad entregada.
+     * Muestra un mensaje de error si la cantidad es insuficiente.
+     */
     function calcularCambio() {
         const total = obtenerTotalCalculado();
         const entregado = parseFloat(document.getElementById('inputDineroEntregado').value) || 0;
         const devolucion = entregado - total;
+        // Usar un pequeño epsilon o redondear para evitar errores de precisión en punto flotante
+        const devolucionRedondeada = Math.round(devolucion * 100) / 100;
 
         const spanDevolver = document.getElementById('cambioDevolver');
         const errorMsg = document.getElementById('cambioError');
 
-        if (devolucion < 0 && entregado > 0) {
+        if (devolucionRedondeada < 0 && entregado > 0) {
+            // Cantidad insuficiente: mostrar error
             spanDevolver.textContent = '0,00 €';
             spanDevolver.style.color = '#333';
             errorMsg.style.display = 'block';
         } else {
+            // Cantidad suficiente o vacía: mostrar cambio
             errorMsg.style.display = 'none';
             if (entregado === 0) {
                 spanDevolver.textContent = '0,00 €';
                 spanDevolver.style.color = '#333';
             } else {
-                spanDevolver.textContent = devolucion.toFixed(2).replace('.', ',') + ' €';
+                spanDevolver.textContent = devolucionRedondeada.toFixed(2).replace('.', ',') + ' €';
                 spanDevolver.style.color = '#22c55e';
             }
         }
     }
 
+    /**
+     * confirmarCambio()
+     * Valida que la cantidad entregada sea suficiente y avanza al modal de tipo de documento.
+     */
     function confirmarCambio() {
         const total = obtenerTotalCalculado();
         const entregado = parseFloat(document.getElementById('inputDineroEntregado').value) || 0;
 
-        if (entregado < total) {
+        // Validar que el entregado cubra el total (usando redondeo para evitar errores de precisión)
+        if (Math.round(entregado * 100) < Math.round(total * 100)) {
             document.getElementById('cambioError').style.display = 'block';
             return;
         }
 
+        // Cerrar modal de cambio y abrir modal de tipo de documento
         cerrarModal('modalCambio');
         mostrarModalTipoDocumento();
     }
 
     // ======================== MODAL TIPO DOCUMENTO / CLIENTE ========================
+
+    /**
+     * mostrarModalTipoDocumento()
+     * Muestra el modal para elegir entre Ticket o Factura.
+     * Valida que haya productos en el carrito y que la caja esté abierta.
+     */
     function mostrarModalTipoDocumento() {
         if (carrito.length === 0) return;
 
-        // Restricción de caja abierta
+        // Verificar que la caja esté abierta antes de permitir ventas
         if (!cajaAbierta) {
             alert('No se pueden realizar ventas si la caja no está abierta. Por favor, realiza la Apertura de Caja.');
             return;
@@ -1141,16 +2572,24 @@
         document.getElementById('modalTipoDoc').style.display = 'flex';
     }
 
+    /** Variable que almacena el tipo de documento seleccionado ('ticket' o 'factura') */
     let tipoDocumentoActual = 'ticket';
 
+    /**
+     * seleccionarDatosCliente(tipo)
+     * Configura y muestra el modal de datos del cliente según el tipo de documento.
+     * En modo Factura: muestra campos adicionales (dirección, observaciones) y marca obligatorios.
+     * En modo Ticket: los campos son opcionales y se ocultan los extras.
+     * @param {string} tipo - 'ticket' o 'factura'
+     */
     function seleccionarDatosCliente(tipo) {
         tipoDocumentoActual = tipo;
         cerrarModal('modalTipoDoc');
 
-        // Limpiamos errores
+        // Limpiar errores previos
         document.getElementById('errorDatosCliente').style.display = 'none';
 
-        // Configuramos la vista según sea Ticket o Factura
+        // Obtener referencias a los elementos del formulario
         const divDir = document.getElementById('divDireccionCliente');
         const divObs = document.getElementById('divObservacionesCliente');
         const subTitulo = document.getElementById('subtituloDatosCliente');
@@ -1160,6 +2599,7 @@
         const reqDir = document.getElementById('reqDir');
 
         if (tipo === 'factura') {
+            // Modo Factura: mostrar todos los campos y marcar obligatorios con *
             subTitulo.textContent = 'Complete los datos (Obligatorios para Factura)';
             divDir.style.display = 'block';
             divObs.style.display = 'block';
@@ -1167,6 +2607,7 @@
             reqNombre.style.display = 'inline';
             reqDir.style.display = 'inline';
         } else {
+            // Modo Ticket: ocultar campos extra y quitar indicadores de obligatorio
             subTitulo.textContent = 'Complete los datos (Opcional en Ticket)';
             divDir.style.display = 'none';
             divObs.style.display = 'none';
@@ -1175,15 +2616,22 @@
             reqDir.style.display = 'none';
         }
 
+        // Mostrar el modal de datos del cliente
         document.getElementById('modalDatosCliente').style.display = 'flex';
     }
 
+    /**
+     * validarYConfirmarVenta()
+     * Valida los datos del cliente (obligatorios en Factura) y confirma la venta.
+     * Si la validación falla, muestra un mensaje de error.
+     */
     function validarYConfirmarVenta() {
         const nif = document.getElementById('clienteNif').value.trim();
         const nombre = document.getElementById('clienteNombre').value.trim();
         const direccion = document.getElementById('clienteDireccion').value.trim();
         const observaciones = document.getElementById('clienteObservaciones').value.trim();
 
+        // En modo Factura, NIF, Nombre y Dirección son obligatorios
         if (tipoDocumentoActual === 'factura') {
             if (!nif || !nombre || !direccion) {
                 document.getElementById('errorDatosCliente').style.display = 'block';
@@ -1191,16 +2639,29 @@
             }
         }
 
+        // Cerrar modal y proceder con la venta
         cerrarModal('modalDatosCliente');
         confirmarVenta(tipoDocumentoActual, nif, nombre, direccion, observaciones);
     }
 
+    /**
+     * confirmarVenta(tipoDocumento, nif, nombre, direccion, observaciones)
+     * Rellena el formulario oculto con todos los datos de la venta y lo envía por POST.
+     * Incluye: carrito, método de pago, tipo de documento, dinero entregado/cambio,
+     * datos del cliente y descuento aplicado.
+     * @param {string} tipoDocumento - 'ticket' o 'factura'
+     * @param {string} nif - NIF/CIF del cliente
+     * @param {string} nombre - Nombre/Razón social del cliente
+     * @param {string} direccion - Domicilio fiscal del cliente
+     * @param {string} observaciones - Observaciones adicionales
+     */
     function confirmarVenta(tipoDocumento, nif, nombre, direccion, observaciones) {
         const total = obtenerTotalCalculado();
         const metodoPago = document.getElementById('metodoPago').value;
         let entregado = total;
         let cambio = 0;
 
+        // Si el pago es en efectivo, calcular entregado y cambio
         if (metodoPago === 'efectivo') {
             const inputVal = parseFloat(document.getElementById('inputDineroEntregado').value);
             if (!isNaN(inputVal) && inputVal >= total) {
@@ -1209,45 +2670,75 @@
             }
         }
 
+        // Rellenar los campos ocultos del formulario
         document.getElementById('inputCarrito').value = JSON.stringify(carrito);
         document.getElementById('inputMetodoPago').value = metodoPago;
         document.getElementById('inputTipoDocumento').value = tipoDocumento;
         document.getElementById('inputDineroEntregadoFinal').value = entregado.toFixed(2);
         document.getElementById('inputCambioDevueltoFinal').value = cambio.toFixed(2);
 
-        // Asignar los valores del cliente
+        // Datos del cliente
         document.getElementById('inputClienteNifFinal').value = nif;
         document.getElementById('inputClienteNombreFinal').value = nombre;
         document.getElementById('inputClienteDireccionFinal').value = direccion;
         document.getElementById('inputObservacionesFinal').value = observaciones;
 
-        // Descuento
-        document.getElementById('inputDescuentoTipo').value = descuento.tipo;
-        document.getElementById('inputDescuentoValor').value = descuento.valor;
-        document.getElementById('inputDescuentoCupon').value = descuento.cupon;
+        // Datos del descuento
+        // Si hay descuento de tarifa, guardarlo (se prioriza para mostrar en ticket)
+        if (descuentoTarifa.cupon && descuentoTarifa.cupon !== '') {
+            document.getElementById('inputDescuentoTipo').value = descuentoTarifa.tipo;
+            document.getElementById('inputDescuentoValor').value = descuentoTarifa.valor;
+            document.getElementById('inputDescuentoCupon').value = descuentoTarifa.cupon;
+        } else {
+            document.getElementById('inputDescuentoTipo').value = descuento.tipo;
+            document.getElementById('inputDescuentoValor').value = descuento.valor;
+            document.getElementById('inputDescuentoCupon').value = descuento.cupon;
+        }
+        // Guardar también los valores de descuentoTarifa por separado
+        document.getElementById('inputDescuentoTarifaTipo').value = descuentoTarifa.tipo;
+        document.getElementById('inputDescuentoTarifaValor').value = descuentoTarifa.valor;
+        document.getElementById('inputDescuentoTarifaCupon').value = descuentoTarifa.cupon;
+        // Guardar descuento manual por separado también
+        document.getElementById('inputDescuentoManualTipo').value = descuento.tipo;
+        document.getElementById('inputDescuentoManualValor').value = descuento.valor;
+        document.getElementById('inputDescuentoManualCupon').value = descuento.cupon;
 
+        // Enviar el formulario al servidor
         document.getElementById('formVenta').submit();
     }
 
+    /**
+     * cerrarExito()
+     * Cierra y elimina del DOM el modal de venta exitosa.
+     */
     function cerrarExito() {
         document.getElementById('ventaExito').remove();
     }
 
     // ======================== IMPRIMIR ========================
+
+    /**
+     * imprimirDocumento()
+     * Genera un documento HTML formateado (ticket o factura) con los datos de la última venta
+     * y lo envía a la impresora mediante un iframe oculto.
+     * Incluye: datos del emisor, datos del cliente, líneas de venta, desglose de IVA,
+     * descuentos, totales, datos de pago y observaciones.
+     */
     function imprimirDocumento() {
         if (typeof ultimaVenta === 'undefined') return;
 
+        // Determinar si es factura o ticket para el título
         const isFactura = (ultimaVenta.tipo === 'factura');
         const tipoTitulo = isFactura ? 'FACTURA' : 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
 
-        // Emisor fijo
+        // Datos del emisor (empresa) - fijos
         const emisorHtml = `
             <strong>TPV Bazar — Productos Informáticos</strong><br>
             NIF: B12345678<br>
             C/ Falsa 123, 28000 Madrid<br>
         `;
 
-        // Receptor
+        // Datos del receptor (cliente) - solo si hay datos disponibles
         let receptorHtml = '';
         if (isFactura || ultimaVenta.clienteNif || ultimaVenta.clienteNombre) {
             receptorHtml = `
@@ -1260,75 +2751,170 @@
             `;
         }
 
+        // Generar las líneas de productos para la tabla
         let lineasHtml = '';
-        let sumaTotalesNumeric = 0;
+        let sumaTotalesNumeric = 0; // PVP acumulado
+        let desgloseIva = {}; // Para el resumen final por cada %
 
         ultimaVenta.carrito.forEach(item => {
-            const subtotalNumeric = item.precio * item.cantidad;
-            sumaTotalesNumeric += subtotalNumeric;
+            const cantidad = parseFloat(item.cantidad);
+            const precioBase = parseFloat(item.precio);
+            let ivaPorc = parseInt(item.iva);
+            // Si el IVA es NaN, usar 21 por defecto
+            if (isNaN(ivaPorc)) {
+                ivaPorc = 21;
+            }
 
-            const subtotal = subtotalNumeric.toFixed(2).replace('.', ',');
-            const precioFmt = parseFloat(item.precio).toFixed(2).replace('.', ',');
+            // Cálculos por unidad
+            const cuotaIvaUnidad = precioBase * (ivaPorc / 100);
+            const precioPVP = precioBase + cuotaIvaUnidad;
+
+            // Cálculos totales de la línea
+            const subtotalBase = precioBase * cantidad;
+            const subtotalIva = cuotaIvaUnidad * cantidad;
+            const subtotalPVP = precioPVP * cantidad;
+
+            sumaTotalesNumeric += subtotalPVP;
+
+            // Acumular para el desglose fiscal final
+            if (!desgloseIva[ivaPorc]) {
+                desgloseIva[ivaPorc] = { base: 0, cuota: 0 };
+            }
+            desgloseIva[ivaPorc].base += subtotalBase;
+            desgloseIva[ivaPorc].cuota += subtotalIva;
+
+            // Formatear precios
+            const baseFmt = subtotalBase.toFixed(2).replace('.', ',');
+            const pvpFmt = subtotalPVP.toFixed(2).replace('.', ',');
+            const unitarioFmt = precioBase.toFixed(2).replace('.', ',');
 
             lineasHtml += `<tr>
-                <td>${item.nombre}</td>
-                <td style="text-align:center">${item.cantidad}</td>
-                <td style="text-align:right">${precioFmt} €</td>
-                <td style="text-align:center">21%</td>
-                <td style="text-align:right">${subtotal} €</td>
+                <td style="padding: 8px 4px;">${item.nombre}</td>
+                <td style="text-align:center">${cantidad}</td>
+                <td style="text-align:right">${unitarioFmt} €</td>
+                <td style="text-align:center">${ivaPorc}%</td>
+                <td style="text-align:right">${pvpFmt} €</td>
             </tr>`;
         });
 
-        let importeDescuento = 0;
-        if (ultimaVenta.descuentoTipo === 'porcentaje') {
-            importeDescuento = sumaTotalesNumeric * (ultimaVenta.descuentoValor / 100);
-        } else if (ultimaVenta.descuentoTipo === 'fijo') {
-            importeDescuento = ultimaVenta.descuentoValor;
+        // Calcular descuentos aplicados sobre el total PVP
+        let importeDescuentoTarifa = 0;
+        let importeDescuentoManual = 0;
+        let textoDescuentoTarifa = '';
+        let textoDescuentoManual = '';
+
+        // Calcular descuento de tarifa (Cliente registrado, Mayorista nivel 1, Mayorista nivel 2)
+        if (ultimaVenta.descuentoTarifaCupon && ultimaVenta.descuentoTarifaCupon !== '') {
+            if (ultimaVenta.descuentoTarifaTipo === 'porcentaje') {
+                importeDescuentoTarifa = sumaTotalesNumeric * (ultimaVenta.descuentoTarifaValor / 100);
+                if (ultimaVenta.descuentoTarifaCupon === 'CLIENTE_REGISTRADO') {
+                    textoDescuentoTarifa = 'Cliente registrado (' + ultimaVenta.descuentoTarifaValor + '%)';
+                } else if (ultimaVenta.descuentoTarifaCupon === 'MAYORISTA_NIVEL1') {
+                    textoDescuentoTarifa = 'Mayorista nivel 1 (' + ultimaVenta.descuentoTarifaValor + '%)';
+                } else if (ultimaVenta.descuentoTarifaCupon === 'MAYORISTA_NIVEL2') {
+                    textoDescuentoTarifa = 'Mayorista nivel 2 (' + ultimaVenta.descuentoTarifaValor + '%)';
+                }
+            }
         }
 
-        const subtotalSinDescuento = sumaTotalesNumeric;
-        const totalVenta = Math.max(0, subtotalSinDescuento - importeDescuento);
-        const baseImponible = totalVenta / 1.21;
-        const cuotaIva = totalVenta - baseImponible;
+        // Calcular descuento manual (código promocional o porcentaje manual)
+        let tipoManual = ultimaVenta.descuentoManualTipo || ultimaVenta.descuentoTipo;
+        let valorManual = ultimaVenta.descuentoManualValor || ultimaVenta.descuentoValor;
+        let cuponManual = ultimaVenta.descuentoManualCupon || ultimaVenta.descuentoCupon;
 
+        if (tipoManual === 'porcentaje') {
+            importeDescuentoManual = sumaTotalesNumeric * (valorManual / 100);
+            textoDescuentoManual = valorManual + '%';
+        } else if (tipoManual === 'fijo') {
+            importeDescuentoManual = valorManual;
+            textoDescuentoManual = 'Cupón ' + (cuponManual || '');
+        } else if (cuponManual && cuponManual !== '') {
+            // También puede haber un cupón sin tipo definido
+            textoDescuentoManual = 'Cupón ' + cuponManual;
+        }
+
+        // Descuento total
+        let importeDescuentoPVP = importeDescuentoTarifa + importeDescuentoManual;
+        const totalVentaPVP = Math.max(0, sumaTotalesNumeric - importeDescuentoPVP);
+
+        // Si hay descuento, debemos prorratearlo en la base e IVA para el desglose (simplificado: aplicamos proporción al total)
+        // O simplemente mostrar el desglose de los productos y luego el descuento. 
+        // Normalmente el IVA se calcula sobre la base tras descuento.
+        let factorDescuento = sumaTotalesNumeric > 0 ? (totalVentaPVP / sumaTotalesNumeric) : 1;
+
+        // Generar tabla de totales con desglose fiscal
         let totalesHtml = `
             <table class="tabla-totales" style="width:100%; font-size: 0.9rem; margin-top:10px;">
         `;
 
-        if (importeDescuento > 0) {
+        // Si hay descuento, mostrar subtotal y líneas de descuento
+        if (importeDescuentoPVP > 0.01) {
             totalesHtml += `
                 <tr>
                     <td><strong>Subtotal:</strong></td>
-                    <td style="text-align:right">${subtotalSinDescuento.toFixed(2).replace('.', ',')} €</td>
-                </tr>
-                <tr>
-                    <td style="color: #16a34a;"><strong>Descuento (${ultimaVenta.descuentoTipo === 'porcentaje' ? ultimaVenta.descuentoValor + '%' : 'Cupón ' + ultimaVenta.descuentoCupon}):</strong></td>
-                    <td style="text-align:right; color: #16a34a;">- ${importeDescuento.toFixed(2).replace('.', ',')} €</td>
+                    <td style="text-align:right">${sumaTotalesNumeric.toFixed(2).replace('.', ',')} €</td>
                 </tr>
             `;
+
+            // Mostrar descuento de tarifa si existe
+            if (importeDescuentoTarifa > 0.01 && textoDescuentoTarifa) {
+                totalesHtml += `
+                    <tr>
+                        <td style="color: #16a34a;"><strong>Descuento (${textoDescuentoTarifa}):</strong></td>
+                        <td style="text-align:right; color: #16a34a;">- ${importeDescuentoTarifa.toFixed(2).replace('.', ',')} €</td>
+                    </tr>
+                `;
+            }
+
+            // Mostrar descuento manual si existe
+            if (importeDescuentoManual > 0.01 && textoDescuentoManual) {
+                totalesHtml += `
+                    <tr>
+                        <td style="color: #16a34a;"><strong>Descuento (${textoDescuentoManual}):</strong></td>
+                        <td style="text-align:right; color: #16a34a;">- ${importeDescuentoManual.toFixed(2).replace('.', ',')} €</td>
+                    </tr>
+                `;
+            }
         }
 
+        // Base imponible y cuota IVA por cada tipo
         totalesHtml += `
-            <tr>
-                <td><strong>Base Imponible:</strong></td>
-                <td style="text-align:right">${baseImponible.toFixed(2).replace('.', ',')} €</td>
+            <tr style="border-top: 1px solid #eee;">
+                <td colspan="2" style="padding-top:10px;"><strong>Desglose de IVA:</strong></td>
             </tr>
-            <tr>
-                <td><strong>Cuota IVA (21%):</strong></td>
-                <td style="text-align:right">${cuotaIva.toFixed(2).replace('.', ',')} €</td>
-            </tr>
-            <tr>
-                <td style="font-size: 1.1rem; padding-top:10px;"><strong>TOTAL (IVA INCLUIDO):</strong></td>
-                <td style="font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;">${ultimaVenta.total} €</td>
-            </tr>
-        </table>
         `;
 
+        Object.keys(desgloseIva).sort().forEach(porc => {
+            const baseFinal = desgloseIva[porc].base * factorDescuento;
+            const cuotaFinal = desgloseIva[porc].cuota * factorDescuento;
+
+            totalesHtml += `
+                <tr style="font-size: 0.8rem; color: #444;">
+                    <td>Base al ${porc}%:</td>
+                    <td style="text-align:right">${baseFinal.toFixed(2).replace('.', ',')} €</td>
+                </tr>
+                <tr style="font-size: 0.8rem; color: #444;">
+                    <td>Cuota IVA (${porc}%):</td>
+                    <td style="text-align:right">${cuotaFinal.toFixed(2).replace('.', ',')} €</td>
+                </tr>
+            `;
+        });
+
+        totalesHtml += `
+            <tr style="border-top: 1px solid #000;">
+                <td style="font-size: 1.1rem; padding-top:10px;"><strong>TOTAL (PVP):</strong></td>
+                <td style="font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;">${totalVentaPVP.toFixed(2).replace('.', ',')} €</td>
+            </tr>
+            </table>
+        `;
+
+        // Observaciones del cliente (si las hay)
         let obsHtml = '';
         if (ultimaVenta.clienteObs) {
             obsHtml = `<div style="margin-top: 15px; font-size: 0.8rem;"><strong>Observaciones:</strong> ${ultimaVenta.clienteObs}</div>`;
         }
 
+        // Componer el documento HTML completo para impresión
         const contenido = `
         <html>
         <head>
@@ -1382,9 +2968,9 @@
                 <p>Los precios mostrados incluyen IVA.</p>
             </div>
         </body>
-        </html>`;
-
-        // Crear iframe oculto para imprimir.
+        </html>
+        `;
+        // Crear un iframe oculto para imprimir sin afectar la página actual
         const iframe = document.createElement('iframe');
         iframe.style.position = 'absolute';
         iframe.style.top = '-10000px';
@@ -1392,33 +2978,97 @@
         iframe.contentDocument.write(contenido);
         iframe.contentDocument.close();
 
+        // Cuando el iframe cargue, ejecutar la impresión y luego eliminarlo
         iframe.onload = function () {
             iframe.contentWindow.print();
             setTimeout(() => iframe.remove(), 1000);
         };
     }
 
+</script>
+
+<script>
+    function guardarNuevoProducto() {
+        const nombre = document.getElementById('nuevoProductoNombre').value.trim();
+        const categoria = document.getElementById('nuevoProductoCategoria').value;
+        const precio = document.getElementById('nuevoProductoPrecio').value;
+        const stock = document.getElementById('nuevoProductoStock').value;
+        const iva = document.getElementById('nuevoProductoIva').value;
+        const activo = document.getElementById('nuevoProductoEstado').value;
+        const imgInput = document.getElementById('editProductoImagenInput');
+
+        // Validar que los campos obligatorios no estén vacíos.
+        if (!nombre || !categoria || !precio || stock === '') {
+            alert('Por favor rellena todos los campos obligatorios.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('nombre', nombre);
+        formData.append('categoria', categoria);
+        formData.append('precio', precio);
+        formData.append('stock', stock);
+        formData.append('iva', iva);
+        formData.append('activo', activo);
+        if (imgInput.files[0]) {
+            formData.append('imagen', imgInput.files[0]);
+        }
+
+        fetch('api/productos.php', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data.ok) {
+                    alert('Producto creado correctamente');
+                    cerrarModal('modalNuevoProducto');
+                    // Recargar productos
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error ?? ''));
+                }
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error al crear el producto');
+            });
+    }
+</script>
+<script>
+
     // ======================== ENVIAR POR CORREO ========================
+
+    /**
+    * mostrarFormEmail()
+    * Muestra el formulario de envío por correo electrónico dentro del modal de venta exitosa.
+    */
     function mostrarFormEmail() {
         document.getElementById('formEmail').style.display = 'block';
         document.getElementById('inputEmail').focus();
     }
 
+    /**
+    * enviarPorCorreo()
+    * Envía los datos de la última venta por correo electrónico al cliente.
+    * Realiza una petición AJAX POST a api/enviarCorreo.php con todos los datos de la venta.
+    * Muestra el estado del envío (enviando, éxito o error) en el elemento #emailStatus.
+    */
     function enviarPorCorreo() {
         if (typeof ultimaVenta === 'undefined') return;
 
         const email = document.getElementById('inputEmail').value.trim();
         const statusEl = document.getElementById('emailStatus');
 
+        // Validación básica del email
         if (!email || !email.includes('@')) {
             statusEl.textContent = 'Por favor, introduce un correo válido.';
             statusEl.className = 'email-status email-error';
             return;
         }
 
+        // Mostrar estado "Enviando..."
         statusEl.textContent = 'Enviando...';
         statusEl.className = 'email-status email-enviando';
 
+        // Petición AJAX al endpoint de envío de correo
         fetch('api/enviarCorreo.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1438,130 +3088,509 @@
                 clienteObs: ultimaVenta.clienteObs,
                 descuentoTipo: ultimaVenta.descuentoTipo,
                 descuentoValor: ultimaVenta.descuentoValor,
-                descuentoCupon: ultimaVenta.descuentoCupon
+                descuentoCupon: ultimaVenta.descuentoCupon,
+                descuentoTarifaTipo: ultimaVenta.descuentoTarifaTipo,
+                descuentoTarifaValor: ultimaVenta.descuentoTarifaValor,
+                descuentoTarifaCupon: ultimaVenta.descuentoTarifaCupon,
+                descuentoManualTipo: ultimaVenta.descuentoManualTipo,
+                descuentoManualValor: ultimaVenta.descuentoManualValor,
+                descuentoManualCupon: ultimaVenta.descuentoManualCupon
             })
         })
             .then(res => res.json())
             .then(data => {
                 if (data.ok) {
+                    // Envío exitoso
                     statusEl.textContent = '✓ Correo enviado correctamente a ' + email;
                     statusEl.className = 'email-status email-ok';
                 } else {
+                    // Error del servidor
                     statusEl.textContent = '✗ ' + (data.mensaje || 'Error al enviar el correo.');
                     statusEl.className = 'email-status email-error';
                 }
             })
             .catch(err => {
+                // Error de conexión
                 statusEl.textContent = '✗ Error de conexión al enviar el correo.';
                 statusEl.className = 'email-status email-error';
             });
     }
 
     // ======================== CAJA ========================
+
+    /**
+    * mostrarModalAbrirCaja()
+    * Muestra el modal de apertura de caja y enfoca el input del importe inicial.
+    */
     function mostrarModalAbrirCaja() {
         document.getElementById('modalAbrirCaja').style.display = 'flex';
+        // Resetear el formulario
+        document.getElementById('cambioRecovery').value = '0';
+        const importeInput = document.getElementById('importeInicial');
+        if (importeInput) {
+            importeInput.value = '';
+            importeInput.required = false;
+        }
+        const divImporte = document.getElementById('divImporteInicial');
+        if (divImporte) {
+            divImporte.style.opacity = '0.5';
+        }
+        // Seleccionar opción de recuperar por defecto si existe
+        const radioRecuperar = document.querySelector('input[name="opcionCambio"][value="recuperar"]');
+        if (radioRecuperar) {
+            radioRecuperar.checked = true;
+            toggleCambio(false);
+        }
         document.getElementById('importeInicial').focus();
     }
 
-    function mostrarModalDevolucion() {
-        document.getElementById('modalDevolucion').style.display = 'flex';
-        document.getElementById('buscarProductoDev').focus();
+    function toggleCambio(mostrarNuevo) {
+        const divImporte = document.getElementById('divImporteInicial');
+        const importeInput = document.getElementById('importeInicial');
+        const cambioInput = document.getElementById('cambioRecovery');
+
+        if (mostrarNuevo) {
+            divImporte.style.opacity = '1';
+            importeInput.required = true;
+            cambioInput.value = '0';
+        } else {
+            divImporte.style.opacity = '0.5';
+            importeInput.required = false;
+            // Obtener el valor del cambio anterior
+            const cambioAnterior = <?php echo json_encode($cambioAnterior); ?>;
+            cambioInput.value = cambioAnterior;
+        }
     }
 
+
+    /**
+    * mostrarModalRetiro()
+    * Muestra el modal de retiro de dinero y enfoca el input del importe.
+    */
     function mostrarModalRetiro() {
         document.getElementById('modalRetiro').style.display = 'flex';
         document.getElementById('importeRetiro').focus();
     }
 
-    // ======================== DEVOLUCIONES ========================
-    let todosLosProductos = []; // Se cargará por AJAX o desde PHP si es necesario
+    /**
+    * validarRetiro()
+    * Valida que el importe a retirar no exceda el efectivo disponible.
+    */
+    function validarRetiro() {
+        const importeInput = document.getElementById('importeRetiro');
+        const importe = parseFloat(importeInput.value);
+        const efectivoDisponible = <?php echo $sesionCaja ? $sesionCaja->getImporteActual() : 0; ?>;
 
-    function filtrarProductosDev(query) {
-        const resultados = document.getElementById('resultadosBusquedaDev');
-        if (query.length < 2) {
-            resultados.style.display = 'none';
-            return;
+        if (isNaN(importe) || importe <= 0) {
+            alert('Por favor, ingresa un importe válido mayor a 0.');
+            return false;
         }
 
-        // Usamos fetch para obtener productos (o podemos usar la lista de productos que ya tiene el cajero)
-        fetch('api/productos.php?buscarProducto=' + encodeURIComponent(query))
-            .then(res => res.json())
-            .then(productos => {
-                if (productos.length === 0) {
-                    resultados.style.display = 'none';
-                    return;
-                }
+        if (importe > efectivoDisponible) {
+            alert('No hay suficiente efectivo en la caja. Efectivo disponible: ' + efectivoDisponible.toFixed(2).replace('.', ',') + ' €');
+            return false;
+        }
 
-                resultados.innerHTML = '';
-                productos.forEach(p => {
-                    const div = document.createElement('div');
-                    div.className = 'resultado-item-dev';
-                    div.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span><strong>${p.nombre}</strong></span>
-                            <span style="color: #6b7280; font-size: 0.8rem;">${p.precio} €</span>
-                        </div>
-                    `;
-                    div.onclick = () => seleccionarProductoDev(p);
-                    resultados.appendChild(div);
-                });
-                resultados.style.display = 'block';
-            });
+        return true;
     }
 
-    function seleccionarProductoDev(producto) {
-        document.getElementById('nombreProductoDev').value = producto.nombre;
-        document.getElementById('idProductoDev').value = producto.id;
-        document.getElementById('precioUnitarioDev').value = producto.precio;
-        document.getElementById('buscarProductoDev').value = '';
-        document.getElementById('resultadosBusquedaDev').style.display = 'none';
-        
-        calcularTotalDev();
-        
-        // Habilitar botón confirmación
-        const btn = document.getElementById('btnConfirmarDev');
-        btn.disabled = false;
-        btn.style.opacity = '1';
-    }
-
-    function calcularTotalDev() {
-        const precio = parseFloat(document.getElementById('precioUnitarioDev').value) || 0;
-        const cantidad = parseInt(document.getElementById('cantidadDev').value) || 0;
-        const total = precio * cantidad;
-        
-        document.getElementById('totalDevDisplay').textContent = total.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €';
-        document.getElementById('importeTotalDev').value = total.toFixed(2);
-    }
-
+    /**
+    * Actualiza la interfaz visual de los chips de método de pago en el modal de devolución.
+    * Resalta el chip seleccionado con borde rojo y desactiva los demás.
+    * @param { HTMLInputElement } radio - El radio button seleccionado
+            */
     function updateMethodUI(radio) {
-        // Remover clase active de todos los chips
+        // Desactivar todos los chips (estilo gris)
         document.querySelectorAll('.method-chip').forEach(chip => {
-            chip.style.border = '2px solid #e5e7eb';
-            chip.style.color = '#6b7280';
+            chip.style.border = '2px solid var(--border-main)';
+            chip.style.color = 'var(--text-muted)';
             chip.style.fontWeight = '400';
             chip.classList.remove('active');
         });
 
-        // Añadir clase active al chip seleccionado
+        // Activar el chip seleccionado (estilo rojo)
         const chip = document.getElementById('chip-' + radio.value);
         if (chip) {
-            chip.style.border = '2px solid #b91c1c';
-            chip.style.color = '#b91c1c';
+            chip.style.border = '2px solid var(--accent-danger)';
+            chip.style.color = 'var(--accent-danger)';
             chip.style.fontWeight = '600';
             chip.classList.add('active');
         }
     }
 
+    // ======================== NUEVA LÓGICA DE DEVOLUCIONES MULTI-PRODUCTO ========================
+
+    let lineasVentaDevolucion = []; // Almacena las líneas cargadas del ticket
+    let ticketActualDevolucion = null;
+
+    /**
+     * Muestra el modal de devolución y enfoca el input del ID del ticket.
+     */
+    function mostrarModalDevolucion() {
+        document.getElementById('modalDevolucion').style.display = 'flex';
+        document.getElementById('inputTicketIdDev').focus();
+    }
+
+    /**
+     * Busca un ticket mediante su ID para iniciar el proceso de devolución.
+     */
+    function buscarTicketParaDevolucion() {
+        const idTicket = document.getElementById('inputTicketIdDev').value;
+        const errorEl = document.getElementById('errorTicketDev');
+
+        if (!idTicket) {
+            errorEl.textContent = 'Por favor, introduce un ID de ticket.';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        errorEl.style.display = 'none';
+
+        // Consultar API para verificar el ticket y obtener productos
+        fetch(`api/ventas.php?checkVentaDevolucion=${idTicket}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    errorEl.textContent = 'Error: ' + data.error;
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                // Guardar datos
+                ticketActualDevolucion = data.venta;
+                lineasVentaDevolucion = data.lineas;
+
+                // Verificar si hay productos disponibles para devolver
+                const totalDisponible = lineasVentaDevolucion.reduce((acc, linea) => {
+                    return acc + (parseInt(linea.cantidad) - (parseInt(linea.cantidad_devuelta) || 0));
+                }, 0);
+
+                if (totalDisponible <= 0) {
+                    errorEl.textContent = 'Este ticket no tiene productos disponibles para devolver (ya se han devuelto todos).';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                // Actualizar UI - Paso 2
+                document.getElementById('devolucionPaso1').style.display = 'none';
+                document.getElementById('devolucionPaso2').style.display = 'block';
+                document.getElementById('btnConfirmarMultiDev').style.display = 'block';
+                document.getElementById('resumenReembolso').style.display = 'block';
+                document.getElementById('devolucionSubtitulo').textContent = 'Selecciona las unidades a devolver';
+
+                document.getElementById('infoTicketId').textContent = 'TICKET #' + ticketActualDevolucion.id;
+                document.getElementById('infoTicketFecha').textContent = new Date(ticketActualDevolucion.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                document.getElementById('infoTicketTotal').textContent = parseFloat(ticketActualDevolucion.total).toFixed(2).replace('.', ',') + ' €';
+
+                renderizarTablaDevolucion();
+            })
+            .catch(err => {
+                console.error(err);
+                errorEl.textContent = 'Error de conexión al buscar el ticket.';
+                errorEl.style.display = 'block';
+            });
+    }
+
+    /**
+     * Renderiza la tabla de productos disponibles para devolver.
+     */
+    function renderizarTablaDevolucion() {
+        const tbody = document.getElementById('tablaProductosDev');
+        tbody.innerHTML = '';
+
+        lineasVentaDevolucion.forEach((linea, index) => {
+            const comprado = parseInt(linea.cantidad);
+            const devuelto = parseInt(linea.cantidad_devuelta);
+            const disponible = comprado - devuelto;
+
+            // Usar precio con IVA (el que se pagó en el momento de la compra)
+            const precioMostrar = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
+
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid #f1f5f9';
+            tr.innerHTML = `
+            <td style="padding: 12px 15px;">
+                    <div class="producto-nombre-dev" style="font-weight: 600;">${linea.producto_nombre}</div>
+                    <div class="producto-precio-dev" style="font-size: 0.75rem;">Precio: ${precioMostrar.toFixed(2)} € (IVA incl.)</div>
+                </td>
+                <td style="padding: 12px; text-align: center; color: #64748b; font-weight: 500;">${disponible}</td>
+                <td style="padding: 12px 15px; text-align: center;">
+                    <div class="cantidad-control" style="justify-content: center;">
+                        <button onclick="cambiarCantidadDev(${index}, -1)" ${disponible <= 0 ? 'disabled' : ''}>−</button>
+                        <input type="number" class="cant-dev-input" 
+                            data-index="${index}" 
+                            min="0" max="${disponible}" value="0" 
+                            style="width: 50px; text-align: center; padding: 5px; border: 1px solid #e2e8f0; border-radius: 4px;"
+                            onchange="cambiarCantidadDev(${index}, 0)"
+                            ${disponible <= 0 ? 'disabled' : ''}>
+                        <button onclick="cambiarCantidadDev(${index}, 1)" ${disponible <= 0 ? 'disabled' : ''}>+</button>
+                    </div>
+                </td>
+        `;
+            tbody.appendChild(tr);
+        });
+
+        recalcularTotalReembolso();
+    }
+
+    /**
+     * cambiarCantidadDev(index, delta)
+     * Incrementa o decrementa la cantidad a devolver.
+     * @param {number} index - Índice del producto en lineasVentaDevolucion
+     * @param {number} delta - Cambio a aplicar (+1, -1, 0 para onchange)
+     */
+    function cambiarCantidadDev(index, delta) {
+        const input = document.querySelector('.cant-dev-input[data-index="' + index + '"]');
+        if (!input) return;
+
+        const linea = lineasVentaDevolucion[index];
+        const disponible = parseInt(linea.cantidad) - parseInt(linea.cantidad_devuelta);
+
+        let cant = (parseInt(input.value) || 0) + delta;
+
+        // Limitar entre 0 y el disponible
+        if (cant < 0) cant = 0;
+        if (cant > disponible) cant = disponible;
+
+        input.value = cant;
+        recalcularTotalReembolso();
+    }
+
+    /**
+     * Calcula el total a reembolsar basándose en las cantidades introducidas.
+     */
+    function recalcularTotalReembolso() {
+        let total = 0;
+        let hayDevolucion = false;
+        const inputs = document.querySelectorAll('.cant-dev-input');
+
+        // Obtener los descuentos de la venta original
+        const venta = ticketActualDevolucion;
+        let factorDescuento = 1;
+
+        // Calcular el factor de descuento aplicable
+        // Usar los nuevos campos si existen, si no usar los antiguos
+        const descuentoTarifaCupon = venta.descuentoTarifaCupon || '';
+        const descuentoTarifaValor = parseFloat(venta.descuentoTarifaValor) || 0;
+        const descuentoManualCupon = venta.descuentoManualCupon || venta.descuentoCupon || '';
+        const descuentoManualValor = parseFloat(venta.descuentoManualValor || venta.descuentoValor) || 0;
+        const descuentoManualTipo = venta.descuentoManualTipo || venta.descuentoTipo || 'ninguno';
+
+        // Calcular descuento total aplicado a la venta
+        let descuentoTotal = 0;
+
+        // Descuento de tarifa (Cliente registrado, Mayorista)
+        if (descuentoTarifaCupon && descuentoTarifaCupon !== '' && descuentoTarifaValor > 0) {
+            descuentoTotal += descuentoTarifaValor;
+        }
+
+        // Descuento manual (porcentaje o fijo)
+        if (descuentoManualTipo === 'porcentaje' && descuentoManualValor > 0) {
+            descuentoTotal += descuentoManualValor;
+        } else if (descuentoManualTipo === 'fijo') {
+            // Para descuento fijo, calculamos el porcentaje equivalente
+            // Esto es aproximado ya que no sabemos el subtotal original
+            // Usamos una estimación basada en el total de la venta
+        }
+
+        // Si hay descuento fijo sin tipo porcentaje, calculamos el porcentaje basado en el total
+        if (descuentoManualTipo === 'fijo' && descuentoManualValor > 0 && venta.total > 0) {
+            const totalSinDescuento = parseFloat(venta.total) / (1 - descuentoTotal / 100);
+            descuentoTotal = ((totalSinDescuento - parseFloat(venta.total)) / totalSinDescuento) * 100;
+        }
+
+        factorDescuento = 1 - (descuentoTotal / 100);
+        if (factorDescuento < 0) factorDescuento = 0;
+
+        inputs.forEach(input => {
+            const index = input.dataset.index;
+            const linea = lineasVentaDevolucion[index];
+            const comprado = parseInt(linea.cantidad);
+            const devuelto = parseInt(linea.cantidad_devuelta);
+            const disponible = comprado - devuelto;
+
+            let cant = parseInt(input.value) || 0;
+
+            // Forzar que no sea mayor al disponible
+            if (cant > disponible) {
+                cant = disponible;
+                input.value = disponible;
+            }
+            if (cant < 0) {
+                cant = 0;
+                input.value = 0;
+            }
+
+            // Usar precio con IVA (el que se pagó en el momento de la compra)
+            // Y aplicar el factor de descuento
+            const precioBase = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
+            const precioConDescuento = precioBase * factorDescuento;
+
+            if (cant > 0) {
+                total += cant * precioConDescuento;
+                hayDevolucion = true;
+            }
+        });
+
+        // Redondear el total hacia abajo a 2 decimales
+        total = Math.floor(total * 100) / 100;
+
+        document.getElementById('totalReembolsoDisplay').textContent = total.toFixed(2).replace('.', ',') + ' €';
+
+        // Validación de efectivo disponible
+        const errorEl = document.getElementById('errorEfectivoInsuficiente');
+        const btnConfirmar = document.getElementById('btnConfirmarMultiDev');
+        const dispEl = document.getElementById('efectivoDisponibleDisplay');
+
+        const totalRedondeado = Math.round(total * 100) / 100;
+        const efectivoRedondeado = Math.round(efectivoActualCaja * 100) / 100;
+
+        if (totalRedondeado > efectivoRedondeado) {
+            errorEl.style.display = 'block';
+            dispEl.textContent = efectivoActualCaja.toFixed(2).replace('.', ',') + ' €';
+            btnConfirmar.disabled = true;
+            btnConfirmar.style.opacity = '0.5';
+            btnConfirmar.style.cursor = 'not-allowed';
+        } else {
+            errorEl.style.display = 'none';
+            btnConfirmar.disabled = !hayDevolucion;
+            btnConfirmar.style.opacity = hayDevolucion ? '1' : '0.5';
+            btnConfirmar.style.cursor = hayDevolucion ? 'pointer' : 'not-allowed';
+        }
+    }
+
+    /**
+     * Cierra el modal y resetea su estado.
+     */
+    function cerrarModalDevolucion() {
+        cerrarModal('modalDevolucion');
+        // Resetear a paso 1
+        document.getElementById('devolucionPaso1').style.display = 'block';
+        document.getElementById('devolucionPaso2').style.display = 'none';
+        document.getElementById('btnConfirmarMultiDev').style.display = 'none';
+        document.getElementById('resumenReembolso').style.display = 'none';
+        document.getElementById('devolucionSubtitulo').textContent = 'Introduce el ID del Ticket para comenzar';
+        document.getElementById('inputTicketIdDev').value = '';
+        document.getElementById('errorTicketDev').style.display = 'none';
+        lineasVentaDevolucion = [];
+        ticketActualDevolucion = null;
+    }
+
+    /**
+     * Procesa la devolución enviando los datos al servidor.
+     */
+    function procesarMultiDevolucion() {
+        const inputs = document.querySelectorAll('.cant-dev-input');
+        const productosDev = [];
+        let totalReembolso = 0;
+
+        inputs.forEach(input => {
+            const cant = parseInt(input.value) || 0;
+            if (cant > 0) {
+                const index = input.dataset.index;
+                const linea = lineasVentaDevolucion[index];
+                // Usar precio con IVA (el que se pagó en el momento de la compra)
+                const precioConIva = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
+                const subtotal = cant * precioConIva;
+
+                productosDev.push({
+                    idProducto: linea.idProducto,
+                    cantidad: cant,
+                    importe: subtotal
+                });
+                totalReembolso += subtotal;
+            }
+        });
+
+        if (productosDev.length === 0) return;
+
+        const metodoPago = document.querySelector('input[name="metodoPagoDev"]:checked').value;
+
+        // Crear un formulario temporal para enviar por POST (o usar Fetch si prefieres, 
+        // pero cCajero.php está preparado para POST síncrono por lo visto en registrarVenta)
+        // No obstante, como es una lista de productos, haremos un fetch para mayor limpieza 
+        // y luego recargaremos o redirigiremos.
+
+        const data = new FormData();
+        data.append('accion', 'tramitarMultiDevolucion');
+        data.append('idVenta', ticketActualDevolucion.id);
+        data.append('metodoPago', metodoPago);
+        data.append('productos', JSON.stringify(productosDev));
+        data.append('totalReembolso', totalReembolso);
+
+        fetch('index.php', {
+            method: 'POST',
+            body: data
+        }).then(() => {
+            // Recargar para mostrar mensajes de éxito de sesión
+            location.reload();
+        }).catch(err => {
+            alert('Error al procesar la devolución: ' + err.message);
+        });
+    }
+
     // ======================== UTILIDADES ========================
+
+    /**
+    * cerrarModal(id)
+    * Cierra un modal ocultándolo (display: none).
+    * @param {string} id - ID del elemento modal-overlay a ocultar
+    */
     function cerrarModal(id) {
         document.getElementById(id).style.display = 'none';
     }
 
+    /**
+     * previsualizarImagen(event)
+     * Previsualiza la imagen seleccionada antes de subirla.
+     * @param {Event} event - Evento de cambio del input file.
+     */
+    function previsualizarImagen(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                document.getElementById('editProductoImagen').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    /**
+     * abrirImagenGrande(src, alt)
+     * Abre una imagen en grande en un modal.
+     * @param {string} src - URL de la imagen.
+     * @param {string} alt - Texto alternativo de la imagen.
+     */
+    function abrirImagenGrande(src, alt = '') {
+        // Crear el elemento overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'modalImagenGrande';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);display:flex;justify-content:center;align-items:center;z-index:9999;cursor:pointer;';
+
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = alt;
+        img.style.cssText = 'max-width:90%;max-height:90%;object-fit:contain;border-radius:8px;';
+
+        overlay.appendChild(img);
+        overlay.onclick = function () {
+            document.body.removeChild(overlay);
+        };
+
+        document.body.appendChild(overlay);
+    }
+
+    /**
+    * verificarLimiteEfectivo()
+    * Verifica si el total del carrito supera los 1.000€ con método de pago en efectivo.
+    * Si se supera, muestra un aviso visual debajo del selector de método de pago.
+    */
     function verificarLimiteEfectivo() {
         const metodo = document.getElementById('metodoPago')?.value;
         const total = obtenerTotalCalculado();
         const aviso = document.getElementById('avisoLimiteEfectivo');
-        
+
         if (aviso) {
             if (metodo === 'efectivo' && total > 1000) {
                 aviso.style.display = 'block';
@@ -1571,11 +3600,262 @@
         }
     }
 
-    // Listener para el selector de pago
+    // Listener para el selector de método de pago:
+    // Cada vez que cambia, verifica si se debe mostrar el aviso de límite de efectivo
     document.addEventListener('DOMContentLoaded', () => {
         const selectPago = document.getElementById('metodoPago');
         if (selectPago) {
             selectPago.addEventListener('change', verificarLimiteEfectivo);
         }
+
+        // Listener para el selector de tarifa
+        const selectTarifa = document.getElementById('tarifaVenta');
+        if (selectTarifa) {
+            selectTarifa.addEventListener('change', cambiarTarifa);
+        }
     });
+
+    /**
+     * Maneja el cambio de tarifa para aplicar descuentos según el tipo de cliente
+     */
+    function cambiarTarifa() {
+        const tarifa = document.getElementById('tarifaVenta').value;
+
+        if (tarifa === 'registrado') {
+            // Abrir modal para buscar cliente registrado
+            abrirModalBuscarClienteRegistrado();
+        } else if (tarifa === 'cliente') {
+            // Tarifa normal de cliente - sin descuento
+            eliminarDescuentoPorTarifa();
+        } else if (tarifa === 'mayorista1') {
+            // Mayorista nivel 1 - 12% descuento
+            descuentoTarifa = { tipo: 'porcentaje', valor: 12, cupon: 'MAYORISTA_NIVEL1' };
+            actualizarTicket();
+        } else if (tarifa === 'mayorista2') {
+            // Mayorista nivel 2 - 16% descuento
+            descuentoTarifa = { tipo: 'porcentaje', valor: 16, cupon: 'MAYORISTA_NIVEL2' };
+            actualizarTicket();
+        }
+    }
+
+    /**
+     * Abre el modal para buscar un cliente registrado por DNI
+     */
+    function abrirModalBuscarClienteRegistrado() {
+        document.getElementById('dniBusquedaCliente').value = '';
+        document.getElementById('mensajeResultadoBusqueda').textContent = '';
+        document.getElementById('mensajeResultadoBusqueda').className = '';
+        document.getElementById('modalBuscarClienteRegistrado').style.display = 'flex';
+        document.getElementById('dniBusquedaCliente').focus();
+    }
+
+    /**
+     * Busca un cliente por DNI y aplica el descuento del 2%
+     */
+    async function buscarClienteRegistrado() {
+        const dni = document.getElementById('dniBusquedaCliente').value.trim();
+        const mensajeDiv = document.getElementById('mensajeResultadoBusqueda');
+
+        if (!dni) {
+            mensajeDiv.textContent = 'Por favor, introduce un DNI';
+            mensajeDiv.className = 'mensaje-error';
+            mensajeDiv.style.display = 'block';
+            return;
+        }
+
+        try {
+            const response = await fetch('api/clientes.php?dni=' + encodeURIComponent(dni));
+
+            if (!response.ok) {
+                // Cliente no encontrado (404)
+                mensajeDiv.textContent = 'No se encuentra ningún cliente con ese DNI';
+                mensajeDiv.className = 'mensaje-error';
+                mensajeDiv.style.display = 'block';
+                // Cambiar la tarifa a Cliente
+                document.getElementById('tarifaVenta').value = 'cliente';
+                return;
+            }
+
+            const cliente = await response.json();
+
+            if (cliente && cliente.activo == 1) {
+                // Cliente encontrado y activo - aplicar descuento del 2%
+                descuentoTarifa = { tipo: 'porcentaje', valor: 2, cupon: 'CLIENTE_REGISTRADO' };
+                actualizarTicket();
+                mensajeDiv.textContent = 'Cliente encontrado: ' + cliente.nombre + ' ' + cliente.apellidos + '. Descuento del 2% aplicado.';
+                mensajeDiv.className = 'mensaje-exito';
+                mensajeDiv.style.display = 'block';
+                setTimeout(() => {
+                    cerrarModal('modalBuscarClienteRegistrado');
+                }, 1500);
+            } else if (cliente && cliente.activo == 0) {
+                mensajeDiv.textContent = 'El cliente está inactivo';
+                mensajeDiv.className = 'mensaje-error';
+                mensajeDiv.style.display = 'block';
+            } else {
+                mensajeDiv.textContent = 'No se encuentra ningún cliente con ese DNI';
+                mensajeDiv.className = 'mensaje-error';
+                mensajeDiv.style.display = 'block';
+                document.getElementById('tarifaVenta').value = 'cliente';
+            }
+        } catch (error) {
+            console.error('Error al buscar cliente:', error);
+            mensajeDiv.textContent = 'Error al buscar el cliente';
+            mensajeDiv.className = 'mensaje-error';
+            mensajeDiv.style.display = 'block';
+        }
+    }
+
+    /**
+     * Elimina el descuento aplicado por tarifa de cliente registrado o mayorista
+     */
+    function eliminarDescuentoPorTarifa() {
+        // Solo eliminar si hay descuento de tarifa activo
+        if (descuentoTarifa.cupon === 'CLIENTE_REGISTRADO' || descuentoTarifa.cupon === 'MAYORISTA_NIVEL1' || descuentoTarifa.cupon === 'MAYORISTA_NIVEL2') {
+            descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
+            actualizarTicket();
+        }
+    }
+
+    // ============================================================
+    // FUNCIONES PARA CLIENTES HABITUALES
+    // ============================================================
+
+    /**
+     * Abre el modal para añadir un nuevo cliente habitual
+     */
+    function abrirModalClienteHabitual() {
+        // Limpiar campos
+        document.getElementById('clienteHabitualDni').value = '';
+        document.getElementById('clienteHabitualNombre').value = '';
+        document.getElementById('clienteHabitualApellidos').value = '';
+        // Función para obtener la fecha local en formato datetime-local
+        const now = new Date();
+        const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+        document.getElementById('clienteHabitualFecha').value = localDate;
+
+        // Configurar el onclick del botón guardar para el cajero
+        const btnGuardar = document.getElementById('btnGuardarClienteHabitual');
+        btnGuardar.onclick = guardarClienteHabitual;
+
+        // Mostrar modal
+        document.getElementById('modalClienteHabitual').style.display = 'flex';
+        document.getElementById('clienteHabitualDni').focus();
+    }
+
+    /**
+     * Guarda un nuevo cliente habitual
+     */
+    async function guardarClienteHabitual() {
+        const dni = document.getElementById('clienteHabitualDni').value.trim();
+        const nombre = document.getElementById('clienteHabitualNombre').value.trim();
+        const apellidos = document.getElementById('clienteHabitualApellidos').value.trim();
+        const fecha_alta = document.getElementById('clienteHabitualFecha').value || new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+
+        // Validar campos obligatorios
+        if (!dni || !nombre || !apellidos) {
+            alert('Por favor, complete todos los campos obligatorios (DNI, Nombre, Apellidos)');
+            return;
+        }
+
+        const btnGuardar = document.getElementById('btnGuardarClienteHabitual');
+        btnGuardar.disabled = true;
+        btnGuardar.textContent = 'Guardando...';
+
+        try {
+            const formData = new FormData();
+            formData.append('dni', dni);
+            formData.append('nombre', nombre);
+            formData.append('apellidos', apellidos);
+            formData.append('fecha_alta', fecha_alta);
+
+            const response = await fetch('api/clientes.php', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.ok) {
+                alert('Cliente habitual guardado correctamente');
+                cerrarModal('modalClienteHabitual');
+            } else {
+                alert(data.error || 'Error al guardar el cliente');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error al comunicar con el servidor');
+        } finally {
+            btnGuardar.disabled = false;
+            btnGuardar.textContent = 'Guardar';
+        }
+    }
 </script>
+
+<!-- Modal para crear nuevo producto (permiso: crear_productos) -->
+<div class="modal-overlay" id="modalNuevoProducto" style="display:none;">
+    <div class="modal-content modal-editarProducto">
+        <h3 id="editProductoTitulo">Nuevo Producto</h3>
+        <p id="editProductoSubtitulo" class="modal-subtitulo">Introduce los datos del nuevo producto</p>
+
+        <input type="hidden" id="editProductoId">
+
+        <div class="editar-prod-layout">
+            <!-- Imagen -->
+            <div class="editar-prod-imagen-wrapper">
+                <img id="editProductoImagen" src="webroot/img/logoCPU.PNG" alt="" style="cursor: zoom-in;"
+                    onclick="abrirImagenGrande(this.src, this.alt)">
+                <label class="btn-cambiar-imagen" title="Cambiar imagen">
+                    <i class="fas fa-camera"></i> Cambiar imagen
+                    <input type="file" id="editProductoImagenInput" accept="image/*" style="display:none;"
+                        onchange="previsualizarImagen(event)">
+                </label>
+            </div>
+
+            <!-- Campos -->
+            <div class="editar-prod-campos">
+                <div class="editar-prod-fila">
+                    <label>Nombre</label>
+                    <input type="text" id="nuevoProductoNombre">
+                </div>
+                <div class="editar-prod-fila">
+                    <label>Categoría</label>
+                    <select id="nuevoProductoCategoria"
+                        style="padding: 8px; border-radius: 4px; border: 1px solid #d1d5db;">
+                    </select>
+                </div>
+                <div class="editar-prod-fila">
+                    <label>Precio (€)</label>
+                    <input type="number" id="nuevoProductoPrecio" step="0.01" min="0">
+                </div>
+                <div class="editar-prod-fila">
+                    <label>Stock</label>
+                    <input type="number" id="nuevoProductoStock" min="0" value="0">
+                </div>
+                <div class="editar-prod-fila">
+                    <label>Tipo de IVA (%)</label>
+                    <select id="nuevoProductoIva" style="padding: 8px; border-radius: 4px; border: 1px solid #d1d5db;">
+                        <option value="21">21% (General)</option>
+                        <option value="10">10% (Reducido)</option>
+                        <option value="4">4% (Superreducido)</option>
+                        <option value="0">0% (Exento)</option>
+                    </select>
+                </div>
+                <div class="editar-prod-fila">
+                    <label>Estado</label>
+                    <select id="nuevoProductoEstado">
+                        <option value="1">Activo</option>
+                        <option value="0">Inactivo</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="editar-prod-botones">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalNuevoProducto')">Cancelar</button>
+            <button class="btn-exito" onclick="guardarNuevoProducto()">
+                <i class="fas fa-save"></i> Guardar
+            </button>
+        </div>
+    </div>
+</div>

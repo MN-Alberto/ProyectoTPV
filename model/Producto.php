@@ -1,12 +1,13 @@
 <?php
 
-/*
- * Autor: Alberto Méndez 
- * Fecha de actualización: 24/02/2026
- * 
+/** 
  * Clase modelo para la gestión de productos informáticos del bazar.
+ * 
+ * @author Alberto Méndez
+ * @version 1.2 (02/03/2026)
  */
 
+// Requerimos el fichero de conexión a la base de datos
 require_once(__DIR__ . '/../core/conexionDB.php');
 
 class Producto
@@ -20,6 +21,7 @@ class Producto
     private $idCategoria;
     private $imagen;
     private $activo;
+    private $iva;
 
     // ======================== GETTERS ========================
 
@@ -61,6 +63,11 @@ class Producto
     public function getActivo()
     {
         return $this->activo;
+    }
+
+    public function getIva()
+    {
+        return $this->iva;
     }
 
     // ======================== SETTERS ========================
@@ -105,6 +112,11 @@ class Producto
         $this->activo = $activo;
     }
 
+    public function setIva($iva)
+    {
+        $this->iva = $iva;
+    }
+
     // ======================== MÉTODOS CRUD ========================
 
     /**
@@ -114,15 +126,21 @@ class Producto
      */
     public static function buscarPorId($id)
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare("SELECT * FROM productos WHERE id = :id");
+        // Vinculamos los parámetros
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        // Ejecutamos la consulta
         $stmt->execute();
+        // Obtenemos la fila
         $fila = $stmt->fetch();
-
+        // Si se encuentra la fila, creamos un nuevo producto
         if ($fila) {
             return self::crearDesdeArray($fila);
         }
+        // Si no se encuentra la fila, devolvemos null
         return null;
     }
 
@@ -132,12 +150,18 @@ class Producto
      */
     public static function obtenerTodos()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->query("SELECT * FROM productos WHERE activo = 1 ORDER BY nombre");
+        // Creamos un array para guardar los productos
         $productos = [];
+        // Recorremos las filas
         while ($fila = $stmt->fetch()) {
+            // Creamos un nuevo producto y lo añadimos al array
             $productos[] = self::crearDesdeArray($fila);
         }
+        // Devolvemos los productos
         return $productos;
     }
 
@@ -147,13 +171,20 @@ class Producto
      */
     public static function obtenerTodosAdmin()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare("SELECT * FROM productos ORDER BY nombre ASC");
+        // Ejecutamos la consulta
         $stmt->execute();
+        // Creamos un array para guardar los productos
         $productos = [];
+        // Recorremos las filas
         while ($fila = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            // Creamos un nuevo producto y lo añadimos al array
             $productos[] = self::crearDesdeArray($fila);
         }
+        // Devolvemos los productos
         return $productos;
     }
 
@@ -164,16 +195,24 @@ class Producto
      */
     public static function obtenerPorCategoria($idCategoria)
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
             "SELECT * FROM productos WHERE idCategoria = :idCategoria AND activo = 1 ORDER BY nombre"
         );
+        // Vinculamos los parámetros
         $stmt->bindParam(':idCategoria', $idCategoria, PDO::PARAM_INT);
+        // Ejecutamos la consulta
         $stmt->execute();
+        // Creamos un array para guardar los productos
         $productos = [];
+        // Recorremos las filas
         while ($fila = $stmt->fetch()) {
+            // Creamos un nuevo producto y lo añadimos al array
             $productos[] = self::crearDesdeArray($fila);
         }
+        // Devolvemos los productos
         return $productos;
     }
 
@@ -184,15 +223,22 @@ class Producto
      */
     public static function buscarPorNombre($nombre)
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
             "SELECT * FROM productos WHERE nombre LIKE :nombre AND activo = 1 ORDER BY nombre"
         );
+        // Vinculamos los parámetros
         $busqueda = '%' . $nombre . '%';
         $stmt->bindParam(':nombre', $busqueda);
+        // Ejecutamos la consulta
         $stmt->execute();
+        // Creamos un array para guardar los productos
         $productos = [];
+        // Recorremos las filas
         while ($fila = $stmt->fetch()) {
+            // Creamos un nuevo producto y lo añadimos al array
             $productos[] = self::crearDesdeArray($fila);
         }
         return $productos;
@@ -206,18 +252,26 @@ class Producto
      */
     public static function buscarPorNombreYCategoria($nombre, $categoria)
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
             "SELECT * FROM productos WHERE nombre LIKE :nombre AND idCategoria = :categoria AND activo = 1 ORDER BY nombre"
         );
+        // Vinculamos los parámetros
         $busqueda = '%' . $nombre . '%';
         $stmt->bindParam(':nombre', $busqueda);
         $stmt->bindParam(':categoria', $categoria, PDO::PARAM_STR);
+        // Ejecutamos la consulta
         $stmt->execute();
+        // Creamos un array para guardar los productos
         $productos = [];
+        // Recorremos las filas
         while ($fila = $stmt->fetch()) {
+            // Creamos un nuevo producto y lo añadimos al array
             $productos[] = self::crearDesdeArray($fila);
         }
+        // Devolvemos los productos
         return $productos;
     }
 
@@ -227,11 +281,14 @@ class Producto
      */
     public function insertar()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "INSERT INTO productos (nombre, descripcion, precio, stock, idCategoria, imagen, activo) 
-             VALUES (:nombre, :descripcion, :precio, :stock, :idCategoria, :imagen, :activo)"
+            "INSERT INTO productos (nombre, descripcion, precio, stock, idCategoria, imagen, activo, iva) 
+             VALUES (:nombre, :descripcion, :precio, :stock, :idCategoria, :imagen, :activo, :iva)"
         );
+        // Vinculamos los parámetros
         $stmt->bindParam(':nombre', $this->nombre);
         $stmt->bindParam(':descripcion', $this->descripcion);
         $stmt->bindParam(':precio', $this->precio);
@@ -239,8 +296,12 @@ class Producto
         $stmt->bindParam(':idCategoria', $this->idCategoria, PDO::PARAM_INT);
         $stmt->bindParam(':imagen', $this->imagen);
         $stmt->bindParam(':activo', $this->activo, PDO::PARAM_BOOL);
+        $stmt->bindParam(':iva', $this->iva, PDO::PARAM_INT);
+        // Ejecutamos la consulta
         $resultado = $stmt->execute();
+        // Obtenemos el último ID insertado
         $this->id = $conexion->lastInsertId();
+        // Devolvemos el resultado
         return $resultado;
     }
 
@@ -250,12 +311,15 @@ class Producto
      */
     public function actualizar()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
             "UPDATE productos SET nombre = :nombre, descripcion = :descripcion, precio = :precio, 
              stock = :stock, idCategoria = :idCategoria, 
-             imagen = :imagen, activo = :activo WHERE id = :id"
+             imagen = :imagen, activo = :activo, iva = :iva WHERE id = :id"
         );
+        // Vinculamos los parámetros
         $stmt->bindParam(':nombre', $this->nombre);
         $stmt->bindParam(':descripcion', $this->descripcion);
         $stmt->bindParam(':precio', $this->precio);
@@ -263,6 +327,7 @@ class Producto
         $stmt->bindParam(':idCategoria', $this->idCategoria, PDO::PARAM_INT);
         $stmt->bindParam(':imagen', $this->imagen);
         $stmt->bindParam(':activo', $this->activo, PDO::PARAM_INT);
+        $stmt->bindParam(':iva', $this->iva, PDO::PARAM_INT);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
         return $stmt->execute();
     }
@@ -275,11 +340,15 @@ class Producto
     public function actualizarStock($cantidad)
     {
         $this->stock += $cantidad;
+        // Si el stock es menor a 0, lo inicializamos a 0
         if ($this->stock < 0) {
             $this->stock = 0;
         }
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare("UPDATE productos SET stock = :stock WHERE id = :id");
+        // Vinculamos los parámetros
         $stmt->bindParam(':stock', $this->stock, PDO::PARAM_INT);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
         return $stmt->execute();
@@ -291,9 +360,13 @@ class Producto
      */
     public function eliminar()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare("DELETE FROM productos WHERE id = :id");
+        // Vinculamos los parámetros
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
+        // Ejecutamos la consulta
         return $stmt->execute();
     }
 
@@ -306,7 +379,9 @@ class Producto
      */
     private static function crearDesdeArray($fila)
     {
+        // Creamos un nuevo producto
         $producto = new Producto();
+        // Asignamos los valores del array al producto
         $producto->setId($fila['id']);
         $producto->setNombre($fila['nombre']);
         $producto->setDescripcion($fila['descripcion']);
@@ -315,6 +390,8 @@ class Producto
         $producto->setIdCategoria($fila['idCategoria']);
         $producto->setImagen($fila['imagen']);
         $producto->setActivo($fila['activo']);
+        $producto->setIva($fila['iva'] ?? 21);
+        // Devolvemos el producto
         return $producto;
     }
 }

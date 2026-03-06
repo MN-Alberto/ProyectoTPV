@@ -48,6 +48,39 @@ header h1 {
     font-size: 0.9rem;
 }
 
+/* ======================== THEME TOGGLE ======================== */
+.theme-toggle {
+    display: flex;
+    gap: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 4px;
+    border-radius: 20px;
+}
+
+.theme-btn {
+    background: transparent;
+    border: none;
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.theme-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+.theme-btn.active {
+    background: rgba(255, 255, 255, 0.3);
+}
+
 .btn-cerrar-sesion {
     background: rgba(255, 255, 255, 0.15);
     color: #fff;
@@ -73,6 +106,36 @@ footer {
     padding: 12px;
     font-size: 0.8rem;
     font-weight: 400;
+}
+
+/* ======================== DARK MODE ======================== */
+body.dark-mode {
+    background: #1a1a2e;
+    color: #e5e7eb;
+}
+
+body.dark-mode header {
+    background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .header-usuario {
+    color: #e5e7eb;
+}
+
+body.dark-mode .btn-cerrar-sesion {
+    background: #374151;
+    color: #e5e7eb;
+    border: 1px solid #4b5563;
+}
+
+body.dark-mode .btn-cerrar-sesion:hover {
+    background: #dc2626;
+}
+
+body.dark-mode footer {
+    background: #0f0f1a;
+    color: #9ca3af;
 }
 
 footer h4 {

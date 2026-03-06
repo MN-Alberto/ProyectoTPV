@@ -1,24 +1,90 @@
-// ======================== RENDER PRODUCTOS (MODO TABLA - ADMIN) ========================
-function renderProductosAdmin(productos) {
-    const contenedor = document.getElementById('adminContenido');
+﻿// ======================== RENDER PRODUCTOS (MODO TABLA - ADMIN) ========================
 
-    if (!productos || productos.length === 0) {
-        contenedor.innerHTML = '<p class="sin-productos">No hay productos disponibles.</p>';
-        return;
-    }
+// Variable global para guardar el header HTML (con el input de búsqueda fijo)
+let adminTablaHeaderHTML = '';
 
-    let html = `
+// Variable para guardar las categorías
+let categoriasAdmin = [];
+
+// Variable para identificar la sección actual
+let seccionActual = '';
+
+// Variable para controlar si se muestra el precio con o sin IVA
+let mostrarConIva = false;
+
+/**
+ * Carga las categorías desde la API y las guarda en la variable global.
+ */
+function cargarCategoriasAdmin() {
+    return fetch('api/categorias.php')
+        .then(res => res.json())
+        .then(data => {
+            categoriasAdmin = data;
+            return data;
+        })
+        .catch(err => console.error('Error cargando categorías:', err));
+}
+
+/**
+ * Genera el HTML del header con el input de búsqueda y el select de categorías (solo se genera una vez).
+ */
+// Opciones de ordenación
+const OPCIONES_ORDEN = [
+    { value: '', text: 'Sin orden' },
+    { value: 'nombre_asc', text: 'Orden alfabético A-Z' },
+    { value: 'nombre_desc', text: 'Orden alfabético Z-A' },
+    { value: 'id_asc', text: 'ID menor a mayor' },
+    { value: 'id_desc', text: 'ID mayor a menor' },
+    { value: 'precio_asc', text: 'Precio menor a mayor' },
+    { value: 'precio_desc', text: 'Precio mayor a menor' },
+    { value: 'stock_asc', text: 'Stock menor a mayor' },
+    { value: 'stock_desc', text: 'Stock mayor a menor' }
+];
+
+function getAdminTablaHeader(textoBusqueda = '', idCategoriaSeleccionada = '', ordenSeleccionado = '') {
+    // Generar las opciones del select de categorías
+    let opcionesCategorias = '<option value="todas">Todas</option>';
+    categoriasAdmin.forEach(cat => {
+        const selected = cat.id == idCategoriaSeleccionada ? 'selected' : '';
+        opcionesCategorias += `<option value="${cat.id}" ${selected}>${cat.nombre}</option>`;
+    });
+
+    // Generar las opciones del select de ordenación
+    let opcionesOrden = '';
+    OPCIONES_ORDEN.forEach(opc => {
+        const selected = opc.value == ordenSeleccionado ? 'selected' : '';
+        opcionesOrden += `<option value="${opc.value}" ${selected}>${opc.text}</option>`;
+    });
+
+    return `
         <div class="admin-tabla-header">
-
-            <label for="inputBuscarProducto"
-                style="font-weight: 600; color: #1a1a2e; white-space: nowrap;">Buscar:</label>
-            <input type="text" id="inputBuscarProducto" class="input-buscarProducto"
-                placeholder="Escribe el nombre del producto a buscar..." oninput="buscarProductos()" autocomplete="off"
-                style="width: 82%;" />
-
-            <button class="btn-admin-accion btn-nuevo" onclick="nuevoProducto()">
-                <i class="fas fa-plus"></i> Nuevo Producto
-            </button>
+            <div style="display: flex; gap: 10px; width: 100%; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="inputBuscarProducto" class="admin-label">Buscar:</label>
+                    <input type="text" id="inputBuscarProducto" class="input-buscarProducto"
+                        placeholder="Escribe el nombre del producto..." oninput="buscarProductos()" autocomplete="off"
+                        value="${textoBusqueda.replace(/"/g, '&quot;')}" style="width: 400px;" />
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="selectCategoria" class="admin-label">Categoría:</label>
+                    <select id="selectCategoria" onchange="buscarProductos()" style="padding: 8px; border-radius: 4px; border: 1px solid #d1d5db;">
+                        ${opcionesCategorias}
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="selectOrden" class="admin-label">Ordenar:</label>
+                    <select id="selectOrden" onchange="buscarProductos()" style="padding: 8px; border-radius: 4px; border: 1px solid #d1d5db;">
+                        ${opcionesOrden}
+                    </select>
+                </div>
+                <button class="btn-admin-accion ${mostrarConIva ? 'btn-ver' : 'btn-editar'}" onclick="toggleMostrarIva()" style="min-width: 150px;">
+                    <i class="fas ${mostrarConIva ? 'fa-file-invoice-dollar' : 'fa-coins'}"></i> 
+                    ${mostrarConIva ? 'Ver Sin IVA' : 'Ver Con IVA'}
+                </button>
+                <button class="btn-admin-accion btn-nuevo" onclick="nuevoProducto()">
+                    <i class="fas fa-plus"></i> Nuevo Producto
+                </button>
+            </div>
         </div>
         <div class="admin-tabla-wrapper">
             <table class="admin-tabla">
@@ -28,35 +94,123 @@ function renderProductosAdmin(productos) {
                         <th>Imagen</th>
                         <th>Nombre</th>
                         <th>Categoría</th>
-                        <th>Precio</th>
+                        <th>Precio ${mostrarConIva ? '(PVP)' : '(Base)'}</th>
                         <th>Stock</th>
                         <th>Estado</th>
+                        <th>IVA</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>`;
+}
 
-    productos.forEach(prod => {
-        const precioFmt = parseFloat(prod.precio).toFixed(2).replace('.', ',');
-        const imgSrc = prod.imagen && prod.imagen !== '' ? prod.imagen : 'webroot/img/logo.PNG';
+/**
+ * Renderiza un array de productos en formato tabla dentro del panel de administración.
+ * El header con el input de búsqueda se genera solo la primera vez y se mantiene fijo.
+ *
+ * @param {Array<Object>} productos - Array de objetos producto devueltos por la API.
+ * @param {boolean} esPrimeraVez - Indica si es la primera vez que se renderiza.
+ */
+function renderProductosAdmin(productos, esPrimeraVez = true, idCategoria = '', orden = '') {
+    // Obtener el contenedor principal donde se inyectará la tabla de productos.
+    const contenedor = document.getElementById('adminContenido');
 
-        // Determinar badge de stock
-        let stockBadge = '';
-        if (prod.stock <= 0) {
-            stockBadge = 'badge-agotado';
-        } else if (prod.stock <= 3) {
-            stockBadge = 'badge-bajo';
+    // Si no hay productos, mostrar un mensaje informativo.
+    if (!productos || productos.length === 0) {
+        if (esPrimeraVez || adminTablaHeaderHTML === '') {
+            // Primera vez o header vacío: generar estructura completa con mensaje
+            adminTablaHeaderHTML = getAdminTablaHeader('', idCategoria, orden);
+            contenedor.innerHTML = adminTablaHeaderHTML + '<tr><td colspan="9" class="sin-productos">No hay productos disponibles.</td></tr></tbody></table></div>';
         } else {
-            stockBadge = 'badge-ok';
+            // Búsquedas posteriores: solo actualizar el tbody
+            const tbody = contenedor.querySelector('tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="sin-productos">No hay productos disponibles.</td></tr>';
+        }
+        return;
+    }
+
+    // Si es la primera vez o el header está vacío, generar el header completo
+    if (esPrimeraVez || adminTablaHeaderHTML === '') {
+        adminTablaHeaderHTML = getAdminTablaHeader('', idCategoria, orden);
+    }
+
+    // Ordenar los productos según el criterio seleccionado
+    if (orden) {
+        const [campo, direccion] = orden.split('_');
+        const esAscendente = direccion === 'asc';
+
+        productos.sort((a, b) => {
+            let valorA, valorB;
+
+            switch (campo) {
+                case 'nombre':
+                    valorA = a.nombre.toLowerCase();
+                    valorB = b.nombre.toLowerCase();
+                    break;
+                case 'id':
+                    valorA = a.id;
+                    valorB = b.id;
+                    break;
+                case 'precio':
+                    valorA = a.precio;
+                    valorB = b.precio;
+                    break;
+                case 'stock':
+                    valorA = a.stock;
+                    valorB = b.stock;
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (valorA < valorB) return esAscendente ? -1 : 1;
+            if (valorA > valorB) return esAscendente ? 1 : -1;
+            return 0;
+        });
+    }
+
+    // Usar el header guardado (input fijo)
+    let html = adminTablaHeaderHTML;
+
+    // Iterar sobre cada producto para generar las filas de la tabla.
+    productos.forEach(prod => {
+        // Calcular el precio a mostrar según el estado del toggle
+        let precioMostrado = parseFloat(prod.precio);
+        if (mostrarConIva) {
+            // Usar check estricto para evitar que el 0 sea tratado como falsy
+            const ivaPorcentaje = (prod.iva !== null && prod.iva !== undefined && prod.iva !== "") ? parseInt(prod.iva) : 21;
+            precioMostrado = precioMostrado * (1 + (ivaPorcentaje / 100));
         }
 
-        // Determinar badge de estado (activo/inactivo si tienes ese campo, si no se omite)
+        // Formatear el precio con 2 decimales y coma como separador decimal (formato europeo).
+        const precioFmt = precioMostrado.toFixed(2).replace('.', ',');
+
+        // Usar la imagen del producto si existe; de lo contrario, usar el logo por defecto.
+        const imgSrc = prod.imagen && prod.imagen !== '' ? prod.imagen : 'webroot/img/logo.PNG';
+
+        // Determinar la clase CSS del badge de stock según el nivel de inventario.
+        let stockBadge = '';
+        if (prod.stock <= 0) {
+            stockBadge = 'badge-agotado';    // Sin stock: badge rojo "agotado".
+        } else if (prod.stock <= 3) {
+            stockBadge = 'badge-bajo';       // Stock bajo (<=3): badge de advertencia.
+        } else {
+            stockBadge = 'badge-ok';         // Stock suficiente: badge verde.
+        }
+
+        // Determinar el badge de estado (activo/inactivo) según el campo 'activo' del producto.
         const estadoHtml = prod.activo == 1
             ? `<span class="admin-badge badge-activo">Activo</span>`
             : `<span class="admin-badge badge-inactivo">Inactivo</span>`;
 
+        // Generar la fila HTML del producto.
+        // - Las filas de productos agotados reciben la clase 'fila-agotada' (estilo atenuado).
+        // - Las filas de productos inactivos reciben la clase 'fila-inactiva'.
+        // - Cada fila incluye botones de acción: ver, editar y eliminar.
         html += `
-                    <tr class="${prod.stock <= 0 ? 'fila-agotada' : ''}${prod.activo == 0 ? 'fila-inactiva' : ''}">
+                    <tr class="${prod.stock <= 0 ? 'fila-agotada' : ''}${prod.activo == 0 ? 'fila-inactiva' : ''}" 
+                        data-precio-base="${prod.precio}" 
+                        data-iva="${prod.iva}">
                         <td class="col-id">${prod.id}</td>
                         <td class="col-img">
                             <img src="${imgSrc}" alt="${prod.nombre.replace(/"/g, '&quot;')}" class="admin-tabla-img">
@@ -68,6 +222,7 @@ function renderProductosAdmin(productos) {
                             <span class="admin-badge ${stockBadge}">${prod.stock}</span>
                         </td>
                         <td class="col-estado">${estadoHtml}</td>
+                        <td class="col-iva">${prod.iva}%</td>
                         <td class="col-acciones" style="${prod.stock <= 0 ? 'opacity: 1;' : ''}${prod.activo == 0 ? 'opacity: 1;' : ''}">
                             <button class="btn-admin-accion btn-ver" onclick="verProducto(${prod.id})" title="Ver">
                                 <i class="fas fa-eye"></i>
@@ -82,80 +237,194 @@ function renderProductosAdmin(productos) {
                     </tr>`;
     });
 
+    // Cerrar las etiquetas de la tabla y del contenedor wrapper.
     html += `
                 </tbody>
             </table>
         </div>`;
 
-    contenedor.innerHTML = html;
+    // Inyectar todo el HTML generado en el contenedor del panel de administración.
+    if (esPrimeraVez) {
+        // Primera vez: reemplazar todo el contenido
+        contenedor.innerHTML = html;
+    } else {
+        // Búsquedas posteriores: solo actualizar el tbody para mantener el input fijo
+        const tbody = contenedor.querySelector('tbody');
+        if (tbody) {
+            // Extraer solo el tbody del HTML generado
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const nuevoTbody = tempDiv.querySelector('tbody');
+            tbody.innerHTML = nuevoTbody.innerHTML;
+        } else {
+            // Si no existe tbody, reemplazar todo
+            contenedor.innerHTML = html;
+        }
+    }
 }
 
+// ======================== FUNCIONES DE MODAL ========================
+
+/**
+ * Cierra un modal ocultándolo (display: none).
+ *
+ * @param {string} id - El ID del elemento modal a cerrar.
+ */
 function cerrarModal(id) {
     document.getElementById(id).style.display = 'none';
 }
 
+/**
+ * Abre un modal mostrándolo con display flex (centrado).
+ *
+ * @param {string} id - El ID del elemento modal a abrir.
+ */
 function abrirModal(id) {
     document.getElementById(id).style.display = 'flex';
 }
 
 // ======================== CARGAR PRODUCTOS EN PANEL ADMIN ========================
-function cargarProductosAdmin(idCategoria = 'todas', textoBusqueda = '') {
+
+/**
+ * Carga los productos desde la API y los renderiza en la tabla del panel de administración.
+ * Permite filtrar por categoría y por texto de búsqueda.
+ *
+ * @param {string|number} idCategoria - ID de la categoría a filtrar, o 'todas' para mostrar todas.
+ * @param {string} textoBusqueda - Texto de búsqueda para filtrar productos por nombre.
+ * @returns {Promise} - Promesa que se resuelve cuando los productos han sido renderizados.
+ */
+function cargarProductosAdmin(idCategoria = 'todas', textoBusqueda = '', orden = '') {
+    // Verificar si ya existe la tabla (es una búsqueda, no la primera carga)
+    const contenedor = document.getElementById('adminContenido');
+    const tablaExistente = contenedor.querySelector('.admin-tabla');
+
+    // Si la sección actual no es productos, forzamos primera carga para regenerar el header
+    if (seccionActual !== 'productos') {
+        adminTablaHeaderHTML = '';
+        seccionActual = 'productos';
+    }
+
+    const esPrimeraVez = !tablaExistente || adminTablaHeaderHTML === '';
+
+    // Guardar el orden actual para pasarlo al render
+    window.ordenActual = orden;
+
+    // Construir los parámetros de la petición.
     const params = new URLSearchParams();
     params.append('idCategoria', idCategoria);
-    params.append('admin', '1');
+    params.append('admin', '1');  // Indicar que es una petición desde el panel admin (incluye productos inactivos).
     if (textoBusqueda) params.append('buscarProducto', textoBusqueda);
 
+    // Realizar la petición AJAX a la API de productos.
     return fetch('api/productos.php?' + params.toString())
-        .then(res => res.json())
-        .then(data => renderProductosAdmin(data))
+        .then(res => res.json())                         // Parsear la respuesta JSON.
+        .then(data => renderProductosAdmin(data, esPrimeraVez, idCategoria, orden))  // Renderizar los productos en la tabla.
         .catch(err => {
+            // En caso de error, mostrar mensaje en el contenedor y registrar en consola.
             console.error('Error cargando productos (admin):', err);
             document.getElementById('adminContenido').innerHTML =
                 '<p class="sin-productos">Error al cargar los productos.</p>';
         });
 }
 
-// ======================== ACCIONES ADMIN (STUBS) ========================
+// ======================== ACCIONES ADMIN ========================
+
+/**
+ * Abre el formulario/modal para crear un nuevo producto.
+ */
 function nuevoProducto() {
-    // TODO: abrir modal de creación
-    console.log('Nuevo producto');
+    // Limpiar el formulario para crear un nuevo producto
+    document.getElementById('editProductoId').value = '';
+    document.getElementById('editProductoNombre').value = '';
+    document.getElementById('editProductoPrecio').value = '';
+    document.getElementById('editProductoStock').value = '';
+    document.getElementById('editProductoEstado').value = '1';
+    document.getElementById('editProductoIva').value = '21';
+    document.getElementById('editProductoImagen').src = 'webroot/img/logo.PNG';
+    document.getElementById('editProductoImagen').alt = '';
+    document.getElementById('editProductoImagenInput').value = '';
+
+    // Cambiar el título y subtítulo
+    document.getElementById('editProductoTitulo').textContent = 'Nuevo Producto';
+    document.getElementById('editProductoSubtitulo').textContent = 'Completa los datos del nuevo producto';
+
+    // Cargar las categorías en el select
+    const selectCategoria = document.getElementById('editProductoCategoria');
+    selectCategoria.innerHTML = '<option value="">Selecciona una categoría</option>';
+    categoriasAdmin.forEach(cat => {
+        selectCategoria.innerHTML += `<option value="${cat.nombre}">${cat.nombre}</option>`;
+    });
+    selectCategoria.style.background = '#fff';
+    selectCategoria.style.cursor = 'pointer';
+
+    // Abrir el modal de edición (que sirve tanto para crear como para editar)
+    abrirModal('modalEditarProducto');
 }
 
+/**
+ * Abre el modal de edición de un producto, rellenando los campos del formulario
+ * con los datos actuales del producto extraídos de la fila de la tabla.
+ *
+ * @param {number} id - El ID del producto a editar.
+ */
 function editarProducto(id) {
+    // Localizar la fila de la tabla que contiene el botón de editar para este producto.
     const fila = document.querySelector(`tr [onclick="editarProducto(${id})"]`).closest('tr');
     const celdas = fila.querySelectorAll('td');
 
+    // Extraer los datos del producto desde los atributos data de la fila y el DOM.
     const nombre = celdas[2].textContent.trim();
     const categoria = celdas[3].textContent.trim();
-    const precio = celdas[4].textContent.replace('€', '').replace(',', '.').trim();
+    const precio = fila.dataset.precioBase; // Usar el precio base real del atributo data
     const stock = celdas[5].textContent.trim();
     const activo = celdas[6].querySelector('.badge-activo') ? 1 : 0;
+    const iva = fila.dataset.iva; // Usar el IVA del atributo data
     const imgSrc = celdas[1].querySelector('img')?.src ?? 'webroot/img/logo.PNG';
 
-    // Guardar el ID para el guardado
+    // Guardar el ID del producto en un campo oculto para usarlo al guardar los cambios.
     document.getElementById('editProductoId').value = id;
 
-    // Rellenar campos
+    // Rellenar la imagen de previsualización del modal.
     const imgEl = document.getElementById('editProductoImagen');
     imgEl.src = imgSrc;
     imgEl.alt = nombre;
 
+    // Rellenar los campos del formulario de edición con los datos del producto.
     document.getElementById('editProductoNombre').value = nombre;
     document.getElementById('editProductoCategoria').value = categoria;
     document.getElementById('editProductoPrecio').value = precio;
     document.getElementById('editProductoStock').value = stock;
     document.getElementById('editProductoEstado').value = activo;
+    document.getElementById('editProductoIva').value = iva;
 
-    // Limpiar input de imagen por si había una previsualización anterior
+    // Limpiar el input de archivo de imagen por si había una previsualización anterior.
     document.getElementById('editProductoImagenInput').value = '';
 
+    // Cambiar el título y subtítulo para modo edición
+    document.getElementById('editProductoTitulo').textContent = 'Editar Producto';
+    document.getElementById('editProductoSubtitulo').textContent = 'Modifica los datos del producto';
+
+    // Hacer la categoría de solo lectura para productos existentes
+    const selectCategoria = document.getElementById('editProductoCategoria');
+    selectCategoria.innerHTML = `<option value="${categoria}">${categoria}</option>`;
+    selectCategoria.style.background = '#f3f4f6';
+    selectCategoria.style.cursor = 'not-allowed';
+
+    // Abrir el modal de edición.
     abrirModal('modalEditarProducto');
 }
 
+/**
+ * Previsualiza la imagen seleccionada por el usuario en el input de archivo,
+ * mostrándola en el elemento <img> del modal de edición.
+ *
+ * @param {Event} event - El evento 'change' del input de tipo file.
+ */
 function previsualizarImagen(event) {
     const file = event.target.files[0];
-    if (!file) return;
+    if (!file) return; // Si no se seleccionó ningún archivo, no hacer nada.
 
+    // Usar FileReader para leer el archivo como Data URL y mostrarlo en la imagen.
     const reader = new FileReader();
     reader.onload = (e) => {
         document.getElementById('editProductoImagen').src = e.target.result;
@@ -163,53 +432,81 @@ function previsualizarImagen(event) {
     reader.readAsDataURL(file);
 }
 
+/**
+ * Guarda los cambios realizados en el formulario de edición de un producto.
+ * Recoge los valores de los campos, valida que los obligatorios estén rellenos,
+ * construye un FormData (para soportar subida de imagen) y envía la petición POST a la API.
+ */
 function guardarCambiosProducto() {
+    // Recoger los valores de todos los campos del formulario de edición.
     const id = document.getElementById('editProductoId').value;
     const nombre = document.getElementById('editProductoNombre').value.trim();
+    const categoria = document.getElementById('editProductoCategoria').value;
     const precio = document.getElementById('editProductoPrecio').value;
     const stock = document.getElementById('editProductoStock').value;
     const activo = document.getElementById('editProductoEstado').value;
     const imgInput = document.getElementById('editProductoImagenInput');
 
-    if (!nombre || !precio || stock === '') {
+    // Validar que los campos obligatorios no estén vacíos.
+    if (!nombre || !categoria || !precio || stock === '') {
         alert('Por favor rellena todos los campos obligatorios.');
         return;
     }
 
+    // Construir un FormData para enviar los datos, incluyendo la imagen si se seleccionó una nueva.
     const formData = new FormData();
     formData.append('id', id);
     formData.append('nombre', nombre);
+    formData.append('categoria', categoria);
     formData.append('precio', precio);
     formData.append('stock', stock);
     formData.append('activo', activo);
+    formData.append('iva', document.getElementById('editProductoIva').value);
     if (imgInput.files[0]) {
-        formData.append('imagen', imgInput.files[0]);
+        formData.append('imagen', imgInput.files[0]); // Adjuntar el archivo de imagen si existe.
     }
 
+    // Enviar la petición POST a la API de productos con los datos del formulario.
     fetch('api/productos.php', { method: 'POST', body: formData })
         .then(res => res.json())
         .then(data => {
             if (data.ok) {
+                // Si la operación fue exitosa, cerrar el modal y recargar la tabla de productos.
                 cerrarModal('modalEditarProducto');
                 cargarProductosAdmin().then(() => actualizarContadorProductos());
             } else {
+                // Mostrar el mensaje de error devuelto por la API.
                 alert('Error al guardar los cambios: ' + (data.error ?? ''));
             }
         })
         .catch(err => console.error('Error guardando producto:', err));
 }
 
+/**
+ * Muestra un diálogo de confirmación antes de eliminar un producto.
+ *
+ * @param {number} id - El ID del producto a eliminar.
+ * @param {string} nombre - El nombre del producto (se muestra en el mensaje de confirmación).
+ */
 function confirmarEliminarProducto(id, nombre) {
     if (confirm(`¿Seguro que quieres eliminar "${nombre}"?`)) {
         eliminarProducto(id);
     }
 }
 
+/**
+ * Elimina un producto enviando una petición DELETE a la API.
+ * Si la eliminación es exitosa, recarga la tabla de productos y actualiza el contador.
+ *
+ * @param {number} id - El ID del producto a eliminar.
+ */
 function eliminarProducto(id) {
+    // Enviar petición DELETE a la API con el ID del producto como parámetro.
     fetch(`api/productos.php?eliminar=${id}`, { method: 'DELETE' })
         .then(res => res.json())
         .then(data => {
             if (data.ok) {
+                // Recargar la tabla y actualizar el contador de productos activos.
                 cargarProductosAdmin().then(() => actualizarContadorProductos());
             } else {
                 alert('Error al eliminar el producto.');
@@ -218,38 +515,62 @@ function eliminarProducto(id) {
         .catch(err => console.error('Error eliminando producto:', err));
 }
 
+/**
+ * Abre el modal de detalle (solo lectura) de un producto, mostrando toda su información.
+ * Los datos se extraen directamente de la fila de la tabla en el DOM.
+ *
+ * @param {number} id - El ID del producto a visualizar.
+ */
 function verProducto(id) {
-    // Buscar el producto en la tabla del DOM
+    // Buscar la fila del producto en la tabla del DOM a partir del botón "ver".
     const fila = document.querySelector(`tr [onclick="verProducto(${id})"]`).closest('tr');
     const celdas = fila.querySelectorAll('td');
 
+    // Extraer los datos del producto desde los atributos data y celdas del DOM.
     const nombre = celdas[2].textContent.trim();
     const categoria = celdas[3].textContent.trim();
-    const precio = celdas[4].textContent.trim();
+    const precioBase = parseFloat(fila.dataset.precioBase);
+    const ivaValue = parseInt(fila.dataset.iva) || 0;
+    const precioPVP = precioBase * (1 + (ivaValue / 100));
+
     const stock = celdas[5].textContent.trim();
     const estado = celdas[6].querySelector('.admin-badge')?.textContent.trim() ?? '—';
+    const iva = fila.dataset.iva + '%';
     const imgSrc = celdas[1].querySelector('img')?.src ?? 'webroot/img/logo.PNG';
+
+    // Configurar la imagen del modal con funcionalidad de zoom al hacer clic.
     const imgEl = document.getElementById('verProductoImagen');
     imgEl.src = imgSrc;
     imgEl.alt = nombre;
     imgEl.style.cursor = 'zoom-in';
     imgEl.onclick = () => abrirImagenGrande(imgSrc, nombre);
 
-    // Rellenar el modal
+    // Rellenar los campos de texto del modal con los datos del producto.
     document.getElementById('verProductoNombre').textContent = nombre;
     document.getElementById('verProductoCategoria').textContent = categoria;
-    document.getElementById('verProductoPrecio').textContent = precio;
+    document.getElementById('verProductoPrecio').textContent = (mostrarConIva ? precioPVP.toFixed(2).replace('.', ',') : precioBase.toFixed(2).replace('.', ',')) + ' €';
     document.getElementById('verProductoStock').textContent = stock;
+    document.getElementById('verProductoIva').textContent = iva;
+
+    // Mostrar el badge de estado (activo/inactivo) con el estilo correspondiente.
     document.getElementById('verProductoEstado').innerHTML =
         estado === 'Activo'
             ? '<span class="admin-badge badge-activo">Activo</span>'
             : '<span class="admin-badge badge-inactivo">Inactivo</span>';
 
-    // Abrir modal
+    // Abrir el modal de visualización del producto.
     document.getElementById('modalVerProducto').style.display = 'flex';
 }
 
+/**
+ * Abre una imagen a pantalla completa en un overlay oscuro.
+ * El overlay se cierra al hacer clic sobre él o al pulsar la tecla Escape.
+ *
+ * @param {string} src - La URL de la imagen a mostrar en grande.
+ * @param {string} alt - Texto alternativo para la imagen (accesibilidad).
+ */
 function abrirImagenGrande(src, alt = '') {
+    // Crear el elemento overlay que cubrirá toda la pantalla con fondo oscuro semitransparente.
     const overlay = document.createElement('div');
     overlay.style.cssText = `
         position: fixed; inset: 0; z-index: 9999;
@@ -258,27 +579,39 @@ function abrirImagenGrande(src, alt = '') {
         cursor: zoom-out; animation: fadeIn 0.15s ease;
     `;
 
+    // Insertar la imagen centrada dentro del overlay con estilos de presentación.
     overlay.innerHTML = `
         <img src="${src}" alt="${alt}"
             style="max-width: 90vw; max-height: 90vh; object-fit: contain;
                    border-radius: 8px; box-shadow: 0 25px 60px rgba(0,0,0,0.5);">
     `;
 
-    // Cerrar al hacer clic
+    // Cerrar el overlay al hacer clic en cualquier parte de él.
     overlay.addEventListener('click', () => overlay.remove());
 
-    // Cerrar con Escape
-    const cerrarConEsc = (e) => { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', cerrarConEsc); } };
+    // Cerrar el overlay al pulsar la tecla Escape.
+    const cerrarConEsc = (e) => {
+        if (e.key === 'Escape') {
+            overlay.remove();
+            document.removeEventListener('keydown', cerrarConEsc); // Limpiar el listener tras cerrar.
+        }
+    };
     document.addEventListener('keydown', cerrarConEsc);
 
+    // Añadir el overlay al body del documento para mostrarlo.
     document.body.appendChild(overlay);
 }
 
+/**
+ * Actualiza el contador de productos activos en la tarjeta del dashboard.
+ * Cuenta las filas de la tabla que tienen el badge 'badge-activo' y actualiza
+ * el valor mostrado en la tarjeta correspondiente del panel de estadísticas.
+ */
 function actualizarContadorProductos() {
-    // Contar filas que tienen el badge-activo
+    // Contar el número de badges "activo" presentes en la tabla de productos.
     const totalActivos = document.querySelectorAll('#adminContenido .badge-activo').length;
 
-    // Actualizar la tarjeta del dashboard
+    // Buscar la tarjeta de estadísticas que muestra "Total Productos Activos" y actualizar su valor.
     const tarjetas = document.querySelectorAll('.admin-stat-card');
     tarjetas.forEach(card => {
         if (card.querySelector('.admin-stat-label')?.textContent.includes('Total Productos Activos')) {
@@ -287,6 +620,778 @@ function actualizarContadorProductos() {
     });
 }
 
+// ======================== GESTIÓN DE USUARIOS ========================
+
+/**
+ * Carga los usuarios desde la API y los renderiza en la tabla del panel de administración.
+ */
+function cargarUsuariosAdmin() {
+    const contenedor = document.getElementById('adminContenido');
+    const tablaExistente = contenedor.querySelector('.admin-tabla');
+
+    if (seccionActual !== 'usuarios') {
+        adminTablaHeaderHTML = '';
+        seccionActual = 'usuarios';
+    }
+
+    const esPrimeraVez = !tablaExistente || adminTablaHeaderHTML === '';
+
+    return fetch('api/usuarios.php')
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => { throw new Error(err.error || 'Error al cargar usuarios'); });
+            }
+            return res.json();
+        })
+        .then(data => renderUsuariosAdmin(data, esPrimeraVez))
+        .catch(err => {
+            console.error('Error cargando usuarios:', err);
+            document.getElementById('adminContenido').innerHTML =
+                '<p class="sin-productos">' + err.message + '</p>';
+        });
+}
+
+/**
+ * Genera el HTML del header de la tabla de usuarios.
+ */
+function getUsuariosTablaHeader(textoBusqueda = '') {
+    return `
+        <div class="admin-tabla-header">
+            <div style="display: flex; gap: 10px; width: 100%; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="inputBuscarUsuario" class="admin-label">Buscar:</label>
+                    <input type="text" id="inputBuscarUsuario" class="input-buscarUsuario"
+                        placeholder="Escribe el nombre del usuario..." oninput="buscarUsuarios()" autocomplete="off"
+                        value="${textoBusqueda.replace(/"/g, '&quot;')}" style="width: 300px;" />
+                </div>
+                <button class="btn-admin-accion btn-nuevo" onclick="prepararNuevoUsuario()">
+                    <i class="fas fa-plus"></i> Nuevo Usuario
+                </button>
+            </div>
+        </div>
+        <div class="admin-tabla-wrapper">
+            <table class="admin-tabla">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Nombre</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th>Fecha de Alta</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+}
+
+/**
+ * Renderiza un array de usuarios en formato tabla.
+ * @param {Array} usuarios - Array de objetos usuario.
+ * @param {boolean} esPrimeraVez - Indica si es la primera vez que se renderiza.
+ */
+function renderUsuariosAdmin(usuarios, esPrimeraVez = true) {
+    const contenedor = document.getElementById('adminContenido');
+
+    // Si no hay usuarios, mostrar mensaje
+    if (!usuarios || usuarios.length === 0) {
+        if (esPrimeraVez || adminTablaHeaderHTML === '') {
+            adminTablaHeaderHTML = getUsuariosTablaHeader();
+            contenedor.innerHTML = adminTablaHeaderHTML +
+                '<tr><td colspan="7" class="sin-productos">No hay usuarios disponibles.</td></tr></tbody></table></div>';
+        } else {
+            // Solo actualizar tbody
+            const tbody = contenedor.querySelector('tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="sin-productos">No hay usuarios disponibles.</td></tr>';
+        }
+        return;
+    }
+
+    // Si es la primera vez o header vacío, generar header completo
+    if (esPrimeraVez || adminTablaHeaderHTML === '') {
+        adminTablaHeaderHTML = getUsuariosTablaHeader();
+    }
+
+    let html = adminTablaHeaderHTML;
+
+    usuarios.forEach(usr => {
+        const fechaAlta = new Date(usr.fechaAlta).toLocaleDateString('es-ES', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        });
+
+        const rolBadge = usr.rol === 'admin'
+            ? '<span class="admin-badge" style="background: #dbeafe; color: #1e40af;">Admin</span>'
+            : '<span class="admin-badge" style="background: #f3f4f6; color: #374151;">Empleado</span>';
+
+        const estadoHtml = usr.activo === 1
+            ? '<span class="admin-badge badge-activo">Activo</span>'
+            : '<span class="admin-badge badge-inactivo">Inactivo</span>';
+
+        html += `
+            <tr>
+                <td class="col-id">${usr.id}</td>
+                <td class="col-nombre">${usr.nombre}</td>
+                <td class="col-email">${usr.email}</td>
+                <td class="col-rol">${rolBadge}</td>
+                <td class="col-fecha">${fechaAlta}</td>
+                <td class="col-estado">${estadoHtml}</td>
+                <td class="col-acciones">
+                    <button class="btn-admin-accion btn-ver" onclick="verUsuario(${usr.id})" title="Ver">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn-admin-accion btn-editar" onclick="editarUsuario(${usr.id})" title="Editar">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                    ${usr.rol !== 'admin' ? `
+                    <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarUsuario(${usr.id}, '${usr.nombre.replace(/'/g, "\\'")}')" title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                    </button>` : ''}
+                </td>
+            </tr>`;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>`;
+
+    // Si es la primera vez, reemplazar todo el contenido
+    if (esPrimeraVez) {
+        contenedor.innerHTML = html;
+    } else {
+        // Solo actualizar tbody
+        const tbody = contenedor.querySelector('tbody');
+        if (tbody) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const nuevoTbody = tempDiv.querySelector('tbody');
+            tbody.innerHTML = nuevoTbody.innerHTML;
+        } else {
+            contenedor.innerHTML = html;
+        }
+    }
+}
+
+/**
+ * Busca usuarios por nombre con debounce.
+ */
+function buscarUsuarios() {
+    // Cancelar la búsqueda anterior si el usuario sigue escribiendo
+    clearTimeout(debounceTimerUsuarios);
+
+    // Establecer un nuevo temporizador de 300ms
+    debounceTimerUsuarios = setTimeout(() => {
+        const texto = document.getElementById('inputBuscarUsuario').value;
+        const params = new URLSearchParams();
+        if (texto) params.append('buscar', texto);
+
+        fetch('api/usuarios.php?' + params.toString())
+            .then(res => {
+                if (!res.ok) {
+                    return res.json().then(err => { throw new Error(err.error || 'Error al buscar'); });
+                }
+                return res.json();
+            })
+            .then(data => renderUsuariosAdmin(data, false))
+            .catch(err => {
+                console.error('Error buscando usuarios:', err);
+                document.getElementById('adminContenido').innerHTML =
+                    '<p class="sin-productos">Error: ' + err.message + '</p>';
+            });
+    }, 300); // 300ms de espera después de que el usuario deje de escribir
+}
+
+/**
+ * Abre el formulario para crear un nuevo usuario.
+ */
+nuevoUsuario = () => {
+    // Limpiar el formulario
+    document.getElementById('editUsuarioId').value = '';
+    document.getElementById('editUsuarioNombre').value = '';
+    document.getElementById('editUsuarioEmail').value = '';
+    document.getElementById('editUsuarioPassword').value = '';
+    document.getElementById('editUsuarioPassword').required = true;
+    document.getElementById('editUsuarioRol').value = 'empleado';
+    document.getElementById('editUsuarioEstado').value = '1';
+    document.getElementById('editUsuarioTitulo').textContent = 'Nuevo Usuario';
+    document.getElementById('editUsuarioPassword').closest('.editar-prod-fila').querySelector('label').innerHTML = 'Password <span style="color:red">*</span>';
+
+    abrirModal('modalEditarUsuario');
+};
+
+/**
+ * Abre el modal de detalle de un usuario.
+ */
+function verUsuario(id) {
+    fetch(`api/usuarios.php?id=${id}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok === false) {
+                alert(data.error);
+                return;
+            }
+
+            const fechaAlta = new Date(data.fechaAlta).toLocaleDateString('es-ES', {
+                day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+
+            const rolTexto = data.rol === 'admin' ? 'Administrador' : 'Empleado';
+
+            document.getElementById('verUsuarioNombre').textContent = data.nombre;
+            document.getElementById('verUsuarioEmail').textContent = data.email;
+            document.getElementById('verUsuarioRol').textContent = rolTexto;
+            document.getElementById('verUsuarioFecha').textContent = fechaAlta;
+            document.getElementById('verUsuarioEstado').innerHTML = data.activo === 1
+                ? '<span class="admin-badge badge-activo">Activo</span>'
+                : '<span class="admin-badge badge-inactivo">Inactivo</span>';
+
+            abrirModal('modalVerUsuario');
+        })
+        .catch(err => console.error('Error cargando usuario:', err));
+}
+
+/**
+ * Abre el modal de edición de un usuario.
+ */
+function editarUsuario(id) {
+    fetch(`api/usuarios.php?id=${id}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok === false) {
+                alert(data.error);
+                return;
+            }
+
+            document.getElementById('editUsuarioId').value = data.id;
+            document.getElementById('editUsuarioNombre').value = data.nombre;
+            document.getElementById('editUsuarioEmail').value = data.email;
+            document.getElementById('editUsuarioPassword').value = '';
+            document.getElementById('editUsuarioPassword').required = false;
+            document.getElementById('editUsuarioRol').value = data.rol;
+            document.getElementById('editUsuarioEstado').value = data.activo;
+
+            // Mostrar/ocultar permisos según el rol
+            actualizarVisibilidadPermisos(data.rol);
+
+            // Verificar si tiene el permiso de crear productos
+            const permisos = data.permisos || '';
+            document.getElementById('editUsuarioPermisoCrearProductos').checked = permisos.includes('crear_productos');
+
+            document.getElementById('editUsuarioTitulo').textContent = 'Editar Usuario';
+            document.getElementById('editUsuarioPassword').closest('.editar-prod-fila').querySelector('label').innerHTML = 'Password (dejar vacío para mantener)';
+
+            abrirModal('modalEditarUsuario');
+        })
+        .catch(err => console.error('Error cargando usuario:', err));
+}
+
+/**
+ * Muestra u oculta los permisos según el rol seleccionado.
+ */
+function actualizarVisibilidadPermisos(rol) {
+    const filaPermisos = document.getElementById('filaPermisos');
+    if (filaPermisos) {
+        filaPermisos.style.display = (rol === 'empleado') ? 'block' : 'none';
+    }
+}
+
+/**
+ * Prepara el modal para crear un nuevo usuario.
+ */
+function prepararNuevoUsuario() {
+    document.getElementById('editUsuarioId').value = '';
+    document.getElementById('editUsuarioNombre').value = '';
+    document.getElementById('editUsuarioEmail').value = '';
+    document.getElementById('editUsuarioPassword').value = '';
+    document.getElementById('editUsuarioPassword').required = true;
+    document.getElementById('editUsuarioRol').value = 'empleado';
+    document.getElementById('editUsuarioEstado').value = '1';
+
+    // Por defecto, ocultar permisos (se mostrará si es empleado)
+    actualizarVisibilidadPermisos('empleado');
+    document.getElementById('editUsuarioPermisoCrearProductos').checked = false;
+
+    document.getElementById('editUsuarioTitulo').textContent = 'Nuevo Usuario';
+    document.getElementById('editUsuarioPassword').closest('.editar-prod-fila').querySelector('label').innerHTML = 'Password <span style="color:red">*</span>';
+
+    // Añadir listener para mostrar/ocultar permisos cuando cambie el rol
+    const rolSelect = document.getElementById('editUsuarioRol');
+    rolSelect.onchange = function () {
+        actualizarVisibilidadPermisos(this.value);
+    };
+
+    abrirModal('modalEditarUsuario');
+}
+
+/**
+ * Guarda los cambios de un usuario (crear o actualizar).
+ */
+function guardarCambiosUsuario() {
+    const id = document.getElementById('editUsuarioId').value;
+    const nombre = document.getElementById('editUsuarioNombre').value.trim();
+    const email = document.getElementById('editUsuarioEmail').value.trim();
+    const password = document.getElementById('editUsuarioPassword').value;
+    const rol = document.getElementById('editUsuarioRol').value;
+    const activo = document.getElementById('editUsuarioEstado').value;
+
+    if (!nombre || !email) {
+        alert('Por favor completa todos los campos obligatorios.');
+        return;
+    }
+
+    // Validar email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        alert('Por favor ingresa un email válido.');
+        return;
+    }
+
+    // Obtener permisos (solo para empleados)
+    let permisos = '';
+    if (rol === 'empleado') {
+        const checkboxPermiso = document.getElementById('editUsuarioPermisoCrearProductos');
+        if (checkboxPermiso && checkboxPermiso.checked) {
+            permisos = 'crear_productos';
+        }
+    }
+
+    const formData = new FormData();
+    if (id) formData.append('id', id);
+    formData.append('nombre', nombre);
+    formData.append('email', email);
+    if (password) formData.append('password', password);
+    formData.append('rol', rol);
+    formData.append('activo', activo);
+    formData.append('permisos', permisos);
+
+    fetch('api/usuarios.php', { method: 'POST', body: formData })
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => { throw new Error(err.error || 'Error al guardar'); });
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data.ok) {
+                cerrarModal('modalEditarUsuario');
+                cargarUsuariosAdmin();
+            } else {
+                alert('Error al guardar: ' + (data.error ?? ''));
+            }
+        })
+        .catch(err => {
+            console.error('Error guardando usuario:', err);
+            alert('Error: ' + err.message);
+        });
+}
+
+/**
+ * Confirma la eliminación de un usuario.
+ */
+function confirmarEliminarUsuario(id, nombre) {
+    if (confirm(`¿Seguro que quieres eliminar al usuario "${nombre}"?`)) {
+        eliminarUsuario(id);
+    }
+}
+
+/**
+ * Elimina un usuario.
+ */
+function eliminarUsuario(id) {
+    fetch(`api/usuarios.php?eliminar=${id}`, { method: 'DELETE' })
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => { throw new Error(err.error || 'Error al eliminar'); });
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data.ok) {
+                cargarUsuariosAdmin();
+            } else {
+                alert('Error al eliminar el usuario: ' + (data.error ?? ''));
+            }
+        })
+        .catch(err => {
+            console.error('Error eliminando usuario:', err);
+            alert('Error: ' + err.message);
+        });
+}
+
+// ======================== GESTIÓN DE VENTAS ========================
+
+/**
+ * Carga las ventas desde la API y las renderiza en una tabla.
+ * @param {string} filtroFecha - Filtrar por: 'todos', 'hoy', '7dias', '30dias'
+ * @param {string} metodoPago - Filtrar por: 'todos', 'efectivo', 'tarjeta', 'bizum'
+ * @param {string} tipoDocumento - Filtrar por: 'todos', 'ticket', 'factura'
+ * @param {string} orden - Ordenar por: 'fecha_desc', 'fecha_asc', 'importe_desc', 'importe_asc', 'cantidad_desc', 'cantidad_asc', 'id_desc', 'id_asc'
+ */
+function cargarVentasAdmin(filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc') {
+    // Si la sección actual no es ventas, forzamos primera carga
+    if (seccionActual !== 'ventas') {
+        adminTablaHeaderHTML = '';
+        seccionActual = 'ventas';
+    }
+
+    const contenedor = document.getElementById('adminContenido');
+    const tablaExistente = contenedor.querySelector('.admin-tabla');
+    const esPrimeraVez = !tablaExistente || adminTablaHeaderHTML === '';
+
+    // Construir URL con filtros
+    let url = 'api/ventas.php?todas=1';
+    if (filtroFecha && filtroFecha !== 'todos') {
+        url += '&filtroFecha=' + filtroFecha;
+    }
+    if (metodoPago && metodoPago !== 'todos') {
+        url += '&metodoPago=' + metodoPago;
+    }
+    if (tipoDocumento && tipoDocumento !== 'todos') {
+        url += '&tipoDocumento=' + tipoDocumento;
+    }
+    if (orden && orden !== 'fecha_desc') {
+        url += '&orden=' + orden;
+    }
+
+    fetch(url)
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => { throw new Error(err.error || 'Error al cargar ventas'); });
+            }
+            return res.json();
+        })
+        .then(data => renderVentasAdmin(data, esPrimeraVez, filtroFecha, metodoPago, tipoDocumento, orden))
+        .catch(err => {
+            console.error('Error cargando ventas:', err);
+            contenedor.innerHTML = '<p class="sin-productos">Error: ' + err.message + '</p>';
+        });
+}
+
+/**
+ * Genera el HTML del header de la tabla de ventas.
+ */
+function getVentasTablaHeader(filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc') {
+    return `
+        <div class="admin-tabla-header ventas-header">
+            <div class="ventas-filtros">
+                <div class="filtro-group">
+                    <label for="ventasFiltroFecha">Período:</label>
+                    <select id="ventasFiltroFecha" class="filtro-select" onchange="aplicarFiltrosVentas()">
+                        <option value="todos" ${filtroFecha === 'todos' ? 'selected' : ''}>Todas</option>
+                        <option value="hoy" ${filtroFecha === 'hoy' ? 'selected' : ''}>Hoy</option>
+                        <option value="7dias" ${filtroFecha === '7dias' ? 'selected' : ''}>Últimos 7 días</option>
+                        <option value="30dias" ${filtroFecha === '30dias' ? 'selected' : ''}>Último mes</option>
+                    </select>
+                </div>
+                <div class="filtro-group">
+                    <label for="ventasFiltroMetodo">Método de pago:</label>
+                    <select id="ventasFiltroMetodo" class="filtro-select" onchange="aplicarFiltrosVentas()">
+                        <option value="todos" ${metodoPago === 'todos' ? 'selected' : ''}>Todos</option>
+                        <option value="efectivo" ${metodoPago === 'efectivo' ? 'selected' : ''}>Efectivo</option>
+                        <option value="tarjeta" ${metodoPago === 'tarjeta' ? 'selected' : ''}>Tarjeta</option>
+                        <option value="bizum" ${metodoPago === 'bizum' ? 'selected' : ''}>Bizum</option>
+                    </select>
+                </div>
+                <div class="filtro-group">
+                    <label for="ventasFiltroDocumento">Documento:</label>
+                    <select id="ventasFiltroDocumento" class="filtro-select" onchange="aplicarFiltrosVentas()">
+                        <option value="todos" ${tipoDocumento === 'todos' ? 'selected' : ''}>Todos</option>
+                        <option value="ticket" ${tipoDocumento === 'ticket' ? 'selected' : ''}>Ticket</option>
+                        <option value="factura" ${tipoDocumento === 'factura' ? 'selected' : ''}>Factura</option>
+                    </select>
+                </div>
+                <div class="filtro-group">
+                    <label for="ventasOrdenar">Ordenar por:</label>
+                    <select id="ventasOrdenar" class="filtro-select" onchange="aplicarFiltrosVentas()">
+                        <option value="fecha_desc" ${orden === 'fecha_desc' ? 'selected' : ''}>Más recientes</option>
+                        <option value="fecha_asc" ${orden === 'fecha_asc' ? 'selected' : ''}>Más antiguos</option>
+                        <option value="importe_desc" ${orden === 'importe_desc' ? 'selected' : ''}>Mayor importe</option>
+                        <option value="importe_asc" ${orden === 'importe_asc' ? 'selected' : ''}>Menor importe</option>
+                        <option value="cantidad_desc" ${orden === 'cantidad_desc' ? 'selected' : ''}>Más productos</option>
+                        <option value="cantidad_asc" ${orden === 'cantidad_asc' ? 'selected' : ''}>Menos productos</option>
+                        <option value="id_desc" ${orden === 'id_desc' ? 'selected' : ''}>ID mayor</option>
+                        <option value="id_asc" ${orden === 'id_asc' ? 'selected' : ''}>ID menor</option>
+                    </select>
+                </div>
+                <button class="btn-limpiar-ventas" onclick="limpiarTodasVentas()" title="Eliminar todas las ventas">
+                    🗑️ Limpiar ventas
+                </button>
+            </div>
+        </div>
+        <div class="admin-tabla-wrapper">
+            <table class="admin-tabla">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Productos</th>
+                        <th>Documento</th>
+                        <th>Forma de Pago</th>
+                        <th>Total</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+}
+
+/**
+ * Renderiza las ventas en una tabla.
+ */
+function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc') {
+    const contenedor = document.getElementById('adminContenido');
+
+    if (!ventas || ventas.length === 0) {
+        if (esPrimeraVez || adminTablaHeaderHTML === '') {
+            adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden);
+            contenedor.innerHTML = adminTablaHeaderHTML +
+                '<tr><td colspan="8" class="sin-productos">No hay ventas registradas.</td></tr></tbody></table></div>';
+        } else {
+            const tbody = contenedor.querySelector('tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="sin-productos">No hay ventas registradas.</td></tr>';
+        }
+        return;
+    }
+
+    if (esPrimeraVez || adminTablaHeaderHTML === '') {
+        adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden);
+    }
+
+    let html = adminTablaHeaderHTML;
+
+    ventas.forEach(venta => {
+        const fecha = new Date(venta.fecha).toLocaleString('es-ES', {
+            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        const total = parseFloat(venta.total).toFixed(2).replace('.', ',');
+        const productos = venta.cantidad_productos || 0;
+
+        // Formatear forma de pago
+        let formaPago = venta.forma_pago || '—';
+        if (formaPago === 'efectivo') formaPago = '💵 Efectivo';
+        else if (formaPago === 'tarjeta') formaPago = '💳 Tarjeta';
+        else if (formaPago === 'bizum') formaPago = '📱 Bizum';
+
+        // Formatear tipo de documento
+        let tipoDocumento = venta.tipoDocumento || 'ticket';
+        if (tipoDocumento === 'ticket') tipoDocumento = '🧾 Ticket';
+        else if (tipoDocumento === 'factura') tipoDocumento = '📄 Factura';
+
+        html += `
+            <tr>
+                <td class="col-id">${venta.id}</td>
+                <td class="col-fecha">${fecha}</td>
+                <td class="col-usuario">${venta.usuario_nombre || '—'}</td>
+                <td class="col-productos">${productos}</td>
+                <td class="col-documento">${tipoDocumento}</td>
+                <td class="col-pago">${formaPago}</td>
+                <td class="col-total" style="font-weight: 700; color: #059669;">${total} €</td>
+                <td class="col-acciones">
+                    <button class="btn-admin-accion btn-ver" onclick="verDetalleVenta(${venta.id})" title="Ver Detalles">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </td>
+            </tr>`;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>`;
+
+    if (esPrimeraVez) {
+        contenedor.innerHTML = html;
+    } else {
+        const tbody = contenedor.querySelector('tbody');
+        if (tbody) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const nuevoTbody = tempDiv.querySelector('tbody');
+            tbody.innerHTML = nuevoTbody.innerHTML;
+        } else {
+            contenedor.innerHTML = html;
+        }
+    }
+}
+
+/**
+ * Aplica los filtros seleccionados y recarga la tabla de ventas.
+ */
+function aplicarFiltrosVentas() {
+    const filtroFecha = document.getElementById('ventasFiltroFecha')?.value || 'todos';
+    const metodoPago = document.getElementById('ventasFiltroMetodo')?.value || 'todos';
+    const tipoDocumento = document.getElementById('ventasFiltroDocumento')?.value || 'todos';
+    const orden = document.getElementById('ventasOrdenar')?.value || 'fecha_desc';
+
+    // Mantener los filtros seleccionados en la URL
+    adminTablaHeaderHTML = '';
+
+    cargarVentasAdmin(filtroFecha, metodoPago, tipoDocumento, orden);
+}
+
+/**
+ * Elimina todas las ventas del historial tras confirmación.
+ */
+function limpiarTodasVentas() {
+    if (!confirm('¿Estás seguro de que quieres eliminar TODAS las ventas?\n\nEsta acción no se puede deshacer y borrará todo el historial de ventas.')) {
+        return;
+    }
+
+    if (!confirm('¿SEGURO? Se eliminarán todas las ventas de forma permanente.')) {
+        return;
+    }
+
+    fetch('api/ventas.php?limpiarVentas=1', {
+        method: 'POST'
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                alert(data.message);
+                // Recargar la tabla
+                adminTablaHeaderHTML = '';
+                cargarVentasAdmin();
+            }
+        })
+        .catch(err => {
+            console.error('Error al limpiar ventas:', err);
+            alert('Error al intentar eliminar las ventas.');
+        });
+}
+
+/**
+ * Muestra los detalles de una venta.
+ */
+function verDetalleVenta(idVenta) {
+    fetch(`api/ventas.php?detalleVenta=${idVenta}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            const venta = data.venta;
+            const lineas = data.lineas;
+            const descuentos = data.descuentos || {};
+
+            const fecha = new Date(venta.fecha).toLocaleString('es-ES', {
+                day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+
+            const tipoDoc = venta.tipoDocumento === 'factura' ? '📄 Factura' : '🧾 Ticket';
+
+            // Procesar descuentos para mostrar
+            let descuentoHtml = '';
+            if (descuentos.descuentoTarifaCupon === 'CLIENTE_REGISTRADO') {
+                descuentoHtml += `<div style="color: #16a34a;"><strong>Cliente registrado:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
+            } else if (descuentos.descuentoTarifaCupon === 'MAYORISTA_NIVEL1') {
+                descuentoHtml += `<div style="color: #16a34a;"><strong>Mayorista nivel 1:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
+            } else if (descuentos.descuentoTarifaCupon === 'MAYORISTA_NIVEL2') {
+                descuentoHtml += `<div style="color: #16a34a;"><strong>Mayorista nivel 2:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
+            }
+            if (descuentos.descuentoManualCupon && descuentos.descuentoManualCupon !== '') {
+                if (descuentos.descuentoManualTipo === 'porcentaje') {
+                    descuentoHtml += `<div style="color: #16a34a;"><strong>Descuento:</strong> ${descuentos.descuentoManualValor}%</div>`;
+                } else {
+                    descuentoHtml += `<div style="color: #16a34a;"><strong>Cupón:</strong> ${descuentos.descuentoManualCupon}</div>`;
+                }
+            } else if (descuentos.descuentoCupon && descuentos.descuentoCupon !== '' && descuentos.descuentoCupon !== 'CLIENTE_REGISTRADO' && descuentos.descuentoCupon !== 'MAYORISTA_NIVEL1' && descuentos.descuentoCupon !== 'MAYORISTA_NIVEL2') {
+                descuentoHtml += `<div style="color: #16a34a;"><strong>Cupón:</strong> ${descuentos.descuentoCupon}</div>`;
+            }
+
+            let html = `
+                <div style="border-radius: 12px; overflow: hidden; background: #fff;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; font-size: 18px;">Venta #${venta.id}</h3>
+                            <span style="font-size: 14px; opacity: 0.9;">${fecha}</span>
+                        </div>
+                    </div>
+                    <div style="padding: 20px;">
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                            <div><strong>👤 Usuario:</strong><br>${venta.usuario_nombre || '—'}</div>
+                            <div><strong>📄 Tipo:</strong><br>${tipoDoc}</div>
+                            <div><strong>💳 Pago:</strong><br>${venta.metodoPago || '💵 Efectivo'}</div>
+                        </div>`;
+
+            if (descuentoHtml) {
+                html += `<div style="margin-bottom: 20px; padding: 15px; background: #ecfdf5; border-radius: 8px; border: 1px solid #a7f3d0;">
+                            <strong style="color: #065f46;">💰 Descuentos aplicados:</strong><br>
+                            ${descuentoHtml}
+                        </div>`;
+            }
+
+            html += `<h4 style="margin: 0 0 10px 0; color: #374151;">Productos:</h4>
+                        <div style="max-height: 250px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                                <thead>
+                                    <tr style="background: #374151; color: white;">
+                                        <th style="padding: 10px; text-align: left;">Producto</th>
+                                        <th style="padding: 10px; text-align: center;">Cant.</th>
+                                        <th style="padding: 10px; text-align: right;">P.U.</th>
+                                        <th style="padding: 10px; text-align: center;">IVA</th>
+                                        <th style="padding: 10px; text-align: right;">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+
+            lineas.forEach(linea => {
+                const iva = linea.iva || 21;
+                const subtotal = (linea.cantidad * linea.precioUnitario).toFixed(2).replace('.', ',');
+                html += `
+                    <tr>
+                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${linea.producto_nombre || 'Producto #' + linea.idProducto}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: center;">${linea.cantidad}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">${parseFloat(linea.precioUnitario).toFixed(2).replace('.', ',')} €</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: center;">${iva}%</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: 600;">${subtotal} €</td>
+                    </tr>`;
+            });
+
+            html += `
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px;">
+                            TOTAL: ${parseFloat(venta.total).toFixed(2).replace('.', ',')} €
+                        </div>
+                        <div style="margin-top: 20px; text-align: right;">
+                            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerVenta')">Cerrar</button>
+                        </div>
+                    </div>
+                </div>`;
+
+            // Crear o mostrar el modal
+            let modal = document.getElementById('modalVerVenta');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'modalVerVenta';
+                modal.className = 'modal-overlay';
+                modal.style.display = 'none';
+                modal.innerHTML = '<div class="modal-content" style="max-width: 700px; max-height: 85vh; overflow-y: auto;"></div>';
+                document.body.appendChild(modal);
+            }
+
+            modal.querySelector('.modal-content').innerHTML = html;
+            modal.style.display = 'flex';
+        })
+        .catch(err => {
+            console.error('Error cargando detalles de venta:', err);
+            alert('Error al cargar los detalles de la venta.');
+        });
+}
+
+// ======================== DASHBOARD - HTML Y GRÁFICOS ========================
+
+/**
+ * Plantilla HTML del dashboard con dos tarjetas de gráficos:
+ * - Gráfico de barras: ventas (en €) de los últimos 7 días.
+ * - Gráfico de líneas: número de pedidos de los últimos 7 días.
+ * Cada tarjeta incluye un <canvas> donde Chart.js renderizará el gráfico.
+ */
 const HTML_DASHBOARD = `
     <div class="dashboard-graficos">
         <div class="grafico-card">
@@ -305,70 +1410,117 @@ const HTML_DASHBOARD = `
         </div>
     </div>`;
 
+/**
+ * Carga los datos de ventas de los últimos 7 días desde la API y renderiza
+ * dos gráficos en el dashboard usando la librería Chart.js:
+ * 1. Gráfico de barras con el total de ventas en euros por día.
+ * 2. Gráfico de líneas con el número de pedidos por día.
+ * También actualiza los totales acumulados en las cabeceras de cada gráfico.
+ */
 function cargarGraficoDashboard() {
+    // Realizar la petición AJAX a la API de ventas para obtener los datos de la última semana.
     fetch('api/ventas.php')
         .then(res => res.json())
         .then(data => {
+            // Preparar las etiquetas del eje X: día de la semana abreviado + número + mes.
             const labels = data.map(d => {
                 const fecha = new Date(d.dia);
                 return fecha.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
             });
+
+            // Extraer los valores de ventas (€) y pedidos de cada día.
             const ventas = data.map(d => parseFloat(d.total));
             const pedidos = data.map(d => parseInt(d.pedidos));
 
-            // Totales
+            // Calcular los totales acumulados de la semana.
             const totalVentas = ventas.reduce((a, b) => a + b, 0);
             const totalPedidos = pedidos.reduce((a, b) => a + b, 0);
+
+            // Mostrar los totales en las cabeceras de los gráficos.
             document.getElementById('dashTotalSemana').textContent =
                 totalVentas.toFixed(2).replace('.', ',') + ' €';
             document.getElementById('dashTotalPedidos').textContent = totalPedidos + ' pedidos';
 
-            // Opciones comunes
+            // Obtener colores según el tema actual
+            const isDark = document.body.classList.contains('dark-mode');
+            const gridColor = isDark ? '#374151' : '#f0f2f5';
+            const textColor = isDark ? '#ffffff' : '#374151';
+
+            // Definir opciones comunes para ambos gráficos (responsive, sin leyenda, ejes).
             const opcionesComunes = {
                 responsive: true,
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { grid: { display: false } },
-                    y: { beginAtZero: true, grid: { color: '#f0f2f5' } }
+                    x: { grid: { display: false }, ticks: { color: textColor } },           // Sin líneas de cuadrícula en el eje X.
+                    y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor } } // Eje Y desde 0 con cuadrícula suave.
                 }
             };
 
-            // Gráfica ventas
+            // Escuchar cambios de tema para actualizar los gráficos
+            const actualizarGraficos = () => {
+                const isDarkNow = document.body.classList.contains('dark-mode');
+                const newGridColor = isDarkNow ? '#374151' : '#f0f2f5';
+                const newTextColor = isDarkNow ? '#ffffff' : '#374151';
+
+                // Destruir gráficos existentes y recrearlos
+                const chartVentas = Chart.getChart('graficaVentas');
+                const chartPedidos = Chart.getChart('graficaPedidos');
+
+                if (chartVentas) {
+                    chartVentas.options.scales.x.ticks.color = newTextColor;
+                    chartVentas.options.scales.y.ticks.color = newTextColor;
+                    chartVentas.options.scales.y.grid.color = newGridColor;
+                    chartVentas.update();
+                }
+
+                if (chartPedidos) {
+                    chartPedidos.options.scales.x.ticks.color = newTextColor;
+                    chartPedidos.options.scales.y.ticks.color = newTextColor;
+                    chartPedidos.options.scales.y.grid.color = newGridColor;
+                    chartPedidos.update();
+                }
+            };
+
+            // Agregar listener para cambios de tema
+            window.removeEventListener('themeChange', actualizarGraficos);
+            window.addEventListener('themeChange', actualizarGraficos);
+
+            // Crear el gráfico de barras para las ventas en euros.
             new Chart(document.getElementById('graficaVentas'), {
                 type: 'bar',
                 data: {
                     labels,
                     datasets: [{
                         data: ventas,
-                        backgroundColor: 'rgba(5, 150, 105, 0.08)',
-                        borderColor: '#059669',
+                        backgroundColor: 'rgba(5, 150, 105, 0.08)',  // Fondo verde claro semitransparente.
+                        borderColor: '#059669',                       // Borde verde.
                         borderWidth: 2,
-                        borderRadius: 6,
+                        borderRadius: 6,                              // Bordes redondeados en las barras.
                     }]
                 },
                 options: {
                     ...opcionesComunes,
                     scales: {
                         ...opcionesComunes.scales,
-                        y: { ...opcionesComunes.scales.y, ticks: { callback: v => v + ' €' } }
+                        y: { ...opcionesComunes.scales.y, ticks: { callback: v => v + ' €' } } // Añadir símbolo € a las etiquetas del eje Y.
                     }
                 }
             });
 
-            // Gráfica pedidos
+            // Crear el gráfico de líneas para el número de pedidos.
             new Chart(document.getElementById('graficaPedidos'), {
                 type: 'line',
                 data: {
                     labels,
                     datasets: [{
                         data: pedidos,
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                        borderColor: '#3b82f6',                       // Línea azul.
+                        backgroundColor: 'rgba(59, 130, 246, 0.15)',  // Relleno azul claro semitransparente.
                         borderWidth: 2,
-                        pointBackgroundColor: '#3b82f6',
-                        pointRadius: 4,
-                        fill: true,
-                        tension: 0.3
+                        pointBackgroundColor: '#3b82f6',              // Puntos azules.
+                        pointRadius: 4,                               // Tamaño de los puntos.
+                        fill: true,                                   // Rellenar el área bajo la línea.
+                        tension: 0.3                                  // Suavizado de la curva.
                     }]
                 },
                 options: opcionesComunes
@@ -376,3 +1528,2590 @@ function cargarGraficoDashboard() {
         })
         .catch(err => console.error('Error cargando gráficas:', err));
 }
+
+/**
+ * Busca productos en tiempo real (live search) combinando el texto introducido
+ * con la categoría actualmente seleccionada.
+ * Se invoca cada vez que el usuario escribe en el campo de búsqueda.
+ */
+// Variable para almacenar el temporizador de debounce
+let debounceTimer;
+let debounceTimerUsuarios;
+let debounceTimerCategorias;
+
+/**
+ * Función de búsqueda con debounce para evitar múltiples peticiones
+ * mientras el usuario está escribiendo.
+ */
+function buscarProductos() {
+    // Cancelar la búsqueda anterior si el usuario sigue escribiendo
+    clearTimeout(debounceTimer);
+
+    // Establecer un nuevo temporizador de 300ms
+    debounceTimer = setTimeout(() => {
+        // Obtener el texto escrito en el campo de búsqueda
+        const texto = document.getElementById('inputBuscarProducto').value.trim();
+
+        // Obtener la categoría seleccionada del select
+        const selectCategoria = document.getElementById('selectCategoria');
+        const idCategoria = selectCategoria ? selectCategoria.value : 'todas';
+
+        // Obtener el orden seleccionado del select
+        const selectOrden = document.getElementById('selectOrden');
+        const orden = selectOrden ? selectOrden.value : '';
+
+        // Delegar la carga al método centralizado que ya incluye el parámetro admin=1
+        // y renderiza correctamente en la tabla del panel de administración.
+        cargarProductosAdmin(idCategoria, texto, orden);
+    }, 300); // 300ms de espera después de que el usuario deje de escribir
+}
+
+// ======================== RENDER PRODUCTOS ========================
+
+/**
+ * Renderiza la lista de productos en la cuadrícula (grid) del cajero.
+ * Genera dinámicamente las tarjetas HTML de cada producto con su imagen,
+ * nombre, precio y stock.
+ * 
+ * @param {Array} productos - Array de objetos producto devueltos por la API.
+ *   Cada objeto contiene: id, nombre, precio, stock, imagen.
+ */
+function renderProductos(productos) {
+    // Obtener el contenedor de la cuadrícula de productos.
+    const grid = document.getElementById('productosGrid');
+
+    // Si no hay productos o el array está vacío, mostrar un mensaje informativo.
+    if (!productos || productos.length === 0) {
+        grid.innerHTML = '<p class="sin-productos">No hay productos disponibles.</p>';
+        return;
+    }
+
+    // Construir el HTML de todas las tarjetas de producto.
+    let html = '';
+    productos.forEach(prod => {
+        // Formatear el precio con 2 decimales y coma como separador decimal (formato europeo).
+        let precioFmt = parseFloat(prod.precio).toFixed(2).replace('.', ',');
+
+        // Usar la imagen del producto si existe; de lo contrario, usar el logo por defecto.
+        let imgSrc = prod.imagen && prod.imagen !== '' ? prod.imagen : 'webroot/img/logo.PNG';
+
+        // Generar la tarjeta del producto.
+        // Si el stock es 0 o menor, se aplica un estilo visual de "no disponible"
+        // (opacidad reducida, cursor no permitido, sin animaciones de hover).
+        html += `<div class="producto-card" data-id="${prod.id}"
+                    data-nombre="${prod.nombre.replace(/"/g, '&quot;')}"
+                    data-precio="${prod.precio}" data-stock="${prod.stock}"
+                    onclick="agregarAlCarrito(this)" style="${prod.stock <= 0 ? 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);' : ''}">
+                    <div class="producto-nombre">${prod.nombre}</div>
+                    <div class="producto-imagen">
+                        <img src="${imgSrc}" alt="${prod.nombre.replace(/"/g, '&quot;')}">
+                    </div>
+                    <div class="producto-info-inferior">
+                        <span class="producto-precio">${precioFmt} €</span>
+                        <span class="producto-stock" ${prod.stock <= 0 ? 'style="color: red; text-decoration: underline;"' : ''}>Stock: ${prod.stock}</span>
+                    </div>
+                </div>`;
+    });
+
+    // Insertar todo el HTML generado en la cuadrícula de productos.
+    grid.innerHTML = html;
+}
+
+
+// ======================== CONFIGURACIÓN DE TEMA ========================
+
+/**
+ * Lista de fuentes de Google Fonts disponibles para seleccionar.
+ */
+const FUENTES_DISPONIBLES = [
+    'Inter', 'Roboto', 'Poppins', 'Open Sans', 'Montserrat',
+    'Lato', 'Outfit', 'Nunito', 'Raleway', 'Source Sans 3'
+];
+
+/**
+ * Valores predeterminados del tema.
+ */
+const TEMA_DEFAULTS = {
+    header_bg: '#1a1a2e', header_color: '#ffffff', header_font: 'Inter',
+    footer_bg: '#1a1a2e', footer_color: '#e5e7eb', footer_font: 'Inter'
+};
+
+/**
+ * Configuración actual del tema (se carga desde la API).
+ */
+let temaActual = { ...TEMA_DEFAULTS };
+
+/**
+ * Definición de las secciones del editor de tema.
+ */
+const SECCIONES_TEMA = [
+    { id: 'header', titulo: 'Header (Cabecera)', icono: 'fa-heading', bgKey: 'header_bg', colorKey: 'header_color', fontKey: 'header_font' },
+    { id: 'footer', titulo: 'Footer (Pie de página)', icono: 'fa-shoe-prints', bgKey: 'footer_bg', colorKey: 'footer_color', fontKey: 'footer_font' }
+];
+
+/**
+ * Genera el HTML de un selector de fuentes.
+ */
+function generarSelectFuente(id, valorActual) {
+    let opciones = FUENTES_DISPONIBLES.map(f =>
+        `<option value="${f}" ${f === valorActual ? 'selected' : ''} style="font-family: '${f}', sans-serif;">${f}</option>`
+    ).join('');
+    return `<select id="${id}" class="tema-select-font" onchange="previsualizarTema()">${opciones}</select>`;
+}
+
+/**
+ * Genera el HTML de una sección del editor de tema.
+ */
+function generarSeccionTema(seccion) {
+    const bgVal = temaActual[seccion.bgKey] || TEMA_DEFAULTS[seccion.bgKey];
+    const colorVal = temaActual[seccion.colorKey] || TEMA_DEFAULTS[seccion.colorKey];
+    const fontVal = temaActual[seccion.fontKey] || TEMA_DEFAULTS[seccion.fontKey];
+
+    return `
+        <div class="tema-seccion-card">
+            <div class="tema-seccion-header">
+                <i class="fas ${seccion.icono} tema-seccion-icono"></i>
+                <h4 class="tema-seccion-titulo">${seccion.titulo}</h4>
+            </div>
+            <div class="tema-seccion-body">
+                <div class="tema-campo">
+                    <label class="tema-label">Color de Fondo</label>
+                    <div class="tema-color-wrapper">
+                        <input type="color" id="tema_${seccion.bgKey}" value="${bgVal}" oninput="previsualizarTema()">
+                        <span class="tema-color-hex" id="hex_${seccion.bgKey}">${bgVal}</span>
+                    </div>
+                </div>
+                <div class="tema-campo">
+                    <label class="tema-label">Color de Texto</label>
+                    <div class="tema-color-wrapper">
+                        <input type="color" id="tema_${seccion.colorKey}" value="${colorVal}" oninput="previsualizarTema()">
+                        <span class="tema-color-hex" id="hex_${seccion.colorKey}">${colorVal}</span>
+                    </div>
+                </div>
+                <div class="tema-campo">
+                    <label class="tema-label">Fuente</label>
+                    ${generarSelectFuente('tema_' + seccion.fontKey, fontVal)}
+                </div>
+                <div class="tema-preview" id="preview_${seccion.id}" style="background: ${bgVal}; color: ${colorVal}; font-family: '${fontVal}', sans-serif;">
+                    Vista previa del texto
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Carga la configuración del tema desde la API y renderiza el editor.
+ */
+function cargarConfiguracion() {
+    seccionActual = 'configuracion';
+    adminTablaHeaderHTML = '';
+
+    const contenedor = document.getElementById('adminContenido');
+    contenedor.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--text-muted);">Cargando configuración...</p>';
+
+    fetch('api/tema.php')
+        .then(res => res.json())
+        .then(config => {
+            // Mezclar config de la BD con los defaults
+            temaActual = { ...TEMA_DEFAULTS, ...config };
+            renderEditorTema();
+        })
+        .catch(err => {
+            console.error('Error cargando configuración:', err);
+            temaActual = { ...TEMA_DEFAULTS };
+            renderEditorTema();
+        });
+}
+
+/**
+ * Renderiza el editor de tema completo.
+ */
+function renderEditorTema() {
+    const contenedor = document.getElementById('adminContenido');
+
+    let html = `
+        <div class="tema-editor">
+            <div class="tema-editor-intro">
+                <i class="fas fa-paint-brush" style="font-size: 1.5rem; color: var(--accent, #2563eb);"></i>
+                <div>
+                    <p class="tema-intro-titulo">Personaliza la apariencia de tu TPV</p>
+                    <p class="tema-intro-subtitulo">Los cambios se previsualizan en tiempo real. Pulsa "Guardar" para aplicarlos de forma permanente.</p>
+                </div>
+            </div>
+            <div class="tema-secciones-grid">
+                ${SECCIONES_TEMA.map(s => generarSeccionTema(s)).join('')}
+            </div>
+            <div class="tema-botones">
+                <button class="btn-modal-cancelar tema-btn-reset" onclick="restaurarTemaDefault()">
+                    <i class="fas fa-undo"></i> Restaurar Predeterminados
+                </button>
+                <button class="btn-exito tema-btn-guardar" onclick="guardarTema()">
+                    <i class="fas fa-save"></i> Guardar Cambios
+                </button>
+            </div>
+        </div>
+    `;
+
+    contenedor.innerHTML = html;
+}
+
+/**
+ * Lee los valores actuales del editor y aplica CSS variables en tiempo real.
+ */
+function previsualizarTema() {
+    const root = document.documentElement;
+
+    SECCIONES_TEMA.forEach(seccion => {
+        const bgInput = document.getElementById('tema_' + seccion.bgKey);
+        const colorInput = document.getElementById('tema_' + seccion.colorKey);
+        const fontSelect = document.getElementById('tema_' + seccion.fontKey);
+        const preview = document.getElementById('preview_' + seccion.id);
+
+        if (!bgInput || !colorInput || !fontSelect) return;
+
+        const bgVal = bgInput.value;
+        const colorVal = colorInput.value;
+        const fontVal = fontSelect.value;
+
+        // Actualizar hex labels
+        const hexBg = document.getElementById('hex_' + seccion.bgKey);
+        const hexColor = document.getElementById('hex_' + seccion.colorKey);
+        if (hexBg) hexBg.textContent = bgVal;
+        if (hexColor) hexColor.textContent = colorVal;
+
+        // Actualizar preview card
+        if (preview) {
+            preview.style.background = bgVal;
+            preview.style.color = colorVal;
+            preview.style.fontFamily = `'${fontVal}', sans-serif`;
+        }
+
+        // Aplicar CSS variables en vivo
+        root.style.setProperty('--theme-' + seccion.bgKey.replace(/_/g, '-'), bgVal);
+        root.style.setProperty('--theme-' + seccion.colorKey.replace(/_/g, '-'), colorVal);
+    });
+
+    // Aplicar al header y footer directamente
+    const header = document.querySelector('header');
+    const footer = document.querySelector('footer');
+    const bgH = document.getElementById('tema_header_bg');
+    const colorH = document.getElementById('tema_header_color');
+    const fontH = document.getElementById('tema_header_font');
+    const bgF = document.getElementById('tema_footer_bg');
+    const colorF = document.getElementById('tema_footer_color');
+    const fontF = document.getElementById('tema_footer_font');
+
+    if (header && bgH && colorH && fontH) {
+        header.style.background = bgH.value;
+        header.style.color = colorH.value;
+        header.style.fontFamily = `'${fontH.value}', sans-serif`;
+    }
+    if (footer && bgF && colorF && fontF) {
+        footer.style.background = bgF.value;
+        footer.style.color = colorF.value;
+        footer.style.fontFamily = `'${fontF.value}', sans-serif`;
+    }
+
+    // Cargar la fuente de Google Fonts si no está ya cargada
+    const fuentesUsadas = new Set();
+    SECCIONES_TEMA.forEach(s => {
+        const fontSel = document.getElementById('tema_' + s.fontKey);
+        if (fontSel) fuentesUsadas.add(fontSel.value);
+    });
+    cargarGoogleFonts([...fuentesUsadas]);
+}
+
+/**
+ * Carga dinámicamente fuentes de Google Fonts.
+ */
+function cargarGoogleFonts(fuentes) {
+    // Eliminar link anterior si existe
+    let linkExistente = document.getElementById('google-fonts-tema');
+    if (linkExistente) linkExistente.remove();
+
+    const fuentesFiltradas = fuentes.filter(f => f !== 'Inter'); // Inter ya está cargada
+    if (fuentesFiltradas.length === 0) return;
+
+    const familias = fuentesFiltradas.map(f => f.replace(/ /g, '+')).join('&family=');
+    const link = document.createElement('link');
+    link.id = 'google-fonts-tema';
+    link.rel = 'stylesheet';
+    link.href = `https://fonts.googleapis.com/css2?family=${familias}&display=swap`;
+    document.head.appendChild(link);
+}
+
+/**
+ * Guarda toda la configuración del tema via POST a la API.
+ */
+function guardarTema() {
+    const datos = {};
+
+    SECCIONES_TEMA.forEach(seccion => {
+        const bgInput = document.getElementById('tema_' + seccion.bgKey);
+        const colorInput = document.getElementById('tema_' + seccion.colorKey);
+        const fontSelect = document.getElementById('tema_' + seccion.fontKey);
+
+        if (bgInput) datos[seccion.bgKey] = bgInput.value;
+        if (colorInput) datos[seccion.colorKey] = colorInput.value;
+        if (fontSelect) datos[seccion.fontKey] = fontSelect.value;
+    });
+
+    // Guardar en localStorage para acceso rápido
+    localStorage.setItem('temaTPV', JSON.stringify(datos));
+
+    // Guardar en la BD via API
+    fetch('api/tema.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos)
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                // Feedback visual
+                const btn = document.querySelector('.tema-btn-guardar');
+                if (btn) {
+                    const textoOriginal = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-check"></i> ¡Guardado!';
+                    btn.style.background = '#059669';
+                    setTimeout(() => {
+                        btn.innerHTML = textoOriginal;
+                        btn.style.background = '';
+                    }, 2000);
+                }
+            } else {
+                alert('Error al guardar: ' + (data.error || 'Error desconocido'));
+            }
+        })
+        .catch(err => {
+            console.error('Error guardando tema:', err);
+            alert('Error al guardar la configuración.');
+        });
+}
+
+/**
+ * Restaura los valores predeterminados del tema.
+ */
+function restaurarTemaDefault() {
+    if (!confirm('¿Restaurar todos los colores y fuentes a los valores predeterminados?')) return;
+
+    temaActual = { ...TEMA_DEFAULTS };
+
+    // Actualizar inputs del editor
+    SECCIONES_TEMA.forEach(seccion => {
+        const bgInput = document.getElementById('tema_' + seccion.bgKey);
+        const colorInput = document.getElementById('tema_' + seccion.colorKey);
+        const fontSelect = document.getElementById('tema_' + seccion.fontKey);
+
+        if (bgInput) bgInput.value = TEMA_DEFAULTS[seccion.bgKey];
+        if (colorInput) colorInput.value = TEMA_DEFAULTS[seccion.colorKey];
+        if (fontSelect) fontSelect.value = TEMA_DEFAULTS[seccion.fontKey];
+    });
+
+    // Aplicar preview
+    previsualizarTema();
+
+    // Limpiar estilos inline del header/footer
+    const header = document.querySelector('header');
+    const footer = document.querySelector('footer');
+    if (header) { header.style.background = ''; header.style.color = ''; header.style.fontFamily = ''; }
+    if (footer) { footer.style.background = ''; footer.style.color = ''; footer.style.fontFamily = ''; }
+
+    // Guardar defaults en BD
+    guardarTema();
+}
+
+/**
+ * Aplica el tema guardado en localStorage al cargar la página.
+ * Se llama desde Layout.php.
+ */
+function aplicarTemaGuardado() {
+    const temaJSON = localStorage.getItem('temaTPV');
+    if (!temaJSON) return;
+
+    try {
+        const tema = JSON.parse(temaJSON);
+        const header = document.querySelector('header');
+        const footer = document.querySelector('footer');
+
+        if (header && tema.header_bg) {
+            header.style.background = tema.header_bg;
+            header.style.color = tema.header_color || '';
+            header.style.fontFamily = tema.header_font ? `'${tema.header_font}', sans-serif` : '';
+        }
+        if (footer && tema.footer_bg) {
+            footer.style.background = tema.footer_bg;
+            footer.style.color = tema.footer_color || '';
+            footer.style.fontFamily = tema.footer_font ? `'${tema.footer_font}', sans-serif` : '';
+        }
+
+        // Cargar fuentes necesarias
+        const fuentes = new Set();
+        Object.keys(tema).forEach(k => {
+            if (k.endsWith('_font') && tema[k]) fuentes.add(tema[k]);
+        });
+        cargarGoogleFonts([...fuentes]);
+
+    } catch (e) {
+        console.error('Error aplicando tema:', e);
+    }
+}
+
+// ======================== GESTIÓN DE DEVOLUCIONES ========================
+
+/**
+ * Carga las devoluciones desde la API y las renderiza en una tabla.
+ */
+function cargarDevolucionesAdmin(orden = 'fecha_desc') {
+    if (seccionActual !== 'devoluciones') {
+        adminTablaHeaderHTML = '';
+        seccionActual = 'devoluciones';
+    }
+
+    const contenedor = document.getElementById('adminContenido');
+    const tableExisting = contenedor.querySelector('.admin-tabla');
+    const isFirstTime = !tableExisting || adminTablaHeaderHTML === '';
+
+    let url = 'api/devoluciones.php?todas=1';
+    if (orden !== 'fecha_desc') {
+        url += '&orden=' + orden;
+    }
+
+    fetch(url)
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => { throw new Error(err.error || 'Error al cargar devoluciones'); });
+            }
+            return res.json();
+        })
+        .then(data => renderDevolucionesAdmin(data, isFirstTime, orden))
+        .catch(err => {
+            console.error('Error cargando devoluciones:', err);
+            contenedor.innerHTML = '<p class="sin-productos">Error: ' + err.message + '</p>';
+        });
+}
+
+/**
+ * Carga los retiros de caja desde la API y los renderiza en una tabla.
+ */
+function cargarRetirosAdmin(orden = 'fecha_desc') {
+    if (seccionActual !== 'retiros') {
+        adminTablaHeaderHTML = '';
+        seccionActual = 'retiros';
+    }
+
+    const contenedor = document.getElementById('adminContenido');
+    const tableExisting = contenedor.querySelector('.admin-tabla');
+    const isFirstTime = !tableExisting || adminTablaHeaderHTML === '';
+
+    let url = 'api/retiros.php';
+    if (orden !== 'fecha_desc') {
+        url += '?orden=' + orden;
+    }
+
+    fetch(url)
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => { throw new Error(err.error || 'Error al cargar retiros'); });
+            }
+            return res.json();
+        })
+        .then(data => renderRetirosAdmin(data, isFirstTime, orden))
+        .catch(err => {
+            console.error('Error cargando retiros:', err);
+            contenedor.innerHTML = '<p class="sin-productos">Error: ' + (err.message || 'Error desconocido') + '</p>';
+        });
+}
+
+/**
+ * Genera el HTML del header de la tabla de retiros.
+ */
+function getRetirosTablaHeader(orden = 'fecha_desc') {
+    return `
+        <div class="admin-tabla-header retiros-header">
+            <div class="ventas-filtros">
+                <div class="filtro-group">
+                    <label for="retirosOrdenar">Ordenar por:</label>
+                    <select id="retirosOrdenar" class="filtro-select" onchange="cargarRetirosAdmin(this.value)">
+                        <option value="fecha_desc" ${orden === 'fecha_desc' ? 'selected' : ''}>Más recientes</option>
+                        <option value="fecha_asc" ${orden === 'fecha_asc' ? 'selected' : ''}>Más antiguos</option>
+                        <option value="importe_desc" ${orden === 'importe_desc' ? 'selected' : ''}>Mayor importe</option>
+                        <option value="importe_asc" ${orden === 'importe_asc' ? 'selected' : ''}>Menor importe</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="admin-tabla-wrapper">
+            <table class="admin-tabla">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Importe</th>
+                        <th>Motivo</th>
+                        <th>Sesión Caja</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+}
+
+/**
+ * Renderiza los retiros en la tabla.
+ */
+function renderRetirosAdmin(retiros, isFirstTime = true, orden = 'fecha_desc') {
+    const contenedor = document.getElementById('adminContenido');
+
+    if (!retiros || retiros.length === 0) {
+        if (isFirstTime || adminTablaHeaderHTML === '') {
+            adminTablaHeaderHTML = getRetirosTablaHeader(orden);
+            contenedor.innerHTML = adminTablaHeaderHTML +
+                '<tr><td colspan="6" class="sin-productos">No hay retiros de caja registrados.</td></tr></tbody></table></div>';
+        } else {
+            const tbody = contenedor.querySelector('tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="sin-productos">No hay retiros de caja registrados.</td></tr>';
+        }
+        return;
+    }
+
+    if (isFirstTime || adminTablaHeaderHTML === '') {
+        adminTablaHeaderHTML = getRetirosTablaHeader(orden);
+        let html = adminTablaHeaderHTML;
+
+        retiros.forEach((retiro, index) => {
+            const fecha = new Date(retiro.fecha).toLocaleString('es-ES', {
+                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+            const usuario = retiro.usuario_nombre ?
+                retiro.usuario_nombre + ' ' + (retiro.usuario_apellidos || '') : 'Usuario #' + retiro.idUsuario;
+            const motivo = retiro.motivo || 'Sin motivo';
+            const cajaSesion = retiro.caja_fecha_apertura ?
+                new Date(retiro.caja_fecha_apertura).toLocaleDateString('es-ES') : '#' + retiro.idCajaSesion;
+
+            html += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${fecha}</td>
+                    <td>${usuario}</td>
+                    <td style="color: #dc2626; font-weight: bold;">-${parseFloat(retiro.importe).toFixed(2)} €</td>
+                    <td>${motivo}</td>
+                    <td>${cajaSesion}</td>
+                </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        contenedor.innerHTML = html;
+    } else {
+        const tbody = contenedor.querySelector('tbody');
+        if (tbody) {
+            let html = '';
+            retiros.forEach((retiro, index) => {
+                const fecha = new Date(retiro.fecha).toLocaleString('es-ES', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+                const usuario = retiro.usuario_nombre ?
+                    retiro.usuario_nombre + ' ' + (retiro.usuario_apellidos || '') : 'Usuario #' + retiro.idUsuario;
+                const motivo = retiro.motivo || 'Sin motivo';
+                const cajaSesion = retiro.caja_fecha_apertura ?
+                    new Date(retiro.caja_fecha_apertura).toLocaleDateString('es-ES') : '#' + retiro.idCajaSesion;
+
+                html += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${fecha}</td>
+                        <td>${usuario}</td>
+                        <td style="color: #dc2626; font-weight: bold;">-${parseFloat(retiro.importe).toFixed(2)} €</td>
+                        <td>${motivo}</td>
+                        <td>${cajaSesion}</td>
+                    </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+    }
+}
+
+/**
+ * Carga las sesiones de caja desde la API y las renderiza en una tabla.
+ */
+function cargarCajaSesionesAdmin(orden = 'fecha_desc') {
+    if (seccionActual !== 'caja-sesiones') {
+        adminTablaHeaderHTML = '';
+        seccionActual = 'caja-sesiones';
+    }
+
+    const contenedor = document.getElementById('adminContenido');
+    const tableExisting = contenedor.querySelector('.admin-tabla');
+    const isFirstTime = !tableExisting || adminTablaHeaderHTML === '';
+
+    let url = 'api/caja-sesiones.php';
+    if (orden !== 'fecha_desc') {
+        url += '?orden=' + orden;
+    }
+
+    fetch(url)
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => { throw new Error(err.error || 'Error al cargar sesiones de caja'); });
+            }
+            return res.json();
+        })
+        .then(data => renderCajaSesionesAdmin(data, isFirstTime, orden))
+        .catch(err => {
+            console.error('Error cargando sesiones de caja:', err);
+            contenedor.innerHTML = '<p class="sin-productos">Error: ' + (err.message || 'Error desconocido') + '</p>';
+        });
+}
+
+/**
+ * Genera el HTML del header de la tabla de sesiones de caja.
+ */
+function getCajaSesionesTablaHeader(orden = 'fecha_desc') {
+    return `
+        <div class="admin-tabla-header caja-sesiones-header">
+            <div class="ventas-filtros">
+                <div class="filtro-group">
+                    <label for="cajaSesionesOrdenar">Ordenar por:</label>
+                    <select id="cajaSesionesOrdenar" class="filtro-select" onchange="cargarCajaSesionesAdmin(this.value)">
+                        <option value="fecha_desc" ${orden === 'fecha_desc' ? 'selected' : ''}>Más recientes</option>
+                        <option value="fecha_asc" ${orden === 'fecha_asc' ? 'selected' : ''}>Más antiguos</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="admin-tabla-wrapper">
+            <table class="admin-tabla">
+                <thead>
+                    <tr>
+                        <th style="width: 40px; text-align: center;">#</th>
+                        <th style="width: 120px;">Usuario</th>
+                        <th style="text-align: center;">Apertura</th>
+                        <th style="text-align: center;">Cierre</th>
+                        <th style="text-align: center;">Importe Inicial</th>
+                        <th style="text-align: center;">Importe Final</th>
+                        <th style="text-align: center;">Ventas</th>
+                        <th style="text-align: center;">Productos</th>
+                        <th style="text-align: center;">Retiros</th>
+                        <th style="text-align: center;">Devoluciones</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+}
+
+/**
+ * Renderiza las sesiones de caja en la tabla.
+ */
+function renderCajaSesionesAdmin(sesiones, isFirstTime = true, orden = 'fecha_desc') {
+    const contenedor = document.getElementById('adminContenido');
+
+    if (!sesiones || sesiones.length === 0) {
+        if (isFirstTime || adminTablaHeaderHTML === '') {
+            adminTablaHeaderHTML = getCajaSesionesTablaHeader(orden);
+            contenedor.innerHTML = adminTablaHeaderHTML +
+                '<tr><td colspan="10" class="sin-productos">No hay sesiones de caja registradas.</td></tr></tbody></table></div>';
+        } else {
+            const tbody = contenedor.querySelector('tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="sin-productos">No hay sesiones de caja registradas.</td></tr>';
+        }
+        return;
+    }
+
+    if (isFirstTime || adminTablaHeaderHTML === '') {
+        adminTablaHeaderHTML = getCajaSesionesTablaHeader(orden);
+        let html = adminTablaHeaderHTML;
+
+        sesiones.forEach((sesion, index) => {
+            const fechaApertura = sesion.fechaApertura ? new Date(sesion.fechaApertura).toLocaleString('es-ES', {
+                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            }) : '-';
+            const fechaCierre = sesion.fechaCierre ? new Date(sesion.fechaCierre).toLocaleString('es-ES', {
+                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            }) : '-';
+            const usuario = sesion.usuario_nombre || 'Usuario #' + sesion.idUsuario;
+            const retiros = parseFloat(sesion.total_retiros || 0);
+            const devoluciones = parseFloat(sesion.total_devoluciones || 0);
+            const totalProductos = parseInt(sesion.total_productos || 0);
+            const totalVentas = parseInt(sesion.total_ventas || 0);
+
+            html += `
+                <tr>
+                    <td style="text-align: center; width: 40px;">${index + 1}</td>
+                    <td style="width: 120px;">${usuario}</td>
+                    <td style="text-align: center;">${fechaApertura}</td>
+                    <td style="text-align: center;">${fechaCierre}</td>
+                    <td style="text-align: center;">${parseFloat(sesion.importeInicial).toFixed(2)} €</td>
+                    <td style="text-align: center;">${parseFloat(sesion.importeActual).toFixed(2)} €</td>
+                    <td style="text-align: center; font-weight: bold;">${totalVentas}</td>
+                    <td style="text-align: center; font-weight: bold;">${totalProductos}</td>
+                    <td style="text-align: center; color: #ea580c; font-weight: bold;">-${retiros.toFixed(2)} €</td>
+                    <td style="text-align: center; color: #dc2626; font-weight: bold;">-${devoluciones.toFixed(2)} €</td>
+                </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        contenedor.innerHTML = html;
+    } else {
+        const tbody = contenedor.querySelector('tbody');
+        if (tbody) {
+            let html = '';
+            sesiones.forEach((sesion, index) => {
+                const fechaApertura = sesion.fechaApertura ? new Date(sesion.fechaApertura).toLocaleString('es-ES', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                }) : '-';
+                const fechaCierre = sesion.fechaCierre ? new Date(sesion.fechaCierre).toLocaleString('es-ES', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                }) : '-';
+                const usuario = sesion.usuario_nombre || 'Usuario #' + sesion.idUsuario;
+                const retiros = parseFloat(sesion.total_retiros || 0);
+                const devoluciones = parseFloat(sesion.total_devoluciones || 0);
+                const totalProductos = parseInt(sesion.total_productos || 0);
+                const totalVentas = parseInt(sesion.total_ventas || 0);
+
+                html += `
+                    <tr>
+                        <td style="text-align: center; width: 40px;">${index + 1}</td>
+                        <td style="width: 120px;">${usuario}</td>
+                        <td style="text-align: center;">${fechaApertura}</td>
+                        <td style="text-align: center;">${fechaCierre}</td>
+                        <td style="text-align: center;">${parseFloat(sesion.importeInicial).toFixed(2)} €</td>
+                        <td style="text-align: center;">${parseFloat(sesion.importeActual).toFixed(2)} €</td>
+                        <td style="text-align: center; font-weight: bold;">${totalVentas}</td>
+                        <td style="text-align: center; font-weight: bold;">${totalProductos}</td>
+                        <td style="text-align: center; color: #ea580c; font-weight: bold;">-${retiros.toFixed(2)} €</td>
+                        <td style="text-align: center; color: #dc2626; font-weight: bold;">-${devoluciones.toFixed(2)} €</td>
+                    </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+    }
+}
+
+/**
+ * Genera el HTML del header de la tabla de devoluciones.
+ */
+function getDevolucionesTablaHeader(orden = 'fecha_desc') {
+    return `
+        <div class="admin-tabla-header devoluciones-header">
+            <div class="ventas-filtros">
+                <div class="filtro-group">
+                    <label for="devolucionesOrdenar">Ordenar por:</label>
+                    <select id="devolucionesOrdenar" class="filtro-select" onchange="cargarDevolucionesAdmin(this.value)">
+                        <option value="fecha_desc" ${orden === 'fecha_desc' ? 'selected' : ''}>Más recientes</option>
+                        <option value="fecha_asc" ${orden === 'fecha_asc' ? 'selected' : ''}>Más antiguos</option>
+                        <option value="importe_desc" ${orden === 'importe_desc' ? 'selected' : ''}>Mayor importe</option>
+                        <option value="importe_asc" ${orden === 'importe_asc' ? 'selected' : ''}>Menor importe</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="admin-tabla-wrapper">
+            <table class="admin-tabla">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Ticket</th>
+                        <th>Fecha</th>
+                        <th>Empleado</th>
+                        <th>Producto</th>
+                        <th>Cant.</th>
+                        <th>Importe</th>
+                        <th>Método</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+}
+
+/**
+ * Renderiza las devoluciones en la tabla.
+ */
+function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fecha_desc') {
+    const contenedor = document.getElementById('adminContenido');
+
+    if (!devoluciones || devoluciones.length === 0) {
+        if (isFirstTime || adminTablaHeaderHTML === '') {
+            adminTablaHeaderHTML = getDevolucionesTablaHeader(orden);
+            contenedor.innerHTML = adminTablaHeaderHTML +
+                '<tr><td colspan="8" class="sin-productos">No hay devoluciones registradas.</td></tr></tbody></table></div>';
+        } else {
+            const tbody = contenedor.querySelector('tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="sin-productos">No hay devoluciones registradas.</td></tr>';
+        }
+        return;
+    }
+
+    if (isFirstTime || adminTablaHeaderHTML === '') {
+        adminTablaHeaderHTML = getDevolucionesTablaHeader(orden);
+    }
+
+    let html = adminTablaHeaderHTML;
+
+    devoluciones.forEach(dev => {
+        const fecha = new Date(dev.fecha).toLocaleString('es-ES', {
+            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        const total = parseFloat(dev.importeTotal).toFixed(2).replace('.', ',');
+
+        html += `
+            <tr>
+                <td class="col-id">${dev.id}</td>
+                <td class="col-ticket" style="font-weight: 600; color: #1e40af;">#${dev.idVenta || '—'}</td>
+                <td class="col-fecha">${fecha}</td>
+                <td class="col-usuario">${dev.usuario_nombre || '—'}</td>
+                <td class="col-producto">${dev.producto_nombre || '—'}</td>
+                <td class="col-cantidad">${dev.cantidad}</td>
+                <td class="col-total" style="font-weight: 700; color: #dc2626;">-${total} €</td>
+                <td class="col-pago">${dev.metodoPago}</td>
+                <td class="col-acciones">
+                    <button class="btn-admin-accion btn-ver" onclick="verDetalleDevolucion(${dev.id})" title="Ver Detalles">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </td>
+            </tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+
+    if (isFirstTime) {
+        contenedor.innerHTML = html;
+    } else {
+        const tbody = contenedor.querySelector('tbody');
+        if (tbody) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const newTbody = tempDiv.querySelector('tbody');
+            tbody.innerHTML = newTbody.innerHTML;
+        } else {
+            contenedor.innerHTML = html;
+        }
+    }
+}
+
+/**
+ * Muestra los detalles de una devolución en un modal.
+ */
+function verDetalleDevolucion(id) {
+    // Como obtenerTodas() ya trae la información necesaria, podemos buscarla en los datos cargados
+    // Pero para ser robustos, si quisiéramos detalles extra (como el ID de sesión de caja),
+    // podríamos hacer un fetch específico. Por ahora usaremos los datos actuales filtrando.
+
+    // Si queremos datos frescos o más detallados:
+    fetch(`api/devoluciones.php?todas=1`) // Podríamos filtrar por ID en la API si estuviera implementado
+        .then(res => res.json())
+        .then(data => {
+            const dev = data.find(d => d.id == id);
+            if (!dev) {
+                alert('No se encontró la devolución');
+                return;
+            }
+
+            const fecha = new Date(dev.fecha).toLocaleString('es-ES', {
+                day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+
+            document.getElementById('verDevolucionId').textContent = dev.id;
+            if (document.getElementById('verDevolucionTicket')) {
+                document.getElementById('verDevolucionTicket').textContent = '#' + (dev.idVenta || '—');
+            }
+            document.getElementById('verDevolucionFecha').textContent = fecha;
+            document.getElementById('verDevolucionProducto').textContent = dev.producto_nombre || '—';
+            document.getElementById('verDevolucionCantidad').textContent = dev.cantidad;
+            document.getElementById('verDevolucionImporte').textContent = '-' + parseFloat(dev.importeTotal).toFixed(2).replace('.', ',') + ' €';
+            document.getElementById('verDevolucionMetodo').textContent = dev.metodoPago;
+            document.getElementById('verDevolucionUsuario').textContent = dev.usuario_nombre || '—';
+
+            abrirModal('modalVerDevolucion');
+        })
+        .catch(err => {
+            console.error('Error al ver detalle de devolución:', err);
+            alert('Error al cargar detalles');
+        });
+}
+
+/**
+ * Alterna el estado de mostrarConIva y recarga la tabla de productos.
+ */
+function toggleMostrarIva() {
+    mostrarConIva = !mostrarConIva;
+
+    // Forzar la regeneración del header para actualizar el texto del botón
+    adminTablaHeaderHTML = '';
+
+    // Obtener los filtros actuales para mantener la vista
+    const texto = document.getElementById('inputBuscarProducto')?.value || '';
+    const idCat = document.getElementById('selectCategoria')?.value || 'todas';
+    const orden = document.getElementById('selectOrden')?.value || '';
+
+    cargarProductosAdmin(idCat, texto, orden);
+}
+
+// ======================== GESTIÓN DE PROVEEDORES ========================
+
+/** Temporizador para debounce de búsqueda de proveedores */
+let debounceTimerProveedores = null;
+
+/** Temporizador para debounce de búsqueda de clientes */
+let debounceTimerClientes = null;
+
+/**
+ * Genera el HTML del header de la tabla de clientes con buscador.
+ * @param {string} textoBusqueda
+ * @returns {string}
+ */
+function getClientesTablaHeader(textoBusqueda = '') {
+    return `
+        <div class="admin-tabla-header">
+            <div style="display: flex; gap: 10px; width: 100%; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="inputBuscarCliente" class="admin-label">Buscar:</label>
+                    <input type="text" id="inputBuscarCliente" class="input-buscarProducto"
+                        placeholder="Escribe el DNI del cliente..." oninput="buscarClientes()" autocomplete="off"
+                        value="${textoBusqueda.replace(/"/g, '&quot;')}" style="width: 400px;" />
+                </div>
+                <button class="btn-admin-accion btn-nuevo" onclick="nuevoCliente()">
+                    <i class="fas fa-plus"></i> Nuevo Cliente
+                </button>
+            </div>
+        </div>
+        <div class="admin-tabla-wrapper">
+            <table class="admin-tabla">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>DNI</th>
+                        <th>Nombre</th>
+                        <th>Apellidos</th>
+                        <th>Fecha Alta</th>
+                        <th>Productos</th>
+                        <th>Compras</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+}
+
+/**
+ * Genera el HTML del header de la tabla de proveedores con buscador.
+ * @param {string} textoBusqueda
+ * @returns {string}
+ */
+function getProveedoresTablaHeader(textoBusqueda = '') {
+    return `
+        <div class="admin-tabla-header">
+            <div style="display: flex; gap: 10px; width: 100%; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="inputBuscarProveedor" class="admin-label">Buscar:</label>
+                    <input type="text" id="inputBuscarProveedor" class="input-buscarProducto"
+                        placeholder="Escribe el nombre del proveedor..." oninput="buscarProveedores()" autocomplete="off"
+                        value="${textoBusqueda.replace(/"/g, '&quot;')}" style="width: 400px;" />
+                </div>
+                <button class="btn-admin-accion btn-nuevo" onclick="nuevoProveedor()">
+                    <i class="fas fa-plus"></i> Nuevo Proveedor
+                </button>
+            </div>
+        </div>
+        <div class="admin-tabla-wrapper">
+            <table class="admin-tabla">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Nombre</th>
+                        <th>Contacto</th>
+                        <th>Email</th>
+                        <th>Dirección</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+}
+
+/**
+ * Carga los proveedores desde la API y los renderiza en la tabla.
+ * @param {string} textoBusqueda
+ * @returns {Promise}
+ */
+function cargarProveedoresAdmin(textoBusqueda = '') {
+    const contenedor = document.getElementById('adminContenido');
+    const tablaExistente = contenedor.querySelector('.admin-tabla');
+
+    if (seccionActual !== 'proveedores') {
+        adminTablaHeaderHTML = '';
+        seccionActual = 'proveedores';
+    }
+
+    const esPrimeraVez = !tablaExistente || adminTablaHeaderHTML === '';
+
+    const params = new URLSearchParams();
+    if (textoBusqueda) params.append('buscar', textoBusqueda);
+
+    return fetch('api/proveedores.php?' + params.toString())
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => { throw new Error(err.error || 'Error al cargar proveedores'); });
+            }
+            return res.json();
+        })
+        .then(data => renderProveedoresAdmin(data, esPrimeraVez))
+        .catch(err => {
+            console.error('Error cargando proveedores:', err);
+            document.getElementById('adminContenido').innerHTML =
+                '<p class="sin-productos">' + err.message + '</p>';
+        });
+}
+
+/**
+ * Renderiza un array de proveedores en formato tabla.
+ * @param {Array} proveedores
+ * @param {boolean} esPrimeraVez
+ */
+function renderProveedoresAdmin(proveedores, esPrimeraVez = true) {
+    const contenedor = document.getElementById('adminContenido');
+
+    if (!proveedores || proveedores.length === 0) {
+        if (esPrimeraVez || adminTablaHeaderHTML === '') {
+            adminTablaHeaderHTML = getProveedoresTablaHeader();
+            contenedor.innerHTML = adminTablaHeaderHTML +
+                '<tr><td colspan="7" class="sin-productos">No hay proveedores disponibles.</td></tr></tbody></table></div>';
+        } else {
+            const tbody = contenedor.querySelector('tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="sin-productos">No hay proveedores disponibles.</td></tr>';
+        }
+        return;
+    }
+
+    if (esPrimeraVez || adminTablaHeaderHTML === '') {
+        adminTablaHeaderHTML = getProveedoresTablaHeader();
+    }
+
+    let html = adminTablaHeaderHTML;
+
+    proveedores.forEach(prov => {
+        const estadoHtml = prov.activo === 1
+            ? '<span class="admin-badge badge-activo">Activo</span>'
+            : '<span class="admin-badge badge-inactivo">Inactivo</span>';
+
+        html += `
+            <tr class="${prov.activo == 0 ? 'fila-inactiva' : ''}"
+                data-contacto="${(prov.contacto || '').replace(/"/g, '&quot;')}"
+                data-email="${(prov.email || '').replace(/"/g, '&quot;')}"
+                data-direccion="${(prov.direccion || '').replace(/"/g, '&quot;')}"
+                data-activo="${prov.activo}">
+                <td class="col-id">${prov.id}</td>
+                <td class="col-nombre">${prov.nombre}</td>
+                <td>${prov.contacto || '—'}</td>
+                <td>${prov.email || '—'}</td>
+                <td>${prov.direccion || '—'}</td>
+                <td class="col-estado">${estadoHtml}</td>
+                <td class="col-acciones">
+                    <button class="btn-admin-accion btn-ver" onclick="verProveedor(${prov.id})" title="Ver">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn-admin-accion btn-editar" onclick="editarProveedor(${prov.id})" title="Editar">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                    <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarProveedor(${prov.id}, '${prov.nombre.replace(/'/g, "\\'")}')" title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>`;
+
+    if (esPrimeraVez) {
+        contenedor.innerHTML = html;
+    } else {
+        const tbody = contenedor.querySelector('tbody');
+        if (tbody) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const nuevoTbody = tempDiv.querySelector('tbody');
+            tbody.innerHTML = nuevoTbody.innerHTML;
+        } else {
+            contenedor.innerHTML = html;
+        }
+    }
+}
+
+/**
+ * Busca proveedores por nombre con debounce.
+ */
+function buscarProveedores() {
+    clearTimeout(debounceTimerProveedores);
+    debounceTimerProveedores = setTimeout(() => {
+        const texto = document.getElementById('inputBuscarProveedor').value;
+        const params = new URLSearchParams();
+        if (texto) params.append('buscar', texto);
+
+        fetch('api/proveedores.php?' + params.toString())
+            .then(res => {
+                if (!res.ok) {
+                    return res.json().then(err => { throw new Error(err.error || 'Error al buscar'); });
+                }
+                return res.json();
+            })
+            .then(data => renderProveedoresAdmin(data, false))
+            .catch(err => {
+                console.error('Error buscando proveedores:', err);
+                document.getElementById('adminContenido').innerHTML =
+                    '<p class="sin-productos">Error: ' + err.message + '</p>';
+            });
+    }, 300);
+}
+
+/**
+ * Carga los clientes desde la API y los renderiza en la tabla.
+ * @param {string} textoBusqueda
+ * @returns {Promise}
+ */
+function cargarClientesAdmin(textoBusqueda = '') {
+    const contenedor = document.getElementById('adminContenido');
+    const tablaExistente = contenedor.querySelector('.admin-tabla');
+
+    if (seccionActual !== 'clientes') {
+        adminTablaHeaderHTML = '';
+        seccionActual = 'clientes';
+    }
+
+    const esPrimeraVez = !tablaExistente || adminTablaHeaderHTML === '';
+
+    const params = new URLSearchParams();
+    if (textoBusqueda) params.append('dni', textoBusqueda);
+
+    return fetch('api/clientes.php?' + params.toString())
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => { throw new Error(err.error || 'Error al cargar clientes'); });
+            }
+            return res.json();
+        })
+        .then(data => renderClientesAdmin(data, esPrimeraVez))
+        .catch(err => {
+            console.error('Error cargando clientes:', err);
+            document.getElementById('adminContenido').innerHTML =
+                '<p class="sin-productos">' + err.message + '</p>';
+        });
+}
+
+/**
+ * Renderiza un array de clientes en formato tabla.
+ * @param {Array} clientes
+ * @param {boolean} esPrimeraVez
+ */
+function renderClientesAdmin(clientes, esPrimeraVez = true) {
+    const contenedor = document.getElementById('adminContenido');
+
+    if (!clientes || clientes.length === 0) {
+        if (esPrimeraVez || adminTablaHeaderHTML === '') {
+            adminTablaHeaderHTML = getClientesTablaHeader();
+            contenedor.innerHTML = adminTablaHeaderHTML +
+                '<tr><td colspan="9" class="sin-productos">No hay clientes disponibles.</td></tr></tbody></table></div>';
+        } else {
+            const tbody = contenedor.querySelector('tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="sin-productos">No hay clientes disponibles.</td></tr>';
+        }
+        return;
+    }
+
+    if (esPrimeraVez || adminTablaHeaderHTML === '') {
+        adminTablaHeaderHTML = getClientesTablaHeader();
+    }
+
+    let html = adminTablaHeaderHTML;
+
+    clientes.forEach(cli => {
+        const estadoHtml = cli.activo == 1
+            ? '<span class="admin-badge badge-activo">Activo</span>'
+            : '<span class="admin-badge badge-inactivo">Inactivo</span>';
+
+        const btnEliminar = `<button class="btn-admin-accion btn-eliminar" onclick="eliminarCliente(${cli.id})" title="Eliminar">
+                <i class="fas fa-trash"></i>
+               </button>`;
+
+        const btnVer = `<button class="btn-admin-accion btn-ver" onclick="verCliente(${cli.id})" title="Ver">
+                <i class="fas fa-eye"></i>
+               </button>`;
+
+        const btnEditar = `<button class="btn-admin-accion btn-editar" onclick="editarCliente(${cli.id})" title="Editar">
+                <i class="fas fa-pen"></i>
+               </button>`;
+
+        html += `
+            <tr class="${cli.activo == 0 ? 'fila-inactiva' : ''}"
+                data-nombre="${(cli.nombre || '').replace(/"/g, '&quot;')}"
+                data-apellidos="${(cli.apellidos || '').replace(/"/g, '&quot;')}"
+                data-fecha-alta="${cli.fecha_alta || ''}"
+                data-productos="${cli.productos_comprados || 0}"
+                data-compras="${cli.compras_realizadas || 0}"
+                data-activo="${cli.activo}">
+                <td class="col-id">${cli.id}</td>
+                <td class="col-nombre">${cli.dni}</td>
+                <td>${cli.nombre || '—'}</td>
+                <td>${cli.apellidos || '—'}</td>
+                <td>${cli.fecha_alta || '—'}</td>
+                <td>${cli.productos_comprados || 0}</td>
+                <td>${cli.compras_realizadas || 0}</td>
+                <td>${estadoHtml}</td>
+                <td class="col-acciones">${btnVer} ${btnEditar} ${btnEliminar}</td>
+            </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+
+    if (esPrimeraVez) {
+        contenedor.innerHTML = html;
+    } else {
+        const tbody = contenedor.querySelector('tbody');
+        if (tbody) {
+            tbody.innerHTML = html.replace(adminTablaHeaderHTML, '').replace('</tbody></table></div>', '');
+        }
+    }
+}
+
+/**
+ * Busca clientes por DNI con debounce.
+ */
+function buscarClientes() {
+    clearTimeout(debounceTimerClientes);
+    debounceTimerClientes = setTimeout(() => {
+        const texto = document.getElementById('inputBuscarCliente').value;
+        const params = new URLSearchParams();
+        if (texto) params.append('dni', texto);
+
+        fetch('api/clientes.php?' + params.toString())
+            .then(res => {
+                if (!res.ok) {
+                    return res.json().then(err => { throw new Error(err.error || 'Error al buscar'); });
+                }
+                return res.json();
+            })
+            .then(data => renderClientesAdmin(data, false))
+            .catch(err => {
+                console.error('Error buscando clientes:', err);
+                document.getElementById('adminContenido').innerHTML =
+                    '<p class="sin-productos">Error: ' + err.message + '</p>';
+            });
+    }, 300);
+}
+
+/**
+ * Muestra el modal para crear un nuevo cliente.
+ */
+function nuevoCliente() {
+    // Limpiar campos del modal
+    document.getElementById('clienteHabitualDni').value = '';
+    document.getElementById('clienteHabitualNombre').value = '';
+    document.getElementById('clienteHabitualApellidos').value = '';
+    // Función para obtener la fecha local en formato datetime-local
+    const now = new Date();
+    const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+    document.getElementById('clienteHabitualFecha').value = localDate;
+
+    // Configurar el onclick del botón guardar para el admin
+    const btnGuardar = document.getElementById('btnGuardarClienteHabitual');
+    btnGuardar.onclick = guardarClienteHabitualAdmin;
+
+    // Mostrar modal
+    document.getElementById('modalClienteHabitual').style.display = 'flex';
+    document.getElementById('clienteHabitualDni').focus();
+}
+
+/**
+ * Guarda el cliente desde el admin y recarga la tabla
+ */
+async function guardarClienteHabitualAdmin() {
+    const dni = document.getElementById('clienteHabitualDni').value.trim();
+    const nombre = document.getElementById('clienteHabitualNombre').value.trim();
+    const apellidos = document.getElementById('clienteHabitualApellidos').value.trim();
+    const fecha_alta = document.getElementById('clienteHabitualFecha').value || new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+
+    // Validar campos obligatorios
+    if (!dni || !nombre || !apellidos) {
+        alert('Por favor, complete todos los campos obligatorios (DNI, Nombre, Apellidos)');
+        return;
+    }
+
+    const btnGuardar = document.getElementById('btnGuardarClienteHabitual');
+    btnGuardar.disabled = true;
+    btnGuardar.textContent = 'Guardando...';
+
+    try {
+        const formData = new FormData();
+        formData.append('dni', dni);
+        formData.append('nombre', nombre);
+        formData.append('apellidos', apellidos);
+        formData.append('fecha_alta', fecha_alta);
+
+        const response = await fetch('api/clientes.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.ok) {
+            alert('Cliente guardado correctamente');
+            cerrarModal('modalClienteHabitual');
+            // Recargar la tabla de clientes
+            cargarClientesAdmin();
+        } else {
+            alert(data.error || 'Error al guardar el cliente');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al comunicar con el servidor');
+    } finally {
+        btnGuardar.disabled = false;
+        btnGuardar.textContent = 'Guardar';
+    }
+}
+
+/**
+ * Elimina (desactiva) un cliente
+ * @param {number} id
+ */
+async function eliminarCliente(id) {
+    if (!confirm('¿Estás seguro de que quieres eliminar este cliente?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('api/clientes.php?eliminar=' + id, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.ok) {
+            alert('Cliente eliminado correctamente');
+            cargarClientesAdmin();
+        } else {
+            alert(data.error || 'Error al eliminar el cliente');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al comunicar con el servidor');
+    }
+}
+
+/**
+ * Muestra los detalles de un cliente en un modal
+ * @param {number} id
+ */
+function verCliente(id) {
+    const fila = document.querySelector(`tr [onclick="verCliente(${id})"]`).closest('tr');
+    const celdas = fila.querySelectorAll('td');
+
+    const dni = celdas[1].textContent.trim();
+    const nombre = celdas[2].textContent.trim();
+    const apellidos = celdas[3].textContent.trim();
+    const fechaAlta = celdas[4].textContent.trim();
+    const productos = celdas[5].textContent.trim();
+    const compras = celdas[6].textContent.trim();
+    const estado = celdas[7].querySelector('.admin-badge')?.textContent.trim() || 'Activo';
+
+    // Crear modal dinámicamente
+    const modalHtml = `
+        <div class="modal-overlay" id="modalVerCliente" style="display: flex;">
+            <div class="modal-content" style="max-width: 450px; text-align: left;">
+                <h3 style="margin-bottom: 20px; color: #1f2937;">Detalles del Cliente</h3>
+                
+                <div style="display: grid; gap: 12px;">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
+                        <span style="color: #6b7280; font-weight: 500;">DNI:</span>
+                        <span style="color: #1f2937; font-weight: 600;">${dni}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
+                        <span style="color: #6b7280; font-weight: 500;">Nombre:</span>
+                        <span style="color: #1f2937;">${nombre}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
+                        <span style="color: #6b7280; font-weight: 500;">Apellidos:</span>
+                        <span style="color: #1f2937;">${apellidos}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
+                        <span style="color: #6b7280; font-weight: 500;">Fecha de Alta:</span>
+                        <span style="color: #1f2937;">${fechaAlta}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
+                        <span style="color: #6b7280; font-weight: 500;">Productos Comprados:</span>
+                        <span style="color: #1f2937;">${productos}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
+                        <span style="color: #6b7280; font-weight: 500;">Compras Realizadas:</span>
+                        <span style="color: #1f2937;">${compras}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding-bottom: 8px;">
+                        <span style="color: #6b7280; font-weight: 500;">Estado:</span>
+                        <span class="admin-badge ${estado === 'Activo' ? 'badge-activo' : 'badge-inactivo'}">${estado}</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: center; margin-top: 25px;">
+                    <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCliente'); document.getElementById('modalVerCliente').remove();" style="min-width: 100px;">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Eliminar modal anterior si existe
+    const modalExistente = document.getElementById('modalVerCliente');
+    if (modalExistente) {
+        modalExistente.remove();
+    }
+
+    // Añadir modal al body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+/**
+ * Abre el modal para editar un cliente existente
+ * @param {number} id
+ */
+function editarCliente(id) {
+    const fila = document.querySelector(`tr [onclick="editarCliente(${id})"]`).closest('tr');
+    const celdas = fila.querySelectorAll('td');
+
+    const dni = celdas[1].textContent.trim();
+    const nombre = celdas[2].textContent.trim();
+    const apellidos = celdas[3].textContent.trim();
+
+    // Rellenar el formulario del modal de edición
+    document.getElementById('editarClienteId').value = id;
+    document.getElementById('editarClienteDni').value = dni;
+    document.getElementById('editarClienteNombre').value = nombre === '—' ? '' : nombre;
+    document.getElementById('editarClienteApellidos').value = apellidos === '—' ? '' : apellidos;
+
+    // Mostrar el modal
+    const modal = document.getElementById('modalEditarCliente');
+    modal.style.display = 'flex';
+}
+
+/**
+ * Guarda los cambios del cliente editado
+ */
+async function guardarClienteEditado() {
+    // Obtener la fila para recuperar la fecha original
+    const id = document.getElementById('editarClienteId').value;
+    const fila = document.querySelector(`tr [onclick="editarCliente(${id})"]`).closest('tr');
+    const celdas = fila.querySelectorAll('td');
+    const fecha_alta = celdas[4].textContent.trim();
+
+    const dni = document.getElementById('editarClienteDni').value.trim();
+    const nombre = document.getElementById('editarClienteNombre').value.trim();
+    const apellidos = document.getElementById('editarClienteApellidos').value.trim();
+
+    // Validar campos obligatorios
+    if (!dni || !nombre || !apellidos) {
+        alert('Por favor, complete todos los campos obligatorios (DNI, Nombre, Apellidos)');
+        return;
+    }
+
+    const btnGuardar = document.getElementById('btnGuardarClienteEditado');
+    btnGuardar.disabled = true;
+    btnGuardar.textContent = 'Guardando...';
+
+    try {
+        const response = await fetch(`api/clientes.php?actualizar=true`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `id=${encodeURIComponent(id)}&dni=${encodeURIComponent(dni)}&nombre=${encodeURIComponent(nombre)}&apellidos=${encodeURIComponent(apellidos)}&fecha_alta=${encodeURIComponent(fecha_alta)}`
+        });
+
+        const data = await response.json();
+
+        if (data.ok) {
+            alert('Cliente actualizado correctamente');
+            cerrarModal('modalEditarCliente');
+            // Recargar la tabla de clientes
+            cargarClientesAdmin();
+        } else {
+            alert(data.error || 'Error al actualizar el cliente');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al comunicar con el servidor');
+    } finally {
+        btnGuardar.disabled = false;
+        btnGuardar.textContent = 'Guardar';
+    }
+}
+
+/**
+ * Muestra el modal de detalle (solo lectura) de un proveedor.
+ * @param {number} id
+ */
+function verProveedor(id) {
+    const fila = document.querySelector(`tr [onclick="verProveedor(${id})"]`).closest('tr');
+    const celdas = fila.querySelectorAll('td');
+
+    const nombre = celdas[1].textContent.trim();
+    const contacto = fila.dataset.contacto || '—';
+    const email = fila.dataset.email || '—';
+    const direccion = fila.dataset.direccion || '—';
+    const estado = celdas[5].querySelector('.admin-badge')?.textContent.trim() ?? '—';
+
+    document.getElementById('verProveedorNombre').textContent = nombre;
+    document.getElementById('verProveedorContacto').textContent = contacto || '—';
+    document.getElementById('verProveedorEmail').textContent = email || '—';
+    document.getElementById('verProveedorDireccion').textContent = direccion || '—';
+    document.getElementById('verProveedorEstado').innerHTML =
+        estado === 'Activo'
+            ? '<span class="admin-badge badge-activo">Activo</span>'
+            : '<span class="admin-badge badge-inactivo">Inactivo</span>';
+
+    document.getElementById('modalVerProveedor').style.display = 'flex';
+}
+
+/**
+ * Abre el formulario para crear un nuevo proveedor.
+ */
+function nuevoProveedor() {
+    document.getElementById('editProveedorId').value = '';
+    document.getElementById('editProveedorNombre').value = '';
+    document.getElementById('editProveedorContacto').value = '';
+    document.getElementById('editProveedorEmail').value = '';
+    document.getElementById('editProveedorDireccion').value = '';
+    document.getElementById('editProveedorEstado').value = '1';
+
+    document.getElementById('editProveedorTitulo').textContent = 'Nuevo Proveedor';
+
+    abrirModal('modalEditarProveedor');
+}
+
+/**
+ * Abre el formulario de edición de un proveedor con datos precargados.
+ * @param {number} id
+ */
+function editarProveedor(id) {
+    const fila = document.querySelector(`tr [onclick="editarProveedor(${id})"]`).closest('tr');
+    const celdas = fila.querySelectorAll('td');
+
+    const nombre = celdas[1].textContent.trim();
+    const contacto = fila.dataset.contacto || '';
+    const email = fila.dataset.email || '';
+    const direccion = fila.dataset.direccion || '';
+    const activo = fila.dataset.activo;
+
+    document.getElementById('editProveedorId').value = id;
+    document.getElementById('editProveedorNombre').value = nombre;
+    document.getElementById('editProveedorContacto').value = contacto;
+    document.getElementById('editProveedorEmail').value = email;
+    document.getElementById('editProveedorDireccion').value = direccion;
+    document.getElementById('editProveedorEstado').value = activo;
+
+    document.getElementById('editProveedorTitulo').textContent = 'Editar Proveedor';
+
+    abrirModal('modalEditarProveedor');
+}
+
+/**
+ * Guarda los cambios del proveedor (crear o actualizar).
+ */
+function guardarCambiosProveedor() {
+    const id = document.getElementById('editProveedorId').value;
+    const nombre = document.getElementById('editProveedorNombre').value.trim();
+    const contacto = document.getElementById('editProveedorContacto').value.trim();
+    const email = document.getElementById('editProveedorEmail').value.trim();
+    const direccion = document.getElementById('editProveedorDireccion').value.trim();
+    const activo = document.getElementById('editProveedorEstado').value;
+
+    if (!nombre) {
+        alert('El nombre del proveedor es obligatorio.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('id', id);
+    formData.append('nombre', nombre);
+    formData.append('contacto', contacto);
+    formData.append('email', email);
+    formData.append('direccion', direccion);
+    formData.append('activo', activo);
+
+    fetch('api/proveedores.php', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                cerrarModal('modalEditarProveedor');
+                cargarProveedoresAdmin();
+            } else {
+                alert('Error al guardar: ' + (data.error ?? ''));
+            }
+        })
+        .catch(err => console.error('Error guardando proveedor:', err));
+}
+
+/**
+ * Muestra un diálogo de confirmación antes de eliminar un proveedor.
+ * @param {number} id
+ * @param {string} nombre
+ */
+function confirmarEliminarProveedor(id, nombre) {
+    if (confirm(`¿Seguro que quieres eliminar "${nombre}"?`)) {
+        eliminarProveedor(id);
+    }
+}
+
+/**
+ * Elimina un proveedor enviando una petición DELETE a la API.
+ * @param {number} id
+ */
+function eliminarProveedor(id) {
+    fetch(`api/proveedores.php?eliminar=${id}`, { method: 'DELETE' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                cargarProveedoresAdmin();
+            } else {
+                alert('Error al eliminar el proveedor.');
+            }
+        })
+        .catch(err => console.error('Error eliminando proveedor:', err));
+}
+
+// ======================== PRODUCTOS DEL PROVEEDOR ========================
+
+// Mantenemos el ID del proveedor actual para las operaciones de sus productos
+let proveedorActualId = null;
+
+let verProveedorOriginal = verProveedor;
+
+// Sobrescribimos la función verProveedor para cargar también los productos
+verProveedor = function (id) {
+    proveedorActualId = id;
+    verProveedorOriginal(id);
+    cargarProductosProveedor(id);
+};
+
+/**
+ * Carga la lista de productos suministrados por un proveedor
+ */
+function cargarProductosProveedor(idProveedor) {
+    const tbody = document.getElementById('listaProductosProveedor');
+    const msgSinProductos = document.getElementById('msgSinProductosProveedor');
+
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Cargando productos...</td></tr>';
+    msgSinProductos.style.display = 'none';
+
+    fetch(`api/proveedores.php?productos=${idProveedor}`)
+        .then(res => res.json())
+        .then(productos => {
+            tbody.innerHTML = '';
+            if (!productos || productos.length === 0) {
+                msgSinProductos.style.display = 'block';
+                return;
+            }
+
+            msgSinProductos.style.display = 'none';
+            productos.forEach(prod => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="padding: 8px; min-width: 150px;">${prod.nombre}</td>
+                    <td style="padding: 8px; text-align: center; width: 150px;">${parseFloat((prod.precio * 0.70) || 0).toFixed(2)} €</td>
+                    <td style="padding: 8px; text-align: center; width: 130px;">${parseFloat(prod.recargoEquivalencia).toFixed(2)}%</td>
+                    <td style="padding: 8px; text-align: center; width: 100px;">
+                        <span style="font-size: 0.75rem; color: #6b7280;">C: ${parseFloat(prod.precio * 0.70 * (1 + parseFloat(prod.recargoEquivalencia || 0) / 100)).toFixed(2)} €</span><br>
+                        <span style="font-size: 0.75rem; color: #22c55e;">V: ${parseFloat(prod.precio || 0).toFixed(2)} €</span>
+                    </td>
+                    <td style="padding: 8px; text-align: center; width: 100px;">
+                        <button class="btn-admin-accion btn-editar" onclick="editarRecargoProveedor(${prod.idAsociacion}, ${prod.idProducto}, '${prod.nombre.replace(/'/g, "\\'")}', ${prod.recargoEquivalencia}, ${prod.precioProveedor || 0})" title="Editar Recargo" style="padding: 4px; font-size: 0.8rem;">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarProductoProveedor(${prod.idAsociacion}, '${prod.nombre.replace(/'/g, "\\'")}')" title="Eliminar Asociación" style="padding: 4px; font-size: 0.8rem;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        })
+        .catch(err => {
+            console.error('Error cargando productos del proveedor:', err);
+            tbody.innerHTML = '<tr><td colspan="5" class="sin-productos" style="color: red;">Error al cargar los productos.</td></tr>';
+        });
+}
+
+/**
+ * Prepara y abre el modal para asociar un nuevo producto al proveedor
+ */
+function agregarProductoProveedor() {
+    document.getElementById('asociarProductoTitulo').textContent = 'Añadir Producto';
+    document.getElementById('asociarProductoSubtitulo').textContent = 'Selecciona un producto disponible y fija su recargo';
+
+    document.getElementById('asociarProvIdAsociacion').value = '';
+    document.getElementById('asociarProvIdProveedor').value = proveedorActualId;
+    document.getElementById('asociarProvPrecio').value = '0.00';
+    document.getElementById('asociarProvRecargo').value = '0.00';
+
+    const selectProducto = document.getElementById('asociarProvIdProducto');
+    document.getElementById('contenedorSelectProducto').style.display = 'flex';
+    document.getElementById('contenedorTextoProducto').style.display = 'none';
+
+    // Cargar productos disponibles (no asociados aún)
+    fetch(`api/proveedores.php?productosDisponibles=${proveedorActualId}`)
+        .then(res => res.json())
+        .then(productos => {
+            selectProducto.innerHTML = '';
+            if (!productos || productos.length === 0) {
+                selectProducto.innerHTML = '<option value="">Cargando...</option>';
+                alert('No hay productos disponibles para asociar o hubo un error.');
+                return;
+            }
+
+            productos.forEach(prod => {
+                const option = document.createElement('option');
+                option.value = prod.id;
+                option.textContent = prod.nombre;
+                selectProducto.appendChild(option);
+            });
+
+            cerrarModal('modalVerProveedor');
+            abrirModal('modalAsociarProducto');
+        })
+        .catch(err => console.error('Error cargando productos disponibles:', err));
+}
+
+/**
+ * Prepara y abre el modal para editar el recargo de equivalencia
+ */
+function editarRecargoProveedor(idAsociacion, idProducto, nombreProducto, recargo, precioProv) {
+    document.getElementById('asociarProductoTitulo').textContent = 'Editar Producto de Proveedor';
+    document.getElementById('asociarProductoSubtitulo').textContent = 'Modifica el precio y recargo de equivalencia';
+
+    document.getElementById('asociarProvIdAsociacion').value = idAsociacion;
+    document.getElementById('asociarProvIdProveedor').value = proveedorActualId;
+    document.getElementById('asociarProvPrecio').value = precioProv;
+    document.getElementById('asociarProvRecargo').value = recargo;
+
+    document.getElementById('contenedorSelectProducto').style.display = 'none';
+    document.getElementById('contenedorTextoProducto').style.display = 'flex';
+    document.getElementById('asociarProvNombreProducto').value = nombreProducto;
+
+    cerrarModal('modalVerProveedor');
+    abrirModal('modalAsociarProducto');
+}
+
+// ======================== GESTIÓN DE CATEGORÍAS ========================
+
+function mostrarPanelCategorias(textoBusqueda = '') {
+    const contenedor = document.getElementById('adminContenido');
+    const inputBusqueda = document.getElementById('busquedaCategorias');
+
+    // Si ya existe el input, obtener el valor actual para mantener la búsqueda
+    if (inputBusqueda && textoBusqueda === '') {
+        textoBusqueda = inputBusqueda.value;
+    }
+
+    if (seccionActual !== 'categorias') {
+        adminTablaHeaderHTML = '';
+        seccionActual = 'categorias';
+    }
+
+    // Solo generar header si no existe
+    if (!adminTablaHeaderHTML) {
+        adminTablaHeaderHTML = `
+            <div class="admin-tabla-header">
+                <div style="display: flex; gap: 10px; width: 100%; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label style="margin: 0; font-weight: 600;">Buscar:</label>
+                        <input type="text" id="busquedaCategorias" placeholder="Escribe el nombre de la categoría..." 
+                            value="${textoBusqueda}" 
+                            style="padding: 8px 15px; border: 1px solid #e5e7eb; border-radius: 10px; width: 250px; height: 40px;"
+                            oninput="buscarCategorias()">
+                    </div>
+                    <button class="btn-admin-accion btn-nuevo" onclick="abrirModalNuevaCategoria()">
+                        <i class="fas fa-plus"></i> Nueva Categoría
+                    </button>
+                </div>
+            </div>`;
+    }
+
+    fetch('api/categorias.php')
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                contenedor.innerHTML = adminTablaHeaderHTML + '<p style="color: red;">Error: ' + data.error + '</p>';
+                return;
+            }
+
+            let filteredData = data;
+            if (textoBusqueda) {
+                const search = textoBusqueda.toLowerCase();
+                filteredData = data.filter(cat => cat.nombre.toLowerCase().includes(search));
+            }
+
+            if (filteredData.length === 0) {
+                contenedor.innerHTML = adminTablaHeaderHTML + '<p class="sin-productos">No hay categorías.</p>';
+                return;
+            }
+
+            let html = adminTablaHeaderHTML;
+            html += `<div class="admin-tabla-wrapper">
+                <table class="admin-tabla">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Nombre</th>
+                            <th>Productos</th>
+                            <th>Fecha Creación</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaCategoriasBody">`;
+
+            filteredData.forEach(cat => {
+                const fecha = cat.fecha_creacion ? new Date(cat.fecha_creacion).toLocaleDateString('es-ES') : '—';
+                html += `<tr>
+                    <td>${cat.id}</td>
+                    <td>${cat.nombre}</td>
+                    <td style="text-align: center;"><span class="admin-badge" style="background: #e0e7ff; color: #3730a3;">${cat.num_productos}</span></td>
+                    <td>${fecha}</td>
+                    <td class="col-acciones">
+                        <button class="btn-admin-accion btn-ver" onclick="verCategoria(${cat.id})" title="Ver">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-admin-accion btn-editar" onclick="abrirModalEditarCategoria(${cat.id}, '${cat.nombre}', '${cat.descripcion || ''}')" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarCategoria(${cat.id}, '${cat.nombre}')" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>`;
+            });
+
+            html += '</tbody></table></div>';
+            contenedor.innerHTML = html;
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            contenedor.innerHTML = adminTablaHeaderHTML + '<p style="color: red;">Error al cargar las categorías.</p>';
+        });
+}
+
+function buscarCategorias() {
+    clearTimeout(debounceTimerCategorias);
+    debounceTimerCategorias = setTimeout(() => {
+        const input = document.getElementById('busquedaCategorias');
+        if (!input) return;
+
+        const textoBusqueda = input.value;
+
+        // Solo buscar, sin regenerar el header (como en productos)
+        fetch('api/categorias.php')
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) return;
+
+                let filteredData = data;
+                if (textoBusqueda) {
+                    const search = textoBusqueda.toLowerCase();
+                    filteredData = data.filter(cat => cat.nombre.toLowerCase().includes(search));
+                }
+
+                const tablaBody = document.getElementById('tablaCategoriasBody');
+                if (!tablaBody) return;
+
+                if (filteredData.length === 0) {
+                    tablaBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #6b7280;">No hay categorías.</td></tr>';
+                    return;
+                }
+
+                let html = '';
+                filteredData.forEach(cat => {
+                    const fecha = cat.fecha_creacion ? new Date(cat.fecha_creacion).toLocaleDateString('es-ES') : '—';
+                    html += `<tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 12px;">${cat.id}</td>
+                        <td style="padding: 12px; font-weight: 500;">${cat.nombre}</td>
+                        <td style="padding: 12px; text-align: center;"><span class="admin-badge" style="background: #e0e7ff; color: #3730a3;">${cat.num_productos}</span></td>
+                        <td style="padding: 12px;">${fecha}</td>
+                        <td style="padding: 12px; text-align: center;">
+                            <button onclick="verCategoria(${cat.id})" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+                                <i class="fas fa-eye"></i> Ver
+                            </button>
+                        </td>
+                    </tr>`;
+                });
+
+                tablaBody.innerHTML = html;
+            })
+            .catch(err => console.error('Error:', err));
+    }, 300);
+}
+
+function verCategoria(id) {
+    fetch('api/categorias.php?id=' + id)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            const fecha = data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString('es-ES') : '—';
+
+            // Llenar los campos del modal
+            document.getElementById('verCategoriaId').textContent = data.id;
+            document.getElementById('verCategoriaNombre').textContent = data.nombre;
+            document.getElementById('verCategoriaProductos').innerHTML = '<span class="admin-badge" style="background: #e0e7ff; color: #3730a3;">' + data.num_productos + '</span>';
+            document.getElementById('verCategoriaFecha').textContent = fecha;
+            document.getElementById('verCategoriaDescripcion').textContent = data.descripcion || 'Sin descripción';
+
+            // Abrir el modal
+            abrirModal('modalVerCategoria');
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al cargar los datos de la categoría.');
+        });
+}
+
+function abrirModalNuevaCategoria() {
+    let html = `
+        <div class="modal-nueva-cat-container">
+            <div class="modal-nueva-cat-header">
+                <h3>Nueva Categoría</h3>
+            </div>
+            <div class="modal-nueva-cat-body">
+                <div class="modal-nueva-cat-field">
+                    <label>Nombre:</label>
+                    <input type="text" id="nuevaCategoriaNombre" placeholder="Nombre de la categoría" class="modal-nueva-cat-input">
+                </div>
+                <div class="modal-nueva-cat-field">
+                    <label>Descripción:</label>
+                    <textarea id="nuevaCategoriaDescripcion" placeholder="Descripción opcional" class="modal-nueva-cat-input" rows="3"></textarea>
+                </div>
+                <div class="modal-nueva-cat-actions">
+                    <button onclick="cerrarModal('modalNuevaCategoria')" class="modal-nueva-cat-btn-cancelar">Cancelar</button>
+                    <button onclick="guardarNuevaCategoria()" class="modal-nueva-cat-btn-guardar">Guardar</button>
+                </div>
+            </div>
+        </div>`;
+
+    let modal = document.getElementById('modalNuevaCategoria');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modalNuevaCategoria';
+        modal.className = 'modal-overlay';
+        modal.style.display = 'none';
+        modal.innerHTML = '<div class="modal-content" style="max-width: 450px; max-height: 80vh; overflow-y: auto;"></div>';
+        document.body.appendChild(modal);
+    }
+
+    modal.querySelector('.modal-content').innerHTML = html;
+    modal.style.display = 'flex';
+}
+
+function guardarNuevaCategoria() {
+    const nombre = document.getElementById('nuevaCategoriaNombre').value.trim();
+    const descripcion = document.getElementById('nuevaCategoriaDescripcion').value.trim();
+
+    if (!nombre) {
+        alert('El nombre de la categoría es obligatorio');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('nombre', nombre);
+    formData.append('descripcion', descripcion);
+
+    fetch('api/categorias.php', {
+        method: 'POST',
+        body: formData
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            cerrarModal('modalNuevaCategoria');
+            // Recargar categorías
+            categoriasAdmin = [];
+            cargarCategoriasAdmin().then(() => {
+                // Forzar regeneración del header
+                adminTablaHeaderHTML = '';
+                mostrarPanelCategorias();
+            });
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al guardar la categoría');
+        });
+}
+
+function confirmarEliminarCategoria(id, nombre) {
+    if (confirm('¿Seguro que quieres eliminar la categoría "' + nombre + '"?')) {
+        eliminarCategoria(id);
+    }
+}
+
+/**
+ * Abre el modal para editar una categoría
+ */
+function abrirModalEditarCategoria(id, nombre, descripcion = '') {
+    const modal = document.getElementById('modalEditarCategoria');
+    if (!modal) {
+        // Crear el modal si no existe
+        const modalHtml = `
+            <div id="modalEditarCategoria" class="modal-overlay" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+                <div class="modal-content" style="background: white; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); max-width: 500px; width: 90%; overflow: hidden;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0; font-size: 18px;">Editar Categoría</h3>
+                        <button onclick="cerrarModal('modalEditarCategoria')" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+                    </div>
+                    <div style="padding: 25px;">
+                        <input type="hidden" id="editarCategoriaId">
+                        <div style="margin-bottom: 20px;">
+                            <label for="editarCategoriaNombre" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Nombre:</label>
+                            <input type="text" id="editarCategoriaNombre" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;" required>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label for="editarCategoriaDescripcion" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Descripción:</label>
+                            <textarea id="editarCategoriaDescripcion" rows="4" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; resize: vertical; font-family: inherit;"></textarea>
+                        </div>
+                    </div>
+                    <div style="padding: 15px 25px; background: #f9fafb; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e5e7eb;">
+                        <button onclick="cerrarModal('modalEditarCategoria')" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; color: #374151; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s;">Cancelar</button>
+                        <button onclick="guardarEditarCategoria()" style="padding: 10px 20px; background: #4f46e5; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s;">Guardar</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    // Rellenar los datos
+    document.getElementById('editarCategoriaId').value = id;
+    document.getElementById('editarCategoriaNombre').value = nombre;
+    document.getElementById('editarCategoriaDescripcion').value = descripcion || '';
+
+    // Mostrar el modal
+    document.getElementById('modalEditarCategoria').style.display = 'flex';
+}
+
+/**
+ * Guarda los cambios de la categoría editada
+ */
+function guardarEditarCategoria() {
+    const id = document.getElementById('editarCategoriaId').value;
+    const nombre = document.getElementById('editarCategoriaNombre').value.trim();
+    const descripcion = document.getElementById('editarCategoriaDescripcion').value.trim();
+
+    if (!nombre) {
+        alert('El nombre de la categoría es obligatorio');
+        return;
+    }
+
+    fetch('api/categorias.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'editar=' + id + '&nombre=' + encodeURIComponent(nombre) + '&descripcion=' + encodeURIComponent(descripcion)
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            cerrarModal('modalEditarCategoria');
+            // Recargar categorías
+            categoriasAdmin = [];
+            cargarCategoriasAdmin().then(() => {
+                adminTablaHeaderHTML = '';
+                mostrarPanelCategorias();
+            });
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al guardar los cambios');
+        });
+}
+
+function eliminarCategoria(id) {
+    fetch('api/categorias.php?eliminar=' + id, { method: 'DELETE' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            // Recargar categorías
+            categoriasAdmin = [];
+            cargarCategoriasAdmin().then(() => {
+                adminTablaHeaderHTML = '';
+                mostrarPanelCategorias();
+            });
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al eliminar la categoría');
+        });
+}
+
+/**
+ * Guarda la asociación del producto o actualiza su recargo
+ */
+function guardarCambiosAsociarProducto() {
+    const idAsociacion = document.getElementById('asociarProvIdAsociacion').value;
+    const idProveedor = document.getElementById('asociarProvIdProveedor').value;
+    const idProducto = document.getElementById('asociarProvIdProducto').value;
+    const precio = document.getElementById('asociarProvPrecio').value;
+    const recargo = document.getElementById('asociarProvRecargo').value;
+
+    const formData = new FormData();
+    formData.append('precioProveedor', precio);
+    formData.append('recargoEquivalencia', recargo);
+
+    if (idAsociacion) {
+        // Modo Edición: Actualizar recargo
+        formData.append('accion', 'actualizarRecargo');
+        formData.append('idAsociacion', idAsociacion);
+    } else {
+        // Modo Creación: Asociar nuevo producto
+        formData.append('accion', 'agregarProducto');
+        formData.append('idProveedor', idProveedor);
+        formData.append('idProducto', idProducto);
+    }
+
+    fetch('api/proveedores.php', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                cerrarModal('modalAsociarProducto');
+                abrirModal('modalVerProveedor');
+                cargarProductosProveedor(idProveedor);
+            } else {
+                alert('Error: ' + (data.error ?? 'Error desconocido'));
+            }
+        })
+        .catch(err => console.error('Error guardando asociación:', err));
+}
+
+// ======================== TARIFAS GENERALES ========================
+
+// Array para almacenar IDs de productos excluidos del ajuste de precios
+let productosExcluidos = [];
+let productosPrevisualizacionIVA = [];
+let productosPrevisualizacionPrecios = [];
+
+function mostrarPanelCambiarIVA() {
+    productosExcluidos = []; // Resetear excluidos al cambiar de panel
+    const contenedor = document.getElementById('adminContenido');
+    seccionActual = 'tarifa-iva';
+    adminTablaHeaderHTML = '';
+
+    contenedor.innerHTML = `
+        <div class="admin-tabla-header">
+            <h2 style="margin: 0; font-size: 24px; font-weight: 600;">Cambiar IVA General</h2>
+        </div>
+        <div style="display: flex; gap: 20px; align-items: flex-start;">
+            <div class="tarifa-panel-inputs">
+                <p class="tarifa-panel-desc">
+                    Esta opción cambiará el IVA de todos los productos. El IVA actual de los productos se mostrará a continuación.
+                </p>
+                <div class="tarifa-input-group">
+                    <label>Nuevo IVA (%):</label>
+                    <input type="number" id="nuevoIVA" min="0" max="100" step="0.01" placeholder="Ej: 21" 
+                        class="tarifa-input"
+                        oninput="actualizarPrevisualizacionIVAAuto()">
+                </div>
+                <button onclick="aplicarCambioIVA()" class="tarifa-btn-aplicar">
+                    <i class="fas fa-save"></i> Aplicar Cambio de IVA
+                </button>
+            </div>
+            <div id="previsualizacionCambios" style="flex: 1;"></div>
+        </div>`;
+}
+
+let debounceTimerIVA = null;
+function actualizarPrevisualizacionIVAAuto() {
+    const input = document.getElementById('nuevoIVA');
+    const contenedor = document.getElementById('previsualizacionCambios');
+
+    if (!input.value || input.value === '') {
+        contenedor.innerHTML = '';
+        return;
+    }
+
+    clearTimeout(debounceTimerIVA);
+    debounceTimerIVA = setTimeout(() => {
+        previsualizarCambioIVA();
+    }, 500);
+}
+
+function previsualizarCambioIVA() {
+    const nuevoIVA = parseFloat(document.getElementById('nuevoIVA').value);
+
+    if (isNaN(nuevoIVA) || nuevoIVA < 0 || nuevoIVA > 100) {
+        alert('Por favor, introduce un IVA válido (0-100)');
+        return;
+    }
+
+    fetch('api/productos.php?previsualizarIVA=' + nuevoIVA)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            productosPrevisualizacionIVA = data.productos;
+            mostrarTablaPrevisualizacionIVA(data.productos, nuevoIVA);
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al previsualizar');
+        });
+}
+
+function mostrarTablaPrevisualizacionIVA(productos, nuevoIVA) {
+    const contenedor = document.getElementById('previsualizacionCambios');
+
+    let html = `
+        <div class="previsualizacion-tabla-container">
+            <div class="previsualizacion-tabla-header">
+                <h3>Previsualización del cambio de IVA (${nuevoIVA}%)</h3>
+                <div class="previsualizacion-botones">
+                    <span class="previsualizacion-hint">💡 Clic en fila para excluir</span>
+                    <button class="btn-excluir-todos" onclick="excluirTodosProductos('iva')">Excluir todos</button>
+                    <button class="btn-incluir-todos" onclick="incluirTodosProductos('iva')">Incluir todos</button>
+                </div>
+            </div>
+            <div class="previsualizacion-tabla-wrapper">
+                <table class="previsualizacion-tabla">
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;">#</th>
+                            <th>ID</th>
+                            <th>Producto</th>
+                            <th style="text-align: right;">Precio</th>
+                            <th style="text-align: center;">IVA Actual</th>
+                            <th style="text-align: center;">IVA Nuevo</th>
+                            <th style="text-align: right;">Precio c/IVA</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+    productos.forEach((p, index) => {
+        const excluido = productosExcluidos.includes(p.id);
+        const precioBase = parseFloat(p.precio);
+        const precioConIVA = excluido ? precioBase * (1 + p.iva_actual / 100) : precioBase * (1 + nuevoIVA / 100);
+        const claseFila = excluido ? 'fila-excluida' : (p.iva_actual !== nuevoIVA ? 'fila-destacada' : '');
+        const indicador = excluido ? '❌' : (index + 1);
+
+        html += `
+            <tr class="${claseFila}" onclick="toggleExcluirProducto(${p.id}, 'iva')">
+                <td style="text-align: center;">${indicador}</td>
+                <td>${p.id}</td>
+                <td>${p.nombre}</td>
+                <td style="text-align: right;">${precioBase.toFixed(2)} €</td>
+                <td style="text-align: center;">${p.iva_actual}%</td>
+                <td style="text-align: center;" class="precio-iva-nuevo">${excluido ? p.iva_actual + '%' : nuevoIVA + '%'}</td>
+                <td style="text-align: right;" class="precio-destacado">${precioConIVA.toFixed(2)} €</td>
+            </tr>`;
+    });
+
+    html += `</tbody></table></div></div>`;
+    contenedor.innerHTML = html;
+}
+
+function aplicarCambioIVA() {
+    const nuevoIVA = parseFloat(document.getElementById('nuevoIVA').value);
+
+    if (isNaN(nuevoIVA) || nuevoIVA < 0 || nuevoIVA > 100) {
+        alert('Por favor, introduce un IVA válido (0-100)');
+        return;
+    }
+
+    const mensaje = productosExcluidos.length > 0
+        ? `¿Estás seguro de cambiar el IVA a ${nuevoIVA}%? (${productosExcluidos.length} productos excluidos)`
+        : `¿Estás seguro de cambiar el IVA a ${nuevoIVA}% para todos los productos?`;
+
+    if (!confirm(mensaje)) {
+        return;
+    }
+
+    let url = 'api/productos.php?cambiarIVA=' + nuevoIVA;
+    if (productosExcluidos.length > 0) {
+        url += '&excluidos=' + productosExcluidos.join(',');
+    }
+
+    fetch(url, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            alert('IVA actualizado correctamente. Productos afectados: ' + data.actualizados);
+            productosExcluidos = [];
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al cambiar el IVA');
+        });
+}
+
+function mostrarPanelAjustePrecios() {
+    const contenedor = document.getElementById('adminContenido');
+    seccionActual = 'tarifa-ajuste';
+    adminTablaHeaderHTML = '';
+
+    contenedor.innerHTML = `
+        <div class="admin-tabla-header">
+            <h2 style="margin: 0; font-size: 24px; font-weight: 600;">Ajuste de Precios</h2>
+        </div>
+        <div style="display: flex; gap: 20px; align-items: flex-start;">
+            <div class="tarifa-panel-inputs">
+                <p class="tarifa-panel-desc">
+                    Esta opción aplicará un porcentaje de subida o baisse a todos los productos. 
+                    Usa un número positivo para subir precios o negativo para bajarlos.
+                </p>
+                <div class="tarifa-input-group">
+                    <label>Porcentaje de ajuste (%):</label>
+                    <input type="number" id="porcentajeAjuste" step="0.01" placeholder="Ej: 10 o -10" 
+                        class="tarifa-input"
+                        oninput="actualizarPrevisualizacionPreciosAuto()">
+                    <small class="tarifa-hint">Positivo = subir precios | Negativo = bajar precios</small>
+                </div>
+                <button onclick="aplicarAjustePrecios()" class="tarifa-btn-aplicar tarifa-btn-precios">
+                    <i class="fas fa-save"></i> Aplicar Ajuste de Precios
+                </button>
+            </div>
+            <div id="previsualizacionCambios" style="flex: 1;"></div>
+        </div>`;
+}
+
+let debounceTimerPrecios = null;
+function actualizarPrevisualizacionPreciosAuto() {
+    const input = document.getElementById('porcentajeAjuste');
+    const contenedor = document.getElementById('previsualizacionCambios');
+
+    if (!input.value || input.value === '') {
+        contenedor.innerHTML = '';
+        return;
+    }
+
+    clearTimeout(debounceTimerPrecios);
+    debounceTimerPrecios = setTimeout(() => {
+        previsualizarAjustePrecios();
+    }, 500);
+}
+
+function previsualizarAjustePrecios() {
+    const porcentaje = parseFloat(document.getElementById('porcentajeAjuste').value);
+
+    if (isNaN(porcentaje)) {
+        alert('Por favor, introduce un porcentaje válido');
+        return;
+    }
+
+    fetch('api/productos.php?previsualizarAjuste=' + porcentaje)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            productosPrevisualizacionPrecios = data.productos;
+            mostrarTablaPrevisualizacionPrecios(data.productos, porcentaje);
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al previsualizar');
+        });
+}
+
+function mostrarTablaPrevisualizacionPrecios(productos, porcentaje) {
+    const contenedor = document.getElementById('previsualizacionCambios');
+
+    const esSubida = porcentaje > 0;
+    const claseDiferencia = esSubida ? 'diferencia-subida' : 'diferencia-bajada';
+
+    let html = `
+        <div class="previsualizacion-tabla-container">
+            <div class="previsualizacion-tabla-header">
+                <h3>Previsualización del ajuste de precios (${porcentaje}%)</h3>
+                <div class="previsualizacion-botones">
+                    <span class="previsualizacion-hint">💡 Clic en fila para excluir</span>
+                    <button class="btn-excluir-todos" onclick="excluirTodosProductos('precios')">Excluir todos</button>
+                    <button class="btn-incluir-todos" onclick="incluirTodosProductos('precios')">Incluir todos</button>
+                </div>
+            </div>
+            <div class="previsualizacion-tabla-wrapper">
+                <table class="previsualizacion-tabla">
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;">#</th>
+                            <th>ID</th>
+                            <th>Producto</th>
+                            <th style="text-align: right;">Precio Actual</th>
+                            <th style="text-align: right;">Precio Nuevo</th>
+                            <th style="text-align: right;">Diferencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+    productos.forEach((p, index) => {
+        const excluido = productosExcluidos.includes(p.id);
+        const claseFila = excluido ? 'fila-excluida' : (p.diferencia !== 0 ? 'fila-destacada' : '');
+        const precioNuevo = excluido ? p.precio_actual : p.precio_nuevo;
+        const diferencia = excluido ? 0 : p.diferencia;
+        const claseDif = excluido ? '' : claseDiferencia;
+        const simboloDif = esSubida && !excluido ? '+' : '';
+        const indicador = excluido ? '❌' : (index + 1);
+
+        html += `
+            <tr class="${claseFila}" onclick="toggleExcluirProducto(${p.id}, 'precios')">
+                <td style="text-align: center;">${indicador}</td>
+                <td>${p.id}</td>
+                <td>${p.nombre}</td>
+                <td style="text-align: right;">${parseFloat(p.precio_actual).toFixed(2)} €</td>
+                <td style="text-align: right; font-weight: bold;">${parseFloat(precioNuevo).toFixed(2)} €</td>
+                <td style="text-align: right;" class="${claseDif}">${simboloDif}${diferencia.toFixed(2)} €</td>
+            </tr>`;
+    });
+
+    html += `</tbody></table></div></div>`;
+    contenedor.innerHTML = html;
+}
+
+function toggleExcluirProducto(idProducto, tipo) {
+    const index = productosExcluidos.indexOf(idProducto);
+    if (index > -1) {
+        // Quitar de excluidos
+        productosExcluidos.splice(index, 1);
+    } else {
+        // Añadir a excluidos
+        productosExcluidos.push(idProducto);
+    }
+    // Volver a renderizar la tabla según el tipo
+    if (tipo === 'iva') {
+        previsualizarCambioIVA();
+    } else {
+        previsualizarAjustePrecios();
+    }
+}
+
+function excluirTodosProductos(tipo) {
+    // Obtener los productos según el tipo
+    const productos = tipo === 'iva' ? productosPrevisualizacionIVA : productosPrevisualizacionPrecios;
+
+    if (!productos || productos.length === 0) {
+        return;
+    }
+
+    // Obtener todos los IDs de productos
+    const todosIds = productos.map(p => p.id);
+
+    // Añadir todos a excluidos (los que ya estén se mantienen)
+    todosIds.forEach(id => {
+        if (!productosExcluidos.includes(id)) {
+            productosExcluidos.push(id);
+        }
+    });
+
+    // Volver a renderizar la tabla según el tipo
+    if (tipo === 'iva') {
+        mostrarTablaPrevisualizacionIVA(productos, parseFloat(document.getElementById('nuevoIVA').value));
+    } else {
+        mostrarTablaPrevisualizacionPrecios(productos, parseFloat(document.getElementById('porcentajeAjuste').value));
+    }
+}
+
+function incluirTodosProductos(tipo) {
+    // Limpiar el array de excluidos
+    productosExcluidos = [];
+
+    // Volver a renderizar la tabla según el tipo
+    if (tipo === 'iva') {
+        const productos = productosPrevisualizacionIVA;
+        if (productos && productos.length > 0) {
+            mostrarTablaPrevisualizacionIVA(productos, parseFloat(document.getElementById('nuevoIVA').value));
+        }
+    } else {
+        const productos = productosPrevisualizacionPrecios;
+        if (productos && productos.length > 0) {
+            mostrarTablaPrevisualizacionPrecios(productos, parseFloat(document.getElementById('porcentajeAjuste').value));
+        }
+    }
+}
+
+function aplicarAjustePrecios() {
+    const porcentaje = parseFloat(document.getElementById('porcentajeAjuste').value);
+
+    if (isNaN(porcentaje)) {
+        alert('Por favor, introduce un porcentaje válido');
+        return;
+    }
+
+    const mensaje = productosExcluidos.length > 0
+        ? (porcentaje > 0
+            ? `¿Estás seguro de subir los precios un ${porcentaje}%? (${productosExcluidos.length} productos excluidos)`
+            : `¿Estás seguro de bajar los precios un ${Math.abs(porcentaje)}%? (${productosExcluidos.length} productos excluidos)`)
+        : (porcentaje > 0
+            ? `¿Estás seguro de subir los precios un ${porcentaje}%?`
+            : `¿Estás seguro de bajar los precios un ${Math.abs(porcentaje)}%?`);
+
+    if (!confirm(mensaje)) {
+        return;
+    }
+
+    // Construir la URL con los productos excluidos
+    let url = 'api/productos.php?ajustePrecios=' + porcentaje;
+    if (productosExcluidos.length > 0) {
+        url += '&excluidos=' + productosExcluidos.join(',');
+    }
+
+    fetch(url, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            alert('Precios actualizados correctamente. Productos afectados: ' + data.actualizados);
+            // Resetear excluidos después de aplicar
+            productosExcluidos = [];
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al ajustar los precios');
+        });
+}
+
+/**
+ * Confirma la eliminación de la asociación proveedor-producto
+ */
+function confirmarEliminarProductoProveedor(idAsociacion, nombreProducto) {
+    if (confirm(`¿Seguro que quieres dejar de suministrar el producto "${nombreProducto}" a través de este proveedor?`)) {
+        fetch(`api/proveedores.php?eliminarAsociacion=${idAsociacion}`, { method: 'DELETE' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.ok) {
+                    cargarProductosProveedor(proveedorActualId);
+                } else {
+                    alert('Error al eliminar: ' + (data.error ?? ''));
+                }
+            })
+            .catch(err => console.error('Error eliminando asociación:', err));
+    }
+}
+
+
+
+
+
+
+
+

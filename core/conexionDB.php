@@ -1,17 +1,17 @@
 <?php
 
-/*
- * Autor: Alberto Méndez 
- * Fecha de actualización: 24/02/2026
+/**
+ * Clase para gestionar la conexión a la base de datos mediante PDO.
  * 
- * Clase para gestionar la conexión a la base de datos mediante PDO (Singleton).
+ * @author Alberto Méndez
+ * @version 1.2 (02/03/2026)
  */
 
 class ConexionDB
 {
 
-    private static $instancia = null; //Instancia única de la conexión.
-    private $conexion; //Objeto PDO.
+    private static $instancia = null; // Instancia única de la conexión.
+    private $conexion; // Objeto PDO.
 
     /**
      * Constructor privado para evitar instanciación directa.
@@ -20,10 +20,14 @@ class ConexionDB
     private function __construct()
     {
         try {
+            // Realizamos la conexión a la base de datos
             $this->conexion = new PDO(RUTA, USUARIO, PASS);
-            $this->conexion->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION); //Modo de errores: excepciones.
-            $this->conexion->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC); //Modo de fetch: array asociativo.
-            $this->conexion->exec("SET NAMES 'utf8'"); //Codificación UTF-8.
+            // Establecemos el modo de errores a excepciones
+            $this->conexion->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION); // Modo de errores: excepciones.
+            // Establecemos el modo de fetch a array asociativo
+            $this->conexion->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC); // Modo de fetch: array asociativo.
+            // Establecemos la codificación a UTF-8
+            $this->conexion->exec("SET NAMES 'utf8'"); // Codificación UTF-8.
         } catch (PDOException $e) {
             die("Error de conexión: " . $e->getMessage());
         }

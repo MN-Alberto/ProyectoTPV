@@ -1,12 +1,13 @@
 <?php
 
-/*
- * Autor: Alberto Méndez 
- * Fecha de actualización: 24/02/2026
- * 
+/**
  * Clase modelo para la gestión de ventas/tickets del TPV.
+ * 
+ * @author Alberto Méndez
+ * @version 1.2 (02/03/2026)
  */
 
+// Requerimos el fichero de conexión a la base de datos
 require_once(__DIR__ . '/../core/conexionDB.php');
 
 class Venta
@@ -22,6 +23,17 @@ class Venta
     private $cerrada; // 0 o 1
     private $importeEntregado;
     private $cambioDevuelto;
+
+    // Campos de descuento
+    private $descuentoTipo;
+    private $descuentoValor;
+    private $descuentoCupon;
+    private $descuentoTarifaTipo;
+    private $descuentoTarifaValor;
+    private $descuentoTarifaCupon;
+    private $descuentoManualTipo;
+    private $descuentoManualValor;
+    private $descuentoManualCupon;
 
     // ======================== GETTERS ========================
 
@@ -125,6 +137,88 @@ class Venta
         $this->cambioDevuelto = $cambioDevuelto;
     }
 
+    // Getters y Setters de descuentos
+    public function getDescuentoTipo()
+    {
+        return $this->descuentoTipo;
+    }
+    public function setDescuentoTipo($v)
+    {
+        $this->descuentoTipo = $v;
+    }
+
+    public function getDescuentoValor()
+    {
+        return $this->descuentoValor;
+    }
+    public function setDescuentoValor($v)
+    {
+        $this->descuentoValor = $v;
+    }
+
+    public function getDescuentoCupon()
+    {
+        return $this->descuentoCupon;
+    }
+    public function setDescuentoCupon($v)
+    {
+        $this->descuentoCupon = $v;
+    }
+
+    public function getDescuentoTarifaTipo()
+    {
+        return $this->descuentoTarifaTipo;
+    }
+    public function setDescuentoTarifaTipo($v)
+    {
+        $this->descuentoTarifaTipo = $v;
+    }
+
+    public function getDescuentoTarifaValor()
+    {
+        return $this->descuentoTarifaValor;
+    }
+    public function setDescuentoTarifaValor($v)
+    {
+        $this->descuentoTarifaValor = $v;
+    }
+
+    public function getDescuentoTarifaCupon()
+    {
+        return $this->descuentoTarifaCupon;
+    }
+    public function setDescuentoTarifaCupon($v)
+    {
+        $this->descuentoTarifaCupon = $v;
+    }
+
+    public function getDescuentoManualTipo()
+    {
+        return $this->descuentoManualTipo;
+    }
+    public function setDescuentoManualTipo($v)
+    {
+        $this->descuentoManualTipo = $v;
+    }
+
+    public function getDescuentoManualValor()
+    {
+        return $this->descuentoManualValor;
+    }
+    public function setDescuentoManualValor($v)
+    {
+        $this->descuentoManualValor = $v;
+    }
+
+    public function getDescuentoManualCupon()
+    {
+        return $this->descuentoManualCupon;
+    }
+    public function setDescuentoManualCupon($v)
+    {
+        $this->descuentoManualCupon = $v;
+    }
+
     // ======================== MÉTODOS CRUD ========================
 
     /**
@@ -134,15 +228,21 @@ class Venta
      */
     public static function buscarPorId($id)
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare("SELECT * FROM ventas WHERE id = :id");
+        // Vinculamos los parámetros
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        // Ejecutamos la consulta
         $stmt->execute();
+        // Obtenemos la fila
         $fila = $stmt->fetch();
-
+        // Si se encuentra la fila, creamos una nueva venta
         if ($fila) {
             return self::crearDesdeArray($fila);
         }
+        // Si no se encuentra la fila, devolvemos null
         return null;
     }
 
@@ -152,12 +252,18 @@ class Venta
      */
     public static function obtenerTodas()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->query("SELECT * FROM ventas ORDER BY fecha DESC");
+        // Creamos un array para guardar las ventas
         $ventas = [];
+        // Recorremos las filas
         while ($fila = $stmt->fetch()) {
+            // Creamos una nueva venta y la añadimos al array
             $ventas[] = self::crearDesdeArray($fila);
         }
+        // Devolvemos las ventas
         return $ventas;
     }
 
@@ -168,16 +274,24 @@ class Venta
      */
     public static function obtenerPorUsuario($idUsuario)
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
             "SELECT * FROM ventas WHERE idUsuario = :idUsuario ORDER BY fecha DESC"
         );
+        // Vinculamos los parámetros
         $stmt->bindParam(':idUsuario', $idUsuario, PDO::PARAM_INT);
+        // Ejecutamos la consulta
         $stmt->execute();
+        // Creamos un array para guardar las ventas
         $ventas = [];
+        // Recorremos las filas
         while ($fila = $stmt->fetch()) {
+            // Creamos una nueva venta y la añadimos al array
             $ventas[] = self::crearDesdeArray($fila);
         }
+        // Devolvemos las ventas
         return $ventas;
     }
 
@@ -189,17 +303,25 @@ class Venta
      */
     public static function obtenerPorFechas($fechaInicio, $fechaFin)
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
             "SELECT * FROM ventas WHERE fecha BETWEEN :fechaInicio AND :fechaFin ORDER BY fecha DESC"
         );
+        // Vinculamos los parámetros
         $stmt->bindParam(':fechaInicio', $fechaInicio);
         $stmt->bindParam(':fechaFin', $fechaFin);
+        // Ejecutamos la consulta
         $stmt->execute();
+        // Creamos un array para guardar las ventas
         $ventas = [];
+        // Recorremos las filas
         while ($fila = $stmt->fetch()) {
+            // Creamos una nueva venta y la añadimos al array
             $ventas[] = self::crearDesdeArray($fila);
         }
+        // Devolvemos las ventas
         return $ventas;
     }
 
@@ -209,11 +331,14 @@ class Venta
      */
     public function insertar()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "INSERT INTO ventas (idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto) 
-             VALUES (:idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto)"
+            "INSERT INTO ventas (idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon) 
+             VALUES (:idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon)"
         );
+        // Vinculamos los parámetros
         $stmt->bindParam(':idUsuario', $this->idUsuario, PDO::PARAM_INT);
         $stmt->bindParam(':fecha', $this->fecha);
         $stmt->bindParam(':total', $this->total);
@@ -224,8 +349,20 @@ class Venta
         $stmt->bindParam(':cerrada', $cerradaVal, PDO::PARAM_INT);
         $stmt->bindParam(':importeEntregado', $this->importeEntregado);
         $stmt->bindParam(':cambioDevuelto', $this->cambioDevuelto);
+        $stmt->bindParam(':descuentoTipo', $this->descuentoTipo);
+        $stmt->bindParam(':descuentoValor', $this->descuentoValor);
+        $stmt->bindParam(':descuentoCupon', $this->descuentoCupon);
+        $stmt->bindParam(':descuentoTarifaTipo', $this->descuentoTarifaTipo);
+        $stmt->bindParam(':descuentoTarifaValor', $this->descuentoTarifaValor);
+        $stmt->bindParam(':descuentoTarifaCupon', $this->descuentoTarifaCupon);
+        $stmt->bindParam(':descuentoManualTipo', $this->descuentoManualTipo);
+        $stmt->bindParam(':descuentoManualValor', $this->descuentoManualValor);
+        $stmt->bindParam(':descuentoManualCupon', $this->descuentoManualCupon);
+        // Ejecutamos la consulta
         $resultado = $stmt->execute();
+        // Obtenemos el ID de la nueva venta
         $this->id = $conexion->lastInsertId();
+        // Devolvemos el resultado
         return $resultado;
     }
 
@@ -235,11 +372,14 @@ class Venta
      */
     public function actualizar()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
             "UPDATE ventas SET idUsuario = :idUsuario, fecha = :fecha, total = :total, 
              metodoPago = :metodoPago, estado = :estado, tipoDocumento = :tipoDocumento, cerrada = :cerrada WHERE id = :id"
         );
+        // Vinculamos los parámetros
         $stmt->bindParam(':idUsuario', $this->idUsuario, PDO::PARAM_INT);
         $stmt->bindParam(':fecha', $this->fecha);
         $stmt->bindParam(':total', $this->total);
@@ -249,6 +389,7 @@ class Venta
         $cerradaVal = $this->cerrada ? 1 : 0;
         $stmt->bindParam(':cerrada', $cerradaVal, PDO::PARAM_INT);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
+        // Ejecutamos la consulta
         return $stmt->execute();
     }
 
@@ -268,9 +409,13 @@ class Venta
      */
     public function eliminar()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare("DELETE FROM ventas WHERE id = :id");
+        // Vinculamos los parámetros
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
+        // Ejecutamos la consulta
         return $stmt->execute();
     }
 
@@ -282,13 +427,16 @@ class Venta
      */
     public static function obtenerResumenCajaAbierta()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->query(
             "SELECT metodoPago, SUM(total) as sumaTotal, COUNT(id) as cantidad 
              FROM ventas 
              WHERE cerrada = 0 AND estado = 'completada' 
              GROUP BY metodoPago"
         );
+        // Creamos un array para guardar el resumen
         $resumen = [
             'efectivo' => ['total' => 0, 'cantidad' => 0, 'devoluciones' => 0],
             'tarjeta' => ['total' => 0, 'cantidad' => 0, 'devoluciones' => 0],
@@ -297,9 +445,13 @@ class Venta
             'totalDevoluciones' => 0
         ];
 
+        // Recorremos las filas
         while ($fila = $stmt->fetch()) {
+            // Obtenemos el método de pago
             $metodo = $fila['metodoPago'];
+            // Si el método de pago existe en el resumen
             if (isset($resumen[$metodo])) {
+                // Actualizamos el total y la cantidad
                 $resumen[$metodo]['total'] = (float) $fila['sumaTotal'];
                 $resumen[$metodo]['cantidad'] = (int) $fila['cantidad'];
                 $resumen['totalGeneral'] += (float) $fila['sumaTotal'];
@@ -307,28 +459,38 @@ class Venta
         }
 
         // Restar devoluciones
+        // Requerimos los ficheros de Devolucion y Caja
         require_once(__DIR__ . '/Devolucion.php');
         require_once(__DIR__ . '/Caja.php');
+        // Obtenemos la sesión abierta
         $sesion = Caja::obtenerSesionAbierta();
+        // Si la sesión está abierta
         if ($sesion) {
+            // Obtenemos el ID de la sesión
             $idSesion = $sesion->getId();
 
+            // Obtenemos las devoluciones por método de pago
             $devEfectivo = Devolucion::obtenerTotalPorMetodo($idSesion, 'Efectivo');
             $devTarjeta = Devolucion::obtenerTotalPorMetodo($idSesion, 'Tarjeta');
             $devBizum = Devolucion::obtenerTotalPorMetodo($idSesion, 'Bizum');
 
+            // Actualizamos el resumen
             $resumen['efectivo']['devoluciones'] = $devEfectivo;
             $resumen['tarjeta']['devoluciones'] = $devTarjeta;
             $resumen['bizum']['devoluciones'] = $devBizum;
 
+            // Restamos las devoluciones del total
             $resumen['efectivo']['total'] -= $devEfectivo;
             $resumen['tarjeta']['total'] -= $devTarjeta;
             $resumen['bizum']['total'] -= $devBizum;
 
+            // Actualizamos el total de devoluciones
             $resumen['totalDevoluciones'] = $devEfectivo + $devTarjeta + $devBizum;
+            // Actualizamos el total general
             $resumen['totalGeneral'] -= $resumen['totalDevoluciones'];
         }
 
+        // Devolvemos el resumen
         return $resumen;
     }
 
@@ -338,17 +500,22 @@ class Venta
      */
     public static function obtenerResumenCerrada($fechaInicio, $fechaFin, $idSesion)
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare(
             "SELECT metodoPago, SUM(total) as sumaTotal, COUNT(id) as cantidad 
              FROM ventas 
              WHERE cerrada = 1 AND estado = 'completada' AND fecha >= :fechaInicio AND fecha <= :fechaFin 
              GROUP BY metodoPago"
         );
+        // Vinculamos los parámetros
         $stmt->bindParam(':fechaInicio', $fechaInicio);
         $stmt->bindParam(':fechaFin', $fechaFin);
+        // Ejecutamos la consulta
         $stmt->execute();
 
+        // Creamos un array para guardar el resumen
         $resumen = [
             'efectivo' => ['total' => 0, 'cantidad' => 0, 'devoluciones' => 0],
             'tarjeta' => ['total' => 0, 'cantidad' => 0, 'devoluciones' => 0],
@@ -357,33 +524,45 @@ class Venta
             'totalDevoluciones' => 0
         ];
 
+        // Recorremos las filas
         while ($fila = $stmt->fetch()) {
+            // Obtenemos el método de pago
             $metodo = $fila['metodoPago'];
+            // Si el método de pago existe en el resumen
             if (isset($resumen[$metodo])) {
+                // Actualizamos el total y la cantidad
                 $resumen[$metodo]['total'] = (float) $fila['sumaTotal'];
                 $resumen[$metodo]['cantidad'] = (int) $fila['cantidad'];
                 $resumen['totalGeneral'] += (float) $fila['sumaTotal'];
             }
         }
 
+        // Requerimos el fichero de Devolucion
         require_once(__DIR__ . '/Devolucion.php');
+        // Si la sesión está abierta
         if ($idSesion) {
+            // Obtenemos las devoluciones por método de pago
             $devEfectivo = Devolucion::obtenerTotalPorMetodo($idSesion, 'Efectivo');
             $devTarjeta = Devolucion::obtenerTotalPorMetodo($idSesion, 'Tarjeta');
             $devBizum = Devolucion::obtenerTotalPorMetodo($idSesion, 'Bizum');
 
+            // Actualizamos el resumen
             $resumen['efectivo']['devoluciones'] = $devEfectivo;
             $resumen['tarjeta']['devoluciones'] = $devTarjeta;
             $resumen['bizum']['devoluciones'] = $devBizum;
 
+            // Restamos las devoluciones del total
             $resumen['efectivo']['total'] -= $devEfectivo;
             $resumen['tarjeta']['total'] -= $devTarjeta;
             $resumen['bizum']['total'] -= $devBizum;
 
+            // Actualizamos el total de devoluciones
             $resumen['totalDevoluciones'] = $devEfectivo + $devTarjeta + $devBizum;
+            // Actualizamos el total general
             $resumen['totalGeneral'] -= $resumen['totalDevoluciones'];
         }
 
+        // Devolvemos el resumen
         return $resumen;
     }
 
@@ -393,9 +572,13 @@ class Venta
      */
     public static function cerrarCaja()
     {
+        // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta
         $stmt = $conexion->prepare("UPDATE ventas SET cerrada = 1 WHERE cerrada = 0 AND estado = 'completada'");
+        // Ejecutamos la consulta
         $stmt->execute();
+        // Devolvemos el número de ventas cerradas
         return $stmt->rowCount();
     }
 
@@ -406,7 +589,9 @@ class Venta
      */
     private static function crearDesdeArray($fila)
     {
+        // Creamos una nueva venta
         $venta = new Venta();
+        // Asignamos los valores de la fila a la venta
         $venta->setId($fila['id']);
         $venta->setIdUsuario($fila['idUsuario']);
         $venta->setFecha($fila['fecha']);
@@ -417,6 +602,7 @@ class Venta
         $venta->setCerrada($fila['cerrada'] ?? 0);
         $venta->setImporteEntregado($fila['importeEntregado'] ?? null);
         $venta->setCambioDevuelto($fila['cambioDevuelto'] ?? null);
+        // Devolvemos la venta
         return $venta;
     }
 }

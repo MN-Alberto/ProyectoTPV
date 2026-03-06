@@ -1,9 +1,9 @@
 <?php
 
-/*
- * Autor: Alberto Méndez 
- * Fecha de actualización: 24/02/2026
- * 
+/**
+ * Configuración de la aplicación
+ * @author Alberto Méndez
+ * @version 1.2 (02/03/2026)
  */
 
 
