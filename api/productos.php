@@ -164,6 +164,24 @@ try {
             // Buscar el producto por ID
             $productoAEliminar = Producto::buscarPorId($id);
             if ($productoAEliminar && $productoAEliminar->eliminar()) {
+                // Registrar log de eliminación de producto
+                try {
+                    $pdoLog = new PDO(RUTA, USUARIO, PASS);
+                    $pdoLog->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                    $adminId = $_SESSION['id'] ?? null;
+                    $adminNombre = $_SESSION['nombre'] ?? 'Admin';
+                    $productoNombre = $productoAEliminar->getNombre() ?? 'ID: ' . $id;
+
+                    $stmtLog = $pdoLog->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion) VALUES ('eliminacion_producto', :usuario_id, :usuario_nombre, :descripcion)");
+                    $stmtLog->execute([
+                        ':usuario_id' => $adminId,
+                        ':usuario_nombre' => $adminNombre,
+                        ':descripcion' => 'Producto eliminado: ' . $productoNombre
+                    ]);
+                } catch (Exception $e) {
+                    // Silenciar errores de logging
+                }
+
                 // Devolvemos un código 200 (OK)
                 http_response_code(200);
                 echo json_encode(['ok' => true]);
@@ -266,6 +284,23 @@ try {
         if ($id > 0) {
             // Actualizamos el producto existente
             if ($producto->actualizar()) {
+                // Registrar log de modificación de producto
+                try {
+                    $pdoLog = new PDO(RUTA, USUARIO, PASS);
+                    $pdoLog->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                    $adminId = $_SESSION['id'] ?? null;
+                    $adminNombre = $_SESSION['nombre'] ?? 'Admin';
+
+                    $stmtLog = $pdoLog->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion) VALUES ('modificacion_producto', :usuario_id, :usuario_nombre, :descripcion)");
+                    $stmtLog->execute([
+                        ':usuario_id' => $adminId,
+                        ':usuario_nombre' => $adminNombre,
+                        ':descripcion' => 'Producto modificado: ' . $nombre
+                    ]);
+                } catch (Exception $e) {
+                    // Silenciar errores de logging
+                }
+
                 http_response_code(200);
                 echo json_encode(['ok' => true]);
             } else {
@@ -275,6 +310,23 @@ try {
         } else {
             // Insertamos el nuevo producto
             if ($producto->insertar()) {
+                // Registrar log de creación de producto
+                try {
+                    $pdoLog = new PDO(RUTA, USUARIO, PASS);
+                    $pdoLog->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                    $adminId = $_SESSION['id'] ?? null;
+                    $adminNombre = $_SESSION['nombre'] ?? 'Admin';
+
+                    $stmtLog = $pdoLog->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion) VALUES ('creacion_producto', :usuario_id, :usuario_nombre, :descripcion)");
+                    $stmtLog->execute([
+                        ':usuario_id' => $adminId,
+                        ':usuario_nombre' => $adminNombre,
+                        ':descripcion' => 'Producto creado: ' . $nombre
+                    ]);
+                } catch (Exception $e) {
+                    // Silenciar errores de logging
+                }
+
                 http_response_code(201);
                 echo json_encode(['ok' => true]);
             } else {

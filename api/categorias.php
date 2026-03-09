@@ -11,34 +11,13 @@ ini_set('display_errors', 1);
 require_once(__DIR__ . '/../config/confDB.php');
 require_once(__DIR__ . '/../model/Categoria.php');
 
+// Iniciamos la sesión
+session_start();
+
 header('Content-Type: application/json; charset=utf-8');
 
 try {
-    // Manejar POST para crear nueva categoría
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $nombre = $_POST['nombre'] ?? '';
-        $descripcion = $_POST['descripcion'] ?? '';
-
-        if (empty($nombre)) {
-            http_response_code(400);
-            echo json_encode(['error' => 'El nombre es obligatorio']);
-            exit;
-        }
-
-        $categoria = new Categoria();
-        $categoria->setNombre($nombre);
-        $categoria->setDescripcion($descripcion);
-
-        if ($categoria->insertar()) {
-            echo json_encode(['ok' => true, 'id' => $categoria->getId()]);
-        } else {
-            http_response_code(500);
-            echo json_encode(['error' => 'Error al guardar la categoría']);
-        }
-        exit;
-    }
-
-    // Manejar POST para editar categoría
+    // Manejar POST para editar categoría (debe verificarse primero)
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar'])) {
         $id = $_POST['editar'];
         $nombre = $_POST['nombre'] ?? '';
@@ -60,12 +39,70 @@ try {
         $categoria->setNombre($nombre);
         $categoria->setDescripcion($descripcion);
         if ($categoria->actualizar()) {
+            // Registrar log de modificación de categoría
+            try {
+                $pdoLog = new PDO(RUTA, USUARIO, PASS);
+                $pdoLog->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                $adminId = $_SESSION['id'] ?? null;
+                $adminNombre = $_SESSION['nombre'] ?? 'Admin';
+
+                $stmtLog = $pdoLog->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion) VALUES ('modificacion_categoria', :usuario_id, :usuario_nombre, :descripcion)");
+                $stmtLog->execute([
+                    ':usuario_id' => $adminId,
+                    ':usuario_nombre' => $adminNombre,
+                    ':descripcion' => 'Categoría modificada: ' . $nombre
+                ]);
+            } catch (Exception $e) {
+                // Silenciar errores de logging
+            }
+
             echo json_encode(['ok' => true]);
         } else {
             http_response_code(500);
             echo json_encode(['error' => 'Error al actualizar la categoría']);
         }
         exit();
+    }
+
+    // Manejar POST para crear nueva categoría
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $nombre = $_POST['nombre'] ?? '';
+        $descripcion = $_POST['descripcion'] ?? '';
+
+        if (empty($nombre)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'El nombre es obligatorio']);
+            exit;
+        }
+
+        $categoria = new Categoria();
+        $categoria->setNombre($nombre);
+        $categoria->setDescripcion($descripcion);
+
+        if ($categoria->insertar()) {
+            // Registrar log de creación de categoría
+            try {
+                $pdoLog = new PDO(RUTA, USUARIO, PASS);
+                $pdoLog->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                $adminId = $_SESSION['id'] ?? null;
+                $adminNombre = $_SESSION['nombre'] ?? 'Admin';
+
+                $stmtLog = $pdoLog->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion) VALUES ('creacion_categoria', :usuario_id, :usuario_nombre, :descripcion)");
+                $stmtLog->execute([
+                    ':usuario_id' => $adminId,
+                    ':usuario_nombre' => $adminNombre,
+                    ':descripcion' => 'Categoría creada: ' . $nombre
+                ]);
+            } catch (Exception $e) {
+                // Silenciar errores de logging
+            }
+
+            echo json_encode(['ok' => true, 'id' => $categoria->getId()]);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Error al guardar la categoría']);
+        }
+        exit;
     }
 
     // Manejar DELETE para eliminar categoría
@@ -80,6 +117,24 @@ try {
         }
 
         if ($categoria->eliminar()) {
+            // Registrar log de eliminación de categoría
+            try {
+                $pdoLog = new PDO(RUTA, USUARIO, PASS);
+                $pdoLog->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                $adminId = $_SESSION['id'] ?? null;
+                $adminNombre = $_SESSION['nombre'] ?? 'Admin';
+                $categoriaNombre = $categoria->getNombre() ?? 'ID: ' . $id;
+
+                $stmtLog = $pdoLog->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion) VALUES ('eliminacion_categoria', :usuario_id, :usuario_nombre, :descripcion)");
+                $stmtLog->execute([
+                    ':usuario_id' => $adminId,
+                    ':usuario_nombre' => $adminNombre,
+                    ':descripcion' => 'Categoría eliminada: ' . $categoriaNombre
+                ]);
+            } catch (Exception $e) {
+                // Silenciar errores de logging
+            }
+
             echo json_encode(['ok' => true]);
         } else {
             http_response_code(500);

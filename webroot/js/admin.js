@@ -870,6 +870,24 @@ function editarUsuario(id) {
             document.getElementById('editUsuarioRol').value = data.rol;
             document.getElementById('editUsuarioEstado').value = data.activo;
 
+            // Si es el usuario admin (id=1), deshabilitar rol y estado
+            const esAdmin = (data.id == 1);
+            const rolSelect = document.getElementById('editUsuarioRol');
+            const estadoSelect = document.getElementById('editUsuarioEstado');
+
+            if (esAdmin) {
+                rolSelect.disabled = true;
+                estadoSelect.disabled = true;
+                // Añadir clase para indicar visualmente que está deshabilitado
+                rolSelect.style.opacity = '0.6';
+                estadoSelect.style.opacity = '0.6';
+            } else {
+                rolSelect.disabled = false;
+                estadoSelect.disabled = false;
+                rolSelect.style.opacity = '1';
+                estadoSelect.style.opacity = '1';
+            }
+
             // Mostrar/ocultar permisos según el rol
             actualizarVisibilidadPermisos(data.rol);
 
@@ -931,8 +949,8 @@ function guardarCambiosUsuario() {
     const nombre = document.getElementById('editUsuarioNombre').value.trim();
     const email = document.getElementById('editUsuarioEmail').value.trim();
     const password = document.getElementById('editUsuarioPassword').value;
-    const rol = document.getElementById('editUsuarioRol').value;
-    const activo = document.getElementById('editUsuarioEstado').value;
+    let rol = document.getElementById('editUsuarioRol').value;
+    let activo = document.getElementById('editUsuarioEstado').value;
 
     if (!nombre || !email) {
         alert('Por favor completa todos los campos obligatorios.');
@@ -944,6 +962,13 @@ function guardarCambiosUsuario() {
     if (!emailRegex.test(email)) {
         alert('Por favor ingresa un email válido.');
         return;
+    }
+
+    // Si es el usuario admin (id=1), mantener su rol y estado originales
+    // ya que los campos están deshabilitados pero sendrá el valor por defecto
+    if (id == 1) {
+        rol = 'admin';
+        activo = '1';
     }
 
     // Obtener permisos (solo para empleados)
@@ -1126,6 +1151,7 @@ function getVentasTablaHeader(filtroFecha = 'todos', metodoPago = 'todos', tipoD
                         <th>Fecha</th>
                         <th>Usuario</th>
                         <th>Productos</th>
+                        <th>Tarifa</th>
                         <th>Documento</th>
                         <th>Forma de Pago</th>
                         <th>Total</th>
@@ -1145,10 +1171,10 @@ function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', m
         if (esPrimeraVez || adminTablaHeaderHTML === '') {
             adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden);
             contenedor.innerHTML = adminTablaHeaderHTML +
-                '<tr><td colspan="8" class="sin-productos">No hay ventas registradas.</td></tr></tbody></table></div>';
+                '<tr><td colspan="9" class="sin-productos">No hay ventas registradas.</td></tr></tbody></table></div>';
         } else {
             const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="sin-productos">No hay ventas registradas.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="sin-productos">No hay ventas registradas.</td></tr>';
         }
         return;
     }
@@ -1177,12 +1203,16 @@ function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', m
         if (tipoDocumento === 'ticket') tipoDocumento = '🧾 Ticket';
         else if (tipoDocumento === 'factura') tipoDocumento = '📄 Factura';
 
+        // Formatear tarifa
+        let tarifaNombre = venta.tarifa_nombre || 'Cliente';
+
         html += `
             <tr>
                 <td class="col-id">${venta.id}</td>
                 <td class="col-fecha">${fecha}</td>
                 <td class="col-usuario">${venta.usuario_nombre || '—'}</td>
                 <td class="col-productos">${productos}</td>
+                <td class="col-tarifa">${tarifaNombre}</td>
                 <td class="col-documento">${tipoDocumento}</td>
                 <td class="col-pago">${formaPago}</td>
                 <td class="col-total" style="font-weight: 700; color: #059669;">${total} €</td>
@@ -1277,6 +1307,18 @@ function verDetalleVenta(idVenta) {
             const lineas = data.lineas;
             const descuentos = data.descuentos || {};
 
+            // Detectar tema actual
+            const isDark = document.body.classList.contains('dark-mode');
+            const bgColor = isDark ? '#1f2937' : '#fff';
+            const textColor = isDark ? '#e5e7eb' : '#374151';
+            const cardBg = isDark ? '#374151' : '#f8f9fa';
+            const borderColor = isDark ? '#4b5563' : '#e5e7eb';
+            const discountBg = isDark ? '#064e3b' : '#ecfdf5';
+            const discountBorder = isDark ? '#065f46' : '#a7f3d0';
+            const discountColor = isDark ? '#34d399' : '#16a34a';
+            const headerBg = isDark ? '#4b5563' : '#374151';
+            const totalBg = isDark ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
+
             const fecha = new Date(venta.fecha).toLocaleString('es-ES', {
                 day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
             });
@@ -1286,24 +1328,24 @@ function verDetalleVenta(idVenta) {
             // Procesar descuentos para mostrar
             let descuentoHtml = '';
             if (descuentos.descuentoTarifaCupon === 'CLIENTE_REGISTRADO') {
-                descuentoHtml += `<div style="color: #16a34a;"><strong>Cliente registrado:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
+                descuentoHtml += `<div style="color: ${discountColor};"><strong>Cliente registrado:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
             } else if (descuentos.descuentoTarifaCupon === 'MAYORISTA_NIVEL1') {
-                descuentoHtml += `<div style="color: #16a34a;"><strong>Mayorista nivel 1:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
+                descuentoHtml += `<div style="color: ${discountColor};"><strong>Mayorista nivel 1:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
             } else if (descuentos.descuentoTarifaCupon === 'MAYORISTA_NIVEL2') {
-                descuentoHtml += `<div style="color: #16a34a;"><strong>Mayorista nivel 2:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
+                descuentoHtml += `<div style="color: ${discountColor};"><strong>Mayorista nivel 2:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
             }
             if (descuentos.descuentoManualCupon && descuentos.descuentoManualCupon !== '') {
                 if (descuentos.descuentoManualTipo === 'porcentaje') {
-                    descuentoHtml += `<div style="color: #16a34a;"><strong>Descuento:</strong> ${descuentos.descuentoManualValor}%</div>`;
+                    descuentoHtml += `<div style="color: ${discountColor};"><strong>Descuento:</strong> ${descuentos.descuentoManualValor}%</div>`;
                 } else {
-                    descuentoHtml += `<div style="color: #16a34a;"><strong>Cupón:</strong> ${descuentos.descuentoManualCupon}</div>`;
+                    descuentoHtml += `<div style="color: ${discountColor};"><strong>Cupón:</strong> ${descuentos.descuentoManualCupon}</div>`;
                 }
             } else if (descuentos.descuentoCupon && descuentos.descuentoCupon !== '' && descuentos.descuentoCupon !== 'CLIENTE_REGISTRADO' && descuentos.descuentoCupon !== 'MAYORISTA_NIVEL1' && descuentos.descuentoCupon !== 'MAYORISTA_NIVEL2') {
-                descuentoHtml += `<div style="color: #16a34a;"><strong>Cupón:</strong> ${descuentos.descuentoCupon}</div>`;
+                descuentoHtml += `<div style="color: ${discountColor};"><strong>Cupón:</strong> ${descuentos.descuentoCupon}</div>`;
             }
 
             let html = `
-                <div style="border-radius: 12px; overflow: hidden; background: #fff;">
+                <div style="border-radius: 12px; overflow: hidden; background: ${bgColor};">
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <h3 style="margin: 0; font-size: 18px;">Venta #${venta.id}</h3>
@@ -1311,24 +1353,24 @@ function verDetalleVenta(idVenta) {
                         </div>
                     </div>
                     <div style="padding: 20px;">
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                            <div><strong>👤 Usuario:</strong><br>${venta.usuario_nombre || '—'}</div>
-                            <div><strong>📄 Tipo:</strong><br>${tipoDoc}</div>
-                            <div><strong>💳 Pago:</strong><br>${venta.metodoPago || '💵 Efectivo'}</div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; padding: 15px; background: ${cardBg}; border-radius: 8px;">
+                            <div style="color: ${textColor};"><strong>👤 Usuario:</strong><br>${venta.usuario_nombre || '—'}</div>
+                            <div style="color: ${textColor};"><strong>📄 Tipo:</strong><br>${tipoDoc}</div>
+                            <div style="color: ${textColor};"><strong>💳 Pago:</strong><br>${venta.metodoPago || '💵 Efectivo'}</div>
                         </div>`;
 
             if (descuentoHtml) {
-                html += `<div style="margin-bottom: 20px; padding: 15px; background: #ecfdf5; border-radius: 8px; border: 1px solid #a7f3d0;">
-                            <strong style="color: #065f46;">💰 Descuentos aplicados:</strong><br>
+                html += `<div style="margin-bottom: 20px; padding: 15px; background: ${discountBg}; border-radius: 8px; border: 1px solid ${discountBorder};">
+                            <strong style="color: ${discountColor};">💰 Descuentos aplicados:</strong><br>
                             ${descuentoHtml}
                         </div>`;
             }
 
-            html += `<h4 style="margin: 0 0 10px 0; color: #374151;">Productos:</h4>
-                        <div style="max-height: 250px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px;">
+            html += `<h4 style="margin: 0 0 10px 0; color: ${textColor};">Productos:</h4>
+                        <div style="max-height: 250px; overflow-y: auto; border: 1px solid ${borderColor}; border-radius: 8px;">
                             <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
                                 <thead>
-                                    <tr style="background: #374151; color: white;">
+                                    <tr style="background: ${headerBg}; color: white;">
                                         <th style="padding: 10px; text-align: left;">Producto</th>
                                         <th style="padding: 10px; text-align: center;">Cant.</th>
                                         <th style="padding: 10px; text-align: right;">P.U.</th>
@@ -1343,11 +1385,11 @@ function verDetalleVenta(idVenta) {
                 const subtotal = (linea.cantidad * linea.precioUnitario).toFixed(2).replace('.', ',');
                 html += `
                     <tr>
-                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${linea.producto_nombre || 'Producto #' + linea.idProducto}</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: center;">${linea.cantidad}</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">${parseFloat(linea.precioUnitario).toFixed(2).replace('.', ',')} €</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: center;">${iva}%</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: 600;">${subtotal} €</td>
+                        <td style="padding: 10px; border-bottom: 1px solid ${borderColor}; color: ${textColor};">${linea.producto_nombre || 'Producto #' + linea.idProducto}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid ${borderColor}; text-align: center; color: ${textColor};">${linea.cantidad}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid ${borderColor}; text-align: right; color: ${textColor};">${parseFloat(linea.precioUnitario).toFixed(2).replace('.', ',')} €</td>
+                        <td style="padding: 10px; border-bottom: 1px solid ${borderColor}; text-align: center; color: ${textColor};">${iva}%</td>
+                        <td style="padding: 10px; border-bottom: 1px solid ${borderColor}; text-align: right; font-weight: 600; color: ${textColor};">${subtotal} €</td>
                     </tr>`;
             });
 
@@ -1355,7 +1397,7 @@ function verDetalleVenta(idVenta) {
                                 </tbody>
                             </table>
                         </div>
-                        <div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px;">
+                        <div style="margin-top: 20px; padding: 15px; background: ${totalBg}; color: white; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px;">
                             TOTAL: ${parseFloat(venta.total).toFixed(2).replace('.', ',')} €
                         </div>
                         <div style="margin-top: 20px; text-align: right;">
@@ -1633,7 +1675,9 @@ const FUENTES_DISPONIBLES = [
  */
 const TEMA_DEFAULTS = {
     header_bg: '#1a1a2e', header_color: '#ffffff', header_font: 'Inter',
-    footer_bg: '#1a1a2e', footer_color: '#e5e7eb', footer_font: 'Inter'
+    footer_bg: '#1a1a2e', footer_color: '#e5e7eb', footer_font: 'Inter',
+    header_icon: '',  // SVG code for custom header icon
+    favicon: ''      // Path to favicon image
 };
 
 /**
@@ -1646,7 +1690,8 @@ let temaActual = { ...TEMA_DEFAULTS };
  */
 const SECCIONES_TEMA = [
     { id: 'header', titulo: 'Header (Cabecera)', icono: 'fa-heading', bgKey: 'header_bg', colorKey: 'header_color', fontKey: 'header_font' },
-    { id: 'footer', titulo: 'Footer (Pie de página)', icono: 'fa-shoe-prints', bgKey: 'footer_bg', colorKey: 'footer_color', fontKey: 'footer_font' }
+    { id: 'footer', titulo: 'Footer (Pie de página)', icono: 'fa-shoe-prints', bgKey: 'footer_bg', colorKey: 'footer_color', fontKey: 'footer_font' },
+    { id: 'iconos', titulo: 'Iconos', icono: 'fa-icons', tipo: 'iconos' }
 ];
 
 /**
@@ -1663,6 +1708,41 @@ function generarSelectFuente(id, valorActual) {
  * Genera el HTML de una sección del editor de tema.
  */
 function generarSeccionTema(seccion) {
+    // Si es la sección de iconos, generar HTML especial
+    if (seccion.tipo === 'iconos') {
+        const headerIconVal = temaActual['header_icon'] || '';
+        const faviconVal = temaActual['favicon'] || '';
+
+        return `
+            <div class="tema-seccion-card">
+                <div class="tema-seccion-header">
+                    <i class="fas ${seccion.icono} tema-seccion-icono"></i>
+                    <h4 class="tema-seccion-titulo">${seccion.titulo}</h4>
+                </div>
+                <div class="tema-seccion-body">
+                    <div class="tema-campo">
+                        <label class="tema-label">Icono del Header (SVG)</label>
+                        <textarea id="tema_header_icon" class="tema-textarea-icono" 
+                            placeholder="Pega el código SVG aquí..." 
+                            oninput="previsualizarIcono()">${headerIconVal}</textarea>
+                        <p class="tema-ayuda">Pega el código completo de un icono SVG (incluyendo las etiquetas &lt;svg&gt;)</p>
+                    </div>
+                    <div class="tema-preview-icono" id="preview_header_icon">
+                        ${headerIconVal ? headerIconVal : '<span style="color: var(--text-muted);">Vista previa del icono</span>'}
+                    </div>
+                    <div class="tema-campo" style="margin-top: 20px;">
+                        <label class="tema-label">Favicon</label>
+                        <input type="file" id="tema_favicon" accept="image/*" onchange="previsualizarFavicon(this)">
+                        <p class="tema-ayuda">Sube una imagen para el favicon (16x16, 32x32 o 48x48 píxeles)</p>
+                    </div>
+                    <div class="tema-preview-favicon" id="preview_favicon">
+                        ${faviconVal ? `<img src="${faviconVal}" alt="Favicon" style="width: 32px; height: 32px;">` : '<span style="color: var(--text-muted);">Vista previa del favicon</span>'}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     const bgVal = temaActual[seccion.bgKey] || TEMA_DEFAULTS[seccion.bgKey];
     const colorVal = temaActual[seccion.colorKey] || TEMA_DEFAULTS[seccion.colorKey];
     const fontVal = temaActual[seccion.fontKey] || TEMA_DEFAULTS[seccion.fontKey];
@@ -1725,6 +1805,381 @@ function cargarConfiguracion() {
 }
 
 /**
+ * Carga y muestra los logs del sistema.
+ */
+function cargarLogs(filtros = {}) {
+    seccionActual = 'logs';
+    adminTablaHeaderHTML = '';
+
+    const contenedor = document.getElementById('adminContenido');
+    contenedor.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--text-muted);">Cargando logs...</p>';
+
+    // Construir URL con filtros
+    const params = new URLSearchParams(filtros);
+    params.set('pagina', filtros.pagina || 1);
+    params.set('por_pagina', filtros.porPagina || 50);
+
+    fetch('api/logs.php?' + params.toString())
+        .then(res => res.json())
+        .then(data => {
+            // Guardar los datos globalmente para acceder desde verDetalleLog
+            window.logsData = data.logs || [];
+            renderLogs(data);
+        })
+        .catch(err => {
+            console.error('Error cargando logs:', err);
+            contenedor.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--error);">Error al cargar los logs</p>';
+        });
+}
+
+/**
+ * Renderiza la tabla de logs.
+ */
+function renderLogs(data) {
+    const contenedor = document.getElementById('adminContenido');
+    const logs = data.logs || [];
+
+    // Tipos de log para el filtro
+    const tiposLog = [
+        { valor: '', texto: 'Todos los tipos' },
+        { valor: 'login', texto: 'Inicios de sesión' },
+        { valor: 'login_fallido', texto: 'Credenciales incorrectas' },
+        { valor: 'logout', texto: 'Cierres de sesión' },
+        { valor: 'venta', texto: 'Ventas' },
+        { valor: 'apertura_caja', texto: 'Apertura de caja' },
+        { valor: 'cierre_caja', texto: 'Cierre de caja' },
+        { valor: 'retiro_caja', texto: 'Retiros de caja' },
+        { valor: 'creacion_usuario', texto: 'Creación de usuarios' },
+        { valor: 'creacion_producto', texto: 'Creación de productos' },
+        { valor: 'modificacion_producto', texto: 'Modificación de productos' },
+        { valor: 'eliminacion_producto', texto: 'Eliminación de productos' },
+        { valor: 'creacion_categoria', texto: 'Creación de categorías' },
+        { valor: 'modificacion_categoria', texto: 'Modificación de categorías' },
+        { valor: 'eliminacion_categoria', texto: 'Eliminación de categorías' },
+        { valor: 'acceso_admin', texto: 'Accesos al admin' }
+    ];
+
+    const tipoSelect = tiposLog.map(t =>
+        `<option value="${t.valor}" ${(window.filtroTipoLog || '') === t.valor ? 'selected' : ''}>${t.texto}</option>`
+    ).join('');
+
+    // Guardar los tipos para usarlos en el render
+    window.tiposLogMap = tiposLog;
+
+    let html = `
+        <div class="logs-container">
+            <div class="logs-filtros">
+                <div class="logs-filtro-item">
+                    <label>Tipo de evento:</label>
+                    <select id="filtroTipoLog" onchange="aplicarFiltroLogs()">
+                        ${tipoSelect}
+                    </select>
+                </div>
+                <div class="logs-filtro-item">
+                    <label>Fecha:</label>
+                    <input type="date" id="filtroFecha" onchange="aplicarFiltroLogs()">
+                </div>
+                <div class="logs-filtro-item" style="margin-left: auto;">
+                    <button onclick="limpiarLogs()" style="background: #dc3545; color: white; padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.85rem;">
+                        <i class="fas fa-trash"></i> Limpiar logs
+                    </button>
+                </div>
+            </div>
+            
+            <div class="logs-tabla-container">
+                <table class="admin-tabla logs-tabla">
+                    <thead>
+                        <tr>
+                            <th>Fecha/Hora</th>
+                            <th>Tipo</th>
+                            <th>Usuario</th>
+                            <th>Descripción</th>
+                            <th>Detalles</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+
+    if (logs.length === 0) {
+        html += `
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                No se encontraron logs
+                            </td>
+                        </tr>
+        `;
+    } else {
+        logs.forEach(log => {
+            const tipoIcono = getTipoLogIcono(log.tipo);
+            const tipoClase = getTipoLogClase(log.tipo);
+            const fecha = new Date(log.fecha).toLocaleString('es-ES');
+            const detalles = log.detalles ? JSON.stringify(log.detalles) : '-';
+
+            html += `
+                        <tr>
+                            <td>${fecha}</td>
+                            <td><span class="logs-tipo ${tipoClase}"><i class="${tipoIcono}"></i> ${getTipoLogTexto(log.tipo)}</span></td>
+                            <td>${log.usuario_nombre || '-'}</td>
+                            <td>${log.descripcion || '-'}</td>
+                            <td style="font-size: 0.8rem; max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${detalles}">${detalles}</td>
+                            <td>
+                                <button class="btn-admin-accion btn-ver" onclick="verDetalleLog(${log.id})" title="Ver detalles">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+            `;
+        });
+    }
+
+    html += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    contenedor.innerHTML = html;
+}
+
+/**
+ * Aplica los filtros y recarga los logs.
+/**
+ * Muestra los detalles de un log en un modal.
+ */
+function verDetalleLog(idLog) {
+    // Buscar el log en los datos actuales
+    const log = window.logsData?.find(l => l.id === idLog);
+    if (!log) {
+        alert('No se encontraron los detalles del log');
+        return;
+    }
+
+    const tipoIcono = getTipoLogIcono(log.tipo);
+    const tipoClase = getTipoLogClase(log.tipo);
+    const fecha = new Date(log.fecha).toLocaleString('es-ES');
+
+    // Formatear los detalles como una tabla
+    let detallesHtml = '<p style="margin: 5px 0; color: #888888;">Sin detalles</p>';
+    if (log.detalles && Object.keys(log.detalles).length > 0) {
+        detallesHtml = '<table style="width: 100%; margin-top: 5px; border-collapse: collapse;">';
+        for (const [key, value] of Object.entries(log.detalles)) {
+            let displayValue = value;
+            if (typeof value === 'object' && value !== null) {
+                displayValue = JSON.stringify(value, null, 2);
+            } else if (typeof value === 'number') {
+                // Redondear a 2 decimales para valores numéricos
+                displayValue = parseFloat(value).toFixed(2).replace('.', ',');
+            }
+            detallesHtml += `<tr style="border-bottom: 1px solid #e0e0e0;">
+                <td style="padding: 5px; font-weight: bold; width: 40%; color: #333333;">${key}</td>
+                <td style="padding: 5px; color: #333333; word-break: break-all;">${displayValue}</td>
+            </tr>`;
+        }
+        detallesHtml += '</table>';
+    }
+
+    const modalContent = `
+        <div style="padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #333333; font-size: 1.2rem;">Detalles del Log</h3>
+                <button onclick="this.closest('#modalDetalleLog').remove()" style="background: #f0f0f0; border: none; font-size: 1.5rem; cursor: pointer; color: #666666; line-height: 1; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;" title="Cerrar">&times;</button>
+            </div>
+            <div style="color: #333333; font-size: 0.9rem;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 8px 5px; font-weight: bold; color: #888888; width: 35%;">ID</td>
+                        <td style="padding: 8px 5px; color: #333333;">${log.id}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 8px 5px; font-weight: bold; color: #888888;">Fecha/Hora</td>
+                        <td style="padding: 8px 5px; color: #333333;">${fecha}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 8px 5px; font-weight: bold; color: #888888;">Tipo</td>
+                        <td style="padding: 8px 5px;"><span class="logs-tipo ${tipoClase}"><i class="${tipoIcono}"></i> ${getTipoLogTexto(log.tipo)}</span></td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 8px 5px; font-weight: bold; color: #888888;">Usuario</td>
+                        <td style="padding: 8px 5px; color: #333333;">${log.usuario_nombre || 'Sistema'} (ID: ${log.usuario_id || '-'})</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 8px 5px; font-weight: bold; color: #888888;">Descripción</td>
+                        <td style="padding: 8px 5px; color: #333333;">${log.descripcion || '-'}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 5px; font-weight: bold; color: #888888; vertical-align: top;">Detalles</td>
+                        <td style="padding: 8px 5px;">${detallesHtml}</td>
+                    </tr>
+                </table>
+            </div>
+            <div style="margin-top: 20px; text-align: right;">
+                <button onclick="document.getElementById('modalDetalleLog').remove()" style="background: #007bff; color: white; padding: 8px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">Cerrar</button>
+            </div>
+        </div>
+    `;
+
+    // Eliminar modal anterior si existe
+    const existingModal = document.getElementById('modalDetalleLog');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Crear el modal
+    const modalDiv = document.createElement('div');
+    modalDiv.id = 'modalDetalleLog';
+    modalDiv.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; justify-content: center; align-items: center;';
+
+    const modalInner = document.createElement('div');
+    modalInner.style.cssText = 'background: #ffffff; border-radius: 10px; width: 90%; max-width: 550px; max-height: 85vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3); color: #333333;';
+    modalInner.innerHTML = modalContent;
+
+    modalDiv.appendChild(modalInner);
+    document.body.appendChild(modalDiv);
+
+    // Cerrar al hacer clic fuera
+    modalDiv.addEventListener('click', function (e) {
+        if (e.target === modalDiv) {
+            modalDiv.remove();
+        }
+    });
+}
+
+/**
+ * Aplica los filtros y recarga los logs.
+ */
+function aplicarFiltroLogs() {
+    let tipoSeleccionado = document.getElementById('filtroTipoLog')?.value || '';
+    const fecha = document.getElementById('filtroFecha')?.value || '';
+
+    // Verificar si hay mapeo de tipos múltiples
+    const tipoMultiMap = {
+        'login': 'login,login_fallido'
+    };
+
+    // Si el tipo tiene mapeo múltiple, usarlo
+    if (tipoMultiMap[tipoSeleccionado]) {
+        tipoSeleccionado = tipoMultiMap[tipoSeleccionado];
+    }
+
+    window.filtroTipoLog = tipoSeleccionado;
+
+    cargarLogs({
+        tipo: tipoSeleccionado,
+        fecha: fecha
+    });
+}
+
+/**
+ * Limpia todos los logs del sistema.
+ */
+function limpiarLogs() {
+    if (!confirm('¿Estás seguro de que quieres eliminar todos los logs? Esta acción no se puede deshacer.')) {
+        return;
+    }
+
+    fetch('api/logs.php?accion=limpiar', {
+        method: 'POST'
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                alert('Logs eliminados correctamente');
+                cargarLogs({});
+            } else {
+                alert('Error al eliminar los logs: ' + (data.error || 'Error desconocido'));
+            }
+        })
+        .catch(err => {
+            console.error('Error al limpiar logs:', err);
+            alert('Error al conectar con el servidor');
+        });
+}
+
+/**
+ * Obtiene el icono para el tipo de log.
+ */
+function getTipoLogIcono(tipo) {
+    const iconos = {
+        'login': 'fas fa-sign-in-alt',
+        'login_fallido': 'fas fa-times-circle',
+        'logout': 'fas fa-sign-out-alt',
+        'venta': 'fas fa-shopping-cart',
+        'apertura_caja': 'fas fa-cash-register',
+        'cierre_caja': 'fas fa-money-check',
+        'retiro_caja': 'fas fa-money-bill-wave',
+        'acceso_admin': 'fas fa-user-shield',
+        'acceso_cajero': 'fas fa-user',
+        'acceso_login': 'fas fa-door-open',
+        'creacion_usuario': 'fas fa-user-plus',
+        'modificacion_usuario': 'fas fa-user-edit',
+        'eliminacion_usuario': 'fas fa-user-minus',
+        'creacion_producto': 'fas fa-box-plus',
+        'modificacion_producto': 'fas fa-box-open',
+        'eliminacion_producto': 'fas fa-trash',
+        'creacion_categoria': 'fas fa-folder-plus',
+        'modificacion_categoria': 'fas fa-folder-open',
+        'eliminacion_categoria': 'fas fa-folder-minus'
+    };
+    return iconos[tipo] || 'fas fa-info-circle';
+}
+
+/**
+ * Obtiene la clase CSS para el tipo de log.
+ */
+function getTipoLogClase(tipo) {
+    const clases = {
+        'login': 'logs-login',
+        'login_fallido': 'logs-error',
+        'logout': 'logs-logout',
+        'venta': 'logs-venta',
+        'apertura_caja': 'logs-caja',
+        'cierre_caja': 'logs-caja',
+        'retiro_caja': 'logs-retiro',
+        'acceso_admin': 'logs-admin',
+        'creacion_usuario': 'logs-usuario',
+        'modificacion_usuario': 'logs-usuario',
+        'eliminacion_usuario': 'logs-usuario',
+        'creacion_producto': 'logs-producto',
+        'modificacion_producto': 'logs-producto',
+        'eliminacion_producto': 'logs-producto',
+        'creacion_categoria': 'logs-categoria',
+        'modificacion_categoria': 'logs-categoria',
+        'eliminacion_categoria': 'logs-categoria'
+    };
+    return clases[tipo] || '';
+}
+
+/**
+ * Obtiene el texto legible para el tipo de log.
+ */
+function getTipoLogTexto(tipo) {
+    const textos = {
+        'login': 'Login',
+        'login_fallido': 'Credenciales incorrectas',
+        'logout': 'Logout',
+        'venta': 'Venta',
+        'apertura_caja': 'Apertura Caja',
+        'cierre_caja': 'Cierre Caja',
+        'retiro_caja': 'Retiro',
+        'acceso_admin': 'Acceso Admin',
+        'acceso_cajero': 'Acceso Cajero',
+        'acceso_login': 'Acceso Login',
+        'creacion_usuario': 'Usuario Creado',
+        'modificacion_usuario': 'Usuario Modificado',
+        'eliminacion_usuario': 'Usuario Eliminado',
+        'creacion_producto': 'Producto Creado',
+        'modificacion_producto': 'Producto Modificado',
+        'eliminacion_producto': 'Producto Eliminado',
+        'creacion_categoria': 'Categoría Creada',
+        'modificacion_categoria': 'Categoría Modificada',
+        'eliminacion_categoria': 'Categoría Eliminada'
+    };
+    return textos[tipo] || tipo;
+}
+
+/**
  * Renderiza el editor de tema completo.
  */
 function renderEditorTema() {
@@ -1732,13 +2187,6 @@ function renderEditorTema() {
 
     let html = `
         <div class="tema-editor">
-            <div class="tema-editor-intro">
-                <i class="fas fa-paint-brush" style="font-size: 1.5rem; color: var(--accent, #2563eb);"></i>
-                <div>
-                    <p class="tema-intro-titulo">Personaliza la apariencia de tu TPV</p>
-                    <p class="tema-intro-subtitulo">Los cambios se previsualizan en tiempo real. Pulsa "Guardar" para aplicarlos de forma permanente.</p>
-                </div>
-            </div>
             <div class="tema-secciones-grid">
                 ${SECCIONES_TEMA.map(s => generarSeccionTema(s)).join('')}
             </div>
@@ -1842,23 +2290,112 @@ function cargarGoogleFonts(fuentes) {
 }
 
 /**
+ * Previsualiza el icono del header en tiempo real.
+ */
+function previsualizarIcono() {
+    const svgInput = document.getElementById('tema_header_icon');
+    const preview = document.getElementById('preview_header_icon');
+
+    if (!svgInput || !preview) return;
+
+    const svgCode = svgInput.value.trim();
+    if (svgCode) {
+        preview.innerHTML = svgCode;
+        // Ajustar tamaño del icono en el preview
+        const svg = preview.querySelector('svg');
+        if (svg) {
+            svg.style.width = '48px';
+            svg.style.height = '48px';
+        }
+    } else {
+        preview.innerHTML = '<span style="color: var(--text-muted);">Vista previa del icono</span>';
+    }
+}
+
+/**
+ * Previsualiza el favicon cuando se selecciona un archivo.
+ */
+function previsualizarFavicon(input) {
+    const preview = document.getElementById('preview_favicon');
+
+    if (!preview || !input.files || !input.files[0]) return;
+
+    const file = input.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+        preview.innerHTML = `<img src="${e.target.result}" alt="Favicon" style="width: 32px; height: 32px;">`;
+    };
+
+    reader.readAsDataURL(file);
+}
+
+/**
  * Guarda toda la configuración del tema via POST a la API.
  */
 function guardarTema() {
     const datos = {};
 
-    SECCIONES_TEMA.forEach(seccion => {
-        const bgInput = document.getElementById('tema_' + seccion.bgKey);
-        const colorInput = document.getElementById('tema_' + seccion.colorKey);
-        const fontSelect = document.getElementById('tema_' + seccion.fontKey);
+    // Primero, copiar todos los valores actuales de temaActual como base
+    Object.assign(datos, temaActual);
 
-        if (bgInput) datos[seccion.bgKey] = bgInput.value;
-        if (colorInput) datos[seccion.colorKey] = colorInput.value;
-        if (fontSelect) datos[seccion.fontKey] = fontSelect.value;
+    // Luego, sobrescribir con los valores de los inputs
+    SECCIONES_TEMA.forEach(seccion => {
+        if (seccion.bgKey) {
+            const bgInput = document.getElementById('tema_' + seccion.bgKey);
+            if (bgInput) datos[seccion.bgKey] = bgInput.value;
+        }
+        if (seccion.colorKey) {
+            const colorInput = document.getElementById('tema_' + seccion.colorKey);
+            if (colorInput) datos[seccion.colorKey] = colorInput.value;
+        }
+        if (seccion.fontKey) {
+            const fontSelect = document.getElementById('tema_' + seccion.fontKey);
+            if (fontSelect) datos[seccion.fontKey] = fontSelect.value;
+        }
     });
+
+    // Actualizar icono SVG del header desde el textarea
+    const headerIconInput = document.getElementById('tema_header_icon');
+    if (headerIconInput && headerIconInput.value.trim()) {
+        datos['header_icon'] = headerIconInput.value;
+    }
+
+    // Manejar favicon - convertir a base64 si se ha seleccionado un archivo
+    const faviconInput = document.getElementById('tema_favicon');
+
+    if (faviconInput && faviconInput.files && faviconInput.files[0]) {
+        const file = faviconInput.files[0];
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = function () {
+            datos['favicon'] = reader.result;
+            guardarTemaCompleto(datos);
+        };
+        reader.onerror = function () {
+            alert('Error al leer el archivo del favicon');
+        };
+    } else {
+        // Preservar el favicon existente si no se seleccionó nuevo archivo
+        guardarTemaCompleto(datos);
+    }
+}
+
+/**
+ * Envía los datos del tema a la API.
+ */
+function guardarTemaCompleto(datos) {
+    // Actualizar temaActual con los nuevos valores antes de guardar
+    temaActual = { ...temaActual, ...datos };
 
     // Guardar en localStorage para acceso rápido
     localStorage.setItem('temaTPV', JSON.stringify(datos));
+    console.log('Tema guardado en localStorage:', datos);
+
+    // Aplicar tema inmediatamente en la vista actual
+    if (typeof aplicarTemaGuardado === 'function') {
+        aplicarTemaGuardado();
+    }
 
     // Guardar en la BD via API
     fetch('api/tema.php', {
@@ -1944,6 +2481,27 @@ function aplicarTemaGuardado() {
             footer.style.background = tema.footer_bg;
             footer.style.color = tema.footer_color || '';
             footer.style.fontFamily = tema.footer_font ? `'${tema.footer_font}', sans-serif` : '';
+        }
+
+        // Aplicar icono personalizado del header
+        if (tema.header_icon) {
+            const iconContainer = document.getElementById('header-icon-container');
+            if (iconContainer) {
+                iconContainer.innerHTML = tema.header_icon;
+                const svg = iconContainer.querySelector('svg');
+                if (svg) {
+                    svg.setAttribute('width', '36');
+                    svg.setAttribute('height', '36');
+                }
+            }
+        }
+
+        // Aplicar favicon personalizado
+        if (tema.favicon) {
+            const faviconLink = document.getElementById('favicon-link');
+            if (faviconLink) {
+                faviconLink.href = tema.favicon;
+            }
         }
 
         // Cargar fuentes necesarias
@@ -2915,44 +3473,53 @@ function verCliente(id) {
     const compras = celdas[6].textContent.trim();
     const estado = celdas[7].querySelector('.admin-badge')?.textContent.trim() || 'Activo';
 
+    // Detectar tema actual
+    const isDark = document.body.classList.contains('dark-mode');
+    const textColor = isDark ? '#e5e7eb' : '#1f2937';
+    const labelColor = isDark ? '#9ca3af' : '#6b7280';
+    const borderColor = isDark ? '#374151' : '#e5e7eb';
+
     // Crear modal dinámicamente
     const modalHtml = `
         <div class="modal-overlay" id="modalVerCliente" style="display: flex;">
             <div class="modal-content" style="max-width: 450px; text-align: left;">
-                <h3 style="margin-bottom: 20px; color: #1f2937;">Detalles del Cliente</h3>
+                <h3 style="margin-bottom: 20px; color: ${textColor};">Detalles del Cliente</h3>
                 
                 <div style="display: grid; gap: 12px;">
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
-                        <span style="color: #6b7280; font-weight: 500;">DNI:</span>
-                        <span style="color: #1f2937; font-weight: 600;">${dni}</span>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid ${borderColor}; padding-bottom: 8px;">
+                        <span style="color: ${labelColor}; font-weight: 500;">DNI:</span>
+                        <span style="color: ${textColor}; font-weight: 600;">${dni}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
-                        <span style="color: #6b7280; font-weight: 500;">Nombre:</span>
-                        <span style="color: #1f2937;">${nombre}</span>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid ${borderColor}; padding-bottom: 8px;">
+                        <span style="color: ${labelColor}; font-weight: 500;">Nombre:</span>
+                        <span style="color: ${textColor};">${nombre}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
-                        <span style="color: #6b7280; font-weight: 500;">Apellidos:</span>
-                        <span style="color: #1f2937;">${apellidos}</span>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid ${borderColor}; padding-bottom: 8px;">
+                        <span style="color: ${labelColor}; font-weight: 500;">Apellidos:</span>
+                        <span style="color: ${textColor};">${apellidos}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
-                        <span style="color: #6b7280; font-weight: 500;">Fecha de Alta:</span>
-                        <span style="color: #1f2937;">${fechaAlta}</span>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid ${borderColor}; padding-bottom: 8px;">
+                        <span style="color: ${labelColor}; font-weight: 500;">Fecha de Alta:</span>
+                        <span style="color: ${textColor};">${fechaAlta}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
-                        <span style="color: #6b7280; font-weight: 500;">Productos Comprados:</span>
-                        <span style="color: #1f2937;">${productos}</span>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid ${borderColor}; padding-bottom: 8px;">
+                        <span style="color: ${labelColor}; font-weight: 500;">Productos Comprados:</span>
+                        <span style="color: ${textColor};">${productos}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
-                        <span style="color: #6b7280; font-weight: 500;">Compras Realizadas:</span>
-                        <span style="color: #1f2937;">${compras}</span>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid ${borderColor}; padding-bottom: 8px;">
+                        <span style="color: ${labelColor}; font-weight: 500;">Compras Realizadas:</span>
+                        <span style="color: ${textColor};">${compras}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; padding-bottom: 8px;">
-                        <span style="color: #6b7280; font-weight: 500;">Estado:</span>
+                        <span style="color: ${labelColor}; font-weight: 500;">Estado:</span>
                         <span class="admin-badge ${estado === 'Activo' ? 'badge-activo' : 'badge-inactivo'}">${estado}</span>
                     </div>
                 </div>
 
-                <div style="display: flex; justify-content: center; margin-top: 25px;">
+                <div style="display: flex; justify-content: center; gap: 15px; margin-top: 25px;">
+                    <button class="btn-admin-accion btn-ver" onclick="cerrarModal('modalVerCliente'); document.getElementById('modalVerCliente').remove(); verComprasCliente('${dni}')" style="min-width: 180px;">
+                        <i class="fas fa-shopping-bag"></i> Ver Compras
+                    </button>
                     <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCliente'); document.getElementById('modalVerCliente').remove();" style="min-width: 100px;">
                         Cerrar
                     </button>
@@ -2969,6 +3536,242 @@ function verCliente(id) {
 
     // Añadir modal al body
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+/**
+ * Muestra el modal con el carrusel de compras del cliente
+ * @param {string} dni - DNI del cliente
+ */
+function verComprasCliente(dni) {
+    // Mostrar indicador de carga
+    const isDark = document.body.classList.contains('dark-mode');
+    const bgColor = isDark ? '#1f2937' : '#ffffff';
+    const textColor = isDark ? '#e5e7eb' : '#1f2937';
+    const labelColor = isDark ? '#9ca3af' : '#6b7280';
+    const borderColor = isDark ? '#374151' : '#e5e7eb';
+
+    const loadingModal = `
+        <div class="modal-overlay" id="modalVerCompras" style="display: flex;">
+            <div class="modal-content" style="max-width: 700px; max-height: 80vh; text-align: left; overflow: hidden; display: flex; flex-direction: column;">
+                <h3 style="margin-bottom: 15px; color: ${textColor};">Compras del Cliente</h3>
+                <p style="color: ${labelColor}; margin-bottom: 20px;">Cargando compras...</p>
+            </div>
+        </div>
+    `;
+
+    // Eliminar modal anterior si existe
+    const modalExistente = document.getElementById('modalVerCompras');
+    if (modalExistente) {
+        modalExistente.remove();
+    }
+
+    document.body.insertAdjacentHTML('beforeend', loadingModal);
+
+    // Fetch purchases from API
+    fetch(`api/clientes.php?compras=1&dni=${encodeURIComponent(dni)}`)
+        .then(res => res.json())
+        .then(data => {
+            // Check if the response is error, null, or not an array
+            if (!data || (typeof data !== 'object') || (Array.isArray(data) === false && !data.error)) {
+                console.error('Invalid API response:', data);
+                throw new Error('Respuesta inválida del servidor');
+            }
+
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            const ventas = data;
+            const modal = document.getElementById('modalVerCompras');
+
+            if (!ventas || ventas.length === 0) {
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 500px; text-align: left;">
+                        <h3 style="margin-bottom: 15px; color: ${textColor};">Compras del Cliente</h3>
+                        <p style="color: ${labelColor}; margin-bottom: 20px;">Este cliente no tiene compras registradas.</p>
+                        <div style="display: flex; justify-content: center;">
+                            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCompras'); document.getElementById('modalVerCompras').remove();" style="min-width: 100px;">
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Generate carousel slides for each sale
+            let slidesHtml = '';
+            let indicatorsHtml = '';
+
+            ventas.forEach((venta, index) => {
+                const fecha = new Date(venta.fecha).toLocaleString('es-ES', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+
+                const metodoPagoIcon = {
+                    'efectivo': 'fa-money-bill-wave',
+                    'tarjeta': 'fa-credit-card',
+                    'bizum': 'fa-mobile-alt'
+                }[venta.metodoPago] || 'fa-money-bill-wave';
+
+                // Generate table rows for products
+                let lineasHtml = '';
+                let totalIva = 0;
+                if (venta.lineas && venta.lineas.length > 0) {
+                    venta.lineas.forEach(linea => {
+                        lineasHtml += `
+                            <tr style="border-bottom: 1px solid ${borderColor};">
+                                <td style="padding: 8px; color: ${textColor};">${linea.producto_nombre || 'Producto'}</td>
+                                <td style="padding: 8px; text-align: center; color: ${textColor};">${linea.cantidad}</td>
+                                <td style="padding: 8px; text-align: right; color: ${textColor};">${linea.precioUnitarioConIva.toFixed(2).replace('.', ',')} €</td>
+                                <td style="padding: 8px; text-align: right; color: ${textColor};">${linea.subtotalConIva.toFixed(2).replace('.', ',')} €</td>
+                            </tr>
+                        `;
+                        totalIva += linea.subtotalConIva;
+                    });
+                }
+
+                const activeClass = index === 0 ? 'active' : '';
+                const displayStyle = index === 0 ? 'block' : 'none';
+
+                slidesHtml += `
+                    <div class="carousel-sale-slide ${activeClass}" data-index="${index}" style="display: ${displayStyle};">
+                        <div style="background: ${isDark ? '#374151' : '#f3f4f6'}; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                <div>
+                                    <span style="color: ${labelColor}; font-size: 13px;">Ticket #${venta.id}</span>
+                                    <div style="color: ${textColor}; font-weight: 600;">${fecha}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <span style="color: ${labelColor}; font-size: 13px;">${venta.usuario_nombre || 'Cajero'}</span>
+                                    <div style="color: ${textColor};"><i class="fas ${metodoPagoIcon}"></i> ${venta.metodoPago}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="max-height: 250px; overflow-y: auto; border: 1px solid ${borderColor}; border-radius: 8px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead style="background: ${isDark ? '#1f2937' : '#f9fafb'}; position: sticky; top: 0;">
+                                    <tr>
+                                        <th style="padding: 8px; text-align: left; color: ${labelColor};">Producto</th>
+                                        <th style="padding: 8px; text-align: center; color: ${labelColor};">Cant.</th>
+                                        <th style="padding: 8px; text-align: right; color: ${labelColor};">Precio</th>
+                                        <th style="padding: 8px; text-align: right; color: ${labelColor};">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${lineasHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
+                            <div style="background: ${isDark ? '#1f2937' : '#f3f4f6'}; padding: 10px 20px; border-radius: 8px;">
+                                <span style="color: ${labelColor};">Total: </span>
+                                <span style="color: ${textColor}; font-size: 18px; font-weight: bold;">${parseFloat(venta.total).toFixed(2).replace('.', ',')} €</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                indicatorsHtml += `
+                    <button class="carousel-indicator ${activeClass}" onclick="changeSaleSlide(${index})" 
+                        style="width: 10px; height: 10px; border-radius: 50%; border: none; background: ${index === 0 ? (isDark ? '#60a5fa' : '#3b82f6') : (isDark ? '#4b5563' : '#d1d5db')}; cursor: pointer; transition: background 0.3s;"></button>
+                `;
+            });
+
+            // Build carousel modal
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 700px; max-height: 85vh; text-align: left; overflow: hidden; display: flex; flex-direction: column; background: ${bgColor};">
+                    <h3 style="margin-bottom: 15px; color: ${textColor}; padding-right: 40px;">Historial de Compras (${ventas.length})</h3>
+                    
+                    <div style="flex: 1; overflow-y: auto; padding: 5px;">
+                        ${slidesHtml}
+                    </div>
+                    
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 20px; padding: 15px 0; border-top: 1px solid ${borderColor}; margin-top: 10px;">
+                        <button onclick="prevSaleSlide()" style="background: none; border: none; color: ${labelColor}; font-size: 24px; cursor: pointer; padding: 5px 15px;">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            ${indicatorsHtml}
+                        </div>
+                        
+                        <button onclick="nextSaleSlide()" style="background: none; border: none; color: ${labelColor}; font-size: 24px; cursor: pointer; padding: 5px 15px;">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: center; margin-top: 5px;">
+                        <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCompras'); document.getElementById('modalVerCompras').remove();" style="min-width: 100px;">
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Store total slides for navigation
+            modal.dataset.totalSlides = ventas.length;
+        })
+        .catch(err => {
+            console.error('Error cargando compras:', err);
+            const modal = document.getElementById('modalVerCompras');
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 500px; text-align: left;">
+                    <h3 style="margin-bottom: 15px; color: ${textColor};">Error</h3>
+                    <p style="color: ${labelColor}; margin-bottom: 20px;">Error al cargar las compras del cliente.</p>
+                    <div style="display: flex; justify-content: center;">
+                        <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCompras'); document.getElementById('modalVerCompras').remove();" style="min-width: 100px;">
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+}
+
+let currentSaleSlide = 0;
+
+function changeSaleSlide(index) {
+    const modal = document.getElementById('modalVerCompras');
+    if (!modal) return;
+
+    const isDark = document.body.classList.contains('dark-mode');
+    const totalSlides = parseInt(modal.dataset.totalSlides) || 0;
+    const slides = modal.querySelectorAll('.carousel-sale-slide');
+    const indicators = modal.querySelectorAll('.carousel-indicator');
+
+    // Hide all slides
+    slides.forEach(slide => slide.style.display = 'none');
+    indicators.forEach(ind => {
+        ind.style.background = isDark ? '#4b5563' : '#d1d5db';
+    });
+
+    // Show selected slide
+    slides[index].style.display = 'block';
+    indicators[index].style.background = isDark ? '#60a5fa' : '#3b82f6';
+
+    currentSaleSlide = index;
+}
+
+function nextSaleSlide() {
+    const modal = document.getElementById('modalVerCompras');
+    if (!modal) return;
+
+    const totalSlides = parseInt(modal.dataset.totalSlides) || 0;
+    const nextIndex = (currentSaleSlide + 1) % totalSlides;
+    changeSaleSlide(nextIndex);
+}
+
+function prevSaleSlide() {
+    const modal = document.getElementById('modalVerCompras');
+    if (!modal) return;
+
+    const totalSlides = parseInt(modal.dataset.totalSlides) || 0;
+    const prevIndex = (currentSaleSlide - 1 + totalSlides) % totalSlides;
+    changeSaleSlide(prevIndex);
 }
 
 /**
@@ -3561,11 +4364,24 @@ function confirmarEliminarCategoria(id, nombre) {
  */
 function abrirModalEditarCategoria(id, nombre, descripcion = '') {
     const modal = document.getElementById('modalEditarCategoria');
+
+    // Detectar tema actual
+    const isDark = document.body.classList.contains('dark-mode');
+    const bgColor = isDark ? '#1f2937' : 'white';
+    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const inputBg = isDark ? '#374151' : 'white';
+    const inputBorder = isDark ? '#4b5563' : '#e5e7eb';
+    const footerBg = isDark ? '#374151' : '#f9fafb';
+    const footerBorder = isDark ? '#4b5563' : '#e5e7eb';
+    const btnCancelBg = isDark ? '#4b5563' : 'white';
+    const btnCancelColor = isDark ? '#e5e7eb' : '#374151';
+    const btnCancelBorder = isDark ? '#6b7280' : '#d1d5db';
+
     if (!modal) {
         // Crear el modal si no existe
         const modalHtml = `
             <div id="modalEditarCategoria" class="modal-overlay" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
-                <div class="modal-content" style="background: white; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); max-width: 500px; width: 90%; overflow: hidden;">
+                <div class="modal-content" style="background: ${bgColor}; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); max-width: 500px; width: 90%; overflow: hidden;">
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
                         <h3 style="margin: 0; font-size: 18px;">Editar Categoría</h3>
                         <button onclick="cerrarModal('modalEditarCategoria')" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
@@ -3573,16 +4389,16 @@ function abrirModalEditarCategoria(id, nombre, descripcion = '') {
                     <div style="padding: 25px;">
                         <input type="hidden" id="editarCategoriaId">
                         <div style="margin-bottom: 20px;">
-                            <label for="editarCategoriaNombre" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Nombre:</label>
-                            <input type="text" id="editarCategoriaNombre" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;" required>
+                            <label for="editarCategoriaNombre" style="display: block; margin-bottom: 8px; font-weight: 600; color: ${textColor};">Nombre:</label>
+                            <input type="text" id="editarCategoriaNombre" style="width: 100%; padding: 12px; border: 1px solid ${inputBorder}; border-radius: 8px; font-size: 14px; box-sizing: border-box; background: ${inputBg}; color: ${textColor};" required>
                         </div>
                         <div style="margin-bottom: 20px;">
-                            <label for="editarCategoriaDescripcion" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Descripción:</label>
-                            <textarea id="editarCategoriaDescripcion" rows="4" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; resize: vertical; font-family: inherit;"></textarea>
+                            <label for="editarCategoriaDescripcion" style="display: block; margin-bottom: 8px; font-weight: 600; color: ${textColor};">Descripción:</label>
+                            <textarea id="editarCategoriaDescripcion" rows="4" style="width: 100%; padding: 12px; border: 1px solid ${inputBorder}; border-radius: 8px; font-size: 14px; box-sizing: border-box; resize: vertical; font-family: inherit; background: ${inputBg}; color: ${textColor};"></textarea>
                         </div>
                     </div>
-                    <div style="padding: 15px 25px; background: #f9fafb; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e5e7eb;">
-                        <button onclick="cerrarModal('modalEditarCategoria')" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; color: #374151; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s;">Cancelar</button>
+                    <div style="padding: 15px 25px; background: ${footerBg}; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid ${footerBorder};">
+                        <button onclick="cerrarModal('modalEditarCategoria')" style="padding: 10px 20px; border: 1px solid ${btnCancelBorder}; background: ${btnCancelBg}; color: ${btnCancelColor}; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s;">Cancelar</button>
                         <button onclick="guardarEditarCategoria()" style="padding: 10px 20px; background: #4f46e5; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s;">Guardar</button>
                     </div>
                 </div>
@@ -3892,6 +4708,294 @@ function mostrarPanelAjustePrecios() {
         </div>`;
 }
 
+/**
+ * Muestra el panel de tarifas prefijadas en la vista de admin
+ */
+function mostrarPanelTarifasPrefijadas() {
+    const contenedor = document.getElementById('adminContenido');
+    seccionActual = 'tarifas-prefijadas';
+    adminTablaHeaderHTML = '';
+
+    // Cargar tarifas desde la API
+    fetch('api/tarifas.php')
+        .then(res => res.json())
+        .then(tarifas => {
+            let filasTabla = '';
+            tarifas.forEach(tarifa => {
+                const requiereCliente = tarifa.requiere_cliente ? 'Sí' : 'No';
+                // Mostrar siempre el porcentaje de descuento
+                const descuentoBadge = `<span style="background: #dbeafe; color: #1e40af; padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 13px;">${tarifa.descuento_porcentaje}%</span>`;
+                filasTabla += `
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 12px; font-weight: 600;">${tarifa.nombre}</td>
+                        <td style="padding: 12px;">${tarifa.descripcion || '-'}</td>
+                        <td style="padding: 12px;">
+                            ${descuentoBadge}
+                        </td>
+                        <td style="padding: 12px; color: ${tarifa.requiere_cliente ? '#059669' : '#6b7280'};">
+                            ${requiereCliente}
+                        </td>
+                        <td style="padding: 12px;">
+                            <button onclick="abrirModalEditarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}', '${(tarifa.descripcion || '').replace(/'/g, "\\'")}', ${tarifa.descuento_porcentaje}, ${tarifa.requiere_cliente ? 1 : 0})" 
+                                style="padding: 6px 12px; background: #4f46e5; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 5px;">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                            <button onclick="eliminarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}')" 
+                                style="padding: 6px 12px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+                        </td>
+                    </tr>`;
+            });
+
+            contenedor.innerHTML = `
+                <div class="admin-tabla-header">
+                    <h2 style="margin: 0; font-size: 24px; font-weight: 600;">Tarifas Prefijadas</h2>
+                    <p style="color: #6b7280; margin-top: 5px;">
+                        Gestiona las tarifas disponibles en el selector de tickets del cajero.
+                    </p>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <button onclick="abrirModalNuevaTarifa()" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                        <i class="fas fa-plus" style="margin-right: 8px;"></i> Nueva Tarifa
+                    </button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" class="tabla-tarifas">
+                        <thead class="tabla-tarifas-head">
+                            <tr>
+                                <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase;">Nombre</th>
+                                <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase;">Descripción</th>
+                                <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase;">Descuento</th>
+                                <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase;">Requiere Cliente</th>
+                                <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaTarifas">
+                            ${filasTabla}
+                        </tbody>
+                    </table>
+                </div>
+                <div id="modalesTarifas"></div>`;
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            contenedor.innerHTML = '<p style="color: red;">Error al cargar las tarifas</p>';
+        });
+}
+
+/**
+ * Abre el modal para crear una nueva tarifa
+ */
+function abrirModalNuevaTarifa() {
+    const modalesDiv = document.getElementById('modalesTarifas');
+
+    // Detectar tema actual
+    const isDark = document.body.classList.contains('dark-mode');
+    const bgColor = isDark ? '#1f2937' : 'white';
+    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const inputBg = isDark ? '#374151' : 'white';
+    const inputBorder = isDark ? '#4b5563' : '#e5e7eb';
+    const footerBg = isDark ? '#374151' : '#f9fafb';
+    const footerBorder = isDark ? '#4b5563' : '#e5e7eb';
+    const btnCancelBg = isDark ? '#4b5563' : 'white';
+    const btnCancelColor = isDark ? '#e5e7eb' : '#374151';
+    const btnCancelBorder = isDark ? '#6b7280' : '#d1d5db';
+
+    modalesDiv.innerHTML = `
+        <div id="modalNuevaTarifa" class="modal-overlay" style="display: flex; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+            <div class="modal-content" style="background: ${bgColor}; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-width: 500px; width: 90%; overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 18px;">Nueva Tarifa</h3>
+                    <button onclick="cerrarModal('modalNuevaTarifa')" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+                </div>
+                <div style="padding: 25px;">
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Nombre:</label>
+                        <input type="text" id="nuevaTarifaNombre" style="width: 100%; padding: 10px; border: 1px solid ${inputBorder}; border-radius: 6px; font-size: 14px; box-sizing: border-box; background: ${inputBg}; color: ${textColor};" required>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Descripción:</label>
+                        <textarea id="nuevaTarifaDescripcion" rows="3" style="width: 100%; padding: 10px; border: 1px solid ${inputBorder}; border-radius: 6px; font-size: 14px; box-sizing: border-box; resize: vertical; background: ${inputBg}; color: ${textColor};"></textarea>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Descuento (%):</label>
+                        <input type="number" id="nuevaTarifaDescuento" step="0.01" min="0" max="100" value="0" style="width: 100%; padding: 10px; border: 1px solid ${inputBorder}; border-radius: 6px; font-size: 14px; box-sizing: border-box; background: ${inputBg}; color: ${textColor};">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="nuevaTarifaRequiereCliente" style="width: 18px; height: 18px; margin-right: 8px;">
+                            <span style="font-weight: 500; color: ${textColor};">Requiere búsqueda de cliente</span>
+                        </label>
+                    </div>
+                </div>
+                <div style="padding: 15px 25px; background: ${footerBg}; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid ${footerBorder};">
+                    <button onclick="cerrarModal('modalNuevaTarifa')" style="padding: 10px 20px; border: 1px solid ${btnCancelBorder}; background: ${btnCancelBg}; color: ${btnCancelColor}; border-radius: 6px; cursor: pointer; font-weight: 500;">Cancelar</button>
+                    <button onclick="guardarNuevaTarifa()" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">Guardar</button>
+                </div>
+            </div>
+        </div>`;
+}
+
+/**
+ * Guarda una nueva tarifa
+ */
+function guardarNuevaTarifa() {
+    const nombre = document.getElementById('nuevaTarifaNombre').value.trim();
+    const descripcion = document.getElementById('nuevaTarifaDescripcion').value.trim();
+    const descuento_porcentaje = parseFloat(document.getElementById('nuevaTarifaDescuento').value) || 0;
+    const requiere_cliente = document.getElementById('nuevaTarifaRequiereCliente').checked ? 1 : 0;
+
+    if (!nombre) {
+        alert('El nombre es obligatorio');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('nombre', nombre);
+    formData.append('descripcion', descripcion);
+    formData.append('descuento_porcentaje', descuento_porcentaje);
+    formData.append('requiere_cliente', requiere_cliente);
+
+    fetch('api/tarifas.php', {
+        method: 'POST',
+        body: formData
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            cerrarModal('modalNuevaTarifa');
+            mostrarPanelTarifasPrefijadas();
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al guardar la tarifa');
+        });
+}
+
+/**
+ * Abre el modal para editar una tarifa
+ */
+function abrirModalEditarTarifa(id, nombre, descripcion, descuento, requiereCliente) {
+    const modalesDiv = document.getElementById('modalesTarifas');
+
+    // Detectar tema actual
+    const isDark = document.body.classList.contains('dark-mode');
+    const bgColor = isDark ? '#1f2937' : 'white';
+    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const inputBg = isDark ? '#374151' : 'white';
+    const inputBorder = isDark ? '#4b5563' : '#e5e7eb';
+    const footerBg = isDark ? '#374151' : '#f9fafb';
+    const footerBorder = isDark ? '#4b5563' : '#e5e7eb';
+    const btnCancelBg = isDark ? '#4b5563' : 'white';
+    const btnCancelColor = isDark ? '#e5e7eb' : '#374151';
+    const btnCancelBorder = isDark ? '#6b7280' : '#d1d5db';
+
+    modalesDiv.innerHTML = `
+        <div id="modalEditarTarifa" class="modal-overlay" style="display: flex; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+            <div class="modal-content" style="background: ${bgColor}; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-width: 500px; width: 90%; overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 18px;">Editar Tarifa</h3>
+                    <button onclick="cerrarModal('modalEditarTarifa')" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+                </div>
+                <div style="padding: 25px;">
+                    <input type="hidden" id="editarTarifaId" value="${id}">
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Nombre:</label>
+                        <input type="text" id="editarTarifaNombre" value="${nombre}" style="width: 100%; padding: 10px; border: 1px solid ${inputBorder}; border-radius: 6px; font-size: 14px; box-sizing: border-box; background: ${inputBg}; color: ${textColor};" required>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Descripción:</label>
+                        <textarea id="editarTarifaDescripcion" rows="3" style="width: 100%; padding: 10px; border: 1px solid ${inputBorder}; border-radius: 6px; font-size: 14px; box-sizing: border-box; resize: vertical; background: ${inputBg}; color: ${textColor};">${descripcion || ''}</textarea>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Descuento (%):</label>
+                        <input type="number" id="editarTarifaDescuento" step="0.01" min="0" max="100" value="${descuento}" style="width: 100%; padding: 10px; border: 1px solid ${inputBorder}; border-radius: 6px; font-size: 14px; box-sizing: border-box; background: ${inputBg}; color: ${textColor};">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="editarTarifaRequiereCliente" ${requiereCliente === 1 ? 'checked' : ''} style="width: 18px; height: 18px; margin-right: 8px;">
+                            <span style="font-weight: 500; color: ${textColor};">Requiere búsqueda de cliente</span>
+                        </label>
+                    </div>
+                </div>
+                <div style="padding: 15px 25px; background: ${footerBg}; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid ${footerBorder};">
+                    <button onclick="cerrarModal('modalEditarTarifa')" style="padding: 10px 20px; border: 1px solid ${btnCancelBorder}; background: ${btnCancelBg}; color: ${btnCancelColor}; border-radius: 6px; cursor: pointer; font-weight: 500;">Cancelar</button>
+                    <button onclick="guardarEditarTarifa()" style="padding: 10px 20px; background: #4f46e5; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">Guardar</button>
+                </div>
+            </div>
+        </div>`;
+}
+
+/**
+ * Guarda los cambios de una tarifa editada
+ */
+function guardarEditarTarifa() {
+    const id = document.getElementById('editarTarifaId').value;
+    const nombre = document.getElementById('editarTarifaNombre').value.trim();
+    const descripcion = document.getElementById('editarTarifaDescripcion').value.trim();
+    const descuento_porcentaje = parseFloat(document.getElementById('editarTarifaDescuento').value) || 0;
+    const requiere_cliente = document.getElementById('editarTarifaRequiereCliente').checked ? 1 : 0;
+
+    if (!nombre) {
+        alert('El nombre es obligatorio');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('editar', id);
+    formData.append('nombre', nombre);
+    formData.append('descripcion', descripcion);
+    formData.append('descuento_porcentaje', descuento_porcentaje);
+    formData.append('requiere_cliente', requiere_cliente);
+
+    fetch('api/tarifas.php', {
+        method: 'POST',
+        body: formData
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            cerrarModal('modalEditarTarifa');
+            mostrarPanelTarifasPrefijadas();
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al guardar los cambios');
+        });
+}
+
+/**
+ * Elimina una tarifa (la marca como inactiva)
+ */
+function eliminarTarifa(id, nombre) {
+    if (!confirm('¿Estás seguro de que quieres eliminar la tarifa "' + nombre + '"?')) {
+        return;
+    }
+
+    fetch('api/tarifas.php?eliminar=' + id, {
+        method: 'DELETE'
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            mostrarPanelTarifasPrefijadas();
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al eliminar la tarifa');
+        });
+}
+
 let debounceTimerPrecios = null;
 function actualizarPrevisualizacionPreciosAuto() {
     const input = document.getElementById('porcentajeAjuste');
@@ -4107,6 +5211,9 @@ function confirmarEliminarProductoProveedor(idAsociacion, nombreProducto) {
             .catch(err => console.error('Error eliminando asociación:', err));
     }
 }
+
+
+
 
 
 

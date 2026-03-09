@@ -312,12 +312,13 @@
                     <option value="bizum">Bizum</option>
                 </select>
 
-                <!-- Selector de tarifa: Cliente, Cliente registrado, Mayorista nivel 1, Mayorista nivel 2 -->
+                <!-- Selector de tarifa: se carga desde la base de datos -->
                 <select id="tarifaVenta">
-                    <option value="cliente">Cliente</option>
-                    <option value="registrado">Cliente registrado</option>
-                    <option value="mayorista1">Mayorista nivel 1</option>
-                    <option value="mayorista2">Mayorista nivel 2</option>
+                    <?php foreach ($tarifas as $tarifa): ?>
+                        <option value="<?php echo htmlspecialchars($tarifa['id']); ?>" <?php echo ($tarifa['nombre'] === 'Cliente') ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($tarifa['nombre']); ?>
+                        </option>
+                    <?php endforeach; ?>
                 </select>
 
                 <!-- Aviso legal: no se permite pago en efectivo superior a 1.000€ -->
@@ -346,6 +347,8 @@
         <input type="hidden" name="metodoPago" id="inputMetodoPago">
         <!-- Tipo de documento (ticket/factura) -->
         <input type="hidden" name="tipoDocumento" id="inputTipoDocumento">
+        <!-- Tarifa seleccionada -->
+        <input type="hidden" name="idTarifa" id="inputIdTarifa">
         <!-- Dinero entregado por el cliente (en pago efectivo) -->
         <input type="hidden" name="dineroEntregado" id="inputDineroEntregadoFinal">
         <!-- Cambio devuelto al cliente -->
@@ -636,7 +639,7 @@
 </div>
 
 <!-- ##=========================== MODAL: BUSCAR CLIENTE REGISTRADO ===========================## -->
-<!-- Modal para buscar un cliente registrado por DNI y aplicar descuento del 2% -->
+<!-- Modal para buscar un cliente registrado por DNI y aplicar descuento según tarifa -->
 <div class="modal-overlay" id="modalBuscarClienteRegistrado" style="display:none;">
     <div class="modal-content" style="max-width: 400px; text-align: left;">
         <h3 style="margin-bottom: 5px;">Cliente Registrado</h3>
@@ -731,7 +734,7 @@
     <!-- Script: datos de la última venta pasados de PHP a JavaScript -->
     <!-- Se usa para las funciones de impresión y envío por correo -->
     <script>
-        const ultimaVenta = {
+        let ultimaVenta = {
             id: <?php echo $_SESSION['ultimaVentaId'] ?? 'null'; ?>,                                          // ID de        la venta
             total: '<?php echo number_format($_SESSION['ultimaVentaTotal'] ?? 0, 2, ',', '.'); ?>',       // Total formateado
             tipo: '<?php echo $_SESSION['ultimaVentaTipo'] ?? 'ticket'; ?>',                                     // 'ticket' o 'factura'
@@ -1709,165 +1712,6 @@
             });
     }
 
-    /**
-     * Reimprime un ticket de una venta existente.
-     * @param {number} idVenta - El ID de la venta a reimprimir.
-     */
-    function reimprimirTicket(idVenta) {
-        // Abrir la ventana primero para evitar el bloqueo de popups (requiere contexto de usuario directo)
-        const ventana = window.open('', '_blank', 'width=450,height=700');
-
-        if (!ventana) {
-            alert('El navegador ha bloqueado la ventana de impresión. Por favor, permite los popups para poder imprimir el ticket.');
-            return;
-        }
-
-        // Mostrar un mensaje de carga mientras se obtienen los datos
-        ventana.document.write(`
-            <html>
-                <head><title>Cargando...</title></head>
-                <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 80vh; flex-direction: column; color: #666;">
-                    <div style="border: 4px solid #f3f3f3; border-top: 4px solid #2563eb; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
-                    <p>Obteniendo datos del ticket #${idVenta}...</p>
-                    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
-                </body>
-            </html>
-        `);
-
-        fetch('api/ventas.php?detalleVenta=' + idVenta)
-            .then(res => {
-                if (!res.ok) throw new Error('Error en la respuesta del servidor (HTTP ' + res.status + ')');
-                return res.json();
-            })
-            .then(data => {
-                if (data.error) {
-                    ventana.close();
-                    alert('Error al obtener datos: ' + data.error);
-                    return;
-                }
-
-                const venta = data.venta;
-                const lineas = data.lineas;
-
-                const isFactura = (venta.tipoDocumento === 'factura');
-                const tipoTitulo = isFactura ? 'FACTURA' : 'TICKET DE VENTA';
-
-                let lineasHtml = '';
-                let desgloseIva = {};
-                let sumaPVP = 0;
-
-                lineas.forEach(item => {
-                    const priceBase = parseFloat(item.precioUnitario) || 0;
-                    const qty = parseInt(item.cantidad) || 0;
-                    const ivaPorc = parseInt(item.iva) || 21;
-
-                    const subtotalBase = priceBase * qty;
-                    const cuotaIva = subtotalBase * (ivaPorc / 100);
-                    const subtotalPVP = subtotalBase + cuotaIva;
-
-                    sumaPVP += subtotalPVP;
-
-                    if (!desgloseIva[ivaPorc]) {
-                        desgloseIva[ivaPorc] = { base: 0, cuota: 0 };
-                    }
-                    desgloseIva[ivaPorc].base += subtotalBase;
-                    desgloseIva[ivaPorc].cuota += cuotaIva;
-
-                    lineasHtml += `
-                        <tr>
-                            <td style="padding: 5px 0;">${item.producto_nombre}</td>
-                            <td style="text-align:center;">${qty}</td>
-                            <td style="text-align:right;">${priceBase.toFixed(2).replace('.', ',')} €</td>
-                            <td style="text-align:center;">${ivaPorc}%</td>
-                            <td style="text-align:right;">${subtotalPVP.toFixed(2).replace('.', ',')} €</td>
-                        </tr>
-                    `;
-                });
-
-                const total = parseFloat(venta.total).toFixed(2).replace('.', ',');
-                const fecha = new Date(venta.fecha).toLocaleString('es-ES', {
-                    day: '2-digit', month: '2-digit', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit', second: '2-digit'
-                });
-
-                const contenido = `
-                    <html>
-                    <head>
-                        <title>${tipoTitulo} #${venta.id}</title>
-                        <style>
-                            body { font-family: 'Courier New', Courier, monospace; font-size: 13px; padding: 20px; line-height: 1.4; color: #000; }
-                            .header { text-align: center; margin-bottom: 20px; border-bottom: 1px dashed #000; padding-bottom: 15px; }
-                            table { width: 100%; border-collapse: collapse; }
-                            th { border-bottom: 1px solid #000; padding: 5px 0; text-align: left; font-size: 11px; text-transform: uppercase; }
-                            .total-row { border-top: 1px solid #000; margin-top: 15px; padding-top: 10px; font-weight: bold; font-size: 16px; text-align: right; }
-                            .footer { text-align: center; margin-top: 30px; font-size: 11px; font-style: italic; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="header">
-                            <strong style="font-size: 16px;">TPV BAZAR</strong><br>
-                            NIF: B12345678<br>
-                            C/ Falsa 123, Madrid<br><br>
-                            <span style="font-size: 14px; font-weight: bold;">${tipoTitulo}</span><br>
-                            Nº Ticket: ${venta.id}<br>
-                            Fecha: ${fecha}
-                        </div>
-                        <table class="tabla-lineas">
-                            <thead>
-                                <tr>
-                                    <th>Producto</th>
-                                    <th style="text-align:center">Uds.</th>
-                                    <th style="text-align:right">Base</th>
-                                    <th style="text-align:center">IVA</th>
-                                    <th style="text-align:right">PVP</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${lineasHtml}
-                            </tbody>
-                        </table>
-
-                        <div style="margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px;">
-                            <strong style="font-size: 11px;">Desglose Fiscal:</strong>
-                            <table style="width: 100%; font-size: 11px; margin-top: 5px;">
-                                ${Object.keys(desgloseIva).map(porc => `
-                                    <tr>
-                                        <td>Base al ${porc}%:</td>
-                                        <td style="text-align:right;">${desgloseIva[porc].base.toFixed(2).replace('.', ',')} €</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Cuota IVA (${porc}%):</td>
-                                        <td style="text-align:right;">${desgloseIva[porc].cuota.toFixed(2).replace('.', ',')} €</td>
-                                    </tr>
-                                `).join('')}
-                            </table>
-                        </div>
-
-                        <div class="total-row">TOTAL (PVP): ${total} €</div>
-                        <div style="margin-top: 10px; font-size: 12px;">Método de pago: ${venta.metodoPago || 'Efectivo'}</div>
-                        <div class="footer">Este documento es una copia del original.<br>¡Gracias por su visita!</div>
-                    </body>
-                    </html>
-                `;
-
-                // Escribir el contenido final
-                ventana.document.open();
-                ventana.document.write(contenido);
-                ventana.document.close();
-
-                // Imprimir y cerrar
-                setTimeout(() => {
-                    ventana.focus();
-                    ventana.print();
-                    ventana.close();
-                }, 400);
-            })
-            .catch(err => {
-                if (ventana) ventana.close();
-                console.error('Error en reimprimirTicket:', err);
-                alert('No se pudo obtener la información del ticket para imprimir. ' + err.message);
-            });
-    }
 
     /**
      * Envía un ticket por correo electrónico
@@ -1995,6 +1839,11 @@
     let cajaAbierta = <?php echo $sesionCaja ? 'true' : 'false'; ?>;
 
     /**
+     * Tarifas prefijadas cargadas desde la base de datos
+     */
+    const tarifasPrefijadas = <?php echo json_encode($tarifas); ?>;
+
+    /**
      * Efectivo actual en caja para validaciones (p.ej. devoluciones).
      */
     const efectivoActualCaja = <?php echo $sesionCaja ? $sesionCaja->getImporteActual() : 0; ?>;
@@ -2084,8 +1933,13 @@
         carrito = [];
         descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
         descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
-        // Resetear también el select de tarifa
-        document.getElementById('tarifaVenta').value = 'cliente';
+        // Resetear también el select de tarifa a Cliente
+        const tarifaCliente = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+        if (tarifaCliente) {
+            document.getElementById('tarifaVenta').value = tarifaCliente.id;
+        } else if (tarifasPrefijadas.length > 0) {
+            document.getElementById('tarifaVenta').value = tarifasPrefijadas[0].id;
+        }
         actualizarTicket();
     }
 
@@ -2115,7 +1969,12 @@
         carrito = [];
         descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
         descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
-        document.getElementById('tarifaVenta').value = 'cliente';
+        const tarifaCliente2 = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+        if (tarifaCliente2) {
+            document.getElementById('tarifaVenta').value = tarifaCliente2.id;
+        } else if (tarifasPrefijadas.length > 0) {
+            document.getElementById('tarifaVenta').value = tarifasPrefijadas[0].id;
+        }
         actualizarTicket();
 
         // Mostrar mensaje
@@ -2166,6 +2025,13 @@
             // Restaurar la tarifa
             if (ventaPospuesta.tarifa) {
                 document.getElementById('tarifaVenta').value = ventaPospuesta.tarifa;
+            } else {
+                const tarifaCliente3 = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+                if (tarifaCliente3) {
+                    document.getElementById('tarifaVenta').value = tarifaCliente3.id;
+                } else if (tarifasPrefijadas.length > 0) {
+                    document.getElementById('tarifaVenta').value = tarifasPrefijadas[0].id;
+                }
             }
             actualizarTicket();
         }
@@ -2330,10 +2196,9 @@
 
             // Construir líneas de descuento separadas
             if (descuentoTarifaImporte > 0.01) {
-                const textoTarifa = descuentoTarifa.cupon === 'CLIENTE_REGISTRADO' ? 'Cliente registrado (' + descuentoTarifa.valor + '%)' :
-                    descuentoTarifa.cupon === 'MAYORISTA_NIVEL1' ? 'Mayorista nivel 1 (' + descuentoTarifa.valor + '%)' :
-                        descuentoTarifa.cupon === 'MAYORISTA_NIVEL2' ? 'Mayorista nivel 2 (' + descuentoTarifa.valor + '%)' :
-                            (descuentoTarifa.tipo === 'porcentaje' ? descuentoTarifa.valor + '%' : 'Cupón ' + descuentoTarifa.cupon);
+                // Mostrar nombre de tarifa dinámicamente basado en el cupón
+                const nombreTarifa = descuentoTarifa.cupon ? descuentoTarifa.cupon.replace(/_/g, ' ').toLowerCase() : 'Tarifa';
+                const textoTarifa = nombreTarifa.charAt(0).toUpperCase() + nombreTarifa.slice(1) + ' (' + descuentoTarifa.valor + '%)';
                 lineasDescuento.push(`
                     <div class="resumen-fila-mini descuento-texto">
                         <span>${textoTarifa}:</span>
@@ -2703,6 +2568,9 @@
         document.getElementById('inputDescuentoManualValor').value = descuento.valor;
         document.getElementById('inputDescuentoManualCupon').value = descuento.cupon;
 
+        // Tarifa seleccionada
+        document.getElementById('inputIdTarifa').value = document.getElementById('tarifaVenta').value;
+
         // Enviar el formulario al servidor
         document.getElementById('formVenta').submit();
     }
@@ -2803,17 +2671,13 @@
         let textoDescuentoTarifa = '';
         let textoDescuentoManual = '';
 
-        // Calcular descuento de tarifa (Cliente registrado, Mayorista nivel 1, Mayorista nivel 2)
+        // Calcular descuento de tarifa
         if (ultimaVenta.descuentoTarifaCupon && ultimaVenta.descuentoTarifaCupon !== '') {
             if (ultimaVenta.descuentoTarifaTipo === 'porcentaje') {
                 importeDescuentoTarifa = sumaTotalesNumeric * (ultimaVenta.descuentoTarifaValor / 100);
-                if (ultimaVenta.descuentoTarifaCupon === 'CLIENTE_REGISTRADO') {
-                    textoDescuentoTarifa = 'Cliente registrado (' + ultimaVenta.descuentoTarifaValor + '%)';
-                } else if (ultimaVenta.descuentoTarifaCupon === 'MAYORISTA_NIVEL1') {
-                    textoDescuentoTarifa = 'Mayorista nivel 1 (' + ultimaVenta.descuentoTarifaValor + '%)';
-                } else if (ultimaVenta.descuentoTarifaCupon === 'MAYORISTA_NIVEL2') {
-                    textoDescuentoTarifa = 'Mayorista nivel 2 (' + ultimaVenta.descuentoTarifaValor + '%)';
-                }
+                // Mostrar nombre de tarifa dinámicamente
+                const nombreTarifaAnterior = ultimaVenta.descuentoTarifaCupon.replace(/_/g, ' ').toLowerCase();
+                textoDescuentoTarifa = nombreTarifaAnterior.charAt(0).toUpperCase() + nombreTarifaAnterior.slice(1) + ' (' + ultimaVenta.descuentoTarifaValor + '%)';
             }
         }
 
@@ -3619,21 +3483,29 @@
      * Maneja el cambio de tarifa para aplicar descuentos según el tipo de cliente
      */
     function cambiarTarifa() {
-        const tarifa = document.getElementById('tarifaVenta').value;
+        const tarifaId = document.getElementById('tarifaVenta').value;
 
-        if (tarifa === 'registrado') {
+        // Buscar la tarifa en el array de tarifas prefijadas
+        const tarifa = tarifasPrefijadas.find(t => t.id == tarifaId);
+
+        if (!tarifa) {
+            eliminarDescuentoPorTarifa();
+            return;
+        }
+
+        if (tarifa.requiere_cliente == 1 || tarifa.requiere_cliente === true) {
             // Abrir modal para buscar cliente registrado
             abrirModalBuscarClienteRegistrado();
-        } else if (tarifa === 'cliente') {
-            // Tarifa normal de cliente - sin descuento
+        } else if (parseFloat(tarifa.descuento_porcentaje) === 0) {
+            // Tarifa sin descuento
             eliminarDescuentoPorTarifa();
-        } else if (tarifa === 'mayorista1') {
-            // Mayorista nivel 1 - 12% descuento
-            descuentoTarifa = { tipo: 'porcentaje', valor: 12, cupon: 'MAYORISTA_NIVEL1' };
-            actualizarTicket();
-        } else if (tarifa === 'mayorista2') {
-            // Mayorista nivel 2 - 16% descuento
-            descuentoTarifa = { tipo: 'porcentaje', valor: 16, cupon: 'MAYORISTA_NIVEL2' };
+        } else {
+            // Aplicar descuento
+            descuentoTarifa = {
+                tipo: 'porcentaje',
+                valor: parseFloat(tarifa.descuento_porcentaje),
+                cupon: tarifa.nombre.toUpperCase().replace(/\s+/g, '_')
+            };
             actualizarTicket();
         }
     }
@@ -3650,7 +3522,7 @@
     }
 
     /**
-     * Busca un cliente por DNI y aplica el descuento del 2%
+     * Busca un cliente por DNI y aplica el descuento configurado en la tarifa
      */
     async function buscarClienteRegistrado() {
         const dni = document.getElementById('dniBusquedaCliente').value.trim();
@@ -3672,17 +3544,38 @@
                 mensajeDiv.className = 'mensaje-error';
                 mensajeDiv.style.display = 'block';
                 // Cambiar la tarifa a Cliente
-                document.getElementById('tarifaVenta').value = 'cliente';
+                const tarifaCliente4 = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+                if (tarifaCliente4) {
+                    document.getElementById('tarifaVenta').value = tarifaCliente4.id;
+                } else if (tarifasPrefijadas.length > 0) {
+                    document.getElementById('tarifaVenta').value = tarifasPrefijadas[0].id;
+                }
                 return;
             }
 
             const cliente = await response.json();
 
             if (cliente && cliente.activo == 1) {
-                // Cliente encontrado y activo - aplicar descuento del 2%
-                descuentoTarifa = { tipo: 'porcentaje', valor: 2, cupon: 'CLIENTE_REGISTRADO' };
+                // Cliente encontrado y activo - aplicar descuento de la tarifa configurada
+                // Buscar la tarifa de Cliente Registrado en el array de tarifas
+                const tarifaRegistrada = tarifasPrefijadas.find(t => t.requiere_cliente == 1 || t.requiere_cliente === true);
+                const descuentoValor = tarifaRegistrada ? parseFloat(tarifaRegistrada.descuento_porcentaje) : 0;
+                const nombreTarifa = tarifaRegistrada ? tarifaRegistrada.nombre : 'Cliente Registrado';
+
+                descuentoTarifa = {
+                    tipo: 'porcentaje',
+                    valor: descuentoValor,
+                    cupon: nombreTarifa.toUpperCase().replace(/\s+/g, '_')
+                };
+
+                // Poblar los campos del cliente para que se guarden con la venta
+                document.getElementById('clienteNif').value = cliente.dni;
+                document.getElementById('clienteNombre').value = cliente.nombre + ' ' + cliente.apellidos;
+                document.getElementById('clienteDireccion').value = '';
+                document.getElementById('clienteObservaciones').value = '';
+
                 actualizarTicket();
-                mensajeDiv.textContent = 'Cliente encontrado: ' + cliente.nombre + ' ' + cliente.apellidos + '. Descuento del 2% aplicado.';
+                mensajeDiv.textContent = `Cliente encontrado: ${cliente.nombre} ${cliente.apellidos}. Descuento del ${descuentoValor}% aplicado.`;
                 mensajeDiv.className = 'mensaje-exito';
                 mensajeDiv.style.display = 'block';
                 setTimeout(() => {
@@ -3696,7 +3589,13 @@
                 mensajeDiv.textContent = 'No se encuentra ningún cliente con ese DNI';
                 mensajeDiv.className = 'mensaje-error';
                 mensajeDiv.style.display = 'block';
-                document.getElementById('tarifaVenta').value = 'cliente';
+                // Cambiar la tarifa a Cliente
+                const tarifaCliente5 = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+                if (tarifaCliente5) {
+                    document.getElementById('tarifaVenta').value = tarifaCliente5.id;
+                } else if (tarifasPrefijadas.length > 0) {
+                    document.getElementById('tarifaVenta').value = tarifasPrefijadas[0].id;
+                }
             }
         } catch (error) {
             console.error('Error al buscar cliente:', error);
@@ -3707,11 +3606,11 @@
     }
 
     /**
-     * Elimina el descuento aplicado por tarifa de cliente registrado o mayorista
+     * Elimina el descuento aplicado por tarifa
      */
     function eliminarDescuentoPorTarifa() {
-        // Solo eliminar si hay descuento de tarifa activo
-        if (descuentoTarifa.cupon === 'CLIENTE_REGISTRADO' || descuentoTarifa.cupon === 'MAYORISTA_NIVEL1' || descuentoTarifa.cupon === 'MAYORISTA_NIVEL2') {
+        // Eliminar cualquier descuento de tarifa activo (no importa el nombre del cupón)
+        if (descuentoTarifa && descuentoTarifa.tipo !== 'ninguno') {
             descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
             actualizarTicket();
         }

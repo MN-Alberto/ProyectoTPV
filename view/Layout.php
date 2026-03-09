@@ -15,27 +15,29 @@
     <?php if (isset($_SESSION['paginaEnCurso']) && ($_SESSION['paginaEnCurso'] === 'admin' || $_SESSION['paginaEnCurso'] === 'cajero')): ?>
         <link href="webroot/css/admin.css" rel="stylesheet" type="text/css">
     <?php endif; ?>
-    <link rel="icon" href="webroot/img/logoCPU.PNG" type="image/png">
+    <link rel="icon" href="webroot/img/logoCPU.PNG" type="image/png" id="favicon-link">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
 <body>
     <header>
         <div style="display: flex; align-items: center; gap: 15px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                style="color: #60a5fa;">
-                <rect x="4" y="4" width="16" height="16" rx="2"></rect>
-                <rect x="9" y="9" width="6" height="6"></rect>
-                <path d="M15 2v2"></path>
-                <path d="M15 20v2"></path>
-                <path d="M2 15h2"></path>
-                <path d="M2 9h2"></path>
-                <path d="M20 15h2"></path>
-                <path d="M20 9h2"></path>
-                <path d="M9 2v2"></path>
-                <path d="M9 20v2"></path>
-            </svg>
+            <div id="header-icon-container">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    style="color: #60a5fa;">
+                    <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                    <rect x="9" y="9" width="6" height="6"></rect>
+                    <path d="M15 2v2"></path>
+                    <path d="M15 20v2"></path>
+                    <path d="M2 15h2"></path>
+                    <path d="M2 9h2"></path>
+                    <path d="M20 15h2"></path>
+                    <path d="M20 9h2"></path>
+                    <path d="M9 2v2"></path>
+                    <path d="M9 20v2"></path>
+                </svg>
+            </div>
             <h1>TPV Bazar Electrónico</h1>
         </div>
         <!-- Si el id del usuario está guardado en la sesión, mostramos el nombre del usuario y el botón de cerrar sesión -->
@@ -90,19 +92,76 @@
         window.dispatchEvent(new Event('themeChange'));
     }
 
+    // Aplicar tema personalizado guardado (header y footer)
+    function aplicarTemaPersonalizado() {
+        const temaJSON = localStorage.getItem('temaTPV');
+        console.log('Leyendo tema de localStorage:', temaJSON);
+        if (!temaJSON) {
+            console.log('No hay tema guardado en localStorage');
+            return;
+        }
+
+        try {
+            const tema = JSON.parse(temaJSON);
+            console.log('Tema parseado:', tema);
+
+            // Aplicar al header
+            const header = document.querySelector('header');
+            if (header && tema.header_bg) {
+                header.style.background = tema.header_bg;
+                header.style.color = tema.header_color || '#ffffff';
+            }
+
+            // Aplicar al footer
+            const footer = document.querySelector('footer');
+            if (footer && tema.footer_bg) {
+                footer.style.background = tema.footer_bg;
+                footer.style.color = tema.footer_color || '#e5e7eb';
+            }
+
+            // Aplicar icono personalizado del header
+            if (tema.header_icon) {
+                const iconContainer = document.getElementById('header-icon-container');
+                if (iconContainer) {
+                    iconContainer.innerHTML = tema.header_icon;
+                    // Ajustar tamaño del icono
+                    const svg = iconContainer.querySelector('svg');
+                    if (svg) {
+                        svg.setAttribute('width', '36');
+                        svg.setAttribute('height', '36');
+                    }
+                }
+            }
+
+            // Aplicar favicon personalizado
+            if (tema.favicon) {
+                const faviconLink = document.getElementById('favicon-link');
+                if (faviconLink) {
+                    faviconLink.href = tema.favicon;
+                }
+            }
+        } catch (e) {
+            console.error('Error applying theme:', e);
+        }
+    }
+
     // Load saved theme on page load
     document.addEventListener('DOMContentLoaded', function () {
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
             document.body.classList.add('dark-mode');
-            document.getElementById('btnModoOscuro').classList.add('active');
+            const btnModoOscuro = document.getElementById('btnModoOscuro');
+            if (btnModoOscuro) btnModoOscuro.classList.add('active');
         } else {
-            document.getElementById('btnModoClaro').classList.add('active');
+            const btnModoClaro = document.getElementById('btnModoClaro');
+            if (btnModoClaro) btnModoClaro.classList.add('active');
         }
 
         // Aplicar tema personalizado guardado
         if (typeof aplicarTemaGuardado === 'function') {
             aplicarTemaGuardado();
+        } else if (typeof aplicarTemaPersonalizado === 'function') {
+            aplicarTemaPersonalizado();
         }
     });
 </script>

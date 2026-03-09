@@ -115,6 +115,59 @@ try {
         exit;
     }
 
+    // Manejar GET para obtener las compras de un cliente por DNI (debe estar ANTES de la verificación por DNI)
+    if (isset($_GET['compras']) && isset($_GET['dni'])) {
+        $dni = $_GET['dni'];
+
+        // Primero verificar que el cliente existe
+        $stmt = $pdo->prepare("SELECT id FROM clientes WHERE dni = ? AND activo = 1");
+        $stmt->execute([$dni]);
+        $cliente = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$cliente) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Cliente no encontrado']);
+            exit;
+        }
+
+        // Obtener las ventas del cliente
+        $stmt = $pdo->prepare("
+            SELECT v.*, u.nombre as usuario_nombre 
+            FROM ventas v 
+            LEFT JOIN usuarios u ON v.idUsuario = u.id 
+            WHERE v.cliente_dni = ? AND v.estado = 'completada' 
+            ORDER BY v.fecha DESC
+        ");
+        $stmt->execute([$dni]);
+        $ventas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Para cada venta, obtener las líneas de productos
+        foreach ($ventas as &$venta) {
+            $stmtLineas = $pdo->prepare("
+                SELECT lv.*, p.nombre as producto_nombre, p.imagen as producto_imagen
+                FROM lineasVenta lv
+                JOIN productos p ON lv.idProducto = p.id
+                WHERE lv.idVenta = ?
+            ");
+            $stmtLineas->execute([$venta['id']]);
+            $lineas = $stmtLineas->fetchAll(PDO::FETCH_ASSOC);
+
+            // Calcular precio con IVA para cada línea
+            foreach ($lineas as &$linea) {
+                $iva = isset($linea['iva']) ? floatval($linea['iva']) : 21;
+                $precioBase = floatval($linea['precioUnitario']);
+                $precioConIva = $precioBase * (1 + $iva / 100);
+                $linea['precioUnitarioConIva'] = round($precioConIva, 2);
+                $linea['subtotalConIva'] = round($precioConIva * $linea['cantidad'], 2);
+            }
+
+            $venta['lineas'] = $lineas;
+        }
+
+        echo json_encode($ventas);
+        exit;
+    }
+
     // Manejar GET para obtener cliente por DNI (para buscar clientes)
     if (isset($_GET['dni'])) {
         $dni = $_GET['dni'];

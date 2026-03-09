@@ -3,7 +3,7 @@
  * Controlador del cajero. Gestiona la vista del TPV para empleados.
  * 
  * @author Alberto Méndez
- * @version 1.6 (02/03/2026)
+ * @version 1.7 (09/03/2026)
  */
 
 // Requerimos los modelos necesarios
@@ -12,6 +12,7 @@ require_once(__DIR__ . '/../model/Categoria.php');
 require_once(__DIR__ . '/../model/Venta.php');
 require_once(__DIR__ . '/../model/LineaVenta.php');
 require_once(__DIR__ . '/../model/Caja.php');
+require_once(__DIR__ . '/../core/conexionDB.php');
 
 // Verificamos que el usuario está guardado en la sesión, si no lo está redirigimos al login
 if (!isset($_SESSION['idUsuario'])) {
@@ -22,6 +23,22 @@ if (!isset($_SESSION['idUsuario'])) {
 
 // Si el usuario solicita cerrar sesión destruimos la sesión completamente
 if (isset($_REQUEST['cerrarSesion'])) {
+    // Registrar logout antes de destruir sesión
+    try {
+        require_once(__DIR__ . '/../config/confDB.php');
+        $pdo = new PDO(RUTA, USUARIO, PASS);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $stmt = $pdo->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion) VALUES ('logout', :usuario_id, :usuario_nombre, :descripcion)");
+        $stmt->execute([
+            ':usuario_id' => $_SESSION['idUsuario'] ?? null,
+            ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
+            ':descripcion' => 'Usuario cerró sesión'
+        ]);
+    } catch (Exception $e) {
+        // Silenciar errores de logging
+    }
+
     // Destruir todas las variables de sesión
     $_SESSION = array();
     // Destruir la sesión
@@ -45,6 +62,16 @@ $cambioAnterior = $ultimaSesionCerrada ? $ultimaSesionCerrada->getCambio() : 0;
 $idCategoriaSeleccionada = null;
 $productos = Producto::obtenerTodos();
 
+// Cargar tarifas prefijadas para el selector de tickets
+try {
+    $conexion = ConexionDB::getInstancia()->getConexion();
+    $stmt = $conexion->query("SELECT * FROM tarifas_prefijadas WHERE activo = 1 ORDER BY orden");
+    $tarifas = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Si la tabla no existe, usar array vacío
+    $tarifas = [];
+}
+
 // Procesar nueva venta
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
     // Si la solicitud es para registrar una nueva venta
@@ -67,6 +94,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $venta->setEstado('completada');
             // Indicamos el tipo de documento en base a lo que se haya seleccionado
             $venta->setTipoDocumento($_POST['tipoDocumento'] ?? 'ticket');
+            // Indicamos la tarifa aplicada
+            $venta->setIdTarifa($_POST['idTarifa'] ?? null);
 
             //Calculamos el total y validamos el stock.
             $total = 0;
@@ -175,7 +204,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             }
 
             // Insertamos la venta
+            // Guardamos el DNI del cliente en la venta
+            $clienteNif = $_POST['clienteNif'] ?? '';
+            error_log("Cliente NIF recibido: '" . $clienteNif . "'");
+            $venta->setClienteDni($clienteNif);
             $venta->insertar();
+
+            // Registrar la venta en el log del sistema
+            try {
+                $conexion = ConexionDB::getInstancia()->getConexion();
+                $stmtLog = $conexion->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES ('venta', :usuario_id, :usuario_nombre, :descripcion, :detalles)");
+                $stmtLog->execute([
+                    ':usuario_id' => $_SESSION['idUsuario'],
+                    ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
+                    ':descripcion' => 'Venta registrada por ' . ($_SESSION['nombreUsuario'] ?? 'Desconocido'),
+                    ':detalles' => json_encode([
+                        'id_venta' => $venta->getId(),
+                        'total' => $total,
+                        'metodo_pago' => $venta->getMetodoPago(),
+                        'cliente' => $clienteNif ?: 'Sin cliente',
+                        'productos' => count($carrito)
+                    ])
+                ]);
+            } catch (Exception $e) {
+                error_log("Error al registrar log de venta: " . $e->getMessage());
+            }
+
+            // Actualizar estadísticas del cliente si se especificó un DNI
+            $clienteNif = $_POST['clienteNif'] ?? '';
+            if (!empty($clienteNif)) {
+                try {
+                    $conexion = ConexionDB::getInstancia()->getConexion();
+                    // Calcular total de productos en el carrito
+                    $totalProductos = 0;
+                    foreach ($carrito as $item) {
+                        $totalProductos += $item['cantidad'];
+                    }
+                    // Actualizar productos comprados y ventas realizadas del cliente
+                    $stmtCliente = $conexion->prepare(
+                        "UPDATE clientes SET 
+                            productos_comprados = productos_comprados + ?, 
+                            compras_realizadas = compras_realizadas + 1 
+                        WHERE dni = ? AND activo = 1"
+                    );
+                    $stmtCliente->execute([$totalProductos, $clienteNif]);
+                } catch (Exception $e) {
+                    // Si falla la actualización del cliente, no detenemos la venta
+                    error_log("Error al actualizar estadísticas del cliente: " . $e->getMessage());
+                }
+            }
 
             // Insertamos las líneas de venta y actualizamos el stock
             $lineasVenta = [];
@@ -295,6 +372,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
         // Cerramos la sesión de caja formal
         if ($sesionCaja) {
             $sesionCaja->cerrar($cambio);
+
+            // Registrar cierre de caja en el log del sistema
+            try {
+                $conexion = ConexionDB::getInstancia()->getConexion();
+                $stmtLog = $conexion->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES ('cierre_caja', :usuario_id, :usuario_nombre, :descripcion, :detalles)");
+                $stmtLog->execute([
+                    ':usuario_id' => $_SESSION['idUsuario'],
+                    ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
+                    ':descripcion' => 'Cierre de caja por ' . ($_SESSION['nombreUsuario'] ?? 'Desconocido'),
+                    ':detalles' => json_encode([
+                        'importe_final' => $sesionCaja->getImporteActual(),
+                        'cambio' => $cambio
+                    ])
+                ]);
+            } catch (Exception $e) {
+                error_log("Error al registrar log de cierre de caja: " . $e->getMessage());
+            }
         }
 
         // Guardamos en la sesión que se ha confirmado el cierre de caja y recargamos la página
@@ -311,6 +405,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
         $cambioRecovery = isset($_POST['cambioRecovery']) ? (float) $_POST['cambioRecovery'] : 0;
         // Abrimos la caja indicando el id del usuario que la abrió, el importe inicial y el cambio recovery
         Caja::abrir($_SESSION['idUsuario'], $importeInicial, $cambioRecovery);
+
+        // Registrar apertura de caja en el log del sistema
+        try {
+            $conexion = ConexionDB::getInstancia()->getConexion();
+            $stmtLog = $conexion->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES ('apertura_caja', :usuario_id, :usuario_nombre, :descripcion, :detalles)");
+            $stmtLog->execute([
+                ':usuario_id' => $_SESSION['idUsuario'],
+                ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
+                ':descripcion' => 'Apertura de caja por ' . ($_SESSION['nombreUsuario'] ?? 'Desconocido'),
+                ':detalles' => json_encode([
+                    'importe_inicial' => $importeInicial,
+                    'cambio_recovery' => $cambioRecovery
+                ])
+            ]);
+        } catch (Exception $e) {
+            error_log("Error al registrar log de apertura de caja: " . $e->getMessage());
+        }
+
         // Recargamos la página
         header('Location: index.php');
         exit();
@@ -420,6 +532,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 $sesionCaja->actualizarEfectivo(-$importe);
                 // Registramos el retiro en la base de datos
                 $sesionCaja->registrarRetiro($importe, $_SESSION['idUsuario'], $motivo);
+
+                // Registrar retiro de caja en el log del sistema
+                try {
+                    $conexion = ConexionDB::getInstancia()->getConexion();
+                    $stmtLog = $conexion->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES ('retiro_caja', :usuario_id, :usuario_nombre, :descripcion, :detalles)");
+                    $stmtLog->execute([
+                        ':usuario_id' => $_SESSION['idUsuario'],
+                        ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
+                        ':descripcion' => 'Retiro de caja por ' . ($_SESSION['nombreUsuario'] ?? 'Desconocido'),
+                        ':detalles' => json_encode([
+                            'importe' => $importe,
+                            'motivo' => $motivo
+                        ])
+                    ]);
+                } catch (Exception $e) {
+                    error_log("Error al registrar log de retiro de caja: " . $e->getMessage());
+                }
+
                 // Guardamos en la sesión que se ha realizado un retiro
                 $_SESSION['retiroExito'] = true;
             }

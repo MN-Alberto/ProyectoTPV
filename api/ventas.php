@@ -227,9 +227,11 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
         // Construir consulta
         $sql = "
             SELECT v.id, v.fecha, v.total, v.metodoPago as forma_pago, v.tipoDocumento, u.nombre as usuario_nombre,
+            t.nombre as tarifa_nombre,
             (SELECT SUM(lv.cantidad) FROM lineasVenta lv WHERE lv.idVenta = v.id) as cantidad_productos
             FROM ventas v
             LEFT JOIN usuarios u ON v.idUsuario = u.id
+            LEFT JOIN tarifas_prefijadas t ON v.idTarifa = t.id
         ";
         if (!empty($condiciones)) {
             $sql .= " WHERE " . implode(" AND ", $condiciones);

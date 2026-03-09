@@ -23,6 +23,8 @@ class Venta
     private $cerrada; // 0 o 1
     private $importeEntregado;
     private $cambioDevuelto;
+    private $idTarifa; // ID de la tarifa prefijada aplicada
+    private $clienteDni; // DNI del cliente asociado a la venta
 
     // Campos de descuento
     private $descuentoTipo;
@@ -135,6 +137,25 @@ class Venta
     public function setCambioDevuelto($cambioDevuelto)
     {
         $this->cambioDevuelto = $cambioDevuelto;
+    }
+
+    public function getIdTarifa()
+    {
+        return $this->idTarifa;
+    }
+
+    public function setIdTarifa($idTarifa)
+    {
+        $this->idTarifa = $idTarifa;
+    }
+
+    public function getClienteDni()
+    {
+        return $this->clienteDni;
+    }
+    public function setClienteDni($clienteDni)
+    {
+        $this->clienteDni = $clienteDni;
     }
 
     // Getters y Setters de descuentos
@@ -335,8 +356,8 @@ class Venta
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "INSERT INTO ventas (idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon) 
-             VALUES (:idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon)"
+            "INSERT INTO ventas (idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni) 
+             VALUES (:idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni)"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':idUsuario', $this->idUsuario, PDO::PARAM_INT);
@@ -358,6 +379,8 @@ class Venta
         $stmt->bindParam(':descuentoManualTipo', $this->descuentoManualTipo);
         $stmt->bindParam(':descuentoManualValor', $this->descuentoManualValor);
         $stmt->bindParam(':descuentoManualCupon', $this->descuentoManualCupon);
+        $stmt->bindParam(':idTarifa', $this->idTarifa, PDO::PARAM_INT);
+        $stmt->bindParam(':clienteDni', $this->clienteDni, PDO::PARAM_STR);
         // Ejecutamos la consulta
         $resultado = $stmt->execute();
         // Obtenemos el ID de la nueva venta

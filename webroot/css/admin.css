@@ -180,6 +180,17 @@
     color: #6b7280;
 }
 
+/* Dark mode for badges */
+body.dark-mode .badge-activo {
+    background: #1e3a5f;
+    color: #60a5fa;
+}
+
+body.dark-mode .badge-inactivo {
+    background: #374151;
+    color: #9ca3af;
+}
+
 /* ── Botones de acción ── */
 .btn-admin-accion {
     border: none;
@@ -1288,6 +1299,8 @@ body.dark-mode .cat-btn {
     background: #374151;
     color: #e5e7eb;
     border: 1px solid #4b5563;
+    padding: 7px 15px;
+    font-size: 1rem;
 }
 
 body.dark-mode .cat-btn:hover {
@@ -1378,12 +1391,12 @@ body.dark-mode .admin-sidebar {
 .tema-editor-intro {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 12px;
     background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
     border: 1px solid #dbeafe;
-    border-radius: 12px;
-    padding: 15px;
-    margin-bottom: 15px;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
 }
 
 body.dark-mode .tema-editor-intro {
@@ -1414,9 +1427,22 @@ body.dark-mode .tema-intro-subtitulo {
 
 .tema-secciones-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 15px;
-    margin-bottom: 20px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+    min-width: 0;
+}
+
+@media (max-width: 1400px) {
+    .tema-secciones-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .tema-secciones-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .tema-seccion-card {
@@ -1444,8 +1470,8 @@ body.dark-mode .tema-seccion-card:hover {
 .tema-seccion-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 14px 18px;
+    gap: 8px;
+    padding: 10px 12px;
     background: #f8fafc;
     border-bottom: 1px solid #e5e7eb;
 }
@@ -1478,10 +1504,10 @@ body.dark-mode .tema-seccion-titulo {
 }
 
 .tema-seccion-body {
-    padding: 18px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
 }
 
 .tema-campo {
@@ -1581,24 +1607,173 @@ body.dark-mode .tema-select-font:focus {
 }
 
 .tema-preview {
-    padding: 14px 18px;
-    border-radius: 8px;
-    font-size: 0.95rem;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
     font-weight: 600;
     text-align: center;
     transition: all 0.15s ease;
     border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
+/* Estilos para la sección de iconos */
+.tema-textarea-icono {
+    width: 100%;
+    min-height: 80px;
+    padding: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 0.75rem;
+    resize: vertical;
+    background: #fff;
+    color: #374151;
+}
+
+body.dark-mode .tema-textarea-icono {
+    background: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+}
+
+.tema-ayuda {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+body.dark-mode .tema-ayuda {
+    color: #9ca3af;
+}
+
+.tema-preview-icono,
+.tema-preview-favicon {
+    padding: 10px;
+    border-radius: 6px;
+    background: #f9fafb;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+}
+
+body.dark-mode .tema-preview-icono,
+body.dark-mode .tema-preview-favicon {
+    background: #374151;
+    border-color: #4b5563;
+}
+
+.tema-preview-icono svg {
+    width: 48px;
+    height: 48px;
+}
+
+.tema-preview-favicon img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}
+
 .tema-botones {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    padding-top: 10px;
+    padding-top: 8px;
 }
 
 body.dark-mode .tema-botones {
     border-top-color: #374151;
+}
+
+/* ======================== TARIFAS PREFIJADAS (MODO OSCURO) ======================== */
+/* Light mode (default) */
+.tabla-tarifas {
+    background: white;
+}
+
+.tabla-tarifas-head {
+    background: #f9fafb;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.tabla-tarifas-head th {
+    color: #374151;
+}
+
+.tabla-tarifas tbody tr {
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.tabla-tarifas tbody tr:hover {
+    background: #f9fafb;
+}
+
+.tabla-tarifas tbody td {
+    color: #374151;
+}
+
+/* Dark mode */
+body.dark-mode .tabla-tarifas {
+    background: #1f2937;
+}
+
+body.dark-mode .tabla-tarifas-head {
+    background: #374151;
+    border-bottom: 2px solid #4b5563;
+}
+
+body.dark-mode .tabla-tarifas-head th {
+    color: #e5e7eb;
+}
+
+body.dark-mode .tabla-tarifas tbody tr {
+    border-bottom: 1px solid #374151;
+}
+
+body.dark-mode .tabla-tarifas tbody tr:hover {
+    background: #374151;
+}
+
+body.dark-mode .tabla-tarifas tbody td {
+    color: #e5e7eb;
+}
+
+/* Modales de tarifas en modo oscuro */
+body.dark-mode #modalNuevaTarifa .modal-content,
+body.dark-mode #modalEditarTarifa .modal-content {
+    background: #1f2937;
+}
+
+body.dark-mode #modalNuevaTarifa h3,
+body.dark-mode #modalEditarTarifa h3 {
+    color: #f3f4f6;
+}
+
+body.dark-mode #modalNuevaTarifa label,
+body.dark-mode #modalEditarTarifa label {
+    color: #e5e7eb;
+}
+
+body.dark-mode #modalNuevaTarifa input[type="text"],
+body.dark-mode #modalNuevaTarifa input[type="number"],
+body.dark-mode #modalNuevaTarifa textarea,
+body.dark-mode #modalEditarTarifa input[type="text"],
+body.dark-mode #modalEditarTarifa input[type="number"],
+body.dark-mode #modalEditarTarifa textarea {
+    background: #374151;
+    color: #e5e7eb;
+    border-color: #4b5563;
+}
+
+body.dark-mode #modalNuevaTarifa input::placeholder,
+body.dark-mode #modalEditarTarifa input::placeholder {
+    color: #9ca3af;
+}
+
+body.dark-mode #modalNuevaTarifa span,
+body.dark-mode #modalEditarTarifa span {
+    color: #e5e7eb;
 }
 
 .tema-btn-reset {
@@ -1637,4 +1812,276 @@ body.dark-mode .tema-botones {
 #porcentajeAjuste {
     width: 150px;
     text-align: center;
+}
+
+/* ======================== LOGS DEL SISTEMA ======================== */
+.logs-container {
+    padding: 0;
+}
+
+.logs-filtros {
+    display: flex;
+    gap: 15px;
+    padding: 15px;
+    background: #f9fafb;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+body.dark-mode .logs-filtros {
+    background: #374151;
+}
+
+.logs-filtro-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.logs-filtro-item label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+}
+
+body.dark-mode .logs-filtro-item label {
+    color: #9ca3af;
+}
+
+.logs-filtro-item select,
+.logs-filtro-item input {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: #fff;
+    color: #374151;
+    min-width: 150px;
+}
+
+body.dark-mode .logs-filtro-item select,
+body.dark-mode .logs-filtro-item input {
+    background: #1f2937;
+    border-color: #4b5563;
+    color: #f9fafb;
+}
+
+.logs-tabla-container {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+body.dark-mode .logs-tabla-container {
+    border-color: #374151;
+}
+
+.logs-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.logs-tabla th {
+    background: #f9fafb;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 2px solid #e5e7eb;
+    white-space: nowrap;
+}
+
+body.dark-mode .logs-tabla th {
+    background: #374151;
+    color: #f9fafb;
+    border-bottom-color: #4b5563;
+}
+
+.logs-tabla td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #374151;
+}
+
+body.dark-mode .logs-tabla td {
+    border-bottom-color: #374151;
+    color: #f9fafb;
+}
+
+.logs-tabla tr:hover {
+    background: #f9fafb;
+}
+
+body.dark-mode .logs-tabla tr:hover {
+    background: #374151;
+}
+
+.logs-tipo {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.logs-login {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.logs-error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.logs-tabla td:last-child {
+    text-align: center;
+}
+
+body.dark-mode .logs-error {
+    background: #7f1d1d;
+    color: #fecaca;
+}
+
+.logs-logout {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.logs-venta {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.logs-caja {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.logs-retiro {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.logs-admin {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.logs-usuario {
+    background: #fce7f3;
+    color: #9d174d;
+}
+
+body.dark-mode .logs-login {
+    background: #1e3a8a;
+    color: #dbeafe;
+}
+
+body.dark-mode .logs-logout {
+    background: #374151;
+    color: #9ca3af;
+}
+
+body.dark-mode .logs-venta {
+    background: #064e3b;
+    color: #d1fae5;
+}
+
+body.dark-mode .logs-caja {
+    background: #78350f;
+    color: #fef3c7;
+}
+
+body.dark-mode .logs-retiro {
+    background: #7f1d1d;
+    color: #fee2e2;
+}
+
+body.dark-mode .logs-admin {
+    background: #312e81;
+    color: #e0e7ff;
+}
+
+body.dark-mode .logs-usuario {
+    background: #831843;
+    color: #fce7f3;
+}
+
+/* Estilos para logs de productos */
+.logs-producto {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+body.dark-mode .logs-producto {
+    background: #1e3a8a;
+    color: #dbeafe;
+}
+
+/* Estilos para logs de categorías */
+.logs-categoria {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+body.dark-mode .logs-categoria {
+    background: #78350f;
+    color: #fef3c7;
+}
+
+.logs-paginacion {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.logs-paginacion button {
+    padding: 8px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: #fff;
+    color: #374151;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.logs-paginacion button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.logs-paginacion button:hover:not(:disabled) {
+    background: #f3f4f6;
+}
+
+body.dark-mode .logs-paginacion button {
+    background: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+}
+
+body.dark-mode .logs-paginacion button:hover:not(:disabled) {
+    background: #4b5563;
+}
+
+.logs-paginacion span {
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+body.dark-mode .logs-paginacion span {
+    color: #9ca3af;
 }

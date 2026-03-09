@@ -48,9 +48,9 @@ body.dark-mode {
     --bg-accent-success: #064e3b;
     --bg-accent-danger: #7f1d1d;
     --bg-accent-warning: #7c2d12;
-    --scrollbar-track: #1f2937;
-    --scrollbar-thumb: #374151;
-    --scrollbar-hover: #4b5563;
+    --scrollbar-track: #374151;
+    --scrollbar-thumb: #ffffff;
+    --scrollbar-hover: #e5e7eb;
 }
 
 /* ======================== SCROLLBAR CUSTOMIZATION ======================== */
@@ -161,27 +161,27 @@ body.dark-mode {
 }
 
 .cat-btn {
-    padding: 8px 18px;
+    padding: 7px 15px;
     border-radius: 20px;
     background: #e5e7eb;
     color: #374151;
     text-decoration: none;
-    /* font-size: 0.85rem; */
-    font-size: 1.2rem;
+    font-size: 1rem;
     font-weight: 500;
     white-space: nowrap;
     transition: all 0.2s ease-in-out;
+    margin-bottom: 3px;
 }
 
 .cat-btn:hover {
     background: #d1d5db;
-    scale: 1.10;
+    scale: 1.08;
     cursor: pointer;
 }
 
 .cat-btn.activa {
     background: #1a1a2e;
-    scale: 1.10;
+    scale: 1.08;
     cursor: default;
     font-weight: bold;
     color: #fff;

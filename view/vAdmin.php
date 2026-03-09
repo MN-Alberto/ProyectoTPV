@@ -41,6 +41,9 @@
             <button class="cat-btn" data-seccion="configuracion" style="width: 100%; text-align: left;">
                 <i class="fas fa-cog" style="margin-right: 10px;"></i> Configuración
             </button>
+            <button class="cat-btn" data-seccion="logs" style="width: 100%; text-align: left;">
+                <i class="fas fa-history" style="margin-right: 10px;"></i> Logs
+            </button>
             <button class="cat-btn" id="btnTarifas" style="width: 100%; text-align: left;">
                 <i class="fas fa-tags" style="margin-right: 10px;"></i> Tarifas Generales ▾
             </button>
@@ -52,6 +55,10 @@
                 <button class="cat-btn submenu-btn" data-seccion="tarifa-ajuste"
                     style="width: 100%; text-align: left; font-size: 13px;">
                     <i class="fas fa-sliders-h" style="margin-right: 10px;"></i> Ajuste de Precios
+                </button>
+                <button class="cat-btn submenu-btn" data-seccion="tarifa-prefijadas"
+                    style="width: 100%; text-align: left; font-size: 13px;">
+                    <i class="fas fa-tags" style="margin-right: 10px;"></i> Tarifas Prefijadas
                 </button>
             </div>
         </div>
@@ -694,6 +701,7 @@
         devoluciones: 'Gestión de Devoluciones',
         proveedores: 'Gestión de Proveedores',
         configuracion: 'Configuración',
+        logs: 'Logs del Sistema',
         retiros: 'Retiros de Caja',
         'caja-sesiones': 'Sesiones de Caja',
         categorias: 'Gestión de Categorías',
@@ -737,6 +745,9 @@
                 case 'configuracion':
                     cargarConfiguracion();
                     break;
+                case 'logs':
+                    cargarLogs();
+                    break;
                 case 'caja-sesiones':
                     cargarCajaSesionesAdmin();
                     break;
@@ -748,6 +759,9 @@
                     break;
                 case 'tarifa-ajuste':
                     mostrarPanelAjustePrecios();
+                    break;
+                case 'tarifa-prefijadas':
+                    mostrarPanelTarifasPrefijadas();
                     break;
                 case 'clientes':
                     cargarClientesAdmin();

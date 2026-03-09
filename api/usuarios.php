@@ -117,6 +117,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $nuevoUsuario->setFechaAlta(date('Y-m-d H:i:s'));
 
         if ($nuevoUsuario->insertar()) {
+            // Registrar log de creación de usuario
+            try {
+                $pdo = new PDO(RUTA, USUARIO, PASS);
+                $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+                $adminId = $_SESSION['id'] ?? null;
+                $adminNombre = $_SESSION['nombre'] ?? 'Admin';
+
+                $stmt = $pdo->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion) VALUES ('creacion_usuario', :usuario_id, :usuario_nombre, :descripcion)");
+                $stmt->execute([
+                    ':usuario_id' => $adminId,
+                    ':usuario_nombre' => $adminNombre,
+                    ':descripcion' => 'Usuario creado: ' . $nombre . ' (' . $email . ')'
+                ]);
+            } catch (Exception $e) {
+                // Silenciar errores de logging
+            }
+
             http_response_code(201);
             echo json_encode(['ok' => true]);
         } else {

@@ -76,7 +76,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'btn_font',
         'btn_white_bg',
         'btn_white_color',
-        'btn_white_font'
+        'btn_white_font',
+        'header_icon',
+        'favicon'
     ];
 
     try {
