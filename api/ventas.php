@@ -75,15 +75,16 @@ if (isset($_GET['detalleVenta'])) {
 
         // Obtener las líneas de venta
         $stmtLineas = $conexion->prepare("
-            SELECT lv.*, p.nombre as producto_nombre, p.iva as iva_producto
+            SELECT lv.*, p.nombre as producto_nombre, i.porcentaje as iva_producto
             FROM lineasVenta lv
             LEFT JOIN productos p ON lv.idProducto = p.id
+            LEFT JOIN iva i ON p.idIva = i.id
             WHERE lv.idVenta = ?
         ");
         $stmtLineas->execute([$idVenta]);
         $lineas = $stmtLineas->fetchAll(PDO::FETCH_ASSOC);
 
-        // Añadir campo iva a cada línea (priorizar lv.iva si existe, si no usar p.iva)
+        // Añadir campo iva a cada línea (priorizar lv.iva si existe, si no usar iva del producto)
         foreach ($lineas as &$linea) {
             if (!isset($linea['iva']) || $linea['iva'] === null) {
                 $linea['iva'] = $linea['iva_producto'] ?? 21;

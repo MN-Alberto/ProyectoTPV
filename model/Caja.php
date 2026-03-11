@@ -312,4 +312,134 @@ class Caja
         // Devolvemos la instancia
         return $caja;
     }
+
+    // ======================== MÉTODOS DE ARQUEO ========================
+
+    /**
+     * Obtiene los datos para el arqueo de caja.
+     * @return array
+     */
+    public function getDatosArqueo()
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+
+        // Obtener ventas en efectivo
+        $stmtVentas = $conexion->prepare("
+            SELECT COALESCE(SUM(v.total), 0) as total 
+            FROM ventas v 
+            WHERE v.idSesionCaja = :idSesion 
+            AND v.metodoPago = 'Efectivo'
+        ");
+        $stmtVentas->bindParam(':idSesion', $this->id, PDO::PARAM_INT);
+        $stmtVentas->execute();
+        $ventasEfectivo = (float) $stmtVentas->fetch(PDO::FETCH_ASSOC)['total'];
+
+        // Obtener devoluciones en efectivo
+        $stmtDev = $conexion->prepare("
+            SELECT COALESCE(SUM(d.importeTotal), 0) as total 
+            FROM devoluciones d 
+            WHERE d.idSesionCaja = :idSesion
+        ");
+        $stmtDev->bindParam(':idSesion', $this->id, PDO::PARAM_INT);
+        $stmtDev->execute();
+        $devolucionesEfectivo = (float) $stmtDev->fetch(PDO::FETCH_ASSOC)['total'];
+
+        // Obtener retiros
+        $retiros = $this->getTotalRetiros();
+
+        // Calcular efectivo esperado
+        // fórmula: fondo inicial + ventas efectivo - devoluciones efectivo - retiros
+        $efectivoEsperado = $this->importeInicial + $ventasEfectivo - $devolucionesEfectivo - $retiros;
+
+        return [
+            'fondoInicial' => $this->importeInicial,
+            'ventasEfectivo' => $ventasEfectivo,
+            'devolucionesEfectivo' => $devolucionesEfectivo,
+            'retiros' => $retiros,
+            'efectivoEsperado' => $efectivoEsperado,
+            'efectivoActual' => $this->importeActual
+        ];
+    }
+
+    /**
+     * Registra un arqueo de caja.
+     * @param int $idUsuario
+     * @param float $efectivoContado
+     * @param string $detalleConteo JSON con detalle de billetes y monedas
+     * @param string|null $observaciones
+     * @param string $tipoArqueo
+     * @return bool
+     */
+    public function registrarArqueo($idUsuario, $efectivoContado, $detalleConteo = null, $observaciones = null, $tipoArqueo = 'cierre')
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+
+        // Obtener datos para el arqueo
+        $datos = $this->getDatosArqueo();
+        $efectivoEsperado = $datos['efectivoEsperado'];
+        $diferencia = $efectivoContado - $efectivoEsperado;
+
+        $stmt = $conexion->prepare("
+            INSERT INTO arqueos_caja 
+            (idCajaSesion, idUsuario, fondoInicial, ventasEfectivo, devolucionesEfectivo, 
+             retiros, efectivoEsperado, efectivoContado, diferencia, detalleConteo, observaciones, tipoArqueo)
+            VALUES 
+            (:idCajaSesion, :idUsuario, :fondoInicial, :ventasEfectivo, :devolucionesEfectivo,
+             :retiros, :efectivoEsperado, :efectivoContado, :diferencia, :detalleConteo, :observaciones, :tipoArqueo)
+        ");
+
+        $stmt->bindParam(':idCajaSesion', $this->id, PDO::PARAM_INT);
+        $stmt->bindParam(':idUsuario', $idUsuario, PDO::PARAM_INT);
+        $stmt->bindParam(':fondoInicial', $datos['fondoInicial']);
+        $stmt->bindParam(':ventasEfectivo', $datos['ventasEfectivo']);
+        $stmt->bindParam(':devolucionesEfectivo', $datos['devolucionesEfectivo']);
+        $stmt->bindParam(':retiros', $datos['retiros']);
+        $stmt->bindParam(':efectivoEsperado', $efectivoEsperado);
+        $stmt->bindParam(':efectivoContado', $efectivoContado);
+        $stmt->bindParam(':diferencia', $diferencia);
+        $stmt->bindParam(':detalleConteo', $detalleConteo);
+        $stmt->bindParam(':observaciones', $observaciones);
+        $stmt->bindParam(':tipoArqueo', $tipoArqueo);
+
+        return $stmt->execute();
+    }
+
+    /**
+     * Obtiene el último arqueo de una sesión.
+     * @return array|null
+     */
+    public function getUltimoArqueo()
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->prepare("
+            SELECT a.*, u.nombre as usuario_nombre 
+            FROM arqueos_caja a
+            LEFT JOIN usuarios u ON a.idUsuario = u.id
+            WHERE a.idCajaSesion = :idSesion
+            ORDER BY a.fechaArqueo DESC
+            LIMIT 1
+        ");
+        $stmt->bindParam(':idSesion', $this->id, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Obtiene el historial de arqueos de una sesión.
+     * @return array
+     */
+    public function getHistorialArqueos()
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->prepare("
+            SELECT a.*, u.nombre as usuario_nombre 
+            FROM arqueos_caja a
+            LEFT JOIN usuarios u ON a.idUsuario = u.id
+            WHERE a.idCajaSesion = :idSesion
+            ORDER BY a.fechaArqueo DESC
+        ");
+        $stmt->bindParam(':idSesion', $this->id, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }

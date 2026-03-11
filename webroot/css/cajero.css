@@ -272,6 +272,33 @@ body.dark-mode {
     font-weight: 500;
 }
 
+.tarifa-selector {
+    width: 100%;
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    font-size: 11px;
+    padding: 4px;
+    margin: 8px 0;
+    background: var(--bg-input);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.tarifa-selector:hover {
+    border-color: var(--accent);
+}
+
+.tarifa-selector:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+body.dark-mode .tarifa-selector:focus {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
 .sin-productos {
     grid-column: 1 / -1;
     text-align: center;

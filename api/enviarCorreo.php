@@ -111,6 +111,10 @@ if ($descuentoTarifaCupon && $descuentoTarifaCupon !== '') {
     }
 }
 
+// Inicializamos variables de descuento manual para evitar "Undefined variable"
+$importeDescuentoManual = 0;
+$textoDescuentoManual = '';
+
 // Determinamos el título principal del documento según la elección del usuario
 $isFactura = ($tipoDocumento === 'factura');
 $tipoTitulo = $isFactura ? 'FACTURA' : 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
@@ -146,34 +150,55 @@ if ($isFactura || $clienteNif || $clienteNombre) {
 $filasLineas = '';
 $sumaTotalesNumeric = 0; // PVP acumulado
 $desgloseIva = []; // Para el resumen final por cada %
+$ahorrosTarifasAgrupados = []; // NUEVO: Para agrupar ahorros por nombre de tarifa
+$importeDescuentoTarifaTotal = 0;
 
 foreach ($lineas as $linea) {
     $cantidad = (float) ($linea['cantidad'] ?? 1);
+    
+    // Usamos el PVP unitario real (con descuento aplicado) si viene en el JSON
+    // Si no, lo calculamos de la forma tradicional (precioBase + IVA)
+    $pvpUnitarioReal = isset($linea['pvpUnitario']) ? (float)$linea['pvpUnitario'] : null;
+    $pvpOriginalUnitario = isset($linea['pvpOriginalUnitario']) ? (float)$linea['pvpOriginalUnitario'] : null;
+    
     $precioBase = (float) ($linea['precio'] ?? 0);
     $ivaPorc = (int) ($linea['iva'] ?? 21);
 
-    // Cálculos por unidad
-    $cuotaIvaUnidad = $precioBase * ($ivaPorc / 100);
-    $precioPVP = $precioBase + $cuotaIvaUnidad;
-
-    // Cálculos totales de la línea
-    $subtotalBase = $precioBase * $cantidad;
-    $subtotalIva = $cuotaIvaUnidad * $cantidad;
-    $subtotalPVP = $precioPVP * $cantidad;
+    if ($pvpUnitarioReal !== null) {
+        $subtotalPVP = round($pvpUnitarioReal * $cantidad, 2);
+        // El precio base lo recalculamos del PVP real para consistencia fiscal
+        $precioBaseUnitarioReal = $pvpUnitarioReal / (1 + ($ivaPorc / 100));
+    } else {
+        $precioPVP = $precioBase * (1 + ($ivaPorc / 100));
+        $subtotalPVP = round($precioPVP * $cantidad, 2);
+        $precioBaseUnitarioReal = $precioBase;
+    }
 
     $sumaTotalesNumeric += $subtotalPVP;
 
-    // Acumular para el desglose fiscal final
-    if (!isset($desgloseIva[$ivaPorc])) {
-        $desgloseIva[$ivaPorc] = ['base' => 0, 'cuota' => 0];
+    // Calcular ahorro si existe pvpOriginalUnitario
+    if ($pvpOriginalUnitario !== null && $pvpUnitarioReal !== null) {
+        $ahorroUnitario = $pvpOriginalUnitario - $pvpUnitarioReal;
+        if ($ahorroUnitario > 0.005) {
+            $ahorroLinea = round($ahorroUnitario * $cantidad, 2);
+            $tarifaNombre = $linea['tarifaNombre'] ?? 'Tarifa';
+            if (!isset($ahorrosTarifasAgrupados[$tarifaNombre])) {
+                $ahorrosTarifasAgrupados[$tarifaNombre] = 0;
+            }
+            $ahorrosTarifasAgrupados[$tarifaNombre] += $ahorroLinea;
+            $importeDescuentoTarifaTotal += $ahorroLinea;
+        }
     }
-    $desgloseIva[$ivaPorc]['base'] += $subtotalBase;
-    $desgloseIva[$ivaPorc]['cuota'] += $subtotalIva;
 
-    // Formatear precios
-    $baseFmt = number_format($subtotalBase, 2, ',', '.');
+    // Acumular para el desglose fiscal final (usando el precio base real tras tarifa)
+    if (!isset($desgloseIva[$ivaPorc])) {
+        $desgloseIva[$ivaPorc] = ['pvpAcumulado' => 0]; // Agrupamos por PVP para back-calculate
+    }
+    $desgloseIva[$ivaPorc]['pvpAcumulado'] += $subtotalPVP;
+
+    // Formatear precios para la tabla
     $pvpFmt = number_format($subtotalPVP, 2, ',', '.');
-    $unitarioFmt = number_format($precioBase, 2, ',', '.');
+    $unitarioFmt = number_format($pvpUnitarioReal ?? ($precioBase * (1 + ($ivaPorc / 100))), 2, ',', '.');
 
     $filasLineas .= "
         <tr>
@@ -185,32 +210,10 @@ foreach ($lineas as $linea) {
         </tr>";
 }
 
-// D. Desglose de impuestos (IVA) y Descuentos
-$importeDescuentoTarifa = 0;
-$importeDescuentoManual = 0;
-$textoDescuentoTarifa = '';
-$textoDescuentoManual = '';
-
-// Calcular descuento de tarifa (Cliente registrado, Mayorista nivel 1, Mayorista nivel 2)
-// Solo si hay un cupón de tarifa específico
-if (
-    $descuentoTarifaCupon && $descuentoTarifaCupon !== '' &&
-    ($descuentoTarifaCupon === 'CLIENTE_REGISTRADO' || $descuentoTarifaCupon === 'MAYORISTA_NIVEL1' || $descuentoTarifaCupon === 'MAYORISTA_NIVEL2')
-) {
-    if ($descuentoTarifaTipo === 'porcentaje') {
-        $importeDescuentoTarifa = $sumaTotalesNumeric * ($descuentoTarifaValor / 100);
-        if ($descuentoTarifaCupon === 'CLIENTE_REGISTRADO') {
-            $textoDescuentoTarifa = "Cliente registrado ({$descuentoTarifaValor}%)";
-        } else if ($descuentoTarifaCupon === 'MAYORISTA_NIVEL1') {
-            $textoDescuentoTarifa = "Mayorista nivel 1 ({$descuentoTarifaValor}%)";
-        } else if ($descuentoTarifaCupon === 'MAYORISTA_NIVEL2') {
-            $textoDescuentoTarifa = "Mayorista nivel 2 ({$descuentoTarifaValor}%)";
-        }
-    }
-}
+// Descuento de tarifa total ya calculado en el bucle principal
+$importeDescuentoTarifa = $importeDescuentoTarifaTotal;
 
 // Calcular descuento manual (código promocional o porcentaje manual)
-// Si el descuento manual tiene los mismos valores que el original, usarlo
 if ($descuentoManualCupon && $descuentoManualCupon !== '') {
     if ($descuentoManualTipo === 'porcentaje') {
         $importeDescuentoManual = $sumaTotalesNumeric * ($descuentoManualValor / 100);
@@ -219,51 +222,43 @@ if ($descuentoManualCupon && $descuentoManualCupon !== '') {
         $importeDescuentoManual = $descuentoManualValor;
         $textoDescuentoManual = "Cupón {$descuentoManualCupon}";
     } else {
-        // También puede haber un cupón sin tipo definido
         $textoDescuentoManual = "Cupón {$descuentoManualCupon}";
     }
 }
 
-// Descuento total
-$importeDescuentoPVP = $importeDescuentoTarifa + $importeDescuentoManual;
+// Descuento total (solo el manual, ya que las tarifas ya están en sumaTotalesNumeric)
+$totalFinalPVP = max(0, $sumaTotalesNumeric - $importeDescuentoManual);
+$factorDescuento = $sumaTotalesNumeric > 0 ? ($totalFinalPVP / $sumaTotalesNumeric) : 1;
 
-$subtotalPVP = $sumaTotalesNumeric;
-$totalFinalPVP = max(0, $subtotalPVP - $importeDescuentoPVP);
-$factorDescuento = $subtotalPVP > 0 ? ($totalFinalPVP / $subtotalPVP) : 1;
-
-$subtotalPVFmt = number_format($subtotalPVP, 2, ',', '.');
-$descFmt = number_format($importeDescuentoPVP, 2, ',', '.');
+$totalFinalPVFmt = number_format($totalFinalPVP, 2, ',', '.');
 
 // Bloque de pie de tabla con los sumatorios
 $totalesHtml = "<table style='width:100%; border: none; margin-top:10px;' >";
 
-if ($importeDescuentoPVP > 0) {
-    $totalesHtml .= "
-        <tr>
-            <td style='border: none;'><strong>Subtotal (PVP):</strong></td>
-            <td style='border: none; text-align:right'>{$subtotalPVFmt} €</td>
-        </tr>";
+// --- Desglose informativo de ahorros (ya aplicados en las líneas) ---
 
-    // Mostrar descuento de tarifa si existe
-    if ($importeDescuentoTarifa > 0.01 && $textoDescuentoTarifa) {
-        $descTarifaFmt = number_format($importeDescuentoTarifa, 2, ',', '.');
+// Mostrar ahorros por tarifa si existen
+if ($importeDescuentoTarifaTotal > 0.01) {
+    foreach ($ahorrosTarifasAgrupados as $nombre => $importe) {
+        $descFmt = number_format($importe, 2, ',', '.');
         $totalesHtml .= "
         <tr>
-            <td style='border: none; color: #16a34a;'><strong>Descuento ({$textoDescuentoTarifa}):</strong></td>
-            <td style='border: none; text-align:right; color: #16a34a;'>- {$descTarifaFmt} €</td>
-        </tr>";
-    }
-
-    // Mostrar descuento manual si existe
-    if ($importeDescuentoManual > 0.01 && $textoDescuentoManual) {
-        $descManualFmt = number_format($importeDescuentoManual, 2, ',', '.');
-        $totalesHtml .= "
-        <tr>
-            <td style='border: none; color: #16a34a;'><strong>Descuento ({$textoDescuentoManual}):</strong></td>
-            <td style='border: none; text-align:right; color: #16a34a;'>- {$descManualFmt} €</td>
+            <td style='border: none; color: #16a34a;'><strong>Ahorro {$nombre}:</strong></td>
+            <td style='border: none; text-align:right; color: #16a34a;'>- {$descFmt} €*</td>
         </tr>";
     }
 }
+
+// Mostrar descuento manual si existe (éste sí resta del total)
+if ($importeDescuentoManual > 0.01 && $textoDescuentoManual) {
+    $descManualFmt = number_format($importeDescuentoManual, 2, ',', '.');
+    $totalesHtml .= "
+    <tr>
+        <td style='border: none; color: #16a34a;'><strong>Descuento ({$textoDescuentoManual}):</strong></td>
+        <td style='border: none; text-align:right; color: #16a34a;'>- {$descManualFmt} €</td>
+    </tr>";
+}
+
 
 $totalesHtml .= "
     <tr style='border-top: 1px solid #eee;'>
@@ -272,8 +267,11 @@ $totalesHtml .= "
 
 ksort($desgloseIva);
 foreach ($desgloseIva as $porc => $valores) {
-    $baseFinal = $valores['base'] * $factorDescuento;
-    $cuotaFinal = $valores['cuota'] * $factorDescuento;
+    // Cálculo exacto del desglose fiscal prorrateando el descuento manual
+    $pvpFinalConDescuento = $valores['pvpAcumulado'] * $factorDescuento;
+    
+    $baseFinal = round($pvpFinalConDescuento / (1 + ($porc / 100)), 2);
+    $cuotaFinal = round($pvpFinalConDescuento - $baseFinal, 2);
 
     $bf = number_format($baseFinal, 2, ',', '.');
     $cf = number_format($cuotaFinal, 2, ',', '.');
@@ -293,10 +291,11 @@ $totalFinalPVFmt = number_format($totalFinalPVP, 2, ',', '.');
 
 $totalesHtml .= "
     <tr style='border-top: 1px solid #000;'>
-        <td style='border: none; font-size: 1.1rem; padding-top:10px;'><strong>TOTAL (PVP):</strong></td>
+        <td style='border: none; font-size: 1.1rem; padding-top:10px;'><strong>TOTAL:</strong></td>
         <td style='border: none; font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;'>{$totalFinalPVFmt} €</td>
     </tr>
-</table>";
+</table>
+" . ($importeDescuentoTarifaTotal > 0.01 ? "<div style='font-size: 10px; color: #666; margin-top: 5px;'>* Los ahorros por tarifa ya están aplicados en el precio de cada artículo.</div>" : "");
 
 // E. Bloque de observaciones (si existen)
 $obsHtml = '';

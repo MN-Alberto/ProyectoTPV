@@ -17,6 +17,8 @@ class LineaVenta
     private $idProducto;
     private $cantidad;
     private $precioUnitario;
+    private $precioOriginal;
+    private $tarifaNombre;
     private $iva;
     private $subtotal;
 
@@ -45,6 +47,16 @@ class LineaVenta
     public function getPrecioUnitario()
     {
         return $this->precioUnitario;
+    }
+
+    public function getPrecioOriginal()
+    {
+        return $this->precioOriginal;
+    }
+
+    public function getTarifaNombre()
+    {
+        return $this->tarifaNombre;
     }
 
     public function getSubtotal()
@@ -82,6 +94,16 @@ class LineaVenta
     public function setPrecioUnitario($precioUnitario)
     {
         $this->precioUnitario = $precioUnitario;
+    }
+
+    public function setPrecioOriginal($precioOriginal)
+    {
+        $this->precioOriginal = $precioOriginal;
+    }
+
+    public function setTarifaNombre($tarifaNombre)
+    {
+        $this->tarifaNombre = $tarifaNombre;
     }
 
     public function setSubtotal($subtotal)
@@ -196,14 +218,16 @@ class LineaVenta
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta (ahora incluye IVA)
         $stmt = $conexion->prepare(
-            "INSERT INTO lineasVenta (idVenta, idProducto, cantidad, precioUnitario, iva, subtotal) 
-             VALUES (:idVenta, :idProducto, :cantidad, :precioUnitario, :iva, :subtotal)"
+            "INSERT INTO lineasVenta (idVenta, idProducto, cantidad, precioUnitario, precioOriginal, tarifaNombre, iva, subtotal) 
+             VALUES (:idVenta, :idProducto, :cantidad, :precioUnitario, :precioOriginal, :tarifaNombre, :iva, :subtotal)"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':idVenta', $this->idVenta, PDO::PARAM_INT);
         $stmt->bindParam(':idProducto', $this->idProducto, PDO::PARAM_INT);
         $stmt->bindParam(':cantidad', $this->cantidad, PDO::PARAM_INT);
         $stmt->bindParam(':precioUnitario', $this->precioUnitario);
+        $stmt->bindParam(':precioOriginal', $this->precioOriginal);
+        $stmt->bindParam(':tarifaNombre', $this->tarifaNombre);
         $stmt->bindParam(':iva', $this->iva, PDO::PARAM_INT);
         $stmt->bindParam(':subtotal', $this->subtotal);
         // Ejecutamos la consulta
@@ -227,13 +251,16 @@ class LineaVenta
         // Preparamos la consulta
         $stmt = $conexion->prepare(
             "UPDATE lineasVenta SET idVenta = :idVenta, idProducto = :idProducto, 
-             cantidad = :cantidad, precioUnitario = :precioUnitario, iva = :iva, subtotal = :subtotal WHERE id = :id"
+             cantidad = :cantidad, precioUnitario = :precioUnitario, precioOriginal = :precioOriginal, 
+             tarifaNombre = :tarifaNombre, iva = :iva, subtotal = :subtotal WHERE id = :id"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':idVenta', $this->idVenta, PDO::PARAM_INT);
         $stmt->bindParam(':idProducto', $this->idProducto, PDO::PARAM_INT);
         $stmt->bindParam(':cantidad', $this->cantidad, PDO::PARAM_INT);
         $stmt->bindParam(':precioUnitario', $this->precioUnitario);
+        $stmt->bindParam(':precioOriginal', $this->precioOriginal);
+        $stmt->bindParam(':tarifaNombre', $this->tarifaNombre);
         $stmt->bindParam(':iva', $this->iva, PDO::PARAM_INT);
         $stmt->bindParam(':subtotal', $this->subtotal);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
@@ -291,6 +318,8 @@ class LineaVenta
         $linea->setIdProducto($fila['idProducto']);
         $linea->setCantidad($fila['cantidad']);
         $linea->setPrecioUnitario($fila['precioUnitario']);
+        $linea->setPrecioOriginal($fila['precioOriginal'] ?? $fila['precioUnitario']);
+        $linea->setTarifaNombre($fila['tarifaNombre'] ?? null);
         $linea->setIva($fila['iva'] ?? 21);
         $linea->setSubtotal($fila['subtotal']);
         // Devolvemos la linea creada

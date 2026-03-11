@@ -16,9 +16,34 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->exec("SET NAMES utf8mb4");
 
+    /**
+     * Valida un DNI español (8 dígitos + 1 letra).
+     * La letra se calcula dividiendo el número entre 23 y cogiendo el resto.
+     * @param string $dni El DNI a validar
+     * @return bool True si el DNI es válido
+     */
+    function validarDNI($dni)
+    {
+        // Verificar formato: 8 dígitos + 1 letra
+        if (!preg_match('/^\\d{8}[A-Z]$/', strtoupper($dni))) {
+            return false;
+        }
+
+        // Extraer números y letra
+        $dni = strtoupper($dni);
+        $numeros = intval(substr($dni, 0, 8));
+        $letra = substr($dni, 8, 1);
+
+        // Calcular la letra correcta según el algoritmo español
+        $letras = 'TRWAGMYFPDXBNJZSQVHLCKE';
+        $letraCorrecta = $letras[$numeros % 23];
+
+        return $letra === $letraCorrecta;
+    }
+
     // Manejar POST para crear nuevo cliente
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $dni = $_POST['dni'] ?? '';
+        $dni = strtoupper(trim($_POST['dni'] ?? ''));
         $nombre = $_POST['nombre'] ?? '';
         $apellidos = $_POST['apellidos'] ?? '';
         $fecha_alta = $_POST['fecha_alta'] ?? date('Y-m-d');
@@ -26,6 +51,13 @@ try {
         if (empty($dni) || empty($nombre) || empty($apellidos)) {
             http_response_code(400);
             echo json_encode(['error' => 'DNI, nombre y apellidos son obligatorios']);
+            exit;
+        }
+
+        // Validar formato DNI (8 dígitos + letra válida)
+        if (!validarDNI($dni)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'El DNI debe tener 8 dígitos seguidos de una letra válida (ejemplo: 12345678A)']);
             exit;
         }
 
@@ -54,7 +86,7 @@ try {
         parse_str(file_get_contents("php://input"), $_PUT);
 
         $id = $_PUT['id'] ?? '';
-        $dni = $_PUT['dni'] ?? '';
+        $dni = strtoupper(trim($_PUT['dni'] ?? ''));
         $nombre = $_PUT['nombre'] ?? '';
         $apellidos = $_PUT['apellidos'] ?? '';
         $fecha_alta = $_PUT['fecha_alta'] ?? '';
@@ -62,6 +94,13 @@ try {
         if (empty($id) || empty($dni) || empty($nombre) || empty($apellidos)) {
             http_response_code(400);
             echo json_encode(['error' => 'Todos los campos son obligatorios']);
+            exit;
+        }
+
+        // Validar formato DNI (8 dígitos + letra válida)
+        if (!validarDNI($dni)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'El DNI debe tener 8 dígitos seguidos de una letra válida (ejemplo: 12345678A)']);
             exit;
         }
 

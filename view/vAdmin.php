@@ -259,12 +259,9 @@
                     </select>
                 </div>
                 <div class="editar-prod-fila">
-                    <label>Tipo de IVA (%)</label>
+                    <label>Tipo de IVA</label>
                     <select id="editProductoIva">
-                        <option value="21">21% (General)</option>
-                        <option value="10">10% (Reducido)</option>
-                        <option value="4">4% (Superreducido)</option>
-                        <option value="0">0% (Exento)</option>
+                        <!-- Se rellena dinámicamente desde api/iva.php -->
                     </select>
                 </div>
             </div>
@@ -306,6 +303,10 @@
             <div class="ver-prod-fila">
                 <span class="ver-prod-label">Estado</span>
                 <span id="verUsuarioEstado" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Crear Productos</span>
+                <span id="verUsuarioCrearProductos" class="ver-prod-valor"></span>
             </div>
         </div>
 
@@ -619,13 +620,13 @@
                     placeholder="García López" maxlength="150">
             </div>
 
-            <!-- Campo Fecha de Alta -->
+            <!-- Campo Fecha de Alta (solo lectura - se establece automáticamente) -->
             <div>
                 <label for="clienteHabitualFecha"
                     style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Fecha de
                     Alta</label>
-                <input type="datetime-local" id="clienteHabitualFecha"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;">
+                <input type="datetime-local" id="clienteHabitualFecha" readonly
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; background-color: #f3f4f6; color: #6b7280;">
             </div>
         </div>
 
@@ -683,6 +684,35 @@
             <button class="btn-modal-cancelar" onclick="cerrarModal('modalEditarCliente')">Cancelar</button>
             <button class="btn-exito" id="btnGuardarClienteEditado" onclick="guardarClienteEditado()"
                 style="margin: 0;">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ##-----------------------------------MODAL EDITAR/CREAR TIPO DE IVA-----------------------------------## -->
+
+<div class="modal-overlay" id="modalEditarIva" style="display:none;">
+    <div class="modal-content modal-editarProducto" style="max-width: 420px;">
+        <h3 id="editIvaTitulo">Nuevo Tipo de IVA</h3>
+        <p id="editIvaSubtitulo" class="modal-subtitulo">Introduce los datos del nuevo tipo de IVA</p>
+
+        <input type="hidden" id="editIvaId">
+
+        <div class="editar-prod-campos" style="max-width: 100%;">
+            <div class="editar-prod-fila">
+                <label>Nombre <span style="color:red">*</span></label>
+                <input type="text" id="editIvaNombre" placeholder="Ej: IVA Reducido">
+            </div>
+            <div class="editar-prod-fila">
+                <label>Porcentaje (%) <span style="color:red">*</span></label>
+                <input type="number" id="editIvaPorcentaje" step="0.01" min="0" max="100" placeholder="Ej: 10">
+            </div>
+        </div>
+
+        <div class="editar-prod-botones">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalEditarIva')">Cancelar</button>
+            <button class="btn-exito" onclick="guardarIva()">
+                <i class="fas fa-save"></i> Guardar
+            </button>
         </div>
     </div>
 </div>
@@ -788,8 +818,9 @@
     document.getElementById('adminContenido').innerHTML = HTML_DASHBOARD;
     cargarGraficoDashboard();
 
-    // Cargar categorías al inicio para el panel de productos
+    // Cargar categorías y tipos de IVA al inicio
     cargarCategoriasAdmin();
+    cargarTiposIva();
 </script>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">

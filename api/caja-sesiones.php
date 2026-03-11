@@ -8,6 +8,7 @@
 
 session_start();
 require_once(__DIR__ . '/../config/confDB.php');
+require_once(__DIR__ . '/../model/Caja.php');
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -20,7 +21,20 @@ if (!isset($_SESSION['rolUsuario']) || $_SESSION['rolUsuario'] !== 'admin') {
 
 $method = $_SERVER['REQUEST_METHOD'];
 
+// GET: Obtener sesiones o datos de arqueo
 if ($method === 'GET') {
+    // Verificar si es una solicitud de arqueo
+    if (isset($_GET['arqueo']) && isset($_GET['idSesion'])) {
+        obtenerDatosArqueo($_GET['idSesion']);
+        exit;
+    }
+
+    // Verificar si es una solicitud de último arqueo
+    if (isset($_GET['ultimoArqueo']) && isset($_GET['idSesion'])) {
+        obtenerUltimoArqueo($_GET['idSesion']);
+        exit;
+    }
+
     $orden = $_GET['orden'] ?? 'fecha_desc';
 
     // Validar orden
@@ -79,5 +93,88 @@ if ($method === 'GET') {
     exit;
 }
 
+// POST: Registrar arqueo
+if ($method === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    if (isset($input['accion']) && $input['accion'] === 'registrarArqueo') {
+        registrarArqueo($input);
+        exit;
+    }
+}
+
 http_response_code(405);
 echo json_encode(['ok' => false, 'error' => 'Método no permitido']);
+
+// ======================== FUNCIONES ========================
+
+function obtenerDatosArqueo($idSesion)
+{
+    try {
+        $caja = new Caja();
+        $caja->setId($idSesion);
+        $datos = $caja->getDatosArqueo();
+        echo json_encode(['ok' => true, 'datos' => $datos]);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'Error al obtener datos del arqueo']);
+    }
+}
+
+function obtenerUltimoArqueo($idSesion)
+{
+    try {
+        $caja = new Caja();
+        $caja->setId($idSesion);
+        $arqueo = $caja->getUltimoArqueo();
+        echo json_encode(['ok' => true, 'arqueo' => $arqueo]);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'Error al obtener el último arqueo']);
+    }
+}
+
+function registrarArqueo($input)
+{
+    $idSesion = $input['idSesion'] ?? null;
+    $efectivoContado = $input['efectivoContado'] ?? 0;
+    $detalleConteo = $input['detalleConteo'] ?? null;
+    $observaciones = $input['observaciones'] ?? null;
+    $tipoArqueo = $input['tipoArqueo'] ?? 'cierre';
+    $idUsuario = $_SESSION['idUsuario'] ?? null;
+
+    if (!$idSesion || !$idUsuario) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Faltan datos requeridos']);
+        return;
+    }
+
+    try {
+        $caja = new Caja();
+        $caja->setId($idSesion);
+
+        // Convertir detalleConteo a JSON si es un array
+        $detalleJson = null;
+        if (is_array($detalleConteo)) {
+            $detalleJson = json_encode($detalleConteo, JSON_UNESCAPED_UNICODE);
+        }
+
+        $resultado = $caja->registrarArqueo(
+            $idUsuario,
+            (float) $efectivoContado,
+            $detalleJson,
+            $observaciones,
+            $tipoArqueo
+        );
+
+        if ($resultado) {
+            echo json_encode(['ok' => true, 'mensaje' => 'Arqueo registrado correctamente']);
+        } else {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'Error al registrar el arqueo']);
+        }
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'Error al registrar el arqueo: ' . $e->getMessage()]);
+    }
+}

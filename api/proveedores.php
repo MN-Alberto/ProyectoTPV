@@ -151,6 +151,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
+    // Validar formato de email si se proporciona
+    if (!empty($email)) {
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'El formato del email no es válido.']);
+            exit();
+        }
+
+        // Validar formato específico de email (debe tener @ y al menos un punto en el dominio)
+        if (!preg_match('/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/', $email)) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'El email debe tener formato: nombre@dominio.com']);
+            exit();
+        }
+    }
+
     if ($id !== '') {
         // Actualizar proveedor existente
         $proveedor = Proveedor::buscarPorId((int) $id);

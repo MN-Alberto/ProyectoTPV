@@ -4,7 +4,7 @@
  * Clase modelo para la gestión de productos informáticos del bazar.
  * 
  * @author Alberto Méndez
- * @version 1.2 (02/03/2026)
+ * @version 1.3 (11/03/2026)
  */
 
 // Requerimos el fichero de conexión a la base de datos
@@ -21,7 +21,10 @@ class Producto
     private $idCategoria;
     private $imagen;
     private $activo;
-    private $iva;
+    private $idIva;
+    // Campos auxiliares (vienen del JOIN con la tabla iva)
+    private $ivaPorcentaje;
+    private $ivaNombre;
 
     // ======================== GETTERS ========================
 
@@ -65,9 +68,19 @@ class Producto
         return $this->activo;
     }
 
-    public function getIva()
+    public function getIdIva()
     {
-        return $this->iva;
+        return $this->idIva;
+    }
+
+    public function getIvaPorcentaje()
+    {
+        return $this->ivaPorcentaje;
+    }
+
+    public function getIvaNombre()
+    {
+        return $this->ivaNombre;
     }
 
     // ======================== SETTERS ========================
@@ -112,9 +125,19 @@ class Producto
         $this->activo = $activo;
     }
 
-    public function setIva($iva)
+    public function setIdIva($idIva)
     {
-        $this->iva = $iva;
+        $this->idIva = $idIva;
+    }
+
+    public function setIvaPorcentaje($ivaPorcentaje)
+    {
+        $this->ivaPorcentaje = $ivaPorcentaje;
+    }
+
+    public function setIvaNombre($ivaNombre)
+    {
+        $this->ivaNombre = $ivaNombre;
     }
 
     // ======================== MÉTODOS CRUD ========================
@@ -128,8 +151,13 @@ class Producto
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta
-        $stmt = $conexion->prepare("SELECT * FROM productos WHERE id = :id");
+        // Preparamos la consulta con JOIN a la tabla iva
+        $stmt = $conexion->prepare(
+            "SELECT p.*, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
+             FROM productos p 
+             LEFT JOIN iva i ON p.idIva = i.id 
+             WHERE p.id = :id"
+        );
         // Vinculamos los parámetros
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
         // Ejecutamos la consulta
@@ -152,8 +180,13 @@ class Producto
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta
-        $stmt = $conexion->query("SELECT * FROM productos WHERE activo = 1 ORDER BY nombre");
+        // Preparamos la consulta con JOIN a la tabla iva
+        $stmt = $conexion->query(
+            "SELECT p.*, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
+             FROM productos p 
+             LEFT JOIN iva i ON p.idIva = i.id 
+             WHERE p.activo = 1 ORDER BY p.nombre"
+        );
         // Creamos un array para guardar los productos
         $productos = [];
         // Recorremos las filas
@@ -173,8 +206,13 @@ class Producto
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta
-        $stmt = $conexion->prepare("SELECT * FROM productos ORDER BY nombre ASC");
+        // Preparamos la consulta con JOIN a la tabla iva
+        $stmt = $conexion->prepare(
+            "SELECT p.*, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
+             FROM productos p 
+             LEFT JOIN iva i ON p.idIva = i.id 
+             ORDER BY p.nombre ASC"
+        );
         // Ejecutamos la consulta
         $stmt->execute();
         // Creamos un array para guardar los productos
@@ -197,9 +235,12 @@ class Producto
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta
+        // Preparamos la consulta con JOIN a la tabla iva
         $stmt = $conexion->prepare(
-            "SELECT * FROM productos WHERE idCategoria = :idCategoria AND activo = 1 ORDER BY nombre"
+            "SELECT p.*, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
+             FROM productos p 
+             LEFT JOIN iva i ON p.idIva = i.id 
+             WHERE p.idCategoria = :idCategoria AND p.activo = 1 ORDER BY p.nombre"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':idCategoria', $idCategoria, PDO::PARAM_INT);
@@ -225,9 +266,12 @@ class Producto
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta
+        // Preparamos la consulta con JOIN a la tabla iva
         $stmt = $conexion->prepare(
-            "SELECT * FROM productos WHERE nombre LIKE :nombre AND activo = 1 ORDER BY nombre"
+            "SELECT p.*, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
+             FROM productos p 
+             LEFT JOIN iva i ON p.idIva = i.id 
+             WHERE p.nombre LIKE :nombre AND p.activo = 1 ORDER BY p.nombre"
         );
         // Vinculamos los parámetros
         $busqueda = '%' . $nombre . '%';
@@ -254,9 +298,12 @@ class Producto
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta
+        // Preparamos la consulta con JOIN a la tabla iva
         $stmt = $conexion->prepare(
-            "SELECT * FROM productos WHERE nombre LIKE :nombre AND idCategoria = :categoria AND activo = 1 ORDER BY nombre"
+            "SELECT p.*, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
+             FROM productos p 
+             LEFT JOIN iva i ON p.idIva = i.id 
+             WHERE p.nombre LIKE :nombre AND p.idCategoria = :categoria AND p.activo = 1 ORDER BY p.nombre"
         );
         // Vinculamos los parámetros
         $busqueda = '%' . $nombre . '%';
@@ -285,8 +332,8 @@ class Producto
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "INSERT INTO productos (nombre, descripcion, precio, stock, idCategoria, imagen, activo, iva) 
-             VALUES (:nombre, :descripcion, :precio, :stock, :idCategoria, :imagen, :activo, :iva)"
+            "INSERT INTO productos (nombre, descripcion, precio, stock, idCategoria, imagen, activo, idIva) 
+             VALUES (:nombre, :descripcion, :precio, :stock, :idCategoria, :imagen, :activo, :idIva)"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':nombre', $this->nombre);
@@ -296,7 +343,7 @@ class Producto
         $stmt->bindParam(':idCategoria', $this->idCategoria, PDO::PARAM_INT);
         $stmt->bindParam(':imagen', $this->imagen);
         $stmt->bindParam(':activo', $this->activo, PDO::PARAM_BOOL);
-        $stmt->bindParam(':iva', $this->iva, PDO::PARAM_INT);
+        $stmt->bindParam(':idIva', $this->idIva, PDO::PARAM_INT);
         // Ejecutamos la consulta
         $resultado = $stmt->execute();
         // Obtenemos el último ID insertado
@@ -317,7 +364,7 @@ class Producto
         $stmt = $conexion->prepare(
             "UPDATE productos SET nombre = :nombre, descripcion = :descripcion, precio = :precio, 
              stock = :stock, idCategoria = :idCategoria, 
-             imagen = :imagen, activo = :activo, iva = :iva WHERE id = :id"
+             imagen = :imagen, activo = :activo, idIva = :idIva WHERE id = :id"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':nombre', $this->nombre);
@@ -327,7 +374,7 @@ class Producto
         $stmt->bindParam(':idCategoria', $this->idCategoria, PDO::PARAM_INT);
         $stmt->bindParam(':imagen', $this->imagen);
         $stmt->bindParam(':activo', $this->activo, PDO::PARAM_INT);
-        $stmt->bindParam(':iva', $this->iva, PDO::PARAM_INT);
+        $stmt->bindParam(':idIva', $this->idIva, PDO::PARAM_INT);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
         return $stmt->execute();
     }
@@ -390,7 +437,10 @@ class Producto
         $producto->setIdCategoria($fila['idCategoria']);
         $producto->setImagen($fila['imagen']);
         $producto->setActivo($fila['activo']);
-        $producto->setIva($fila['iva'] ?? 21);
+        $producto->setIdIva($fila['idIva'] ?? 1);
+        // Campos auxiliares del JOIN con la tabla iva
+        $producto->setIvaPorcentaje($fila['ivaPorcentaje'] ?? 21);
+        $producto->setIvaNombre($fila['ivaNombre'] ?? 'General');
         // Devolvemos el producto
         return $producto;
     }

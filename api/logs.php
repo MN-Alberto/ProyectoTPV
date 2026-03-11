@@ -132,8 +132,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 // ======================== POST: Limpiar logs ========================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['accion']) && $_GET['accion'] === 'limpiar') {
     try {
+        // Capturar info del usuario antes de truncate
+        $usuarioId = $_SESSION['idUsuario'] ?? null;
+        $usuarioNombre = $_SESSION['nombreUsuario'] ?? 'Sistema';
+
         // Eliminar todos los logs
-        $stmt = $pdo->exec("TRUNCATE TABLE logs_sistema");
+        $pdo->exec("TRUNCATE TABLE logs_sistema");
+
+        // Insertar log de borrado
+        $stmt = $pdo->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES (:tipo, :usuario_id, :usuario_nombre, :descripcion, :detalles)");
+        $stmt->execute([
+            ':tipo' => 'borrado_logs',
+            ':usuario_id' => $usuarioId,
+            ':usuario_nombre' => $usuarioNombre,
+            ':descripcion' => 'Se han borrado todos los logs del sistema',
+            ':detalles' => json_encode(['accion' => 'borrado_logs', 'timestamp' => date('Y-m-d H:i:s')])
+        ]);
 
         echo json_encode(['ok' => true, 'mensaje' => 'Logs eliminados correctamente']);
     } catch (PDOException $e) {
@@ -166,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $detalles = isset($input['detalles']) ? $input['detalles'] : null;
 
     // Validar tipo
-    $tiposPermitidos = ['login', 'logout', 'login_fallido', 'venta', 'apertura_caja', 'cierre_caja', 'retiro_caja', 'acceso_admin', 'acceso_cajero', 'acceso_login', 'creacion_usuario', 'modificacion_usuario', 'eliminacion_usuario'];
+    $tiposPermitidos = ['login', 'logout', 'login_fallido', 'venta', 'apertura_caja', 'cierre_caja', 'retiro_caja', 'acceso_admin', 'acceso_cajero', 'acceso_login', 'creacion_usuario', 'modificacion_usuario', 'eliminacion_usuario', 'borrado_logs'];
 
     if (!$tipo || !in_array($tipo, $tiposPermitidos)) {
         http_response_code(400);

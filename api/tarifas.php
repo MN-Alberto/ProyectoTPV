@@ -11,6 +11,42 @@ ini_set('display_errors', 1);
 require_once(__DIR__ . '/../config/confDB.php');
 require_once(__DIR__ . '/../core/conexionDB.php');
 
+// Función para actualizar precios de productos según la tarifa
+function actualizarPreciosProductosPorTarifa($conexion, $nombreTarifa, $descuentoPorcentaje)
+{
+    $nombreTarifa = trim($nombreTarifa);
+
+    // Determinar qué campo actualizar según la tarifa
+    $campoPrecio = null;
+    if ($nombreTarifa === 'Cliente Registrado') {
+        $campoPrecio = 'precio_cliente';
+    } elseif ($nombreTarifa === 'Mayorista Nivel 1') {
+        $campoPrecio = 'precio_mayorista1';
+    } elseif ($nombreTarifa === 'Mayorista Nivel 2') {
+        $campoPrecio = 'precio_mayorista2';
+    }
+
+    // Si no es una tarifa especial, no actualizamos precios
+    if ($campoPrecio === null) {
+        return;
+    }
+
+    // Obtener todos los productos activos
+    $stmt = $conexion->query("SELECT id, precio FROM productos WHERE activo = 1");
+    $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Actualizar el precio para cada producto
+    foreach ($productos as $producto) {
+        $precioBase = floatval($producto['precio']);
+        $nuevoPrecio = round($precioBase * (1 - $descuentoPorcentaje / 100), 2);
+
+        $updateStmt = $conexion->prepare("UPDATE productos SET $campoPrecio = :precio WHERE id = :id");
+        $updateStmt->bindParam(':precio', $nuevoPrecio);
+        $updateStmt->bindParam(':id', $producto['id'], PDO::PARAM_INT);
+        $updateStmt->execute();
+    }
+}
+
 header('Content-Type: application/json; charset=utf-8');
 
 try {
@@ -44,13 +80,20 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['editar'])) {
         $nombre = $_POST['nombre'] ?? '';
         $descripcion = $_POST['descripcion'] ?? '';
-        $descuento_porcentaje = $_POST['descuento_porcentaje'] ?? 0;
+        $descuento_porcentaje = (float) ($_POST['descuento_porcentaje'] ?? 0);
         $requiere_cliente = isset($_POST['requiere_cliente']) && $_POST['requiere_cliente'] === '1' ? 1 : 0;
         $orden = $_POST['orden'] ?? 0;
 
         if (empty($nombre)) {
             http_response_code(400);
             echo json_encode(['error' => 'El nombre es obligatorio']);
+            exit;
+        }
+
+        // Validar que el descuento no sea negativo
+        if ($descuento_porcentaje < 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'El descuento no puede ser negativo']);
             exit;
         }
 
@@ -66,6 +109,9 @@ try {
         $stmt->bindParam(':orden', $orden, PDO::PARAM_INT);
 
         if ($stmt->execute()) {
+            // Actualizar precios de productos si la tarifa es Cliente Registrado, Mayorista Nivel 1 o Mayorista Nivel 2
+            actualizarPreciosProductosPorTarifa($conexion, $nombre, $descuento_porcentaje);
+
             echo json_encode(['ok' => true, 'id' => $conexion->lastInsertId()]);
         } else {
             http_response_code(500);
@@ -79,13 +125,20 @@ try {
         $id = $_POST['editar'];
         $nombre = $_POST['nombre'] ?? '';
         $descripcion = $_POST['descripcion'] ?? '';
-        $descuento_porcentaje = $_POST['descuento_porcentaje'] ?? 0;
+        $descuento_porcentaje = (float) ($_POST['descuento_porcentaje'] ?? 0);
         $requiere_cliente = isset($_POST['requiere_cliente']) && $_POST['requiere_cliente'] === '1' ? 1 : 0;
         $orden = $_POST['orden'] ?? 0;
 
         if (empty($nombre)) {
             http_response_code(400);
             echo json_encode(['error' => 'El nombre es obligatorio']);
+            exit;
+        }
+
+        // Validar que el descuento no sea negativo
+        if ($descuento_porcentaje < 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'El descuento no puede ser negativo']);
             exit;
         }
 
@@ -117,6 +170,9 @@ try {
         $stmt->bindParam(':orden', $orden, PDO::PARAM_INT);
 
         if ($stmt->execute()) {
+            // Actualizar precios de productos si la tarifa es Cliente Registrado, Mayorista Nivel 1 o Mayorista Nivel 2
+            actualizarPreciosProductosPorTarifa($conexion, $nombre, $descuento_porcentaje);
+
             echo json_encode(['ok' => true]);
         } else {
             http_response_code(500);
@@ -125,19 +181,47 @@ try {
         exit;
     }
 
-    // Eliminar tarifa (marcar como inactiva)
+    // Eliminar tarifa (borrado físico)
     if ($_SERVER['REQUEST_METHOD'] === 'DELETE' && isset($_GET['eliminar'])) {
-        $id = $_GET['eliminar'];
+        $id = intval($_GET['eliminar']);
 
-        $conexion = ConexionDB::getInstancia()->getConexion();
-        $stmt = $conexion->prepare("UPDATE tarifas_prefijadas SET activo = 0 WHERE id = :id");
-        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        if ($id <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'ID de tarifa inválido']);
+            exit;
+        }
 
-        if ($stmt->execute()) {
-            echo json_encode(['ok' => true]);
-        } else {
+        try {
+            $conexion = ConexionDB::getInstancia()->getConexion();
+
+            // Verificar que existe la tarifa
+            $checkStmt = $conexion->prepare("SELECT id, nombre FROM tarifas_prefijadas WHERE id = :id");
+            $checkStmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $checkStmt->execute();
+            $tarifa = $checkStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$tarifa) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Tarifa no encontrada']);
+                exit;
+            }
+
+            // Borrar físicamente la tarifa
+            $stmt = $conexion->prepare("DELETE FROM tarifas_prefijadas WHERE id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $result = $stmt->execute();
+
+            $rowCount = $stmt->rowCount();
+
+            if ($result && $rowCount > 0) {
+                echo json_encode(['ok' => true, 'message' => 'Tarifa eliminada']);
+            } else {
+                http_response_code(500);
+                echo json_encode(['error' => 'No se pudo eliminar la tarifa']);
+            }
+        } catch (Exception $e) {
             http_response_code(500);
-            echo json_encode(['error' => 'Error al eliminar la tarifa']);
+            echo json_encode(['error' => 'Error al eliminar la tarifa: ' . $e->getMessage()]);
         }
         exit;
     }

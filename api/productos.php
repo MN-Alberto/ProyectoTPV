@@ -12,6 +12,7 @@ session_start();
 require_once(__DIR__ . '/../config/confDB.php');
 require_once(__DIR__ . '/../model/Producto.php');
 require_once(__DIR__ . '/../model/Categoria.php');
+require_once(__DIR__ . '/../model/Iva.php');
 
 // Indicamos al navegador que es un tipo JSON
 header('Content-Type: application/json; charset=utf-8');
@@ -19,16 +20,18 @@ header('Content-Type: application/json; charset=utf-8');
 try {
     // PREVISUALIZAR CAMBIO DE IVA
     if (isset($_GET['previsualizarIVA'])) {
-        $nuevoIVA = floatval($_GET['previsualizarIVA']);
+        $nuevoIdIva = intval($_GET['previsualizarIVA']);
 
-        if ($nuevoIVA < 0 || $nuevoIVA > 100) {
+        // Verificar que el tipo de IVA existe
+        $nuevoIva = Iva::buscarPorId($nuevoIdIva);
+        if (!$nuevoIva) {
             http_response_code(400);
-            echo json_encode(['error' => 'IVA inválido']);
+            echo json_encode(['error' => 'Tipo de IVA inválido']);
             exit();
         }
 
         $conexion = ConexionDB::getInstancia()->getConexion();
-        $stmt = $conexion->query("SELECT id, nombre, precio, iva FROM productos ORDER BY nombre ASC LIMIT 100");
+        $stmt = $conexion->query("SELECT p.id, p.nombre, p.precio, p.idIva, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre FROM productos p LEFT JOIN iva i ON p.idIva = i.id ORDER BY p.nombre ASC LIMIT 100");
         $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $resultado = [];
@@ -37,8 +40,8 @@ try {
                 'id' => $prod['id'],
                 'nombre' => $prod['nombre'],
                 'precio' => floatval($prod['precio']),
-                'iva_actual' => intval($prod['iva']),
-                'iva_nuevo' => $nuevoIVA
+                'iva_actual' => floatval($prod['ivaPorcentaje']),
+                'iva_nuevo' => floatval($nuevoIva->getPorcentaje())
             ];
         }
 
@@ -51,7 +54,7 @@ try {
         $porcentaje = floatval($_GET['previsualizarAjuste']);
 
         $conexion = ConexionDB::getInstancia()->getConexion();
-        $stmt = $conexion->query("SELECT id, nombre, precio, iva FROM productos ORDER BY nombre ASC LIMIT 100");
+        $stmt = $conexion->query("SELECT p.id, p.nombre, p.precio, p.idIva, i.porcentaje as ivaPorcentaje FROM productos p LEFT JOIN iva i ON p.idIva = i.id ORDER BY p.nombre ASC LIMIT 100");
         $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $resultado = [];
@@ -73,36 +76,65 @@ try {
 
     // CAMBIAR IVA A TODOS LOS PRODUCTOS
     if (isset($_GET['cambiarIVA'])) {
-        $nuevoIVA = floatval($_GET['cambiarIVA']);
+        $nuevoIdIva = intval($_GET['cambiarIVA']);
         $excluidos = [];
 
-        if ($nuevoIVA < 0 || $nuevoIVA > 100) {
+        // Verificar que el tipo de IVA existe
+        $nuevoIva = Iva::buscarPorId($nuevoIdIva);
+        if (!$nuevoIva) {
             http_response_code(400);
-            echo json_encode(['error' => 'IVA inválido']);
+            echo json_encode(['error' => 'Tipo de IVA inválido']);
             exit();
         }
 
         $conexion = ConexionDB::getInstancia()->getConexion();
+
+        // Obtener el IVA anterior (el más común en los productos)
+        $stmtAnterior = $conexion->query("SELECT i.porcentaje as iva_actual FROM productos p LEFT JOIN iva i ON p.idIva = i.id GROUP BY p.idIva ORDER BY COUNT(*) DESC LIMIT 1");
+        $ivaAnterior = $stmtAnterior->fetch(PDO::FETCH_ASSOC);
+        $ivaAnteriorValor = $ivaAnterior ? floatval($ivaAnterior['iva_actual']) : null;
 
         // Obtener productos excluidos si se proporcionan
         if (isset($_GET['excluidos']) && !empty($_GET['excluidos'])) {
             $excluidos = array_map('intval', explode(',', $_GET['excluidos']));
         }
 
-        // Actualizar IVA excluyendo productos si hay
+        // Actualizar idIva excluyendo productos si hay
         if (count($excluidos) > 0) {
             $placeholders = implode(',', array_fill(0, count($excluidos), '?'));
-            $stmt = $conexion->prepare("UPDATE productos SET iva = :iva WHERE id NOT IN ($placeholders)");
-            $params = array_merge([$nuevoIVA], $excluidos);
+            $stmt = $conexion->prepare("UPDATE productos SET idIva = ? WHERE id NOT IN ($placeholders)");
+            $params = array_merge([$nuevoIdIva], $excluidos);
             $stmt->execute($params);
         } else {
-            $stmt = $conexion->prepare("UPDATE productos SET iva = :iva");
-            $stmt->bindParam(':iva', $nuevoIVA, PDO::PARAM_INT);
-            $stmt->execute();
+            $stmt = $conexion->prepare("UPDATE productos SET idIva = ?");
+            $stmt->execute([$nuevoIdIva]);
         }
         $actualizados = $stmt->rowCount();
 
-        echo json_encode(['ok' => true, 'actualizados' => $actualizados]);
+        // Registrar log de cambio de IVA (si falla, no afecta al resultado)
+        $logExito = false;
+        try {
+            $stmtLog = $conexion->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES (:tipo, :usuario_id, :usuario_nombre, :descripcion, :detalles)");
+            $stmtLog->execute([
+                ':tipo' => 'cambio_iva',
+                ':usuario_id' => $_SESSION['idUsuario'] ?? null,
+                ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
+                ':descripcion' => 'Cambio de IVA de ' . $ivaAnteriorValor . '% a ' . $nuevoIva->getPorcentaje() . '%',
+                ':detalles' => json_encode([
+                    'iva_anterior' => $ivaAnteriorValor,
+                    'iva_nuevo' => floatval($nuevoIva->getPorcentaje()),
+                    'iva_nombre' => $nuevoIva->getNombre(),
+                    'productos_actualizados' => intval($actualizados),
+                    'productos_excluidos' => $excluidos
+                ], JSON_UNESCAPED_UNICODE)
+            ]);
+            $logExito = true;
+        } catch (Exception $e) {
+            // Silenciar errores de logging pero continuar
+            error_log('Error al registrar log de cambio IVA: ' . $e->getMessage());
+        }
+
+        echo json_encode(['ok' => true, 'actualizados' => $actualizados, 'log' => $logExito]);
         exit();
     }
 
@@ -207,12 +239,25 @@ try {
         $stock = (int) ($_POST['stock'] ?? 0);
         $activo = (int) ($_POST['activo'] ?? 1);
         $categoria = trim($_POST['categoria'] ?? '');
-        $iva = (int) ($_POST['iva'] ?? 21);
+        $idIva = (int) ($_POST['idIva'] ?? 1);
 
         // Validar que los campos obligatorios no estén vacíos
         if (empty($nombre) || empty($categoria)) {
             http_response_code(400);
             echo json_encode(['ok' => false, 'error' => 'El nombre y la categoría son obligatorios.']);
+            exit();
+        }
+
+        // Validar que precio y stock no sean negativos
+        if ($precio < 0) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'El precio no puede ser negativo.']);
+            exit();
+        }
+
+        if ($stock < 0) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'El stock no puede ser negativo.']);
             exit();
         }
 
@@ -234,7 +279,20 @@ try {
             $producto->setPrecio($precio);
             $producto->setStock($stock);
             $producto->setActivo($activo);
-            $producto->setIva($iva);
+            $producto->setIdIva($idIva);
+
+            // Buscar la categoría para obtener su ID y actualizar
+            $categorias = Categoria::obtenerTodas();
+            $idCategoria = null;
+            foreach ($categorias as $cat) {
+                if ($cat->getNombre() === $categoria) {
+                    $idCategoria = $cat->getId();
+                    break;
+                }
+            }
+            if ($idCategoria !== null) {
+                $producto->setIdCategoria($idCategoria);
+            }
         } else {
             // Es un nuevo producto - buscar la categoría para obtener su ID
             $categorias = Categoria::obtenerTodas();
@@ -260,7 +318,7 @@ try {
             $producto->setActivo($activo);
             $producto->setIdCategoria($idCategoria);
             $producto->setImagen('webroot/img/logo.PNG');
-            $producto->setIva($iva);
+            $producto->setIdIva($idIva);
         }
 
         // Subida de imagen (opcional)
@@ -282,8 +340,32 @@ try {
 
         // Guardamos el producto (insertar o actualizar)
         if ($id > 0) {
+            // Obtenemos los datos antiguos del producto antes de actualizar
+            $productoAnterior = null;
+            try {
+                $pdoAux = new PDO(RUTA, USUARIO, PASS);
+                $stmtAux = $pdoAux->prepare("SELECT p.nombre, p.descripcion, p.precio, p.stock, p.idCategoria, p.imagen, p.activo, p.idIva, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre FROM productos p LEFT JOIN iva i ON p.idIva = i.id WHERE p.id = :id");
+                $stmtAux->execute([':id' => $id]);
+                $productoAnterior = $stmtAux->fetch(PDO::FETCH_ASSOC);
+            } catch (Exception $e) {
+                // Si falla, continuamos sin datos anteriores
+            }
+
             // Actualizamos el producto existente
             if ($producto->actualizar()) {
+                // Obtener el nombre del nuevo IVA después de actualizar
+                try {
+                    $pdoIva = new PDO(RUTA, USUARIO, PASS);
+                    $stmtIva = $pdoIva->prepare("SELECT nombre, porcentaje FROM iva WHERE id = :id");
+                    $stmtIva->execute([':id' => $producto->getIdIva()]);
+                    $ivaData = $stmtIva->fetch(PDO::FETCH_ASSOC);
+                    if ($ivaData) {
+                        $producto->setIvaNombre($ivaData['nombre'] . ' (' . $ivaData['porcentaje'] . '%)');
+                    }
+                } catch (Exception $e) {
+                    // Si falla, mantenemos el valor anterior
+                }
+
                 // Registrar log de modificación de producto
                 try {
                     $pdoLog = new PDO(RUTA, USUARIO, PASS);
@@ -291,11 +373,79 @@ try {
                     $adminId = $_SESSION['id'] ?? null;
                     $adminNombre = $_SESSION['nombre'] ?? 'Admin';
 
-                    $stmtLog = $pdoLog->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion) VALUES ('modificacion_producto', :usuario_id, :usuario_nombre, :descripcion)");
+                    // Comparamos los datos para encontrar qué campos cambiaron
+                    $cambios = [];
+
+                    // Obtener categorías para convertir IDs a nombres
+                    $categorias = Categoria::obtenerTodas();
+                    $mapCategorias = [];
+                    foreach ($categorias as $cat) {
+                        $mapCategorias[$cat->getId()] = $cat->getNombre();
+                    }
+
+                    if ($productoAnterior) {
+                        $campos = ['nombre' => 'Nombre', 'descripcion' => 'Descripción', 'precio' => 'Precio', 'stock' => 'Stock', 'idCategoria' => 'Categoría', 'imagen' => 'Imagen', 'activo' => 'Activo', 'idIva' => 'IVA'];
+                        foreach ($campos as $campo => $label) {
+                            $valorAnterior = $productoAnterior[$campo] ?? '';
+                            $valorNuevo = null;
+                            switch ($campo) {
+                                case 'nombre':
+                                    $valorNuevo = $producto->getNombre();
+                                    break;
+                                case 'descripcion':
+                                    $valorNuevo = $producto->getDescripcion();
+                                    break;
+                                case 'precio':
+                                    $valorNuevo = $producto->getPrecio();
+                                    break;
+                                case 'stock':
+                                    $valorNuevo = $producto->getStock();
+                                    break;
+                                case 'idCategoria':
+                                    // Convertir IDs de categoría a nombres
+                                    $valorAnterior = $mapCategorias[$valorAnterior] ?? $valorAnterior;
+                                    $valorNuevo = $mapCategorias[$producto->getIdCategoria()] ?? $producto->getIdCategoria();
+                                    break;
+                                case 'imagen':
+                                    $valorNuevo = $producto->getImagen();
+                                    break;
+                                case 'activo':
+                                    $valorNuevo = $producto->getActivo();
+                                    break;
+                                case 'idIva':
+                                    // Convertir IDs de IVA a nombres
+                                    $valorAnterior = $productoAnterior['ivaNombre'] ?? $valorAnterior;
+                                    $valorNuevo = $producto->getIvaNombre() ?? $producto->getIdIva();
+                                    break;
+                            }
+                            // Comparar valores (convertir a string para comparación)
+                            // Para precios, usar comparación numérica para evitar problemas de flotantes
+                            $sonIguales = false;
+                            if ($campo === 'precio') {
+                                // Comparar como números con 2 decimales
+                                $sonIguales = round(floatval($valorAnterior), 2) === round(floatval($valorNuevo), 2);
+                            } else {
+                                $sonIguales = strval($valorAnterior) === strval($valorNuevo);
+                            }
+
+                            if (!$sonIguales) {
+                                $cambios[] = [
+                                    'campo' => $label,
+                                    'anterior' => $valorAnterior,
+                                    'nuevo' => $valorNuevo
+                                ];
+                            }
+                        }
+                    }
+
+                    $detalles = count($cambios) > 0 ? json_encode($cambios, JSON_UNESCAPED_UNICODE) : null;
+
+                    $stmtLog = $pdoLog->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES ('modificacion_producto', :usuario_id, :usuario_nombre, :descripcion, :detalles)");
                     $stmtLog->execute([
                         ':usuario_id' => $adminId,
                         ':usuario_nombre' => $adminNombre,
-                        ':descripcion' => 'Producto modificado: ' . $nombre
+                        ':descripcion' => 'Producto modificado: ' . $nombre,
+                        ':detalles' => $detalles
                     ]);
                 } catch (Exception $e) {
                     // Silenciar errores de logging
@@ -391,7 +541,9 @@ try {
             'categoria' => $mapCategorias[$idCat] ?? '—',   // ← nombre legible
             'activo' => (int) $prod->getActivo(),         // ← 1 = activo, 0 = inactivo
             'imagen' => $prod->getImagen(),
-            'iva' => (int) $prod->getIva()
+            'idIva' => (int) $prod->getIdIva(),
+            'iva' => (float) $prod->getIvaPorcentaje(),   // ← porcentaje numérico para cálculos
+            'ivaNombre' => $prod->getIvaNombre()           // ← nombre legible del tipo de IVA
         ];
     }
 

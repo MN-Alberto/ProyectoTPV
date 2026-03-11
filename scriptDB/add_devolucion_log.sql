@@ -1,0 +1,2 @@
+-- Añadir 'devolucion' al ENUM de tipo en logs_sistema
+ALTER TABLE logs_sistema MODIFY COLUMN tipo ENUM('login', 'login_fallido', 'logout', 'venta', 'devolucion', 'apertura_caja', 'cierre_caja', 'retiro_caja', 'acceso_admin', 'acceso_cajero', 'acceso_login', 'creacion_usuario', 'modificacion_usuario', 'eliminacion_usuario', 'creacion_producto', 'modificacion_producto', 'eliminacion_producto', 'creacion_categoria', 'modificacion_categoria', 'eliminacion_categoria') NOT NULL;
