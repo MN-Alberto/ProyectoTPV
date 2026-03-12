@@ -92,7 +92,7 @@ if (isset($_GET['detalleVenta'])) {
         }
 
         // Obtener datos de descuento de la venta (si existen)
-        $stmtDescuento = $conexion->prepare("SHOW COLUMNS FROM ventas LIKE 'descuento%'");
+        $stmtDescuento = $conexion->prepare("SHOW COLUMNS FROM tickets LIKE 'descuento%'");
         $stmtDescuento->execute();
         $camposDescuento = $stmtDescuento->fetchAll(PDO::FETCH_COLUMN);
 
@@ -169,9 +169,16 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
             $stmtLineas = $conexion->prepare("DELETE FROM lineasVenta");
             $stmtLineas->execute();
 
-            // Luego eliminar las ventas
-            $stmtVentas = $conexion->prepare("DELETE FROM ventas");
-            $stmtVentas->execute();
+            // Luego eliminar las ventas de ambas tablas
+            $stmtTickets = $conexion->prepare("DELETE FROM tickets");
+            $stmtTickets->execute();
+
+            $stmtFacturas = $conexion->prepare("DELETE FROM facturas");
+            $stmtFacturas->execute();
+
+            // También limpiar la tabla maestra de IDs
+            $stmtIds = $conexion->prepare("DELETE FROM ventas_ids");
+            $stmtIds->execute();
 
             // Confirmar transacción
             $conexion->commit();

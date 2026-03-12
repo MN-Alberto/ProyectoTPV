@@ -1844,6 +1844,37 @@ body.dark-mode .btn-cerrar-modal {
     color: #e5e7eb;
 }
 
+/* Refinamientos para Arqueo de Caja en Modo Oscuro */
+body.dark-mode #arqueoModal .modal-content {
+    background: #1f2937;
+    border: 1px solid #374151;
+}
+
+body.dark-mode .resumen-total-ventas {
+    border-top-color: #4b5563;
+}
+
+body.dark-mode .resumen-caja-detalles span {
+    color: #9ca3af;
+}
+
+body.dark-mode .resumen-caja-detalles .caja-efectivo-real span {
+    color: #f9fafb;
+}
+
+body.dark-mode .resumen-caja-titulo {
+    color: #f9fafb;
+}
+
+body.dark-mode #arqueoResumen {
+    background: #064e3b !important;
+    border-color: #059669 !important;
+}
+
+body.dark-mode #arqueoResumen span {
+    color: #ecfdf5 !important;
+}
+
 /* ======================== RESUMEN CAJA Y DETALLES ======================== */
 
 .resumen-total-ventas {

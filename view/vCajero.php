@@ -127,7 +127,8 @@
 
                 <!-- Botón NUEVO PRODUCTO: abre el modal para crear un nuevo producto (requiere permiso: crear_productos) -->
                 <button type="button" class="btn-nuevo-producto" id="btnNuevoProducto"
-                    onclick="abrirModalNuevoProducto()" style="display:none;">
+                    onclick="abrirModalNuevoProducto()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                    style="display:none; <?php echo !$sesionCaja ? 'opacity: 0.3; cursor: not-allowed;' : ''; ?>">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -138,7 +139,8 @@
 
                 <!-- Botón CLIENTE HABITUAL: abre el modal para gestionar clientes habituales -->
                 <button type="button" class="btn-nuevo-producto" id="btnClienteHabitual"
-                    onclick="abrirModalClienteHabitual()">
+                    onclick="abrirModalClienteHabitual()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                    style="<?php echo !$sesionCaja ? 'opacity: 0.3; cursor: not-allowed;' : ''; ?>">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
@@ -175,6 +177,27 @@
             <?php else: ?>
                 <!-- Bucle PHP: genera una tarjeta por cada producto -->
                 <?php foreach ($productos as $prod): ?>
+                    <?php
+                    // 1. Encontrar la tarifa 'Cliente' (por defecto)
+                    $tarifaClienteId = null;
+                    foreach ($tarifas as $t) {
+                        if ($t['nombre'] === 'Cliente') {
+                            $tarifaClienteId = $t['id'];
+                            break;
+                        }
+                    }
+
+                    // 2. Comprobar si hay precio para esa tarifa (ya sea manual o calculado)
+                    $preciosManuales = $prod->getPreciosTarifas();
+                    $precioBaseEfectivo = $prod->getPrecio();
+                    if ($tarifaClienteId && isset($preciosManuales[$tarifaClienteId])) {
+                        $precioBaseEfectivo = $preciosManuales[$tarifaClienteId]['precio'];
+                    }
+
+                    // 3. Calcular PVP inicial
+                    $precioPVP = $precioBaseEfectivo * (1 + ($prod->getIvaPorcentaje() / 100));
+                    $precioPVP_fmt = number_format($precioPVP, 2, '.', '');
+                    ?>
                     <!-- Tarjeta de producto con atributos data-* para el carrito JS -->
                     <!-- data-id: ID del producto -->
                     <!-- data-nombre: nombre del producto (escapado con htmlspecialchars) -->
@@ -183,7 +206,10 @@
                     <!-- Si el stock es 0, la tarjeta se muestra con opacidad reducida y sin interacción -->
                     <div class="producto-card" data-id="<?php echo $prod->getId(); ?>"
                         data-nombre="<?php echo htmlspecialchars($prod->getNombre()); ?>"
-                        data-precio="<?php echo $prod->getPrecio(); ?>" data-iva="<?php echo $prod->getIvaPorcentaje(); ?>"
+                        data-precio="<?php echo $precioBaseEfectivo; ?>"
+                        data-precio-original="<?php echo $prod->getPrecio(); ?>" data-pvp="<?php echo $precioPVP_fmt; ?>"
+                        data-iva="<?php echo $prod->getIvaPorcentaje(); ?>"
+                        data-precios-tarifas='<?php echo htmlspecialchars(json_encode($prod->getPreciosTarifas()), ENT_QUOTES, 'UTF-8'); ?>'
                         data-stock="<?php echo $prod->getStock(); ?>" onclick="agregarAlCarrito(this)" style="<?php if ($prod->getStock() <= 0) {
                                echo 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);';
                            } ?>">
@@ -204,26 +230,21 @@
                         <!-- Precio y stock del producto -->
                         <!-- El stock se muestra en rojo y subrayado si es 0 o menor -->
                         <div class="producto-info-inferior" style="display: flex; flex-direction: column; gap: 2px;">
-                            <?php
-                            $precioPVP = $prod->getPrecio() * (1 + ($prod->getIvaPorcentaje() / 100));
-                            ?>
                             <span class="producto-precio"><?php echo number_format($precioPVP, 2, ',', '.'); ?> €</span>
-                            
+
                             <!-- Selector de tarifa -->
-                            <select class="tarifa-selector" 
-                                    onclick="event.stopPropagation()" 
-                                    onfocus="guardarTarifaAnterior(this)"
-                                    onchange="actualizarPrecioCard(this, <?php echo $prod->getPrecio(); ?>, <?php echo $prod->getIvaPorcentaje(); ?>)">
+                            <select class="tarifa-selector" onclick="event.stopPropagation()"
+                                onfocus="guardarTarifaAnterior(this)"
+                                onchange="actualizarPrecioCard(this, <?php echo $prod->getPrecio(); ?>, <?php echo $prod->getIvaPorcentaje(); ?>)">
                                 <?php foreach ($tarifas as $tarifa): ?>
-                                    <option value="<?php echo $tarifa['descuento_porcentaje']; ?>" 
-                                            data-requiere-cliente="<?php echo $tarifa['requiere_cliente']; ?>"
-                                            data-tarifa-id="<?php echo $tarifa['id']; ?>"
-                                            <?php echo ($tarifa['nombre'] === 'Cliente') ? 'selected' : ''; ?>>
+                                    <option value="<?php echo $tarifa['descuento_porcentaje']; ?>"
+                                        data-requiere-cliente="<?php echo $tarifa['requiere_cliente']; ?>"
+                                        data-tarifa-id="<?php echo $tarifa['id']; ?>" <?php echo ($tarifa['nombre'] === 'Cliente') ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($tarifa['nombre']); ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
-                            
+
                             <span class="producto-stock" <?php if ($prod->getStock() <= 0) {
                                 echo 'style="color: red; text-decoration: underline;"';
                             } ?>>Stock: <?php echo $prod->getStock(); ?></span>
@@ -329,10 +350,10 @@
                 </select>
 
                 <!-- Selector de tarifa: ahora gestionado por producto, mantenemos el ID occulto para compatibilidad JS -->
-                <?php 
+                <?php
                 $idTarifaCliente = 1;
-                foreach($tarifas as $t) {
-                    if($t['nombre'] === 'Cliente') {
+                foreach ($tarifas as $t) {
+                    if ($t['nombre'] === 'Cliente') {
                         $idTarifaCliente = $t['id'];
                         break;
                     }
@@ -1254,23 +1275,23 @@
                 <path d="M17 12h.01"></path>
                 <path d="M7 12h.01"></path>
             </svg>
-            <h3 style="color: #1a1a2e; font-size: 1.4rem; margin-bottom: 10px;">Arqueo de Caja</h3>
-            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 20px;">
+            <h3 style="color: var(--text-main); font-size: 1.4rem; margin-bottom: 10px;">Arqueo de Caja</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
                 Efectivo esperado: <strong
-                    style="color: #1e40af; font-size: 1.1rem;"><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?>
+                    style="color: var(--accent); font-size: 1.1rem;"><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?>
                     €</strong>
             </p>
 
             <!-- Billetes -->
             <div style="margin-bottom: 12px;">
-                <p style="margin: 0 0 6px 0; font-size: 0.8rem; font-weight: 600; color: #64748b;">BILLETES</p>
+                <p style="margin: 0 0 6px 0; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">BILLETES</p>
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
                     <?php foreach ([500, 200, 100, 50, 20, 10, 5] as $valor): ?>
                         <div style="display: flex; align-items: center; gap: 4px;">
                             <span style="font-size: 0.75rem; width: 40px;"><?php echo $valor; ?>€</span>
                             <input type="number" min="0" value="0" data-denominacion="<?php echo $valor; ?>"
                                 class="arqueo-billete"
-                                style="width: 50px; padding: 4px; text-align: center; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.8rem;"
+                                style="width: 50px; padding: 4px; text-align: center; border: 1px solid var(--border-main); border-radius: 4px; font-size: 0.8rem; background: var(--bg-input); color: var(--text-main);"
                                 onchange="calcularArqueo()" oninput="calcularArqueo()">
                         </div>
                     <?php endforeach; ?>
@@ -1279,14 +1300,14 @@
 
             <!-- Monedas -->
             <div style="margin-bottom: 12px;">
-                <p style="margin: 0 0 6px 0; font-size: 0.8rem; font-weight: 600; color: #64748b;">MONEDAS</p>
+                <p style="margin: 0 0 6px 0; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">MONEDAS</p>
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
                     <?php foreach ([2, 1, 0.50, 0.20, 0.10, 0.05, 0.02, 0.01] as $valor): ?>
                         <div style="display: flex; align-items: center; gap: 4px;">
                             <span style="font-size: 0.75rem; width: 40px;"><?php echo str_replace('.', ',', $valor); ?>€</span>
                             <input type="number" min="0" value="0" data-denominacion="<?php echo $valor; ?>"
                                 class="arqueo-moneda"
-                                style="width: 50px; padding: 4px; text-align: center; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.8rem;"
+                                style="width: 50px; padding: 4px; text-align: center; border: 1px solid var(--border-main); border-radius: 4px; font-size: 0.8rem; background: var(--bg-input); color: var(--text-main);"
                                 onchange="calcularArqueo()" oninput="calcularArqueo()">
                         </div>
                     <?php endforeach; ?>
@@ -1294,34 +1315,35 @@
             </div>
 
             <!-- Resultado -->
-            <div style="background: #f8fafc; padding: 10px; border-radius: 8px; margin-bottom: 12px;">
+            <div
+                style="background: var(--bg-main); padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border-main);">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: #64748b;">Efectivo esperado:</span>
+                    <span style="color: var(--text-muted);">Efectivo esperado:</span>
                     <span id="arqueoEsperado"
                         style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?>
                         €</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: #64748b;">Efectivo contado:</span>
-                    <span id="arqueoContado" style="font-weight: 600; color: #1e40af;">0,00 €</span>
+                    <span style="color: var(--text-muted);">Efectivo contado:</span>
+                    <span id="arqueoContado" style="font-weight: 600; color: var(--accent);">0,00 €</span>
                 </div>
                 <div
-                    style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px dashed #e2e8f0;">
+                    style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px dashed var(--border-main);">
                     <span style="font-weight: 600;">Diferencia:</span>
-                    <span id="arqueoDiferencia" style="font-weight: 700; color: #059669;">0,00 €</span>
+                    <span id="arqueoDiferencia" style="font-weight: 700; color: var(--accent-success);">0,00 €</span>
                 </div>
             </div>
 
             <!-- Observaciones -->
             <textarea id="arqueoObservaciones" placeholder="Observaciones (opcional)"
-                style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; resize: none; font-size: 0.85rem; margin-bottom: 20px;"
+                style="width: 100%; padding: 10px; border: 1px solid var(--border-main); border-radius: 6px; resize: none; font-size: 0.85rem; margin-bottom: 20px; background: var(--bg-input); color: var(--text-main);"
                 rows="2"></textarea>
 
             <!-- Botones -->
             <div style="display: flex; gap: 10px; justify-content: center;">
                 <button class="btn-modal-cancelar"
                     onclick="document.getElementById('arqueoModal').style.display='none';">Cancelar</button>
-                <button class="btn-cerrar-exito" style="margin-top: 0; background: #2563eb;"
+                <button class="btn-cerrar-exito" style="margin-top: 0; background: var(--accent);"
                     onclick="continuarArqueo()">Continuar</button>
             </div>
         </div>
@@ -1433,13 +1455,13 @@
                     </div>
                     <!-- Arqueo: efectivo contado y diferencia -->
                     <div id="arqueoResumen"
-                        style="background: #f0f9ff; padding: 10px; border-radius: 8px; margin-top: 10px; border: 1px solid #bae6fd;">
+                        style="background: var(--bg-accent-success); padding: 10px; border-radius: 8px; margin-top: 10px; border: 1px solid var(--accent-success); opacity: 0.9;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                            <span style="color: #0369a1;">Efectivo contado:</span>
-                            <span id="arqueoContadoResumen" style="font-weight: 600; color: #0369a1;">--</span>
+                            <span style="color: var(--text-main);">Efectivo contado:</span>
+                            <span id="arqueoContadoResumen" style="font-weight: 600; color: var(--text-main);">--</span>
                         </div>
                         <div style="display: flex; justify-content: space-between;">
-                            <span style="color: #0369a1;">Diferencia:</span>
+                            <span style="color: var(--text-main);">Diferencia:</span>
                             <span id="arqueoDiferenciaResumen" style="font-weight: 600;">--</span>
                         </div>
                     </div>
@@ -1505,8 +1527,9 @@
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
-            <h3 style="color: #1a1a2e; font-size: 1.4rem; margin-bottom: 20px;">Caja Cerrada Correctamente</h3>
-            <p style="color: #6b7280; font-size: 0.95rem; margin-bottom: 20px;">El recuento de ventas ha vuelto a 0 para el
+            <h3 style="color: var(--text-main); font-size: 1.4rem; margin-bottom: 20px;">Caja Cerrada Correctamente</h3>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px;">El recuento de ventas ha vuelto a
+                0 para el
                 contador del día de mañana.</p>
 
             <!-- Bloque oculto con el HTML del resumen para imprimir -->
@@ -2194,7 +2217,7 @@
         const nombre = elemento.dataset.nombre || 'Producto sin nombre';
         const precioBase = parseFloat(elemento.dataset.precio) || 0;
         const iva = parseInt(elemento.dataset.iva || 21);
-        
+
         // PVP Actual: Intentar leer de data-pvp, si no existe o es NaN, calcularlo ahora.
         let pvpActual = parseFloat(elemento.dataset.pvp);
         if (isNaN(pvpActual)) {
@@ -2202,7 +2225,7 @@
         } else {
             pvpActual = round2(pvpActual);
         }
-        
+
         const stockMax = parseInt(elemento.dataset.stock) || 0;
 
         // Obtener datos de la tarifa seleccionada
@@ -2210,7 +2233,7 @@
         let tarifaNombre = 'Cliente';
         let tarifaDescuento = 0;
         let precioBaseSinTarifa = parseFloat(elemento.dataset.precioOriginal || elemento.dataset.precio) || precioBase;
-        
+
         // PVP Original sin ninguna tarifa aplicada
         let pvpOriginalUnitario = round2(precioBaseSinTarifa * (1 + (iva / 100)));
 
@@ -2221,7 +2244,7 @@
         }
 
         const existente = carrito.find(item => item.idProducto === id && item.tarifaNombre === tarifaNombre);
-        
+
         if (existente) {
             if (existente.cantidad >= stockMax) {
                 alert('No hay más stock disponible para este producto.');
@@ -2358,8 +2381,8 @@
             // Añadir los productos pospuestos al carrito existente manteniendo sus datos redondeados
             ventaPospuesta.carrito.forEach(productoPospuesto => {
                 // Buscamos si ya existe el mismo producto con la misma tarifa para agruparlo
-                const existente = carrito.find(item => 
-                    item.idProducto === productoPospuesto.idProducto && 
+                const existente = carrito.find(item =>
+                    item.idProducto === productoPospuesto.idProducto &&
                     item.tarifaNombre === productoPospuesto.tarifaNombre
                 );
 
@@ -2387,7 +2410,7 @@
         }
 
         actualizarTicket();
-        
+
         // Limpiar la venta pospuesta
         sessionStorage.removeItem('ventaPospuesta');
 
@@ -2521,7 +2544,7 @@
         carrito.forEach(item => {
             const ahorroUnitario = round2(item.pvpOriginalUnitario - item.pvpUnitario);
             const ahorroLinea = round2(ahorroUnitario * item.cantidad);
-            
+
             if (ahorroLinea > 0) {
                 const nombre = item.tarifaNombre;
                 if (!ahorrosTarifasAgrupados[nombre]) {
@@ -2540,8 +2563,8 @@
         carrito.forEach(item => {
             const subtotalLineaPVP = round2(item.pvpUnitario * item.cantidad);
             const factorDescuentoManual = totalPVPBruto > 0 ? (totalPVPFinal / totalPVPBruto) : 0;
-            const subtotalFinalPVP = subtotalLineaPVP * factorDescuentoManual; 
-            
+            const subtotalFinalPVP = subtotalLineaPVP * factorDescuentoManual;
+
             const tipoIVA = parseInt(item.iva);
             if (!desglosePorIVA[tipoIVA]) desglosePorIVA[tipoIVA] = 0;
             desglosePorIVA[tipoIVA] += subtotalFinalPVP;
@@ -2551,7 +2574,7 @@
         for (const [iva, pvpAcumulado] of Object.entries(desglosePorIVA)) {
             baseImponibleCalculada += round2(pvpAcumulado / (1 + (parseInt(iva) / 100)));
         }
-        
+
         baseImponibleCalculada = round2(baseImponibleCalculada);
         const ivaTotal = round2(totalPVPFinal - baseImponibleCalculada);
 
@@ -2896,7 +2919,7 @@
         document.getElementById('inputDescuentoTipo').value = descuento.tipo;
         document.getElementById('inputDescuentoValor').value = descuento.valor;
         document.getElementById('inputDescuentoCupon').value = descuento.cupon;
-        
+
         // Mantener campos legacy vacíos o con valores seguros para evitar errores en el backend si los espera
         document.getElementById('inputDescuentoTarifaTipo').value = 'ninguno';
         document.getElementById('inputDescuentoTarifaValor').value = 0;
@@ -3907,12 +3930,12 @@
         }
     }
 
-        // Listener para el selector de método de pago:
-        // Cada vez que cambia, verifica si se debe mostrar el aviso de límite de efectivo
-        const selectPago = document.getElementById('metodoPago');
-        if (selectPago) {
-            selectPago.addEventListener('change', verificarLimiteEfectivo);
-        }
+    // Listener para el selector de método de pago:
+    // Cada vez que cambia, verifica si se debe mostrar el aviso de límite de efectivo
+    const selectPago = document.getElementById('metodoPago');
+    if (selectPago) {
+        selectPago.addEventListener('change', verificarLimiteEfectivo);
+    }
 
     /**
      * Maneja el cambio de tarifa para aplicar descuentos según el tipo de cliente
@@ -3962,7 +3985,7 @@
     async function buscarClienteRegistrado() {
         const dni = document.getElementById('dniBusquedaCliente').value.trim();
         const mensajeDiv = document.getElementById('mensajeResultadoBusqueda');
-        
+
         // Determinar qué tarifa estamos validando
         let tarifaActual = null;
         if (productoPendienteTarifa) {
@@ -4016,7 +4039,7 @@
                 mensajeDiv.textContent = `Cliente encontrado: ${cliente.nombre} ${cliente.apellidos}. Tarifa ${nombreTarifa} (${descuentoValor}%) validada.`;
                 mensajeDiv.className = 'mensaje-exito';
                 mensajeDiv.style.display = 'block';
-                
+
                 // Si había un producto esperando por esta identificación, lo añadimos al carrito
                 if (productoPendienteTarifa) {
                     agregarAlCarrito(productoPendienteTarifa.card);

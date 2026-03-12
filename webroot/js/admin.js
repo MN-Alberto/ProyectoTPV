@@ -1,4 +1,17 @@
-// ======================== RENDER PRODUCTOS (MODO TABLA - ADMIN) ========================
+﻿// ======================== RENDER PRODUCTOS (MODO TABLA - ADMIN) ========================
+
+// Variable global para el término de búsqueda en tarifas
+let tarifaBusquedaProducto = '';
+
+// Función para filtrar la tabla de tarifas por nombre de producto
+function filtrarTablaTarifas() {
+    const termino = tarifaBusquedaProducto.toLowerCase();
+    const filas = document.querySelectorAll('#tablaPreciosProductos tr');
+    filas.forEach(fila => {
+        const texto = fila.textContent.toLowerCase();
+        fila.style.display = texto.includes(termino) ? '' : 'none';
+    });
+}
 
 // Variable global para guardar el header HTML (con el input de búsqueda fijo)
 let adminTablaHeaderHTML = '';
@@ -14,6 +27,9 @@ let mostrarConIva = false;
 
 // Variable para controlar el IVA en la sección de Tarifas Prefijadas
 let tarifasMostrarConIva = false;
+
+// Variable para almacenar temporalmente los datos de una tarifa que tiene conflictos
+let tarifaDataPendiente = null;
 
 // Variable global para los tipos de IVA
 let tiposIva = [];
@@ -5138,22 +5154,58 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
             // Calcular precios para cada producto
             let filasTablaProductos = '';
             productos.forEach(prod => {
-                let precioBase = parseFloat(prod.precio);
+                let precioBaseOriginal = parseFloat(prod.precio);
                 const iva = parseFloat(prod.iva) || 21;
 
+                // Si mostramos con IVA, el precio base sobre el que editamos será con IVA
+                let precioBaseAMostrar = precioBaseOriginal;
                 if (tarifasMostrarConIva) {
-                    precioBase = precioBase * (1 + iva / 100);
+                    precioBaseAMostrar = precioBaseOriginal * (1 + iva / 100);
                 }
 
                 let fila = `
                 <tr style="border-bottom: 1px solid ${tableRowBorder};">
                     <td style="padding: 10px; font-weight: 500; color: ${textColor};">${prod.nombre}</td>
-                    <td style="padding: 10px; color: ${isDark ? '#f3f4f6' : '#1f2937'}; font-weight: 600;">${precioBase.toFixed(2)} €</td>`;
+                    <td style="padding: 10px; color: ${isDark ? '#f3f4f6' : '#1f2937'}; font-weight: 600;">${precioBaseAMostrar.toFixed(2)} €</td>`;
 
                 tarifas.forEach(tarifa => {
-                    const descuento = parseFloat(tarifa.descuento_porcentaje) || 0;
-                    const precioFinal = precioBase * (1 - descuento / 100);
-                    fila += `<td style="padding: 10px; color: #10b981; font-weight: 600;">${precioFinal.toFixed(2)} €</td>`;
+                    const idTarifa = tarifa.id;
+                    const dataTarifa = prod.preciosTarifas && prod.preciosTarifas[idTarifa];
+
+                    let precioFinal = 0;
+                    let esManual = false;
+
+                    if (dataTarifa) {
+                        // Usar el precio de la tabla productos_tarifas
+                        precioFinal = parseFloat(dataTarifa.precio);
+                        esManual = dataTarifa.es_manual == 1;
+
+                        // Aplicar IVA si es necesario (el precio en DB es base)
+                        if (tarifasMostrarConIva) {
+                            precioFinal = precioFinal * (1 + iva / 100);
+                        }
+                    } else {
+                        // Cálculo tradicional por si no está en la tabla (no debería ocurrir tras migración)
+                        const descuento = parseFloat(tarifa.descuento_porcentaje) || 0;
+                        precioFinal = precioBaseAMostrar * (1 - descuento / 100);
+                    }
+
+                    const manualStyle = esManual ? 'border: 1px solid #10b981; background: #ecfdf5; color: #065f46;' : (isDark ? 'border: 1px solid #374151; background: #111827; color: #10b981;' : 'border: 1px solid #d1d5db; background: white; color: #10b981;');
+                    const disabledAttr = tarifasMostrarConIva ? 'disabled' : '';
+                    const disabledStyle = tarifasMostrarConIva ? 'opacity: 0.5; cursor: not-allowed;' : '';
+
+                    fila += `
+                    <td style="padding: 10px;">
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <input type="number" step="0.01" 
+                                value="${precioFinal.toFixed(2)}" 
+                                onchange="actualizarPrecioTarifaIndividual(${prod.id}, ${idTarifa}, this, ${iva})"
+                                ${disabledAttr}
+                                style="width: 80px; padding: 4px 6px; border-radius: 4px; font-weight: 600; text-align: right; ${manualStyle} ${disabledStyle}">
+                            <span style="font-size: 14px; font-weight: 600; color: #10b981;">€</span>
+                            ${esManual ? '<i class="fas fa-hand-paper" title="Precio manual" style="color: #10b981; font-size: 12px;"></i>' : ''}
+                        </div>
+                    </td>`;
                 });
 
                 fila += `</tr>`;
@@ -5194,7 +5246,15 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
                 <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: ${textColor};">Tarifas Prefijadas</h2>
                 <p style="color: ${subTextColor}; margin-top: 5px;">Vista de precios según las tarifas aplicadas.</p>
             </div>
-            <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+                <input type="text" 
+                    id="buscarProductoTarifa"
+                    placeholder="Buscar producto..." 
+                    value="${tarifaBusquedaProducto}"
+                    oninput="tarifaBusquedaProducto = this.value; filtrarTablaTarifas();"
+                    style="padding: 10px 15px; border: 1px solid ${borderColor}; border-radius: 8px; font-size: 14px; background: ${isDark ? '#374151' : 'white'}; color: ${textColor}; outline: none; transition: border-color 0.2s; min-width: 600px;"
+                    onfocus="this.style.borderColor = '#6366f1';"
+                    onblur="this.style.borderColor = '${borderColor}';">
                 <button onclick="abrirModalTarifas()" style="padding: 10px 20px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: background 0.2s;">
                     <i class="fas fa-tags" style="margin-right: 8px;"></i> Ver/Editar Tarifas
                 </button>
@@ -5442,6 +5502,20 @@ function guardarEditarTarifa() {
     formData.append('descuento_porcentaje', descuento_porcentaje);
     formData.append('requiere_cliente', requiere_cliente);
 
+    // Siempre mostrar modal de confirmación para todas las tarifas al guardar
+    tarifaDataPendiente = formData;
+
+    // Mostrar modal de confirmación
+    const listaDiv = document.getElementById('listaProductosConflictivos');
+    listaDiv.innerHTML = '<p style="margin: 10px 0;">¿Desea recalcular los precios de todos los productos según el nuevo descuento?</p>';
+
+    abrirModal('modalConflictosTarifa');
+}
+
+/**
+ * Envía la petición para guardar la tarifa
+ */
+function ejecutarGuardarTarifa(formData) {
     fetch('api/tarifas.php', {
         method: 'POST',
         body: formData
@@ -5453,6 +5527,7 @@ function guardarEditarTarifa() {
                 return;
             }
             cerrarModal('modalEditarTarifa');
+            cerrarModal('modalConflictosTarifa');
             // Recargar panel y reabrir modal
             cerrarModal('modalTarifas');
             mostrarPanelTarifasPrefijadas(true);
@@ -5460,6 +5535,74 @@ function guardarEditarTarifa() {
         .catch(err => {
             console.error('Error:', err);
             alert('Error al guardar los cambios');
+        });
+}
+
+/**
+ * Resuelve el conflicto de precios manuales
+ */
+function confirmarCambioTarifa(sobreescribir) {
+    if (!tarifaDataPendiente) return;
+
+    if (sobreescribir) {
+        tarifaDataPendiente.append('sobreescribirManuales', '1');
+    } else {
+        tarifaDataPendiente.append('sobreescribirManuales', '0');
+    }
+
+    ejecutarGuardarTarifa(tarifaDataPendiente);
+    tarifaDataPendiente = null;
+}
+
+/**
+ * Actualiza el precio de un producto para una tarifa específica (edición manual)
+ */
+function actualizarPrecioTarifaIndividual(idProducto, idTarifa, input, iva) {
+    let nuevoPrecio = parseFloat(input.value) || 0;
+
+    // Si mostramos con IVA, el valor del input tiene IVA y hay que quitárselo
+    if (tarifasMostrarConIva) {
+        nuevoPrecio = nuevoPrecio / (1 + iva / 100);
+    }
+
+    const formData = new FormData();
+    formData.append('actualizarPrecioIndividual', '1');
+    formData.append('idTarifa', idTarifa);
+    formData.append('idProducto', idProducto);
+    formData.append('precio', nuevoPrecio.toFixed(4));
+    formData.append('esManual', '1');
+
+    fetch('api/tarifas.php', {
+        method: 'POST',
+        body: formData
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                // Marcar el input visualmente como manual
+                input.style.border = '1px solid #10b981';
+                input.style.background = '#ecfdf5';
+                input.style.color = '#065f46';
+
+                // Añadir el icono si no existe
+                const parent = input.parentElement;
+                if (!parent.querySelector('.fa-hand-paper')) {
+                    const icon = document.createElement('i');
+                    icon.className = 'fas fa-hand-paper';
+                    icon.title = 'Precio manual';
+                    icon.style.color = '#10b981';
+                    icon.style.fontSize = '12px';
+                    parent.appendChild(icon);
+                }
+            } else {
+                alert('Error al actualizar el precio: ' + (data.error || ''));
+                mostrarPanelTarifasPrefijadas(); // Recargar para revertir
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al conectar con la API');
+            mostrarPanelTarifasPrefijadas();
         });
 }
 
@@ -5542,6 +5685,147 @@ function previsualizarAjustePrecios() {
         .catch(err => {
             console.error('Error:', err);
             alert('Error al previsualizar');
+        });
+}
+
+/**
+ * Muestra el panel de historial de precios en la vista de admin
+ */
+function mostrarPanelHistorialPrecios() {
+    const contenedor = document.getElementById('adminContenido');
+    seccionActual = 'historial-precios';
+    adminTablaHeaderHTML = '';
+
+    // Detectar tema actual
+    const isDark = document.body.classList.contains('dark-mode');
+    const bgColor = isDark ? '#1f2937' : 'white';
+    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const subTextColor = isDark ? '#9ca3af' : '#6b7280';
+    const borderColor = isDark ? '#374151' : '#e5e7eb';
+    const inputBg = isDark ? '#374151' : 'white';
+    const tableHeaderBg = isDark ? '#111827' : '#f9fafb';
+
+    contenedor.innerHTML = `
+        <div style="padding: 20px;">
+            <h3 style="margin-bottom: 20px; color: ${textColor};">Historial de Precios</h3>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; color: ${textColor}; font-weight: 500;">Seleccionar Producto:</label>
+                <select id="selectHistorialProducto" 
+                    style="width: 100%; max-width: 500px; padding: 10px; border: 1px solid ${borderColor}; border-radius: 8px; background: ${inputBg}; color: ${textColor}; font-size: 14px;"
+                    onchange="cargarHistorialPrecios()">
+                    <option value="">-- Seleccionar un producto --</option>
+                </select>
+            </div>
+
+            <div id="tablaHistorialPreciosContainer" style="display: none;">
+                <table style="width: 100%; border-collapse: collapse; margin-top: 20px; border: 1px solid ${borderColor};">
+                    <thead>
+                        <tr style="background: ${tableHeaderBg};">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Precio</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Válido Desde</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Válido Hasta</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Tarifa</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaHistorialPreciosBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="historialPreciosMensaje" style="margin-top: 20px; color: ${subTextColor}; font-style: italic;">
+                Seleccione un producto para ver su historial de precios
+            </div>
+        </div>
+    `;
+
+    // Cargar la lista de productos
+    fetch('api/productos.php?listaProductos')
+        .then(res => res.json())
+        .then(productos => {
+            const select = document.getElementById('selectHistorialProducto');
+            productos.forEach(prod => {
+                const option = document.createElement('option');
+                option.value = prod.id;
+                option.textContent = prod.nombre;
+                select.appendChild(option);
+            });
+        })
+        .catch(err => {
+            console.error('Error cargando productos:', err);
+        });
+}
+
+/**
+ * Carga el historial de precios del producto seleccionado
+ */
+function cargarHistorialPrecios() {
+    const select = document.getElementById('selectHistorialProducto');
+    const idProducto = select.value;
+    const container = document.getElementById('tablaHistorialPreciosContainer');
+    const mensaje = document.getElementById('historialPreciosMensaje');
+    const tbody = document.getElementById('tablaHistorialPreciosBody');
+
+    // Detectar tema actual
+    const isDark = document.body.classList.contains('dark-mode');
+    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const subTextColor = isDark ? '#9ca3af' : '#6b7280';
+    const borderColor = isDark ? '#374151' : '#e5e7eb';
+    const rowBg = isDark ? '#1f2937' : 'white';
+    const rowAltBg = isDark ? '#111827' : '#f9fafb';
+
+    if (!idProducto) {
+        container.style.display = 'none';
+        mensaje.style.display = 'block';
+        mensaje.textContent = 'Seleccione un producto para ver su historial de precios';
+        return;
+    }
+
+    // Mostrar mensaje de carga
+    mensaje.textContent = 'Cargando historial...';
+    mensaje.style.display = 'block';
+    container.style.display = 'none';
+
+    fetch('api/productos.php?historialPrecios=' + idProducto)
+        .then(res => res.json())
+        .then(historial => {
+            mensaje.style.display = 'none';
+
+            if (!historial || historial.length === 0) {
+                mensaje.textContent = 'No hay historial de precios para este producto';
+                mensaje.style.display = 'block';
+                container.style.display = 'none';
+                return;
+            }
+
+            let html = '';
+            historial.forEach((item, index) => {
+                const fechaDesde = new Date(item.valido_desde).toLocaleString('es-ES', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+
+                // El precio más reciente es "Actual", los demás muestran "—"
+                const fechaHasta = index === 0 ? 'Actual' : '—';
+
+                html += `
+                    <tr style="background: ${index % 2 === 0 ? rowBg : rowAltBg}; border-bottom: 1px solid ${borderColor};">
+                        <td style="padding: 12px; color: ${textColor}; font-weight: 600;">${item.precio.toFixed(2)} €</td>
+                        <td style="padding: 12px; color: ${textColor};">${fechaDesde}</td>
+                        <td style="padding: 12px; color: ${subTextColor};">${fechaHasta}</td>
+                        <td style="padding: 12px; color: ${subTextColor};">${item.tarifa || 'Precio Base'}</td>
+                        <td style="padding: 12px; color: ${subTextColor};">${item.usuario || 'Sistema'}</td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+            container.style.display = 'block';
+        })
+        .catch(err => {
+            console.error('Error cargando historial:', err);
+            mensaje.textContent = 'Error al cargar el historial de precios';
+            mensaje.style.display = 'block';
         });
 }
 
@@ -5720,6 +6004,9 @@ function confirmarEliminarProductoProveedor(idAsociacion, nombreProducto) {
             .catch(err => console.error('Error eliminando asociación:', err));
     }
 }
+
+
+
 
 
 

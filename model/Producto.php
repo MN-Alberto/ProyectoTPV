@@ -25,6 +25,7 @@ class Producto
     // Campos auxiliares (vienen del JOIN con la tabla iva)
     private $ivaPorcentaje;
     private $ivaNombre;
+    private $preciosTarifas = []; // Precios específicos por tarifa
 
     // ======================== GETTERS ========================
 
@@ -83,6 +84,11 @@ class Producto
         return $this->ivaNombre;
     }
 
+    public function getPreciosTarifas()
+    {
+        return $this->preciosTarifas;
+    }
+
     // ======================== SETTERS ========================
 
     public function setId($id)
@@ -103,6 +109,19 @@ class Producto
     public function setPrecio($precio)
     {
         $this->precio = $precio;
+    }
+
+    public function __construct($id = null, $nombre = null, $descripcion = null, $imagen = null, $precio = null, $stock = null, $idCategoria = null, $idIva = 2, $activo = 1)
+    {
+        $this->id = $id;
+        $this->nombre = $nombre;
+        $this->descripcion = $descripcion;
+        $this->imagen = $imagen;
+        $this->precio = $precio;
+        $this->stock = $stock;
+        $this->idCategoria = $idCategoria;
+        $this->idIva = $idIva;
+        $this->activo = $activo;
     }
 
     public function setStock($stock)
@@ -138,6 +157,11 @@ class Producto
     public function setIvaNombre($ivaNombre)
     {
         $this->ivaNombre = $ivaNombre;
+    }
+
+    public function setPreciosTarifas($preciosTarifas)
+    {
+        $this->preciosTarifas = $preciosTarifas;
     }
 
     // ======================== MÉTODOS CRUD ========================
@@ -192,7 +216,9 @@ class Producto
         // Recorremos las filas
         while ($fila = $stmt->fetch()) {
             // Creamos un nuevo producto y lo añadimos al array
-            $productos[] = self::crearDesdeArray($fila);
+            $prod = self::crearDesdeArray($fila);
+            $prod->cargarPreciosTarifas();
+            $productos[] = $prod;
         }
         // Devolvemos los productos
         return $productos;
@@ -251,7 +277,9 @@ class Producto
         // Recorremos las filas
         while ($fila = $stmt->fetch()) {
             // Creamos un nuevo producto y lo añadimos al array
-            $productos[] = self::crearDesdeArray($fila);
+            $prod = self::crearDesdeArray($fila);
+            $prod->cargarPreciosTarifas();
+            $productos[] = $prod;
         }
         // Devolvemos los productos
         return $productos;
@@ -283,7 +311,9 @@ class Producto
         // Recorremos las filas
         while ($fila = $stmt->fetch()) {
             // Creamos un nuevo producto y lo añadimos al array
-            $productos[] = self::crearDesdeArray($fila);
+            $prod = self::crearDesdeArray($fila);
+            $prod->cargarPreciosTarifas();
+            $productos[] = $prod;
         }
         return $productos;
     }
@@ -316,7 +346,9 @@ class Producto
         // Recorremos las filas
         while ($fila = $stmt->fetch()) {
             // Creamos un nuevo producto y lo añadimos al array
-            $productos[] = self::crearDesdeArray($fila);
+            $prod = self::crearDesdeArray($fila);
+            $prod->cargarPreciosTarifas();
+            $productos[] = $prod;
         }
         // Devolvemos los productos
         return $productos;
@@ -354,18 +386,39 @@ class Producto
 
     /**
      * Actualiza los datos del producto en la base de datos.
+     * También actualiza automáticamente el precio de la tarifa "Cliente".
      * @return bool
      */
     public function actualizar()
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+
+        // Verificar si la columna precio_cliente existe
+        $columnExists = false;
+        try {
+            $stmtCheck = $conexion->query("SHOW COLUMNS FROM productos LIKE 'precio_cliente'");
+            $columnExists = $stmtCheck->rowCount() > 0;
+        } catch (Exception $e) {
+            $columnExists = false;
+        }
+
         // Preparamos la consulta
-        $stmt = $conexion->prepare(
-            "UPDATE productos SET nombre = :nombre, descripcion = :descripcion, precio = :precio, 
-             stock = :stock, idCategoria = :idCategoria, 
-             imagen = :imagen, activo = :activo, idIva = :idIva WHERE id = :id"
-        );
+        if ($columnExists) {
+            // Actualizar también el precio de la tarifa Cliente
+            $stmt = $conexion->prepare(
+                "UPDATE productos SET nombre = :nombre, descripcion = :descripcion, precio = :precio, 
+                 stock = :stock, idCategoria = :idCategoria, 
+                 imagen = :imagen, activo = :activo, idIva = :idIva, 
+                 precio_cliente = :precio WHERE id = :id"
+            );
+        } else {
+            $stmt = $conexion->prepare(
+                "UPDATE productos SET nombre = :nombre, descripcion = :descripcion, precio = :precio, 
+                 stock = :stock, idCategoria = :idCategoria, 
+                 imagen = :imagen, activo = :activo, idIva = :idIva WHERE id = :id"
+            );
+        }
         // Vinculamos los parámetros
         $stmt->bindParam(':nombre', $this->nombre);
         $stmt->bindParam(':descripcion', $this->descripcion);
@@ -399,6 +452,58 @@ class Producto
         $stmt->bindParam(':stock', $this->stock, PDO::PARAM_INT);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
         return $stmt->execute();
+    }
+
+    /**
+     * Carga los precios específicos por tarifa para este producto
+     * Lee los precios de las columnas en la tabla productos (sistema nuevo)
+     */
+    public function cargarPreciosTarifas()
+    {
+        try {
+            $conexion = ConexionDB::getInstancia()->getConexion();
+
+            // Obtener las tarifas activas y sus nombres de columna
+            $tarifas = [];
+            $columnasPrecios = [];
+            $stmtTarifas = $conexion->query("SELECT id, nombre FROM tarifas_prefijadas WHERE activo = 1");
+            while ($row = $stmtTarifas->fetch(PDO::FETCH_ASSOC)) {
+                $tarifas[] = $row;
+                // Generar nombre de columna: precio_ + nombre sin espacios
+                $columna = 'precio_' . preg_replace('/[^a-zA-Z0-9]/', '', strtolower($row['nombre']));
+                $columnasPrecios[$row['id']] = $columna;
+            }
+
+            if (empty($columnasPrecios)) {
+                $this->preciosTarifas = [];
+                return;
+            }
+
+            // Construir consulta SQL para obtener los precios de las columnas de tarifas
+            $sqlPrecios = "SELECT id";
+            foreach ($columnasPrecios as $col) {
+                $sqlPrecios .= ", `$col`";
+            }
+            $sqlPrecios .= " FROM productos WHERE id = :id";
+
+            $stmt = $conexion->prepare($sqlPrecios);
+            $stmt->execute([':id' => $this->id]);
+
+            $this->preciosTarifas = [];
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                foreach ($columnasPrecios as $idTarifa => $col) {
+                    if (isset($row[$col]) && $row[$col] !== null) {
+                        $this->preciosTarifas[$idTarifa] = [
+                            'precio' => (float) $row[$col],
+                            'es_manual' => 0
+                        ];
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            $this->preciosTarifas = [];
+        }
     }
 
     /**
@@ -441,6 +546,10 @@ class Producto
         // Campos auxiliares del JOIN con la tabla iva
         $producto->setIvaPorcentaje($fila['ivaPorcentaje'] ?? 21);
         $producto->setIvaNombre($fila['ivaNombre'] ?? 'General');
+
+        // Cargar precios por tarifa
+        $producto->cargarPreciosTarifas();
+
         // Devolvemos el producto
         return $producto;
     }

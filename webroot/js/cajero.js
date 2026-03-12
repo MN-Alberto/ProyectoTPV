@@ -156,8 +156,22 @@ function renderProductos(productos) {
     productos.forEach(prod => {
         // Formatear el precio con 2 decimales y coma.
         const ivaProd = (prod.iva !== null && prod.iva !== undefined && prod.iva !== "") ? parseInt(prod.iva) : 21;
-        const precioBase = parseFloat(prod.precio) || 0;
-        const precioPVP = precioBase * (1 + (ivaProd / 100));
+
+        // 1. Encontrar tarifa 'Cliente' (por defecto)
+        const tarifaCliente = tarifasDisponibles.find(t => t.nombre === 'Cliente');
+        const tarifaClienteId = tarifaCliente ? tarifaCliente.id : null;
+
+        // 2. Comprobar si hay precio para esa tarifa (ya sea manual o calculado)
+        const preciosManuales = prod.preciosTarifas || {};
+        const precioBaseOriginal = parseFloat(prod.precio) || 0;
+        let precioBaseEfectivo = precioBaseOriginal;
+
+        // Usar precio de tarifa si existe, sin importar si es manual o calculado
+        if (tarifaClienteId && preciosManuales[tarifaClienteId]) {
+            precioBaseEfectivo = preciosManuales[tarifaClienteId].precio;
+        }
+
+        const precioPVP = precioBaseEfectivo * (1 + (ivaProd / 100));
         let precioFmt = round2(precioPVP).toFixed(2).replace('.', ',');
 
         // Usar la imagen del producto si existe; de lo contrario, usar el logo por defecto.
@@ -167,8 +181,8 @@ function renderProductos(productos) {
         let selectorTarifas = `<select class="tarifa-selector" 
                                 onclick="event.stopPropagation()" 
                                 onfocus="guardarTarifaAnterior(this)"
-                                onchange="actualizarPrecioCard(this, ${prod.precio}, ${ivaProd})">`;
-        
+                                onchange="actualizarPrecioCard(this, ${precioBaseOriginal}, ${ivaProd})">`;
+
         tarifasDisponibles.forEach(tarifa => {
             const selected = tarifa.nombre === 'Cliente' ? 'selected' : '';
             selectorTarifas += `<option value="${tarifa.descuento_porcentaje}" 
@@ -179,14 +193,13 @@ function renderProductos(productos) {
         selectorTarifas += `</select>`;
 
         // Generar la tarjeta del producto.
-        // Si el stock es 0 o menor, se aplica un estilo visual de "no disponible"
-        // (opacidad reducida, cursor no permitido, sin animaciones de hover).
         html += `<div class="producto-card" data-id="${prod.id}"
-                    data-nombre="${prod.nombre.replace(/"/g, '"')}"
-                    data-precio="${precioBase}" 
-                    data-precio-original="${precioBase}"
+                    data-nombre="${prod.nombre.replace(/"/g, '&quot;')}"
+                    data-precio="${precioBaseEfectivo}" 
+                    data-precio-original="${precioBaseOriginal}"
                     data-pvp="${round2(precioPVP).toFixed(2)}"
                     data-iva="${ivaProd}"
+                    data-precios-tarifas='${JSON.stringify(preciosManuales)}'
                     data-stock="${prod.stock || 0}"
                     onclick="agregarAlCarrito(this)" style="${prod.stock <= 0 ? 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);' : ''}">
                     <div class="producto-nombre">${prod.nombre}</div>
@@ -240,18 +253,36 @@ function resetearTarifaCard(card) {
     if (select) {
         // Buscar la opción de "Cliente" (normalmente descuento 0 y nombre "Cliente")
         let optionCliente = null;
+        let tarifaClienteId = null;
         for (let i = 0; i < select.options.length; i++) {
             if (select.options[i].text === 'Cliente') {
                 optionCliente = select.options[i];
+                tarifaClienteId = optionCliente.dataset.tarifaId;
                 break;
             }
         }
-        
+
         if (optionCliente) {
             select.value = optionCliente.value;
             const iva = parseInt(card.dataset.iva);
-            const precioOriginal = parseFloat(card.dataset.precioOriginal || card.dataset.precio);
-            actualizarPrecioCard(select, precioOriginal, iva, false);
+            
+            // Obtener los precios de tarifa almacenados
+            const preciosTarifasStr = card.dataset.preciosTarifas || '{}';
+            let preciosTarifas = {};
+            try {
+                preciosTarifas = JSON.parse(preciosTarifasStr);
+            } catch (e) { console.error("Error parseando preciosTarifas", e); }
+            
+            // Si existe precio para la tarifa Cliente, usarlo directamente
+            let precioBase;
+            if (tarifaClienteId && preciosTarifas[tarifaClienteId]) {
+                precioBase = preciosTarifas[tarifaClienteId].precio;
+            } else {
+                // Si no hay precio de tarifa, usar el precio original
+                precioBase = parseFloat(card.dataset.precioOriginal || card.dataset.precio);
+            }
+            
+            actualizarPrecioCard(select, precioBase, iva, false);
         }
     }
 }
@@ -264,29 +295,43 @@ function actualizarPrecioCard(selectElement, precioBase, iva, triggerAutoAdd = t
     const card = selectElement.closest('.producto-card');
     const precioSpan = card.querySelector('.producto-precio');
     const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const tarifaId = selectedOption.dataset.tarifaId;
     const descuento = parseFloat(selectElement.value) || 0;
     const requiereCliente = selectedOption.dataset.requiereCliente === "1" || selectedOption.dataset.requiereCliente === "true";
-    
+
     // Si no tenemos el precio original guardado, lo guardamos ahora
     if (!card.dataset.precioOriginal) {
         card.dataset.precioOriginal = precioBase;
     }
     const precioBaseOriginal = parseFloat(card.dataset.precioOriginal);
-    
-    // Calcular nuevo precio base aplicando el descuento de la tarifa
-    // Mantenemos alta precisión para la base, pero para mostrar PVP redondeamos
-    const nuevoPrecioBase = precioBaseOriginal * (1 - (descuento / 100));
-    
+
+    // Obtener precios por tarifa
+    const preciosTarifasStr = card.dataset.preciosTarifas || '{}';
+    let preciosTarifas = {};
+    try {
+        preciosTarifas = JSON.parse(preciosTarifasStr);
+    } catch (e) { console.error("Error parseando preciosTarifas", e); }
+
+    // Calcular nuevo precio base
+    let nuevoPrecioBase;
+    // Usar precio de tarifa si existe (ya sea manual o calculado)
+    if (preciosTarifas[tarifaId]) {
+        nuevoPrecioBase = preciosTarifas[tarifaId].precio;
+    } else {
+        // Usar descuento porcentual sobre el precio base original
+        nuevoPrecioBase = precioBaseOriginal * (1 - (descuento / 100));
+    }
+
     // Calcular precio final con IVA para mostrar (PVP unitario)
     // REDONDEAMOS EL PVP UNITARIO A 2 DECIMALES PARA EVITAR DESCUADRES (PVP x Cantidad)
     const precioFinalConIva = round2(nuevoPrecioBase * (1 + (iva / 100)));
-    
+
     // Actualizar texto en la tarjeta
     precioSpan.textContent = precioFinalConIva.toFixed(2).replace('.', ',') + ' €';
-    
+
     // El nuevo precio base efectivo para el carrito lo recalculamos desde el PVP redondeado
     const nuevoPrecioBaseAjustado = precioFinalConIva / (1 + (iva / 100));
-    
+
     // Actualizar el data-precio y data-pvp de la card
     card.dataset.precio = nuevoPrecioBaseAjustado;
     card.dataset.pvp = precioFinalConIva.toFixed(2);

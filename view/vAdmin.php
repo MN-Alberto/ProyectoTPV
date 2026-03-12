@@ -61,6 +61,9 @@
                     <i class="fas fa-tags" style="margin-right: 10px;"></i> Tarifas Prefijadas
                 </button>
             </div>
+            <button class="cat-btn" data-seccion="historial-precios" style="width: 100%; text-align: left;">
+                <i class="fas fa-history" style="margin-right: 10px;"></i> Historial de Precios
+            </button>
         </div>
     </div>
 
@@ -717,6 +720,29 @@
     </div>
 </div>
 
+<!-- ##=========================== MODAL: CONFLICTO PRECIOS MANUALES ===========================## -->
+<div class="modal-overlay" id="modalConflictosTarifa"
+    style="display:none; position: fixed; z-index: 10100; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+    <div class="modal-content" style="max-width: 600px; text-align: left;">
+        <h3 style="margin-bottom: 5px;">Conflictos de Precios</h3>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;">Se han detectado productos con precios modificados
+            manualmente en esta tarifa. ¿Qué desea hacer?</p>
+
+        <div id="listaProductosConflictivos"
+            style="max-height: 250px; overflow-y: auto; margin-bottom: 20px; border: 1px solid var(--border-main); border-radius: 8px; padding: 10px;">
+            <!-- La lista se llenará dinámicamente -->
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalConflictosTarifa')">Cancelar</button>
+            <button class="btn-editar" onclick="confirmarCambioTarifa(false)" style="margin: 0;">Mantener
+                Manuales</button>
+            <button class="btn-exito" onclick="confirmarCambioTarifa(true)" style="margin: 0;">Sobreescribir
+                Todos</button>
+        </div>
+    </div>
+</div>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <script>
@@ -737,7 +763,9 @@
         categorias: 'Gestión de Categorías',
         'tarifa-iva': 'Cambiar IVA General',
         'tarifa-ajuste': 'Ajuste de Precios',
-        clientes: 'Gestión de Clientes'
+        clientes: 'Gestión de Clientes',
+        'tarifa-prefijadas': 'Tarifas Prefijadas',
+        'historial-precios': 'Historial de Precios'
     };
 
     document.querySelectorAll('.cat-btn[data-seccion]').forEach(btn => {
@@ -792,6 +820,9 @@
                     break;
                 case 'tarifa-prefijadas':
                     mostrarPanelTarifasPrefijadas();
+                    break;
+                case 'historial-precios':
+                    mostrarPanelHistorialPrecios();
                     break;
                 case 'clientes':
                     cargarClientesAdmin();

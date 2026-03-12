@@ -240,6 +240,41 @@ class Venta
         $this->descuentoManualCupon = $v;
     }
 
+    // ======================== MÉTODOS AUXILIARES DE TABLA ========================
+
+    /**
+     * Devuelve el nombre de la tabla real según el tipo de documento.
+     * @return string 'tickets' o 'facturas'
+     */
+    private function getTabla()
+    {
+        return ($this->tipoDocumento === 'factura') ? 'facturas' : 'tickets';
+    }
+
+    /**
+     * Determina en qué tabla real se encuentra una venta por su ID.
+     * Busca primero en tickets, luego en facturas.
+     * @param int $id
+     * @return string|null 'tickets', 'facturas' o null si no existe
+     */
+    private static function getTablaById($id)
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->prepare("SELECT id FROM tickets WHERE id = :id");
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+        if ($stmt->fetch()) {
+            return 'tickets';
+        }
+        $stmt = $conexion->prepare("SELECT id FROM facturas WHERE id = :id");
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+        if ($stmt->fetch()) {
+            return 'facturas';
+        }
+        return null;
+    }
+
     // ======================== MÉTODOS CRUD ========================
 
     /**
@@ -354,39 +389,65 @@ class Venta
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta
-        $stmt = $conexion->prepare(
-            "INSERT INTO ventas (idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni) 
-             VALUES (:idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni)"
-        );
-        // Vinculamos los parámetros
-        $stmt->bindParam(':idUsuario', $this->idUsuario, PDO::PARAM_INT);
-        $stmt->bindParam(':fecha', $this->fecha);
-        $stmt->bindParam(':total', $this->total);
-        $stmt->bindParam(':metodoPago', $this->metodoPago);
-        $stmt->bindParam(':estado', $this->estado);
-        $stmt->bindParam(':tipoDocumento', $this->tipoDocumento);
-        $cerradaVal = $this->cerrada ? 1 : 0;
-        $stmt->bindParam(':cerrada', $cerradaVal, PDO::PARAM_INT);
-        $stmt->bindParam(':importeEntregado', $this->importeEntregado);
-        $stmt->bindParam(':cambioDevuelto', $this->cambioDevuelto);
-        $stmt->bindParam(':descuentoTipo', $this->descuentoTipo);
-        $stmt->bindParam(':descuentoValor', $this->descuentoValor);
-        $stmt->bindParam(':descuentoCupon', $this->descuentoCupon);
-        $stmt->bindParam(':descuentoTarifaTipo', $this->descuentoTarifaTipo);
-        $stmt->bindParam(':descuentoTarifaValor', $this->descuentoTarifaValor);
-        $stmt->bindParam(':descuentoTarifaCupon', $this->descuentoTarifaCupon);
-        $stmt->bindParam(':descuentoManualTipo', $this->descuentoManualTipo);
-        $stmt->bindParam(':descuentoManualValor', $this->descuentoManualValor);
-        $stmt->bindParam(':descuentoManualCupon', $this->descuentoManualCupon);
-        $stmt->bindParam(':idTarifa', $this->idTarifa, PDO::PARAM_INT);
-        $stmt->bindParam(':clienteDni', $this->clienteDni, PDO::PARAM_STR);
-        // Ejecutamos la consulta
-        $resultado = $stmt->execute();
-        // Obtenemos el ID de la nueva venta
-        $this->id = $conexion->lastInsertId();
-        // Devolvemos el resultado
-        return $resultado;
+        
+        try {
+            // Iniciamos transacción para asegurar consistencia entre tablas
+            $conexion->beginTransaction();
+
+            // 1. Generar un nuevo ID único en la tabla ventas_ids
+            $stmtId = $conexion->prepare("INSERT INTO ventas_ids (tipo) VALUES (:tipo)");
+            $stmtId->bindParam(':tipo', $this->tipoDocumento);
+            $stmtId->execute();
+            
+            // Obtenemos el ID generado
+            $this->id = $conexion->lastInsertId();
+
+            // 2. Insertar en la tabla real correspondiente (tickets o facturas) con el ID obtenido
+            $tabla = $this->getTabla();
+            $stmt = $conexion->prepare(
+                "INSERT INTO {$tabla} (id, idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni) 
+                 VALUES (:id, :idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni)"
+            );
+            
+            // Vinculamos los parámetros
+            $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
+            $stmt->bindParam(':idUsuario', $this->idUsuario, PDO::PARAM_INT);
+            $stmt->bindParam(':fecha', $this->fecha);
+            $stmt->bindParam(':total', $this->total);
+            $stmt->bindParam(':metodoPago', $this->metodoPago);
+            $stmt->bindParam(':estado', $this->estado);
+            $stmt->bindParam(':tipoDocumento', $this->tipoDocumento);
+            $cerradaVal = $this->cerrada ? 1 : 0;
+            $stmt->bindParam(':cerrada', $cerradaVal, PDO::PARAM_INT);
+            $stmt->bindParam(':importeEntregado', $this->importeEntregado);
+            $stmt->bindParam(':cambioDevuelto', $this->cambioDevuelto);
+            $stmt->bindParam(':descuentoTipo', $this->descuentoTipo);
+            $stmt->bindParam(':descuentoValor', $this->descuentoValor);
+            $stmt->bindParam(':descuentoCupon', $this->descuentoCupon);
+            $stmt->bindParam(':descuentoTarifaTipo', $this->descuentoTarifaTipo);
+            $stmt->bindParam(':descuentoTarifaValor', $this->descuentoTarifaValor);
+            $stmt->bindParam(':descuentoTarifaCupon', $this->descuentoTarifaCupon);
+            $stmt->bindParam(':descuentoManualTipo', $this->descuentoManualTipo);
+            $stmt->bindParam(':descuentoManualValor', $this->descuentoManualValor);
+            $stmt->bindParam(':descuentoManualCupon', $this->descuentoManualCupon);
+            $stmt->bindParam(':idTarifa', $this->idTarifa, PDO::PARAM_INT);
+            $stmt->bindParam(':clienteDni', $this->clienteDni, PDO::PARAM_STR);
+            
+            // Ejecutamos la consulta de inserción
+            $stmt->execute();
+
+            // Confirmamos la transacción
+            $conexion->commit();
+            return true;
+
+        } catch (Exception $e) {
+            // En caso de error, revertimos los cambios
+            if ($conexion->inTransaction()) {
+                $conexion->rollBack();
+            }
+            error_log("Error en Venta::insertar: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -397,9 +458,14 @@ class Venta
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+        // Determinamos la tabla real donde se encuentra esta venta
+        $tabla = self::getTablaById($this->id);
+        if (!$tabla) {
+            return false;
+        }
         // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "UPDATE ventas SET idUsuario = :idUsuario, fecha = :fecha, total = :total, 
+            "UPDATE {$tabla} SET idUsuario = :idUsuario, fecha = :fecha, total = :total, 
              metodoPago = :metodoPago, estado = :estado, tipoDocumento = :tipoDocumento, cerrada = :cerrada WHERE id = :id"
         );
         // Vinculamos los parámetros
@@ -434,12 +500,34 @@ class Venta
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta
-        $stmt = $conexion->prepare("DELETE FROM ventas WHERE id = :id");
-        // Vinculamos los parámetros
-        $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
-        // Ejecutamos la consulta
-        return $stmt->execute();
+        // Determinamos la tabla real donde se encuentra esta venta
+        $tabla = self::getTablaById($this->id);
+        if (!$tabla) {
+            return false;
+        }
+
+        try {
+            $conexion->beginTransaction();
+
+            // 1. Eliminar de la tabla real
+            $stmt = $conexion->prepare("DELETE FROM {$tabla} WHERE id = :id");
+            $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
+            $stmt->execute();
+
+            // 2. Eliminar de la tabla maestra de IDs
+            $stmtId = $conexion->prepare("DELETE FROM ventas_ids WHERE id = :id");
+            $stmtId->bindParam(':id', $this->id, PDO::PARAM_INT);
+            $stmtId->execute();
+
+            $conexion->commit();
+            return true;
+        } catch (Exception $e) {
+            if ($conexion->inTransaction()) {
+                $conexion->rollBack();
+            }
+            error_log("Error en Venta::eliminar: " . $e->getMessage());
+            return false;
+        }
     }
 
     // ======================== MÉTODOS AUXILIARES ========================
@@ -597,12 +685,17 @@ class Venta
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta
-        $stmt = $conexion->prepare("UPDATE ventas SET cerrada = 1 WHERE cerrada = 0 AND estado = 'completada'");
-        // Ejecutamos la consulta
-        $stmt->execute();
-        // Devolvemos el número de ventas cerradas
-        return $stmt->rowCount();
+        // Cerramos las ventas en ambas tablas (tickets y facturas)
+        $stmtTickets = $conexion->prepare("UPDATE tickets SET cerrada = 1 WHERE cerrada = 0 AND estado = 'completada'");
+        $stmtTickets->execute();
+        $countTickets = $stmtTickets->rowCount();
+
+        $stmtFacturas = $conexion->prepare("UPDATE facturas SET cerrada = 1 WHERE cerrada = 0 AND estado = 'completada'");
+        $stmtFacturas->execute();
+        $countFacturas = $stmtFacturas->rowCount();
+
+        // Devolvemos el número total de ventas cerradas
+        return $countTickets + $countFacturas;
     }
 
     /**

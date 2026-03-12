@@ -149,6 +149,15 @@ try {
 
         $conexion = ConexionDB::getInstancia()->getConexion();
 
+        // Verificar si la columna precio_cliente existe
+        $columnExists = false;
+        try {
+            $stmtCheck = $conexion->query("SHOW COLUMNS FROM productos LIKE 'precio_cliente'");
+            $columnExists = $stmtCheck->rowCount() > 0;
+        } catch (Exception $e) {
+            $columnExists = false;
+        }
+
         if (count($excluidos) > 0) {
             $placeholders = implode(',', array_fill(0, count($excluidos), '?'));
             $stmt = $conexion->prepare("SELECT id, precio FROM productos WHERE id NOT IN ($placeholders)");
@@ -163,15 +172,91 @@ try {
             $nuevoPrecio = $prod['precio'] * (1 + ($porcentaje / 100));
             $nuevoPrecio = round($nuevoPrecio, 2);
 
-            $update = $conexion->prepare("UPDATE productos SET precio = :precio WHERE id = :id");
-            $update->bindParam(':precio', $nuevoPrecio);
-            $update->bindParam(':id', $prod['id'], PDO::PARAM_INT);
+            // Actualizar también el precio de la tarifa Cliente
+            if ($columnExists) {
+                $update = $conexion->prepare("UPDATE productos SET precio = :precio, precio_cliente = :precio WHERE id = :id");
+                $update->bindParam(':precio', $nuevoPrecio);
+                $update->bindParam(':id', $prod['id'], PDO::PARAM_INT);
+            } else {
+                $update = $conexion->prepare("UPDATE productos SET precio = :precio WHERE id = :id");
+                $update->bindParam(':precio', $nuevoPrecio);
+                $update->bindParam(':id', $prod['id'], PDO::PARAM_INT);
+            }
             $update->execute();
             $actualizados++;
         }
 
         echo json_encode(['ok' => true, 'actualizados' => $actualizados]);
         exit();
+    }
+
+    // Verificar si el usuario tiene permiso para crear productos
+    if (isset($_GET['historialPrecios'])) {
+        $idProducto = intval($_GET['historialPrecios']);
+
+        if ($idProducto <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'ID de producto inválido']);
+            exit;
+        }
+
+        $conexion = ConexionDB::getInstancia()->getConexion();
+
+        // Verificar si la tabla de historial existe
+        try {
+            $stmtCheck = $conexion->query("SHOW TABLES LIKE 'productos_historial_precios'");
+            if ($stmtCheck->rowCount() == 0) {
+                echo json_encode([]);
+                exit;
+            }
+        } catch (Exception $e) {
+            echo json_encode([]);
+            exit;
+        }
+
+        // Obtener el historial de precios
+        $stmt = $conexion->prepare("
+            SELECT h.id, h.precio, h.fecha_cambio, h.id_tarifa, t.nombre as tarifa_nombre, u.nombre as usuario_nombre
+            FROM productos_historial_precios h
+            LEFT JOIN tarifas_prefijadas t ON h.id_tarifa = t.id
+            LEFT JOIN usuarios u ON h.usuario_id = u.id
+            WHERE h.id_producto = :id_producto
+            ORDER BY h.fecha_cambio DESC
+        ");
+        $stmt->bindParam(':id_producto', $idProducto, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $historial = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $historial[] = [
+                'precio' => floatval($row['precio']),
+                'valido_desde' => $row['fecha_cambio'],
+                'tarifa' => $row['tarifa_nombre'] ?? 'Precio Base',
+                'usuario' => $row['usuario_nombre'] ?? 'Sistema'
+            ];
+        }
+
+        echo json_encode($historial);
+        exit;
+    }
+
+    // OBTENER LISTA DE PRODUCTOS PARA DROPdown (para historial de precios)
+    if (isset($_GET['listaProductos'])) {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->query("SELECT id, nombre, precio FROM productos WHERE activo = 1 ORDER BY nombre ASC");
+        $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $resultado = [];
+        foreach ($productos as $prod) {
+            $resultado[] = [
+                'id' => $prod['id'],
+                'nombre' => $prod['nombre'],
+                'precio' => floatval($prod['precio'])
+            ];
+        }
+
+        echo json_encode($resultado);
+        exit;
     }
 
     // Verificar si el usuario tiene permiso para crear productos
@@ -353,6 +438,28 @@ try {
 
             // Actualizamos el producto existente
             if ($producto->actualizar()) {
+                // Guardar en historial de precios si el precio cambió
+                if ($productoAnterior && isset($productoAnterior['precio'])) {
+                    $precioAnterior = floatval($productoAnterior['precio']);
+                    $precioNuevo = floatval($producto->getPrecio());
+
+                    if (round($precioAnterior, 2) !== round($precioNuevo, 2)) {
+                        try {
+                            $pdoHistorial = new PDO(RUTA, USUARIO, PASS);
+                            $adminId = $_SESSION['id'] ?? null;
+                            $stmtHistorial = $pdoHistorial->prepare("INSERT INTO productos_historial_precios (id_producto, precio, id_tarifa, usuario_id) VALUES (:id_producto, :precio, :id_tarifa, :usuario_id)");
+                            $stmtHistorial->execute([
+                                ':id_producto' => $id,
+                                ':precio' => $precioNuevo,
+                                ':id_tarifa' => null, // Precio base
+                                ':usuario_id' => $adminId
+                            ]);
+                        } catch (Exception $e) {
+                            // Si falla el historial, continuamos
+                        }
+                    }
+                }
+
                 // Obtener el nombre del nuevo IVA después de actualizar
                 try {
                     $pdoIva = new PDO(RUTA, USUARIO, PASS);
@@ -527,13 +634,58 @@ try {
 
     // Creamos un array para almacenar el resultado
     $resultado = [];
+
+    // Obtener las tarifas existentes para saber qué columnas de precio leer
+    $tarifas = [];
+    $columnasPrecios = [];
+    try {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmtTarifas = $conexion->query("SELECT id, nombre FROM tarifas_prefijadas WHERE activo = 1");
+        while ($row = $stmtTarifas->fetch(PDO::FETCH_ASSOC)) {
+            $tarifas[] = $row;
+            // Generar nombre de columna: precio_ + nombre sin espacios
+            $columna = 'precio_' . preg_replace('/[^a-zA-Z0-9]/', '', strtolower($row['nombre']));
+            $columnasPrecios[$row['id']] = $columna;
+        }
+    } catch (Exception $e) {
+        // Si falla, continuamos sin tarifas
+    }
+
+    // Construir consulta SQL para obtener los precios de las columnas de tarifas
+    $sqlPrecios = "SELECT id";
+    foreach ($columnasPrecios as $col) {
+        $sqlPrecios .= ", `$col`";
+    }
+    $sqlPrecios .= " FROM productos";
+
+    $preciosTarifas = [];
+    try {
+        $stmtPrecios = $conexion->query($sqlPrecios);
+        while ($row = $stmtPrecios->fetch(PDO::FETCH_ASSOC)) {
+            $idProd = $row['id'];
+            $preciosTarifas[$idProd] = [];
+            foreach ($columnasPrecios as $idTarifa => $col) {
+                if (isset($row[$col]) && $row[$col] !== null) {
+                    $preciosTarifas[$idProd][$idTarifa] = [
+                        'precio' => (float) $row[$col],
+                        'es_manual' => 0 // Los precios de columnas se consideran calculados, no manuales
+                    ];
+                }
+            }
+        }
+    } catch (Exception $e) {
+        // Si falla, continuamos con array vacío
+    }
+
     // Recorremos los productos
     foreach ($productos as $prod) {
         // Obtenemos el id de la categoría
         $idCat = (int) $prod->getIdCategoria();
+        $idProd = $prod->getId();
+
         // Añadimos el producto al resultado
         $resultado[] = [
-            'id' => $prod->getId(),
+            'id' => $idProd,
             'nombre' => $prod->getNombre(),
             'precio' => (float) $prod->getPrecio(),
             'stock' => (int) $prod->getStock(),
@@ -543,7 +695,8 @@ try {
             'imagen' => $prod->getImagen(),
             'idIva' => (int) $prod->getIdIva(),
             'iva' => (float) $prod->getIvaPorcentaje(),   // ← porcentaje numérico para cálculos
-            'ivaNombre' => $prod->getIvaNombre()           // ← nombre legible del tipo de IVA
+            'ivaNombre' => $prod->getIvaNombre(),          // ← nombre legible del tipo de IVA
+            'preciosTarifas' => $preciosTarifas[$idProd] ?? [] // ← Precios específicos por tarifa
         ];
     }
 
