@@ -38,9 +38,6 @@
             <button class="cat-btn" data-seccion="clientes" style="width: 100%; text-align: left;">
                 <i class="fas fa-user-friends" style="margin-right: 10px;"></i> Clientes
             </button>
-            <button class="cat-btn" data-seccion="configuracion" style="width: 100%; text-align: left;">
-                <i class="fas fa-cog" style="margin-right: 10px;"></i> Configuración
-            </button>
             <button class="cat-btn" id="btnTarifas" style="width: 100%; text-align: left;">
                 <i class="fas fa-tags" style="margin-right: 10px;"></i> Tarifas Generales ▾
             </button>
@@ -53,7 +50,20 @@
                     style="width: 100%; text-align: left; font-size: 13px;">
                     <i class="fas fa-sliders-h" style="margin-right: 10px;"></i> Ajuste de Precios
                 </button>
+                <button class="cat-btn submenu-btn" data-seccion="tarifa-prefijadas"
+                    style="width: 100%; text-align: left; font-size: 13px;">
+                    <i class="fas fa-tags" style="margin-right: 10px;"></i> Tarifas Prefijadas
+                </button>
             </div>
+            <button class="cat-btn" data-seccion="logs" style="width: 100%; text-align: left;">
+                <i class="fas fa-history" style="margin-right: 10px;"></i> Logs
+            </button>
+            <button class="cat-btn" data-seccion="historial-precios" style="width: 100%; text-align: left;">
+                <i class="fas fa-history" style="margin-right: 10px;"></i> Historial de Precios
+            </button>
+            <button class="cat-btn" data-seccion="configuracion" style="width: 100%; text-align: left;">
+                <i class="fas fa-cog" style="margin-right: 10px;"></i> Configuración
+            </button>
         </div>
     </div>
 
@@ -252,12 +262,9 @@
                     </select>
                 </div>
                 <div class="editar-prod-fila">
-                    <label>Tipo de IVA (%)</label>
+                    <label>Tipo de IVA</label>
                     <select id="editProductoIva">
-                        <option value="21">21% (General)</option>
-                        <option value="10">10% (Reducido)</option>
-                        <option value="4">4% (Superreducido)</option>
-                        <option value="0">0% (Exento)</option>
+                        <!-- Se rellena dinámicamente desde api/iva.php -->
                     </select>
                 </div>
             </div>
@@ -299,6 +306,10 @@
             <div class="ver-prod-fila">
                 <span class="ver-prod-label">Estado</span>
                 <span id="verUsuarioEstado" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Crear Productos</span>
+                <span id="verUsuarioCrearProductos" class="ver-prod-valor"></span>
             </div>
         </div>
 
@@ -612,13 +623,13 @@
                     placeholder="García López" maxlength="150">
             </div>
 
-            <!-- Campo Fecha de Alta -->
+            <!-- Campo Fecha de Alta (solo lectura - se establece automáticamente) -->
             <div>
                 <label for="clienteHabitualFecha"
                     style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Fecha de
                     Alta</label>
-                <input type="datetime-local" id="clienteHabitualFecha"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;">
+                <input type="datetime-local" id="clienteHabitualFecha" readonly
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; background-color: #f3f4f6; color: #6b7280;">
             </div>
         </div>
 
@@ -680,6 +691,234 @@
     </div>
 </div>
 
+<!-- ##-----------------------------------MODAL EDITAR/CREAR TIPO DE IVA-----------------------------------## -->
+
+<div class="modal-overlay" id="modalEditarIva" style="display:none;">
+    <div class="modal-content modal-editarProducto" style="max-width: 420px;">
+        <h3 id="editIvaTitulo">Nuevo Tipo de IVA</h3>
+        <p id="editIvaSubtitulo" class="modal-subtitulo">Introduce los datos del nuevo tipo de IVA</p>
+
+        <input type="hidden" id="editIvaId">
+
+        <div class="editar-prod-campos" style="max-width: 100%;">
+            <div class="editar-prod-fila">
+                <label>Nombre <span style="color:red">*</span></label>
+                <input type="text" id="editIvaNombre" placeholder="Ej: IVA Reducido">
+            </div>
+            <div class="editar-prod-fila">
+                <label>Porcentaje (%) <span style="color:red">*</span></label>
+                <input type="number" id="editIvaPorcentaje" step="0.01" min="0" max="100" placeholder="Ej: 10">
+            </div>
+        </div>
+
+        <div class="editar-prod-botones">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalEditarIva')">Cancelar</button>
+            <button class="btn-exito" onclick="guardarIva()">
+                <i class="fas fa-save"></i> Guardar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: PROGRAMAR CAMBIO DE IVA ===========================## -->
+<div class="modal-overlay" id="modalProgramarIVA"
+    style="display:none; position: fixed; z-index: 10100; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+    <div class="modal-content" style="max-width: 450px; text-align: left;">
+        <h3 style="margin-bottom: 5px;"><i class="fas fa-clock" style="margin-right: 10px;"></i>Programar Cambio de IVA
+        </h3>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;">El cambio de IVA se aplicará en la fecha y hora
+            especificadas.</p>
+
+        <input type="hidden" id="ivaProgramado" value="">
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: 600;">IVA a aplicar:</label>
+            <div id="ivaProgramadoNombre"
+                style="padding: 10px; background: var(--bg-input); border-radius: 6px; font-weight: 500;"></div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label for="fechaProgramada" style="display: block; margin-bottom: 5px; font-weight: 600;">Fecha y hora
+                programada:</label>
+            <input type="datetime-local" id="fechaProgramada"
+                style="width: 100%; padding: 10px; border: 1px solid var(--border-main); border-radius: 6px; font-size: 14px; background: var(--bg-input); color: var(--text-main);">
+        </div>
+
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
+            <i class="fas fa-info-circle"></i> El sistema comprobará los cambios programados al acceder a esta sección.
+            También puede ver los cambios programados desde el panel de Configuración.
+        </p>
+
+        <div class="editar-prod-botones">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalProgramarIVA')">Cancelar</button>
+            <button class="btn-exito" onclick="programarCambioIVA()">
+                <i class="fas fa-clock"></i> Programar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: VER CAMBIOS PROGRAMADOS DE IVA ===========================## -->
+<div class="modal-overlay" id="modalVerCambiosProgramadosIVA"
+    style="display:none; position: fixed; z-index: 10100; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+    <div class="modal-content" style="max-width: 800px; text-align: left; max-height: 80vh;">
+        <h3 style="margin-bottom: 5px;"><i class="fas fa-list" style="margin-right: 10px;"></i>Cambios de IVA
+            Programados
+        </h3>
+        <p class="modal-subtitulo" style="margin-bottom: 15px;">
+            Lista de todos los cambios de IVA programados. Puedes editar o eliminar los cambios pendientes.
+        </p>
+
+        <div id="listaCambiosProgramadosIVA"
+            style="max-height: 400px; overflow-y: auto; margin-bottom: 20px; border: 1px solid var(--border-main); border-radius: 8px;">
+            <!-- La tabla se cargará dinámicamente -->
+        </div>
+
+        <div class="editar-prod-botones">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCambiosProgramadosIVA')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: PROGRAMAR AJUSTE DE PRECIOS ===========================## -->
+<div class="modal-overlay" id="modalProgramarAjustePrecios"
+    style="display:none; position: fixed; z-index: 10100; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+    <div class="modal-content" style="max-width: 450px; text-align: left;">
+        <h3 style="margin-bottom: 5px;"><i class="fas fa-clock" style="margin-right: 10px;"></i>Programar Ajuste de
+            Precios
+        </h3>
+        <p class="modal-subtitulo" style="margin-bottom: 15px;">
+            El ajuste de precios se aplicará a <span id="ajusteProgramadoProductosCount">0</span> productos.
+        </p>
+
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Porcentaje de ajuste:</label>
+            <input type="number" id="ajusteProgramadoPorcentaje" step="0.01" placeholder="Ej: 10 o -10"
+                class="input-buscarProducto"
+                style="width: 100%; padding: 10px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-main);">
+            <small style="color: var(--text-secondary);">Positivo = subir precios | Negativo = bajar precios</small>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Fecha y hora programada:</label>
+            <input type="datetime-local" id="fechaProgramadaAjuste" class="input-buscarProducto"
+                style="width: 100%; padding: 10px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-main);">
+        </div>
+
+        <div class="editar-prod-botones">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalProgramarAjustePrecios')">Cancelar</button>
+            <button class="btn-exito" onclick="programarAjustePrecios()">
+                <i class="fas fa-clock"></i> Programar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: VER AJUSTES PROGRAMADOS DE PRECIOS ===========================## -->
+<div class="modal-overlay" id="modalVerAjustesProgramadosPrecios"
+    style="display:none; position: fixed; z-index: 10100; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+    <div class="modal-content" style="max-width: 800px; text-align: left; max-height: 80vh;">
+        <h3 style="margin-bottom: 5px;"><i class="fas fa-list" style="margin-right: 10px;"></i>Ajustes de Precios
+            Programados
+        </h3>
+        <p class="modal-subtitulo" style="margin-bottom: 15px;">
+            Lista de todos los ajustes de precios programados. Puedes editar o eliminar los ajustes pendientes.
+        </p>
+
+        <div id="listaAjustesProgramadosPrecios"
+            style="max-height: 400px; overflow-y: auto; margin-bottom: 20px; border: 1px solid var(--border-main); border-radius: 8px;">
+            <!-- La tabla se cargará dinámicamente -->
+        </div>
+
+        <div class="editar-prod-botones">
+            <button class="btn-modal-cancelar"
+                onclick="cerrarModal('modalVerAjustesProgramadosPrecios')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: VER DETALLES DE CAMBIO DE IVA PROGRAMADO ===========================## -->
+<div class="modal-overlay" id="modalVerDetallesCambioIVA"
+    style="display:none; position: fixed; z-index: 10100; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+    <div class="modal-content" style="max-width: 900px; text-align: left; max-height: 80vh;">
+        <h3 style="margin-bottom: 5px;"><i class="fas fa-info-circle" style="margin-right: 10px;"></i>Detalles del
+            Cambio de IVA Programado
+        </h3>
+        <div id="detallesCambioIVAInfo"
+            style="margin-bottom: 15px; background: var(--bg-secondary); padding: 15px; border-radius: 8px;">
+            <!-- Info se cargará dinámicamente -->
+        </div>
+        <div id="detallesCambioIVATabla"
+            style="max-height: 400px; overflow-y: auto; margin-bottom: 20px; border: 1px solid var(--border-main); border-radius: 8px;">
+            <!-- Tabla se cargará dinámicamente -->
+        </div>
+        <div class="editar-prod-botones">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerDetallesCambioIVA')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: VER DETALLES DE AJUSTE DE PRECIOS PROGRAMADO ===========================## -->
+<div class="modal-overlay" id="modalVerDetallesAjustePrecios"
+    style="display:none; position: fixed; z-index: 10100; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+    <div class="modal-content" style="max-width: 900px; text-align: left; max-height: 80vh;">
+        <h3 style="margin-bottom: 5px;"><i class="fas fa-info-circle" style="margin-right: 10px;"></i>Detalles del
+            Ajuste de Precios Programado
+        </h3>
+        <div id="detallesAjustePreciosInfo"
+            style="margin-bottom: 15px; background: var(--bg-secondary); padding: 15px; border-radius: 8px;">
+            <!-- Info se cargará dinámicamente -->
+        </div>
+        <div id="detallesAjustePreciosTabla"
+            style="max-height: 400px; overflow-y: auto; margin-bottom: 20px; border: 1px solid var(--border-main); border-radius: 8px;">
+            <!-- Tabla se cargará dinámicamente -->
+        </div>
+        <div class="editar-prod-botones">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerDetallesAjustePrecios')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: CONFLICTO PRECIOS MANUALES ===========================## -->
+<div class="modal-overlay" id="modalConflictosTarifa"
+    style="display:none; position: fixed; z-index: 10100; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+    <div class="modal-content" style="max-width: 600px; text-align: left;">
+        <h3 style="margin-bottom: 5px;">Conflictos de Precios</h3>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;">Se han detectado productos con precios modificados
+            manualmente en esta tarifa. ¿Qué desea hacer?</p>
+
+        <div id="listaProductosConflictivos"
+            style="max-height: 250px; overflow-y: auto; margin-bottom: 20px; border: 1px solid var(--border-main); border-radius: 8px; padding: 10px;">
+            <!-- La lista se llenará dinámicamente -->
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalConflictosTarifa')">Cancelar</button>
+            <button class="btn-editar" onclick="confirmarCambioTarifa(false)" style="margin: 0;">Mantener
+                Manuales</button>
+            <button class="btn-exito" onclick="confirmarCambioTarifa(true)" style="margin: 0;">Sobreescribir
+                Todos</button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: ESTADÍSTICAS DE PRODUCTOS ===========================## -->
+<div class="modal-overlay" id="modalEstadisticasProductos"
+    style="display:none; position: fixed; z-index: 10100; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+    <div class="modal-content" style="max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto;">
+        <div class="modal-header"
+            style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid #e5e7eb; margin-bottom: 20px;">
+            <h2 style="margin: 0; font-size: 20px; font-weight: 600;"><i class="fas fa-chart-bar"
+                    style="margin-right: 10px;"></i>Estadísticas de Productos</h2>
+            <button onclick="cerrarModal('modalEstadisticasProductos')"
+                style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">&times;</button>
+        </div>
+        <div id="estadisticasProductosContenido">
+            <!-- Contenido cargado dinámicamente -->
+        </div>
+    </div>
+</div>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <script>
@@ -694,12 +933,15 @@
         devoluciones: 'Gestión de Devoluciones',
         proveedores: 'Gestión de Proveedores',
         configuracion: 'Configuración',
+        logs: 'Logs del Sistema',
         retiros: 'Retiros de Caja',
         'caja-sesiones': 'Sesiones de Caja',
         categorias: 'Gestión de Categorías',
         'tarifa-iva': 'Cambiar IVA General',
         'tarifa-ajuste': 'Ajuste de Precios',
-        clientes: 'Gestión de Clientes'
+        clientes: 'Gestión de Clientes',
+        'tarifa-prefijadas': 'Tarifas Prefijadas',
+        'historial-precios': 'Historial de Precios'
     };
 
     document.querySelectorAll('.cat-btn[data-seccion]').forEach(btn => {
@@ -737,6 +979,9 @@
                 case 'configuracion':
                     cargarConfiguracion();
                     break;
+                case 'logs':
+                    cargarLogs();
+                    break;
                 case 'caja-sesiones':
                     cargarCajaSesionesAdmin();
                     break;
@@ -748,6 +993,12 @@
                     break;
                 case 'tarifa-ajuste':
                     mostrarPanelAjustePrecios();
+                    break;
+                case 'tarifa-prefijadas':
+                    mostrarPanelTarifasPrefijadas();
+                    break;
+                case 'historial-precios':
+                    mostrarPanelHistorialPrecios();
                     break;
                 case 'clientes':
                     cargarClientesAdmin();
@@ -774,8 +1025,11 @@
     document.getElementById('adminContenido').innerHTML = HTML_DASHBOARD;
     cargarGraficoDashboard();
 
-    // Cargar categorías al inicio para el panel de productos
+    // Cargar categorías y tipos de IVA al inicio
     cargarCategoriasAdmin();
+    cargarTiposIva();
+    verificarCambiosIvaProgramados();
+    verificarAjustesPreciosProgramados();
 </script>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">

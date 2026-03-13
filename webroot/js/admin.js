@@ -1,4 +1,21 @@
 ﻿// ======================== RENDER PRODUCTOS (MODO TABLA - ADMIN) ========================
+// Este módulo contiene todas las funciones relacionadas con la renderización de productos
+// en el panel de administración, incluyendo búsqueda, filtrado, ordenación y visualización.
+
+// ======================== VARIABLES GLOBALES ========================
+
+// Variable global para el término de búsqueda en tarifas
+let tarifaBusquedaProducto = '';
+
+// Función para filtrar la tabla de tarifas por nombre de producto
+function filtrarTablaTarifas() {
+    const termino = tarifaBusquedaProducto.toLowerCase();
+    const filas = document.querySelectorAll('#tablaPreciosProductos tr');
+    filas.forEach(fila => {
+        const texto = fila.textContent.toLowerCase();
+        fila.style.display = texto.includes(termino) ? '' : 'none';
+    });
+}
 
 // Variable global para guardar el header HTML (con el input de búsqueda fijo)
 let adminTablaHeaderHTML = '';
@@ -11,6 +28,181 @@ let seccionActual = '';
 
 // Variable para controlar si se muestra el precio con o sin IVA
 let mostrarConIva = false;
+
+// Variable para controlar el IVA en la sección de Tarifas Prefijadas
+let tarifasMostrarConIva = false;
+
+// Variable para almacenar temporalmente los datos de una tarifa que tiene conflictos
+let tarifaDataPendiente = null;
+
+// Variable global para los tipos de IVA
+let tiposIva = [];
+
+/**
+ * Carga los tipos de IVA desde la API y los guarda en la variable global.
+ */
+function cargarTiposIva() {
+    return fetch('api/iva.php')
+        .then(res => res.json())
+        .then(data => {
+            tiposIva = data;
+            return data;
+        })
+        .catch(err => console.error('Error cargando tipos de IVA:', err));
+}
+
+/**
+ * Verifica y aplica cambios de IVA programados
+ */
+function verificarCambiosIvaProgramados() {
+    fetch('api/productos.php?accion=aplicar_cambios_iva_programados')
+        .then(res => res.json())
+        .then(data => {
+            if (data.aplicados > 0) {
+                console.log('Se aplicaron ' + data.aplicados + ' cambios de IVA programados');
+                // Recargar tipos de IVA si estamos en esa sección
+                cargarTiposIva();
+            }
+        })
+        .catch(err => console.error('Error verificando cambios IVA programados:', err));
+}
+
+/**
+ * Verifica y aplica ajustes de precios programados
+ */
+function verificarAjustesPreciosProgramados() {
+    fetch('api/productos.php?accion=aplicar_ajustes_precios_programados')
+        .then(res => res.json())
+        .then(data => {
+            if (data.aplicados > 0) {
+                console.log('Se aplicaron ' + data.aplicados + ' ajustes de precios programados');
+                // Recargar la sección actual si es necesario
+                if (seccionActual === 'tarifa-ajuste') {
+                    mostrarPanelAjustePrecios();
+                }
+            }
+        })
+        .catch(err => console.error('Error verificando ajustes de precios programados:', err));
+}
+
+/**
+ * Abre el modal para crear un nuevo tipo de IVA.
+ */
+function abrirModalNuevoIva() {
+    document.getElementById('editIvaId').value = '';
+    document.getElementById('editIvaNombre').value = '';
+    document.getElementById('editIvaPorcentaje').value = '';
+    document.getElementById('editIvaTitulo').textContent = 'Nuevo Tipo de IVA';
+    document.getElementById('editIvaSubtitulo').textContent = 'Introduce los datos del nuevo tipo de IVA';
+    document.getElementById('modalEditarIva').style.display = 'flex';
+}
+
+/**
+ * Abre el modal para editar un tipo de IVA existente.
+ */
+function editarIva(id, nombre, porcentaje) {
+    document.getElementById('editIvaId').value = id;
+    document.getElementById('editIvaNombre').value = nombre;
+    document.getElementById('editIvaPorcentaje').value = porcentaje;
+    document.getElementById('editIvaTitulo').textContent = 'Editar Tipo de IVA';
+    document.getElementById('editIvaSubtitulo').textContent = 'Modifica los datos del tipo de IVA';
+    document.getElementById('modalEditarIva').style.display = 'flex';
+}
+
+/**
+ * Guarda los cambios de un tipo de IVA (crear o actualizar).
+ */
+function guardarIva() {
+    const id = document.getElementById('editIvaId').value;
+    const nombre = document.getElementById('editIvaNombre').value.trim();
+    const porcentaje = parseFloat(document.getElementById('editIvaPorcentaje').value);
+
+    if (!nombre) {
+        alert('El nombre es obligatorio');
+        return;
+    }
+
+    if (isNaN(porcentaje) || porcentaje < 0 || porcentaje > 100) {
+        alert('El porcentaje debe estar entre 0 y 100');
+        return;
+    }
+
+    const formData = new FormData();
+    if (id) {
+        formData.append('id', id);
+    }
+    formData.append('nombre', nombre);
+    formData.append('porcentaje', porcentaje);
+
+    fetch('api/iva.php', {
+        method: 'POST',
+        body: formData
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                document.getElementById('modalEditarIva').style.display = 'none';
+                cargarTiposIva().then(() => {
+                    if (seccionActual === 'tarifa-iva') {
+                        mostrarPanelCambiarIVA();
+                    }
+                });
+                // Actualizar también los selects de IVA en otros modales
+                actualizarSelectsIva();
+            } else {
+                alert(data.error || 'Error al guardar el tipo de IVA');
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al guardar el tipo de IVA');
+        });
+}
+
+/**
+ * Elimina un tipo de IVA.
+ */
+function eliminarIva(id) {
+    if (!confirm('¿Estás seguro de que quieres eliminar este tipo de IVA?')) {
+        return;
+    }
+
+    fetch('api/iva.php?eliminar=' + id, {
+        method: 'DELETE'
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                cargarTiposIva().then(() => {
+                    if (seccionActual === 'tarifa-iva') {
+                        mostrarPanelCambiarIVA();
+                    }
+                });
+                actualizarSelectsIva();
+            } else {
+                alert(data.error || 'No se pudo eliminar el tipo de IVA');
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al eliminar el tipo de IVA');
+        });
+}
+
+/**
+ * Actualiza los selects de IVA en los formularios de productos.
+ */
+function actualizarSelectsIva() {
+    // Actualizar select en modal de editar producto
+    const selectIvaProducto = document.getElementById('editProductoIva');
+    if (selectIvaProducto) {
+        let opciones = '<option value="">Selecciona un tipo de IVA</option>';
+        tiposIva.forEach(tipo => {
+            opciones += `<option value="${tipo.id}">${tipo.porcentaje}% (${tipo.nombre})</option>`;
+        });
+        selectIvaProducto.innerHTML = opciones;
+    }
+}
 
 /**
  * Carga las categorías desde la API y las guarda en la variable global.
@@ -80,6 +272,9 @@ function getAdminTablaHeader(textoBusqueda = '', idCategoriaSeleccionada = '', o
                 <button class="btn-admin-accion ${mostrarConIva ? 'btn-ver' : 'btn-editar'}" onclick="toggleMostrarIva()" style="min-width: 150px;">
                     <i class="fas ${mostrarConIva ? 'fa-file-invoice-dollar' : 'fa-coins'}"></i> 
                     ${mostrarConIva ? 'Ver Sin IVA' : 'Ver Con IVA'}
+                </button>
+                <button class="btn-admin-accion btn-ver" onclick="abrirModalEstadisticasProductos()">
+                    <i class="fas fa-chart-bar"></i> Estadísticas
                 </button>
                 <button class="btn-admin-accion btn-nuevo" onclick="nuevoProducto()">
                     <i class="fas fa-plus"></i> Nuevo Producto
@@ -210,7 +405,9 @@ function renderProductosAdmin(productos, esPrimeraVez = true, idCategoria = '', 
         html += `
                     <tr class="${prod.stock <= 0 ? 'fila-agotada' : ''}${prod.activo == 0 ? 'fila-inactiva' : ''}" 
                         data-precio-base="${prod.precio}" 
-                        data-iva="${prod.iva}">
+                        data-iva="${prod.iva}"
+                        data-iva-id="${prod.idIva}"
+                        data-iva-nombre="${prod.ivaNombre || ''}">
                         <td class="col-id">${prod.id}</td>
                         <td class="col-img">
                             <img src="${imgSrc}" alt="${prod.nombre.replace(/"/g, '&quot;')}" class="admin-tabla-img">
@@ -222,7 +419,7 @@ function renderProductosAdmin(productos, esPrimeraVez = true, idCategoria = '', 
                             <span class="admin-badge ${stockBadge}">${prod.stock}</span>
                         </td>
                         <td class="col-estado">${estadoHtml}</td>
-                        <td class="col-iva">${prod.iva}%</td>
+                        <td class="col-iva">${prod.iva}% (${prod.ivaNombre || 'General'})</td>
                         <td class="col-acciones" style="${prod.stock <= 0 ? 'opacity: 1;' : ''}${prod.activo == 0 ? 'opacity: 1;' : ''}">
                             <button class="btn-admin-accion btn-ver" onclick="verProducto(${prod.id})" title="Ver">
                                 <i class="fas fa-eye"></i>
@@ -339,7 +536,14 @@ function nuevoProducto() {
     document.getElementById('editProductoPrecio').value = '';
     document.getElementById('editProductoStock').value = '';
     document.getElementById('editProductoEstado').value = '1';
-    document.getElementById('editProductoIva').value = '21';
+    document.getElementById('editProductoIva').value = '1';
+    // Llenar el select de IVA dinámicamente
+    const selectIva = document.getElementById('editProductoIva');
+    selectIva.innerHTML = '';
+    tiposIva.forEach(tipo => {
+        const selected = tipo.id === 1 ? 'selected' : '';
+        selectIva.innerHTML += `<option value="${tipo.id}" ${selected}>${tipo.porcentaje}% (${tipo.nombre})</option>`;
+    });
     document.getElementById('editProductoImagen').src = 'webroot/img/logo.PNG';
     document.getElementById('editProductoImagen').alt = '';
     document.getElementById('editProductoImagenInput').value = '';
@@ -362,6 +566,63 @@ function nuevoProducto() {
 }
 
 /**
+ * Abre el modal de estadísticas de productos y carga los datos.
+ */
+async function abrirModalEstadisticasProductos() {
+    const modal = document.getElementById('modalEstadisticasProductos');
+    const contenido = document.getElementById('estadisticasProductosContenido');
+
+    // Mostrar modal
+    modal.style.display = 'flex';
+
+    // Mostrar cargando
+    contenido.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin" style="font-size: 40px; color: #3b82f6;"></i><p>Cargando estadísticas...</p></div>';
+
+    try {
+        const response = await fetch('api/ventas.php?accion=estadisticas_productos');
+        const data = await response.json();
+
+        if (data.success) {
+            const stats = data.estadisticas;
+            const isDark = document.body.classList.contains('dark-mode');
+            const textColor = isDark ? '#e5e7eb' : '#1f2937';
+            const cardBg = isDark ? '#374151' : '#f3f4f6';
+            const borderColor = isDark ? '#4b5563' : '#e5e7eb';
+
+            contenido.innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px;">
+                    <div style="background: ${cardBg}; padding: 20px; border-radius: 8px; border: 1px solid ${borderColor};">
+                        <h4 style="margin: 0 0 10px 0; color: ${textColor};"><i class="fas fa-trophy" style="color: #fbbf24;"></i> Más vendido (Historia)</h4>
+                        <p style="font-size: 18px; font-weight: bold; color: ${textColor}; margin: 0;">${stats.mas_vendido_historia?.nombre || 'Sin datos'}</p>
+                        <p style="color: #059669; font-weight: bold; margin: 5px 0 0 0;">${stats.mas_vendido_historia?.cantidad || 0} unidades</p>
+                    </div>
+                    <div style="background: ${cardBg}; padding: 20px; border-radius: 8px; border: 1px solid ${borderColor};">
+                        <h4 style="margin: 0 0 10px 0; color: ${textColor};"><i class="fas fa-calendar-alt" style="color: #3b82f6;"></i> Más vendido (Mes)</h4>
+                        <p style="font-size: 18px; font-weight: bold; color: ${textColor}; margin: 0;">${stats.mas_vendido_mes?.nombre || 'Sin datos'}</p>
+                        <p style="color: #059669; font-weight: bold; margin: 5px 0 0 0;">${stats.mas_vendido_mes?.cantidad || 0} unidades</p>
+                    </div>
+                    <div style="background: ${cardBg}; padding: 20px; border-radius: 8px; border: 1px solid ${borderColor};">
+                        <h4 style="margin: 0 0 10px 0; color: ${textColor};"><i class="fas fa-calendar-week" style="color: #10b981;"></i> Más vendido (Semana)</h4>
+                        <p style="font-size: 18px; font-weight: bold; color: ${textColor}; margin: 0;">${stats.mas_vendido_semana?.nombre || 'Sin datos'}</p>
+                        <p style="color: #059669; font-weight: bold; margin: 5px 0 0 0;">${stats.mas_vendido_semana?.cantidad || 0} unidades</p>
+                    </div>
+                    <div style="background: ${cardBg}; padding: 20px; border-radius: 8px; border: 1px solid ${borderColor};">
+                        <h4 style="margin: 0 0 10px 0; color: ${textColor};"><i class="fas fa-arrow-down" style="color: #ef4444;"></i> Menos vendido (Mes)</h4>
+                        <p style="font-size: 18px; font-weight: bold; color: ${textColor}; margin: 0;">${stats.menos_vendido_mes?.nombre || 'Sin datos'}</p>
+                        <p style="color: #dc2626; font-weight: bold; margin: 5px 0 0 0;">${stats.menos_vendido_mes?.cantidad || 0} unidades</p>
+                    </div>
+                </div>
+            `;
+        } else {
+            contenido.innerHTML = `<p style="color: #dc2626; text-align: center;">Error: ${data.error || 'Error desconocido'}</p>`;
+        }
+    } catch (error) {
+        console.error('Error cargando estadísticas:', error);
+        contenido.innerHTML = `<p style="color: #dc2626; text-align: center;">Error al cargar las estadísticas</p>`;
+    }
+}
+
+/**
  * Abre el modal de edición de un producto, rellenando los campos del formulario
  * con los datos actuales del producto extraídos de la fila de la tabla.
  *
@@ -378,7 +639,7 @@ function editarProducto(id) {
     const precio = fila.dataset.precioBase; // Usar el precio base real del atributo data
     const stock = celdas[5].textContent.trim();
     const activo = celdas[6].querySelector('.badge-activo') ? 1 : 0;
-    const iva = fila.dataset.iva; // Usar el IVA del atributo data
+    const idIva = fila.dataset.ivaId; // Usar el ID de IVA del atributo data
     const imgSrc = celdas[1].querySelector('img')?.src ?? 'webroot/img/logo.PNG';
 
     // Guardar el ID del producto en un campo oculto para usarlo al guardar los cambios.
@@ -395,7 +656,14 @@ function editarProducto(id) {
     document.getElementById('editProductoPrecio').value = precio;
     document.getElementById('editProductoStock').value = stock;
     document.getElementById('editProductoEstado').value = activo;
-    document.getElementById('editProductoIva').value = iva;
+
+    // Llenar el select de IVA dinámicamente
+    const selectIva = document.getElementById('editProductoIva');
+    selectIva.innerHTML = '';
+    tiposIva.forEach(tipo => {
+        const selected = tipo.id == idIva ? 'selected' : '';
+        selectIva.innerHTML += `<option value="${tipo.id}" ${selected}>${tipo.porcentaje}% (${tipo.nombre})</option>`;
+    });
 
     // Limpiar el input de archivo de imagen por si había una previsualización anterior.
     document.getElementById('editProductoImagenInput').value = '';
@@ -404,11 +672,15 @@ function editarProducto(id) {
     document.getElementById('editProductoTitulo').textContent = 'Editar Producto';
     document.getElementById('editProductoSubtitulo').textContent = 'Modifica los datos del producto';
 
-    // Hacer la categoría de solo lectura para productos existentes
+    // Cargar las categorías en el select para permitir cambios
     const selectCategoria = document.getElementById('editProductoCategoria');
-    selectCategoria.innerHTML = `<option value="${categoria}">${categoria}</option>`;
-    selectCategoria.style.background = '#f3f4f6';
-    selectCategoria.style.cursor = 'not-allowed';
+    selectCategoria.innerHTML = '<option value="">Selecciona una categoría</option>';
+    categoriasAdmin.forEach(cat => {
+        const selected = cat.nombre === categoria ? 'selected' : '';
+        selectCategoria.innerHTML += `<option value="${cat.nombre}" ${selected}>${cat.nombre}</option>`;
+    });
+    selectCategoria.style.background = '#fff';
+    selectCategoria.style.cursor = 'pointer';
 
     // Abrir el modal de edición.
     abrirModal('modalEditarProducto');
@@ -461,7 +733,7 @@ function guardarCambiosProducto() {
     formData.append('precio', precio);
     formData.append('stock', stock);
     formData.append('activo', activo);
-    formData.append('iva', document.getElementById('editProductoIva').value);
+    formData.append('idIva', document.getElementById('editProductoIva').value);
     if (imgInput.files[0]) {
         formData.append('imagen', imgInput.files[0]); // Adjuntar el archivo de imagen si existe.
     }
@@ -535,7 +807,8 @@ function verProducto(id) {
 
     const stock = celdas[5].textContent.trim();
     const estado = celdas[6].querySelector('.admin-badge')?.textContent.trim() ?? '—';
-    const iva = fila.dataset.iva + '%';
+    const ivaNombre = fila.dataset.ivaNombre || 'General';
+    const ivaTexto = ivaValue + '% (' + ivaNombre + ')';
     const imgSrc = celdas[1].querySelector('img')?.src ?? 'webroot/img/logo.PNG';
 
     // Configurar la imagen del modal con funcionalidad de zoom al hacer clic.
@@ -550,7 +823,7 @@ function verProducto(id) {
     document.getElementById('verProductoCategoria').textContent = categoria;
     document.getElementById('verProductoPrecio').textContent = (mostrarConIva ? precioPVP.toFixed(2).replace('.', ',') : precioBase.toFixed(2).replace('.', ',')) + ' €';
     document.getElementById('verProductoStock').textContent = stock;
-    document.getElementById('verProductoIva').textContent = iva;
+    document.getElementById('verProductoIva').textContent = ivaTexto;
 
     // Mostrar el badge de estado (activo/inactivo) con el estilo correspondiente.
     document.getElementById('verProductoEstado').innerHTML =
@@ -845,6 +1118,12 @@ function verUsuario(id) {
                 ? '<span class="admin-badge badge-activo">Activo</span>'
                 : '<span class="admin-badge badge-inactivo">Inactivo</span>';
 
+            // Mostrar permiso de crear productos
+            const crearProductos = data.permisos && data.permisos.includes('crear_productos');
+            document.getElementById('verUsuarioCrearProductos').innerHTML = crearProductos
+                ? '<span class="admin-badge badge-activo">Sí</span>'
+                : '<span class="admin-badge badge-inactivo">No</span>';
+
             abrirModal('modalVerUsuario');
         })
         .catch(err => console.error('Error cargando usuario:', err));
@@ -869,6 +1148,24 @@ function editarUsuario(id) {
             document.getElementById('editUsuarioPassword').required = false;
             document.getElementById('editUsuarioRol').value = data.rol;
             document.getElementById('editUsuarioEstado').value = data.activo;
+
+            // Si es el usuario admin (id=1), deshabilitar rol y estado
+            const esAdmin = (data.id == 1);
+            const rolSelect = document.getElementById('editUsuarioRol');
+            const estadoSelect = document.getElementById('editUsuarioEstado');
+
+            if (esAdmin) {
+                rolSelect.disabled = true;
+                estadoSelect.disabled = true;
+                // Añadir clase para indicar visualmente que está deshabilitado
+                rolSelect.style.opacity = '0.6';
+                estadoSelect.style.opacity = '0.6';
+            } else {
+                rolSelect.disabled = false;
+                estadoSelect.disabled = false;
+                rolSelect.style.opacity = '1';
+                estadoSelect.style.opacity = '1';
+            }
 
             // Mostrar/ocultar permisos según el rol
             actualizarVisibilidadPermisos(data.rol);
@@ -931,8 +1228,8 @@ function guardarCambiosUsuario() {
     const nombre = document.getElementById('editUsuarioNombre').value.trim();
     const email = document.getElementById('editUsuarioEmail').value.trim();
     const password = document.getElementById('editUsuarioPassword').value;
-    const rol = document.getElementById('editUsuarioRol').value;
-    const activo = document.getElementById('editUsuarioEstado').value;
+    let rol = document.getElementById('editUsuarioRol').value;
+    let activo = document.getElementById('editUsuarioEstado').value;
 
     if (!nombre || !email) {
         alert('Por favor completa todos los campos obligatorios.');
@@ -944,6 +1241,13 @@ function guardarCambiosUsuario() {
     if (!emailRegex.test(email)) {
         alert('Por favor ingresa un email válido.');
         return;
+    }
+
+    // Si es el usuario admin (id=1), mantener su rol y estado originales
+    // ya que los campos están deshabilitados pero sendrá el valor por defecto
+    if (id == 1) {
+        rol = 'admin';
+        activo = '1';
     }
 
     // Obtener permisos (solo para empleados)
@@ -1126,6 +1430,7 @@ function getVentasTablaHeader(filtroFecha = 'todos', metodoPago = 'todos', tipoD
                         <th>Fecha</th>
                         <th>Usuario</th>
                         <th>Productos</th>
+                        <th>Tarifa</th>
                         <th>Documento</th>
                         <th>Forma de Pago</th>
                         <th>Total</th>
@@ -1145,10 +1450,10 @@ function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', m
         if (esPrimeraVez || adminTablaHeaderHTML === '') {
             adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden);
             contenedor.innerHTML = adminTablaHeaderHTML +
-                '<tr><td colspan="8" class="sin-productos">No hay ventas registradas.</td></tr></tbody></table></div>';
+                '<tr><td colspan="9" class="sin-productos">No hay ventas registradas.</td></tr></tbody></table></div>';
         } else {
             const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="sin-productos">No hay ventas registradas.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="sin-productos">No hay ventas registradas.</td></tr>';
         }
         return;
     }
@@ -1177,12 +1482,16 @@ function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', m
         if (tipoDocumento === 'ticket') tipoDocumento = '🧾 Ticket';
         else if (tipoDocumento === 'factura') tipoDocumento = '📄 Factura';
 
+        // Formatear tarifa
+        let tarifaNombre = venta.tarifa_nombre || 'Cliente';
+
         html += `
             <tr>
                 <td class="col-id">${venta.id}</td>
                 <td class="col-fecha">${fecha}</td>
                 <td class="col-usuario">${venta.usuario_nombre || '—'}</td>
                 <td class="col-productos">${productos}</td>
+                <td class="col-tarifa">${tarifaNombre}</td>
                 <td class="col-documento">${tipoDocumento}</td>
                 <td class="col-pago">${formaPago}</td>
                 <td class="col-total" style="font-weight: 700; color: #059669;">${total} €</td>
@@ -1277,6 +1586,18 @@ function verDetalleVenta(idVenta) {
             const lineas = data.lineas;
             const descuentos = data.descuentos || {};
 
+            // Detectar tema actual
+            const isDark = document.body.classList.contains('dark-mode');
+            const bgColor = isDark ? '#1f2937' : '#fff';
+            const textColor = isDark ? '#e5e7eb' : '#374151';
+            const cardBg = isDark ? '#374151' : '#f8f9fa';
+            const borderColor = isDark ? '#4b5563' : '#e5e7eb';
+            const discountBg = isDark ? '#064e3b' : '#ecfdf5';
+            const discountBorder = isDark ? '#065f46' : '#a7f3d0';
+            const discountColor = isDark ? '#34d399' : '#16a34a';
+            const headerBg = isDark ? '#4b5563' : '#374151';
+            const totalBg = isDark ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
+
             const fecha = new Date(venta.fecha).toLocaleString('es-ES', {
                 day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
             });
@@ -1286,24 +1607,24 @@ function verDetalleVenta(idVenta) {
             // Procesar descuentos para mostrar
             let descuentoHtml = '';
             if (descuentos.descuentoTarifaCupon === 'CLIENTE_REGISTRADO') {
-                descuentoHtml += `<div style="color: #16a34a;"><strong>Cliente registrado:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
+                descuentoHtml += `<div style="color: ${discountColor};"><strong>Cliente registrado:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
             } else if (descuentos.descuentoTarifaCupon === 'MAYORISTA_NIVEL1') {
-                descuentoHtml += `<div style="color: #16a34a;"><strong>Mayorista nivel 1:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
+                descuentoHtml += `<div style="color: ${discountColor};"><strong>Mayorista nivel 1:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
             } else if (descuentos.descuentoTarifaCupon === 'MAYORISTA_NIVEL2') {
-                descuentoHtml += `<div style="color: #16a34a;"><strong>Mayorista nivel 2:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
+                descuentoHtml += `<div style="color: ${discountColor};"><strong>Mayorista nivel 2:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
             }
             if (descuentos.descuentoManualCupon && descuentos.descuentoManualCupon !== '') {
                 if (descuentos.descuentoManualTipo === 'porcentaje') {
-                    descuentoHtml += `<div style="color: #16a34a;"><strong>Descuento:</strong> ${descuentos.descuentoManualValor}%</div>`;
+                    descuentoHtml += `<div style="color: ${discountColor};"><strong>Descuento:</strong> ${descuentos.descuentoManualValor}%</div>`;
                 } else {
-                    descuentoHtml += `<div style="color: #16a34a;"><strong>Cupón:</strong> ${descuentos.descuentoManualCupon}</div>`;
+                    descuentoHtml += `<div style="color: ${discountColor};"><strong>Cupón:</strong> ${descuentos.descuentoManualCupon}</div>`;
                 }
             } else if (descuentos.descuentoCupon && descuentos.descuentoCupon !== '' && descuentos.descuentoCupon !== 'CLIENTE_REGISTRADO' && descuentos.descuentoCupon !== 'MAYORISTA_NIVEL1' && descuentos.descuentoCupon !== 'MAYORISTA_NIVEL2') {
-                descuentoHtml += `<div style="color: #16a34a;"><strong>Cupón:</strong> ${descuentos.descuentoCupon}</div>`;
+                descuentoHtml += `<div style="color: ${discountColor};"><strong>Cupón:</strong> ${descuentos.descuentoCupon}</div>`;
             }
 
             let html = `
-                <div style="border-radius: 12px; overflow: hidden; background: #fff;">
+                <div style="border-radius: 12px; overflow: hidden; background: ${bgColor};">
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <h3 style="margin: 0; font-size: 18px;">Venta #${venta.id}</h3>
@@ -1311,24 +1632,24 @@ function verDetalleVenta(idVenta) {
                         </div>
                     </div>
                     <div style="padding: 20px;">
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                            <div><strong>👤 Usuario:</strong><br>${venta.usuario_nombre || '—'}</div>
-                            <div><strong>📄 Tipo:</strong><br>${tipoDoc}</div>
-                            <div><strong>💳 Pago:</strong><br>${venta.metodoPago || '💵 Efectivo'}</div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; padding: 15px; background: ${cardBg}; border-radius: 8px;">
+                            <div style="color: ${textColor};"><strong>👤 Usuario:</strong><br>${venta.usuario_nombre || '—'}</div>
+                            <div style="color: ${textColor};"><strong>📄 Tipo:</strong><br>${tipoDoc}</div>
+                            <div style="color: ${textColor};"><strong>💳 Pago:</strong><br>${venta.metodoPago || '💵 Efectivo'}</div>
                         </div>`;
 
             if (descuentoHtml) {
-                html += `<div style="margin-bottom: 20px; padding: 15px; background: #ecfdf5; border-radius: 8px; border: 1px solid #a7f3d0;">
-                            <strong style="color: #065f46;">💰 Descuentos aplicados:</strong><br>
+                html += `<div style="margin-bottom: 20px; padding: 15px; background: ${discountBg}; border-radius: 8px; border: 1px solid ${discountBorder};">
+                            <strong style="color: ${discountColor};">💰 Descuentos aplicados:</strong><br>
                             ${descuentoHtml}
                         </div>`;
             }
 
-            html += `<h4 style="margin: 0 0 10px 0; color: #374151;">Productos:</h4>
-                        <div style="max-height: 250px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px;">
+            html += `<h4 style="margin: 0 0 10px 0; color: ${textColor};">Productos:</h4>
+                        <div style="max-height: 250px; overflow-y: auto; border: 1px solid ${borderColor}; border-radius: 8px;">
                             <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
                                 <thead>
-                                    <tr style="background: #374151; color: white;">
+                                    <tr style="background: ${headerBg}; color: white;">
                                         <th style="padding: 10px; text-align: left;">Producto</th>
                                         <th style="padding: 10px; text-align: center;">Cant.</th>
                                         <th style="padding: 10px; text-align: right;">P.U.</th>
@@ -1340,22 +1661,53 @@ function verDetalleVenta(idVenta) {
 
             lineas.forEach(linea => {
                 const iva = linea.iva || 21;
-                const subtotal = (linea.cantidad * linea.precioUnitario).toFixed(2).replace('.', ',');
+                const precioBase = parseFloat(linea.precioUnitario);
+                const precioBaseOriginal = parseFloat(linea.precioOriginal || linea.precioUnitario);
+                const pvpUnitario = precioBase * (1 + iva / 100);
+                const pvpOriginal = precioBaseOriginal * (1 + iva / 100);
+                // El subtotal de la línea debe incluir el IVA para ser consistente con el total final
+                const subtotalValor = linea.cantidad * pvpUnitario;
+                const subtotalTexto = subtotalValor.toFixed(2).replace('.', ',');
+
+                const tieneTarifa = linea.tarifaNombre && linea.tarifaNombre !== '' && linea.tarifaNombre !== 'Tarifa';
+                const ahorroUnitario = pvpOriginal - pvpUnitario;
+                const ahorroTotal = ahorroUnitario * linea.cantidad;
+
                 html += `
                     <tr>
-                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${linea.producto_nombre || 'Producto #' + linea.idProducto}</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: center;">${linea.cantidad}</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">${parseFloat(linea.precioUnitario).toFixed(2).replace('.', ',')} €</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: center;">${iva}%</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: 600;">${subtotal} €</td>
+                        <td style="padding: 10px; border-bottom: 1px solid ${borderColor}; color: ${textColor};">
+                            ${linea.producto_nombre || 'Producto #' + linea.idProducto}
+                            ${tieneTarifa ? `<br><small style="color: ${discountColor}; font-size: 0.75rem;">* Tarifa: ${linea.tarifaNombre} (Ahorro: ${(ahorroTotal).toFixed(2).replace('.', ',')} €)</small>` : ''}
+                        </td>
+                        <td style="padding: 10px; border-bottom: 1px solid ${borderColor}; text-align: center; color: ${textColor};">${linea.cantidad}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid ${borderColor}; text-align: right; color: ${textColor};">
+                            ${pvpUnitario.toFixed(2).replace('.', ',')} €
+                        </td>
+                        <td style="padding: 10px; border-bottom: 1px solid ${borderColor}; text-align: center; color: ${textColor};">${iva}%</td>
+                        <td style="padding: 10px; border-bottom: 1px solid ${borderColor}; text-align: right; font-weight: 600; color: ${textColor};">
+                            ${subtotalTexto} €
+                        </td>
                     </tr>`;
             });
 
             html += `
                                 </tbody>
                             </table>
-                        </div>
-                        <div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px;">
+                        </div>`;
+
+            // Fila de Descuento Manual si existe
+            if (descuentos.descuentoManualValor && parseFloat(descuentos.descuentoManualValor) > 0) {
+                const descVal = parseFloat(descuentos.descuentoManualValor);
+                const descTexto = descuentos.descuentoManualTipo === 'porcentaje' ? descVal + '%' : descVal.toFixed(2).replace('.', ',') + '€';
+                html += `
+                    <div style="margin-top: 10px; padding: 10px; background: ${discountBg}; border: 1px solid ${discountBorder}; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; color: ${discountColor};">
+                        <span><strong>Descuento Manual:</strong> ${descuentos.descuentoManualCupon || ''}</span>
+                        <span style="font-weight: bold;">-${descTexto}</span>
+                    </div>`;
+            }
+
+            html += `
+                        <div style="margin-top: 15px; padding: 15px; background: ${totalBg}; color: white; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
                             TOTAL: ${parseFloat(venta.total).toFixed(2).replace('.', ',')} €
                         </div>
                         <div style="margin-top: 20px; text-align: right;">
@@ -1633,7 +1985,9 @@ const FUENTES_DISPONIBLES = [
  */
 const TEMA_DEFAULTS = {
     header_bg: '#1a1a2e', header_color: '#ffffff', header_font: 'Inter',
-    footer_bg: '#1a1a2e', footer_color: '#e5e7eb', footer_font: 'Inter'
+    footer_bg: '#1a1a2e', footer_color: '#e5e7eb', footer_font: 'Inter',
+    header_icon: '',  // SVG code for custom header icon
+    favicon: ''      // Path to favicon image
 };
 
 /**
@@ -1646,7 +2000,8 @@ let temaActual = { ...TEMA_DEFAULTS };
  */
 const SECCIONES_TEMA = [
     { id: 'header', titulo: 'Header (Cabecera)', icono: 'fa-heading', bgKey: 'header_bg', colorKey: 'header_color', fontKey: 'header_font' },
-    { id: 'footer', titulo: 'Footer (Pie de página)', icono: 'fa-shoe-prints', bgKey: 'footer_bg', colorKey: 'footer_color', fontKey: 'footer_font' }
+    { id: 'footer', titulo: 'Footer (Pie de página)', icono: 'fa-shoe-prints', bgKey: 'footer_bg', colorKey: 'footer_color', fontKey: 'footer_font' },
+    { id: 'iconos', titulo: 'Iconos', icono: 'fa-icons', tipo: 'iconos' }
 ];
 
 /**
@@ -1663,6 +2018,41 @@ function generarSelectFuente(id, valorActual) {
  * Genera el HTML de una sección del editor de tema.
  */
 function generarSeccionTema(seccion) {
+    // Si es la sección de iconos, generar HTML especial
+    if (seccion.tipo === 'iconos') {
+        const headerIconVal = temaActual['header_icon'] || '';
+        const faviconVal = temaActual['favicon'] || '';
+
+        return `
+            <div class="tema-seccion-card">
+                <div class="tema-seccion-header">
+                    <i class="fas ${seccion.icono} tema-seccion-icono"></i>
+                    <h4 class="tema-seccion-titulo">${seccion.titulo}</h4>
+                </div>
+                <div class="tema-seccion-body">
+                    <div class="tema-campo">
+                        <label class="tema-label">Icono del Header (SVG)</label>
+                        <textarea id="tema_header_icon" class="tema-textarea-icono" 
+                            placeholder="Pega el código SVG aquí..." 
+                            oninput="previsualizarIcono()">${headerIconVal}</textarea>
+                        <p class="tema-ayuda">Pega el código completo de un icono SVG (incluyendo las etiquetas &lt;svg&gt;)</p>
+                    </div>
+                    <div class="tema-preview-icono" id="preview_header_icon">
+                        ${headerIconVal ? headerIconVal : '<span style="color: var(--text-muted);">Vista previa del icono</span>'}
+                    </div>
+                    <div class="tema-campo" style="margin-top: 20px;">
+                        <label class="tema-label">Favicon</label>
+                        <input type="file" id="tema_favicon" accept="image/*" onchange="previsualizarFavicon(this)">
+                        <p class="tema-ayuda">Sube una imagen para el favicon (16x16, 32x32 o 48x48 píxeles)</p>
+                    </div>
+                    <div class="tema-preview-favicon" id="preview_favicon">
+                        ${faviconVal ? `<img src="${faviconVal}" alt="Favicon" style="width: 32px; height: 32px;">` : '<span style="color: var(--text-muted);">Vista previa del favicon</span>'}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     const bgVal = temaActual[seccion.bgKey] || TEMA_DEFAULTS[seccion.bgKey];
     const colorVal = temaActual[seccion.colorKey] || TEMA_DEFAULTS[seccion.colorKey];
     const fontVal = temaActual[seccion.fontKey] || TEMA_DEFAULTS[seccion.fontKey];
@@ -1725,6 +2115,497 @@ function cargarConfiguracion() {
 }
 
 /**
+ * Carga y muestra los logs del sistema.
+ */
+function cargarLogs(filtros = {}) {
+    seccionActual = 'logs';
+    adminTablaHeaderHTML = '';
+
+    // Inicializar filtros si no existen
+    if (window.filtroFechaLog === undefined) {
+        window.filtroFechaLog = '';
+    }
+    if (window.filtroTipoLog === undefined) {
+        window.filtroTipoLog = '';
+    }
+
+    const contenedor = document.getElementById('adminContenido');
+    contenedor.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--text-muted);">Cargando logs...</p>';
+
+    // Construir URL con filtros
+    const params = new URLSearchParams(filtros);
+    params.set('pagina', filtros.pagina || 1);
+    params.set('por_pagina', filtros.porPagina || 50);
+
+    const url = 'api/logs.php?' + params.toString();
+    console.log('Cargar logs - URL:', url);
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            // Guardar los datos globalmente para acceder desde verDetalleLog
+            window.logsData = data.logs || [];
+            renderLogs(data);
+        })
+        .catch(err => {
+            console.error('Error cargando logs:', err);
+            contenedor.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--error);">Error al cargar los logs</p>';
+        });
+}
+
+/**
+ * Renderiza la tabla de logs.
+ */
+function renderLogs(data) {
+    const contenedor = document.getElementById('adminContenido');
+    const logs = data.logs || [];
+
+    // Tipos de log para el filtro
+    const tiposLog = [
+        { valor: '', texto: 'Todos los tipos' },
+        { valor: 'login', texto: 'Inicios de sesión' },
+        { valor: 'login_fallido', texto: 'Credenciales incorrectas' },
+        { valor: 'logout', texto: 'Cierres de sesión' },
+        { valor: 'venta', texto: 'Ventas' },
+        { valor: 'devolucion', texto: 'Devoluciones' },
+        { valor: 'apertura_caja', texto: 'Apertura de caja' },
+        { valor: 'cierre_caja', texto: 'Cierre de caja' },
+        { valor: 'retiro_caja', texto: 'Retiros de caja' },
+        { valor: 'creacion_usuario', texto: 'Creación de usuarios' },
+        { valor: 'modificacion_usuario', texto: 'Modificación de usuarios' },
+        { valor: 'eliminacion_usuario', texto: 'Eliminación de usuarios' },
+        { valor: 'creacion_producto', texto: 'Creación de productos' },
+        { valor: 'modificacion_producto', texto: 'Modificación de productos' },
+        { valor: 'eliminacion_producto', texto: 'Eliminación de productos' },
+        { valor: 'creacion_categoria', texto: 'Creación de categorías' },
+        { valor: 'modificacion_categoria', texto: 'Modificación de categorías' },
+        { valor: 'eliminacion_categoria', texto: 'Eliminación de categorías' },
+        { valor: 'acceso_admin', texto: 'Accesos al admin' }
+    ];
+
+    const tipoSelect = tiposLog.map(t =>
+        `<option value="${t.valor}" ${(window.filtroTipoLog || '') === t.valor ? 'selected' : ''}>${t.texto}</option>`
+    ).join('');
+
+    // Guardar los tipos para usarlos en el render
+    window.tiposLogMap = tiposLog;
+
+    let html = `
+        <div class="logs-container">
+            <div class="logs-filtros">
+                <div class="logs-filtro-item">
+                    <label>Tipo de evento:</label>
+                    <select id="filtroTipoLog" onchange="aplicarFiltroLogs()">
+                        ${tipoSelect}
+                    </select>
+                </div>
+                <div class="logs-filtro-item">
+                    <label>Fecha:</label>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <input type="date" id="filtroFecha" value="${window.filtroFechaLog || ''}" onchange="aplicarFiltroLogs()">
+                        <button onclick="limpiarFiltroFecha()" style="padding: 4px 8px; background: #6b7280; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem;" title="Limpiar fecha">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="logs-filtro-item" style="margin-left: auto;">
+                    <button onclick="limpiarLogs()" style="background: #dc3545; color: white; padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.85rem;">
+                        <i class="fas fa-trash"></i> Limpiar logs
+                    </button>
+                </div>
+            </div>
+            
+            <div class="logs-tabla-container">
+                <table class="admin-tabla logs-tabla">
+                    <thead>
+                        <tr>
+                            <th>Fecha/Hora</th>
+                            <th>Tipo</th>
+                            <th>Usuario</th>
+                            <th>Descripción</th>
+                            <th>Detalles</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+
+    if (logs.length === 0) {
+        html += `
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                No se encontraron logs
+                            </td>
+                        </tr>
+        `;
+    } else {
+        logs.forEach(log => {
+            const tipoIcono = getTipoLogIcono(log.tipo);
+            const tipoClase = getTipoLogClase(log.tipo);
+            const fecha = new Date(log.fecha).toLocaleString('es-ES');
+            const detalles = log.detalles ? JSON.stringify(log.detalles) : '-';
+
+            html += `
+                        <tr>
+                            <td>${fecha}</td>
+                            <td><span class="logs-tipo ${tipoClase}"><i class="${tipoIcono}"></i> ${getTipoLogTexto(log.tipo)}</span></td>
+                            <td>${log.usuario_nombre || '-'}</td>
+                            <td>${log.descripcion || '-'}</td>
+                            <td style="font-size: 0.8rem; max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${detalles}">${detalles}</td>
+                            <td>
+                                <button class="btn-admin-accion btn-ver" onclick="verDetalleLog(${log.id})" title="Ver detalles">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+            `;
+        });
+    }
+
+    html += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    contenedor.innerHTML = html;
+}
+
+/**
+ * Aplica los filtros y recarga los logs.
+/**
+ * Muestra los detalles de un log en un modal.
+ */
+function verDetalleLog(idLog) {
+    // Buscar el log en los datos actuales
+    const log = window.logsData?.find(l => l.id === idLog);
+    if (!log) {
+        alert('No se encontraron los detalles del log');
+        return;
+    }
+
+    const tipoIcono = getTipoLogIcono(log.tipo);
+    const tipoClase = getTipoLogClase(log.tipo);
+    const fecha = new Date(log.fecha).toLocaleString('es-ES');
+
+    // Detectar el tema actual
+    const isDarkMode = document.body.classList.contains('dark-mode');
+
+    // Colores según el tema
+    const colors = isDarkMode ? {
+        background: '#1f2937',
+        text: '#e5e7eb',
+        textMuted: '#9ca3af',
+        border: '#4b5563',
+        headerBg: '#374151',
+        buttonBg: '#4b5563',
+        buttonText: '#f3f4f6',
+        delete: '#f87171',
+        add: '#34d399'
+    } : {
+        background: '#ffffff',
+        text: '#333333',
+        textMuted: '#666666',
+        border: '#e0e0e0',
+        headerBg: '#f3f4f6',
+        buttonBg: '#e5e7eb',
+        buttonText: '#333333',
+        delete: '#dc2626',
+        add: '#059669'
+    };
+
+    // Formatear los detalles como una tabla
+    let detallesHtml = `<p style="margin: 5px 0; color: ${colors.textMuted};">Sin detalles</p>`;
+    if (log.detalles && Object.keys(log.detalles).length > 0) {
+        // Verificar si es un array de cambios (formato de modificación de producto)
+        if (Array.isArray(log.detalles) && log.detalles.length > 0 && log.detalles[0].campo) {
+            // Formato nuevo: array de cambios con campo, anterior, nuevo
+            detallesHtml = '<table style="width: 100%; margin-top: 5px; border-collapse: collapse;">';
+            detallesHtml += `<tr style="background: ${colors.headerBg};"><th style="padding: 5px; text-align: left; font-size: 0.85rem; color: ${colors.text};">Campo</th><th style="padding: 5px; text-align: left; font-size: 0.85rem; color: ${colors.text};">Valor Anterior</th><th style="padding: 5px; text-align: left; font-size: 0.85rem; color: ${colors.text};">Valor Nuevo</th></tr>`;
+            log.detalles.forEach(cambio => {
+                let valorAnterior = cambio.anterior !== null ? cambio.anterior : '(vacío)';
+                let valorNuevo = cambio.nuevo !== null ? cambio.nuevo : '(vacío)';
+                // Resaltar cambios en rojo/verde
+                detallesHtml += `<tr style="border-bottom: 1px solid ${colors.border};">
+                    <td style="padding: 5px; font-weight: bold; color: ${colors.text};">${cambio.campo}</td>
+                    <td style="padding: 5px; color: ${colors.delete}; text-decoration: line-through;">${valorAnterior}</td>
+                    <td style="padding: 5px; color: ${colors.add}; font-weight: bold;">${valorNuevo}</td>
+                </tr>`;
+            });
+            detallesHtml += '</table>';
+        } else if (Array.isArray(log.detalles) && log.detalles.length > 0 && log.detalles[0].antes) {
+            // Formato de usuario: array de cambios con antes, después
+            detallesHtml = '<table style="width: 100%; margin-top: 5px; border-collapse: collapse;">';
+            detallesHtml += `<tr style="background: ${colors.headerBg};"><th style="padding: 5px; text-align: left; font-size: 0.85rem; color: ${colors.text};">Campo</th><th style="padding: 5px; text-align: left; font-size: 0.85rem; color: ${colors.text};">Antes</th><th style="padding: 5px; text-align: left; font-size: 0.85rem; color: ${colors.text};">Después</th></tr>`;
+            log.detalles.forEach(cambio => {
+                let antes = cambio.antes !== null ? cambio.antes : '(vacío)';
+                let despues = cambio.despues !== null ? cambio.despues : '(vacío)';
+                detallesHtml += `<tr style="border-bottom: 1px solid ${colors.border};">
+                    <td style="padding: 5px; font-weight: bold; color: ${colors.text};">${cambio.campo || Object.keys(cambio)[0]}</td>
+                    <td style="padding: 5px; color: ${colors.delete}; text-decoration: line-through;">${antes}</td>
+                    <td style="padding: 5px; color: ${colors.add}; font-weight: bold;">${despues}</td>
+                </tr>`;
+            });
+            detallesHtml += '</table>';
+        } else {
+            // Formato genérico: objeto con clave-valor
+            detallesHtml = '<table style="width: 100%; margin-top: 5px; border-collapse: collapse;">';
+            for (const [key, value] of Object.entries(log.detalles)) {
+                let displayValue = value;
+
+                // Traducir claves al español para devoluciones
+                let keyDisplay = key;
+                if (log.tipo === 'devolucion') {
+                    if (key === 'ticket') keyDisplay = 'Número de Ticket';
+                    else if (key === 'productos_devueltos') keyDisplay = 'Productos Devueltos';
+                    else if (key === 'total_devolucion') keyDisplay = 'Total Devolución';
+                }
+
+                if (typeof value === 'object' && value !== null) {
+                    displayValue = JSON.stringify(value, null, 2);
+                } else if (typeof value === 'number') {
+                    // Para devoluciones, no mostrar decimales en ticket ni productos
+                    if (log.tipo === 'devolucion' && (key === 'ticket' || key === 'productos_devueltos')) {
+                        displayValue = Math.round(value);
+                    } else if (log.tipo === 'devolucion' && key === 'total_devolucion') {
+                        displayValue = parseFloat(value).toFixed(2).replace('.', ',') + ' €';
+                    } else {
+                        displayValue = parseFloat(value).toFixed(2).replace('.', ',');
+                    }
+                }
+                detallesHtml += `<tr style="border-bottom: 1px solid ${colors.border};">
+                    <td style="padding: 5px; font-weight: bold; width: 40%; color: ${colors.textMuted};">${keyDisplay}</td>
+                    <td style="padding: 5px; color: ${colors.text}; word-break: break-all;">${displayValue}</td>
+                </tr>`;
+            }
+            detallesHtml += '</table>';
+        }
+    }
+
+    const modalContent = `
+        <div style="padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: ${colors.text}; font-size: 1.2rem;">Detalles del Log</h3>
+                <button onclick="this.closest('#modalDetalleLog').remove()" style="background: ${colors.buttonBg}; border: none; font-size: 1.5rem; cursor: pointer; color: ${colors.buttonText}; line-height: 1; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;" title="Cerrar">&times;</button>
+            </div>
+            <div style="color: ${colors.text}; font-size: 0.9rem;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="border-bottom: 1px solid ${colors.border};">
+                        <td style="padding: 8px 5px; font-weight: bold; color: ${colors.textMuted}; width: 35%;">ID</td>
+                        <td style="padding: 8px 5px; color: ${colors.text};">${log.id}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid ${colors.border};">
+                        <td style="padding: 8px 5px; font-weight: bold; color: ${colors.textMuted};">Fecha/Hora</td>
+                        <td style="padding: 8px 5px; color: ${colors.text};">${fecha}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid ${colors.border};">
+                        <td style="padding: 8px 5px; font-weight: bold; color: ${colors.textMuted};">Tipo</td>
+                        <td style="padding: 8px 5px;"><span class="logs-tipo ${tipoClase}"><i class="${tipoIcono}"></i> ${getTipoLogTexto(log.tipo)}</span></td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid ${colors.border};">
+                        <td style="padding: 8px 5px; font-weight: bold; color: ${colors.textMuted};">Usuario</td>
+                        <td style="padding: 8px 5px; color: ${colors.text};">${log.usuario_nombre || 'Sistema'} (ID: ${log.usuario_id || '-'})</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid ${colors.border};">
+                        <td style="padding: 8px 5px; font-weight: bold; color: ${colors.textMuted};">Descripción</td>
+                        <td style="padding: 8px 5px; color: ${colors.text};">${log.descripcion || '-'}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 5px; font-weight: bold; color: ${colors.textMuted}; vertical-align: top;">Detalles</td>
+                        <td style="padding: 8px 5px;">${detallesHtml}</td>
+                    </tr>
+                </table>
+            </div>
+            <div style="margin-top: 20px; text-align: right;">
+                <button onclick="document.getElementById('modalDetalleLog').remove()" style="background: #3b82f6; color: white; padding: 8px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">Cerrar</button>
+            </div>
+        </div>
+    `;
+
+    // Eliminar modal anterior si existe
+    const existingModal = document.getElementById('modalDetalleLog');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Crear el modal
+    const modalDiv = document.createElement('div');
+    modalDiv.id = 'modalDetalleLog';
+    modalDiv.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; justify-content: center; align-items: center;';
+
+    const modalInner = document.createElement('div');
+    modalInner.style.cssText = `background: ${colors.background}; border-radius: 10px; width: 90%; max-width: 550px; max-height: 85vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5); color: ${colors.text}; border: 1px solid ${colors.border};`;
+    modalInner.innerHTML = modalContent;
+
+    modalDiv.appendChild(modalInner);
+    document.body.appendChild(modalDiv);
+
+    // Cerrar al hacer clic fuera
+    modalDiv.addEventListener('click', function (e) {
+        if (e.target === modalDiv) {
+            modalDiv.remove();
+        }
+    });
+}
+
+/**
+ * Aplica los filtros y recarga los logs.
+ */
+function aplicarFiltroLogs() {
+    let tipoSeleccionado = document.getElementById('filtroTipoLog')?.value || '';
+    const fechaInput = document.getElementById('filtroFecha');
+    const fecha = fechaInput?.value || '';
+
+    // Verificar que la fecha tenga formato completo (YYYY-MM-DD) antes de aplicar el filtro
+    // Esto evita que el filtro se aplique mientras se selecciona la fecha en el picker
+    if (fecha && fecha.length < 10) {
+        return; // No aplicar filtro si la fecha no está completa
+    }
+
+    // Guardar filtros en variables globales para preservar entre renderizados
+    window.filtroFechaLog = fecha;
+
+    console.log('Aplicar filtro - Tipo:', tipoSeleccionado, 'Fecha:', fecha);
+
+    // Verificar si hay mapeo de tipos múltiples
+    const tipoMultiMap = {
+        'login': 'login,login_fallido'
+    };
+
+    // Si el tipo tiene mapeo múltiple, usarlo
+    if (tipoMultiMap[tipoSeleccionado]) {
+        tipoSeleccionado = tipoMultiMap[tipoSeleccionado];
+    }
+
+    window.filtroTipoLog = tipoSeleccionado;
+
+    cargarLogs({
+        tipo: tipoSeleccionado,
+        fecha: fecha
+    });
+}
+
+/**
+ * Limpia el filtro de fecha y recarga los logs.
+ */
+function limpiarFiltroFecha() {
+    window.filtroFechaLog = '';
+    aplicarFiltroLogs();
+}
+
+/**
+ * Limpia todos los logs del sistema.
+ */
+function limpiarLogs() {
+    if (!confirm('¿Estás seguro de que quieres eliminar todos los logs? Esta acción no se puede deshacer.')) {
+        return;
+    }
+
+    fetch('api/logs.php?accion=limpiar', {
+        method: 'POST'
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                alert('Logs eliminados correctamente');
+                cargarLogs({});
+            } else {
+                alert('Error al eliminar los logs: ' + (data.error || 'Error desconocido'));
+            }
+        })
+        .catch(err => {
+            console.error('Error al limpiar logs:', err);
+            alert('Error al conectar con el servidor');
+        });
+}
+
+/**
+ * Obtiene el icono para el tipo de log.
+ */
+function getTipoLogIcono(tipo) {
+    const iconos = {
+        'login': 'fas fa-sign-in-alt',
+        'login_fallido': 'fas fa-times-circle',
+        'logout': 'fas fa-sign-out-alt',
+        'venta': 'fas fa-shopping-cart',
+        'devolucion': 'fas fa-undo-alt',
+        'apertura_caja': 'fas fa-cash-register',
+        'cierre_caja': 'fas fa-money-check',
+        'retiro_caja': 'fas fa-money-bill-wave',
+        'acceso_admin': 'fas fa-user-shield',
+        'acceso_cajero': 'fas fa-user',
+        'acceso_login': 'fas fa-door-open',
+        'creacion_usuario': 'fas fa-user-plus',
+        'modificacion_usuario': 'fas fa-user-edit',
+        'eliminacion_usuario': 'fas fa-user-minus',
+        'creacion_producto': 'fas fa-box-plus',
+        'modificacion_producto': 'fas fa-box-open',
+        'eliminacion_producto': 'fas fa-trash',
+        'creacion_categoria': 'fas fa-folder-plus',
+        'modificacion_categoria': 'fas fa-folder-open',
+        'eliminacion_categoria': 'fas fa-folder-minus'
+    };
+    return iconos[tipo] || 'fas fa-info-circle';
+}
+
+/**
+ * Obtiene la clase CSS para el tipo de log.
+ */
+function getTipoLogClase(tipo) {
+    const clases = {
+        'login': 'logs-login',
+        'login_fallido': 'logs-error',
+        'logout': 'logs-logout',
+        'venta': 'logs-venta',
+        'devolucion': 'logs-retiro',
+        'apertura_caja': 'logs-caja',
+        'cierre_caja': 'logs-caja',
+        'retiro_caja': 'logs-retiro',
+        'acceso_admin': 'logs-admin',
+        'creacion_usuario': 'logs-usuario',
+        'modificacion_usuario': 'logs-usuario',
+        'eliminacion_usuario': 'logs-usuario',
+        'creacion_producto': 'logs-producto',
+        'modificacion_producto': 'logs-producto',
+        'eliminacion_producto': 'logs-producto',
+        'creacion_categoria': 'logs-categoria',
+        'modificacion_categoria': 'logs-categoria',
+        'eliminacion_categoria': 'logs-categoria'
+    };
+    return clases[tipo] || '';
+}
+
+/**
+ * Obtiene el texto legible para el tipo de log.
+ */
+function getTipoLogTexto(tipo) {
+    const textos = {
+        'login': 'Login',
+        'login_fallido': 'Credenciales incorrectas',
+        'logout': 'Logout',
+        'venta': 'Venta',
+        'devolucion': 'Devolución',
+        'apertura_caja': 'Apertura Caja',
+        'cierre_caja': 'Cierre Caja',
+        'retiro_caja': 'Retiro',
+        'acceso_admin': 'Acceso Admin',
+        'acceso_cajero': 'Acceso Cajero',
+        'acceso_login': 'Acceso Login',
+        'creacion_usuario': 'Usuario Creado',
+        'modificacion_usuario': 'Usuario Modificado',
+        'eliminacion_usuario': 'Usuario Eliminado',
+        'creacion_producto': 'Producto Creado',
+        'modificacion_producto': 'Producto Modificado',
+        'eliminacion_producto': 'Producto Eliminado',
+        'creacion_categoria': 'Categoría Creada',
+        'modificacion_categoria': 'Categoría Modificada',
+        'eliminacion_categoria': 'Categoría Eliminada'
+    };
+    return textos[tipo] || tipo;
+}
+
+/**
  * Renderiza el editor de tema completo.
  */
 function renderEditorTema() {
@@ -1732,13 +2613,6 @@ function renderEditorTema() {
 
     let html = `
         <div class="tema-editor">
-            <div class="tema-editor-intro">
-                <i class="fas fa-paint-brush" style="font-size: 1.5rem; color: var(--accent, #2563eb);"></i>
-                <div>
-                    <p class="tema-intro-titulo">Personaliza la apariencia de tu TPV</p>
-                    <p class="tema-intro-subtitulo">Los cambios se previsualizan en tiempo real. Pulsa "Guardar" para aplicarlos de forma permanente.</p>
-                </div>
-            </div>
             <div class="tema-secciones-grid">
                 ${SECCIONES_TEMA.map(s => generarSeccionTema(s)).join('')}
             </div>
@@ -1842,23 +2716,112 @@ function cargarGoogleFonts(fuentes) {
 }
 
 /**
+ * Previsualiza el icono del header en tiempo real.
+ */
+function previsualizarIcono() {
+    const svgInput = document.getElementById('tema_header_icon');
+    const preview = document.getElementById('preview_header_icon');
+
+    if (!svgInput || !preview) return;
+
+    const svgCode = svgInput.value.trim();
+    if (svgCode) {
+        preview.innerHTML = svgCode;
+        // Ajustar tamaño del icono en el preview
+        const svg = preview.querySelector('svg');
+        if (svg) {
+            svg.style.width = '48px';
+            svg.style.height = '48px';
+        }
+    } else {
+        preview.innerHTML = '<span style="color: var(--text-muted);">Vista previa del icono</span>';
+    }
+}
+
+/**
+ * Previsualiza el favicon cuando se selecciona un archivo.
+ */
+function previsualizarFavicon(input) {
+    const preview = document.getElementById('preview_favicon');
+
+    if (!preview || !input.files || !input.files[0]) return;
+
+    const file = input.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+        preview.innerHTML = `<img src="${e.target.result}" alt="Favicon" style="width: 32px; height: 32px;">`;
+    };
+
+    reader.readAsDataURL(file);
+}
+
+/**
  * Guarda toda la configuración del tema via POST a la API.
  */
 function guardarTema() {
     const datos = {};
 
-    SECCIONES_TEMA.forEach(seccion => {
-        const bgInput = document.getElementById('tema_' + seccion.bgKey);
-        const colorInput = document.getElementById('tema_' + seccion.colorKey);
-        const fontSelect = document.getElementById('tema_' + seccion.fontKey);
+    // Primero, copiar todos los valores actuales de temaActual como base
+    Object.assign(datos, temaActual);
 
-        if (bgInput) datos[seccion.bgKey] = bgInput.value;
-        if (colorInput) datos[seccion.colorKey] = colorInput.value;
-        if (fontSelect) datos[seccion.fontKey] = fontSelect.value;
+    // Luego, sobrescribir con los valores de los inputs
+    SECCIONES_TEMA.forEach(seccion => {
+        if (seccion.bgKey) {
+            const bgInput = document.getElementById('tema_' + seccion.bgKey);
+            if (bgInput) datos[seccion.bgKey] = bgInput.value;
+        }
+        if (seccion.colorKey) {
+            const colorInput = document.getElementById('tema_' + seccion.colorKey);
+            if (colorInput) datos[seccion.colorKey] = colorInput.value;
+        }
+        if (seccion.fontKey) {
+            const fontSelect = document.getElementById('tema_' + seccion.fontKey);
+            if (fontSelect) datos[seccion.fontKey] = fontSelect.value;
+        }
     });
+
+    // Actualizar icono SVG del header desde el textarea
+    const headerIconInput = document.getElementById('tema_header_icon');
+    if (headerIconInput && headerIconInput.value.trim()) {
+        datos['header_icon'] = headerIconInput.value;
+    }
+
+    // Manejar favicon - convertir a base64 si se ha seleccionado un archivo
+    const faviconInput = document.getElementById('tema_favicon');
+
+    if (faviconInput && faviconInput.files && faviconInput.files[0]) {
+        const file = faviconInput.files[0];
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = function () {
+            datos['favicon'] = reader.result;
+            guardarTemaCompleto(datos);
+        };
+        reader.onerror = function () {
+            alert('Error al leer el archivo del favicon');
+        };
+    } else {
+        // Preservar el favicon existente si no se seleccionó nuevo archivo
+        guardarTemaCompleto(datos);
+    }
+}
+
+/**
+ * Envía los datos del tema a la API.
+ */
+function guardarTemaCompleto(datos) {
+    // Actualizar temaActual con los nuevos valores antes de guardar
+    temaActual = { ...temaActual, ...datos };
 
     // Guardar en localStorage para acceso rápido
     localStorage.setItem('temaTPV', JSON.stringify(datos));
+    console.log('Tema guardado en localStorage:', datos);
+
+    // Aplicar tema inmediatamente en la vista actual
+    if (typeof aplicarTemaGuardado === 'function') {
+        aplicarTemaGuardado();
+    }
 
     // Guardar en la BD via API
     fetch('api/tema.php', {
@@ -1944,6 +2907,27 @@ function aplicarTemaGuardado() {
             footer.style.background = tema.footer_bg;
             footer.style.color = tema.footer_color || '';
             footer.style.fontFamily = tema.footer_font ? `'${tema.footer_font}', sans-serif` : '';
+        }
+
+        // Aplicar icono personalizado del header
+        if (tema.header_icon) {
+            const iconContainer = document.getElementById('header-icon-container');
+            if (iconContainer) {
+                iconContainer.innerHTML = tema.header_icon;
+                const svg = iconContainer.querySelector('svg');
+                if (svg) {
+                    svg.setAttribute('width', '36');
+                    svg.setAttribute('height', '36');
+                }
+            }
+        }
+
+        // Aplicar favicon personalizado
+        if (tema.favicon) {
+            const faviconLink = document.getElementById('favicon-link');
+            if (faviconLink) {
+                faviconLink.href = tema.favicon;
+            }
         }
 
         // Cargar fuentes necesarias
@@ -2828,7 +3812,9 @@ async function guardarClienteHabitualAdmin() {
     const dni = document.getElementById('clienteHabitualDni').value.trim();
     const nombre = document.getElementById('clienteHabitualNombre').value.trim();
     const apellidos = document.getElementById('clienteHabitualApellidos').value.trim();
-    const fecha_alta = document.getElementById('clienteHabitualFecha').value || new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+    // La fecha de alta siempre se establece automáticamente (no se permite modificarla)
+    const now = new Date();
+    const fecha_alta = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
 
     // Validar campos obligatorios
     if (!dni || !nombre || !apellidos) {
@@ -2915,44 +3901,53 @@ function verCliente(id) {
     const compras = celdas[6].textContent.trim();
     const estado = celdas[7].querySelector('.admin-badge')?.textContent.trim() || 'Activo';
 
+    // Detectar tema actual
+    const isDark = document.body.classList.contains('dark-mode');
+    const textColor = isDark ? '#e5e7eb' : '#1f2937';
+    const labelColor = isDark ? '#9ca3af' : '#6b7280';
+    const borderColor = isDark ? '#374151' : '#e5e7eb';
+
     // Crear modal dinámicamente
     const modalHtml = `
         <div class="modal-overlay" id="modalVerCliente" style="display: flex;">
             <div class="modal-content" style="max-width: 450px; text-align: left;">
-                <h3 style="margin-bottom: 20px; color: #1f2937;">Detalles del Cliente</h3>
+                <h3 style="margin-bottom: 20px; color: ${textColor};">Detalles del Cliente</h3>
                 
                 <div style="display: grid; gap: 12px;">
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
-                        <span style="color: #6b7280; font-weight: 500;">DNI:</span>
-                        <span style="color: #1f2937; font-weight: 600;">${dni}</span>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid ${borderColor}; padding-bottom: 8px;">
+                        <span style="color: ${labelColor}; font-weight: 500;">DNI:</span>
+                        <span style="color: ${textColor}; font-weight: 600;">${dni}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
-                        <span style="color: #6b7280; font-weight: 500;">Nombre:</span>
-                        <span style="color: #1f2937;">${nombre}</span>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid ${borderColor}; padding-bottom: 8px;">
+                        <span style="color: ${labelColor}; font-weight: 500;">Nombre:</span>
+                        <span style="color: ${textColor};">${nombre}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
-                        <span style="color: #6b7280; font-weight: 500;">Apellidos:</span>
-                        <span style="color: #1f2937;">${apellidos}</span>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid ${borderColor}; padding-bottom: 8px;">
+                        <span style="color: ${labelColor}; font-weight: 500;">Apellidos:</span>
+                        <span style="color: ${textColor};">${apellidos}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
-                        <span style="color: #6b7280; font-weight: 500;">Fecha de Alta:</span>
-                        <span style="color: #1f2937;">${fechaAlta}</span>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid ${borderColor}; padding-bottom: 8px;">
+                        <span style="color: ${labelColor}; font-weight: 500;">Fecha de Alta:</span>
+                        <span style="color: ${textColor};">${fechaAlta}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
-                        <span style="color: #6b7280; font-weight: 500;">Productos Comprados:</span>
-                        <span style="color: #1f2937;">${productos}</span>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid ${borderColor}; padding-bottom: 8px;">
+                        <span style="color: ${labelColor}; font-weight: 500;">Productos Comprados:</span>
+                        <span style="color: ${textColor};">${productos}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
-                        <span style="color: #6b7280; font-weight: 500;">Compras Realizadas:</span>
-                        <span style="color: #1f2937;">${compras}</span>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid ${borderColor}; padding-bottom: 8px;">
+                        <span style="color: ${labelColor}; font-weight: 500;">Compras Realizadas:</span>
+                        <span style="color: ${textColor};">${compras}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; padding-bottom: 8px;">
-                        <span style="color: #6b7280; font-weight: 500;">Estado:</span>
+                        <span style="color: ${labelColor}; font-weight: 500;">Estado:</span>
                         <span class="admin-badge ${estado === 'Activo' ? 'badge-activo' : 'badge-inactivo'}">${estado}</span>
                     </div>
                 </div>
 
-                <div style="display: flex; justify-content: center; margin-top: 25px;">
+                <div style="display: flex; justify-content: center; gap: 15px; margin-top: 25px;">
+                    <button class="btn-admin-accion btn-ver" onclick="cerrarModal('modalVerCliente'); document.getElementById('modalVerCliente').remove(); verComprasCliente('${dni}')" style="min-width: 180px;">
+                        <i class="fas fa-shopping-bag"></i> Ver Compras
+                    </button>
                     <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCliente'); document.getElementById('modalVerCliente').remove();" style="min-width: 100px;">
                         Cerrar
                     </button>
@@ -2969,6 +3964,270 @@ function verCliente(id) {
 
     // Añadir modal al body
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+/**
+ * Muestra el modal con el carrusel de compras del cliente
+ * @param {string} dni - DNI del cliente
+ */
+function verComprasCliente(dni) {
+    // Mostrar indicador de carga
+    const isDark = document.body.classList.contains('dark-mode');
+    const bgColor = isDark ? '#1f2937' : '#ffffff';
+    const textColor = isDark ? '#e5e7eb' : '#1f2937';
+    const labelColor = isDark ? '#9ca3af' : '#6b7280';
+    const borderColor = isDark ? '#374151' : '#e5e7eb';
+
+    const loadingModal = `
+        <div class="modal-overlay" id="modalVerCompras" style="display: flex;">
+            <div class="modal-content" style="max-width: 700px; max-height: 80vh; text-align: left; overflow: hidden; display: flex; flex-direction: column;">
+                <h3 style="margin-bottom: 15px; color: ${textColor};">Compras del Cliente</h3>
+                <p style="color: ${labelColor}; margin-bottom: 20px;">Cargando compras...</p>
+            </div>
+        </div>
+    `;
+
+    // Eliminar modal anterior si existe
+    const modalExistente = document.getElementById('modalVerCompras');
+    if (modalExistente) {
+        modalExistente.remove();
+    }
+
+    document.body.insertAdjacentHTML('beforeend', loadingModal);
+
+    // Fetch purchases from API
+    fetch(`api/clientes.php?compras=1&dni=${encodeURIComponent(dni)}`)
+        .then(res => res.json())
+        .then(data => {
+            // Check if the response is error, null, or not an array
+            if (!data || (typeof data !== 'object') || (Array.isArray(data) === false && !data.error)) {
+                console.error('Invalid API response:', data);
+                throw new Error('Respuesta inválida del servidor');
+            }
+
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            const ventas = data;
+            const modal = document.getElementById('modalVerCompras');
+
+            if (!ventas || ventas.length === 0) {
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 500px; text-align: left;">
+                        <h3 style="margin-bottom: 15px; color: ${textColor};">Compras del Cliente</h3>
+                        <p style="color: ${labelColor}; margin-bottom: 20px;">Este cliente no tiene compras registradas.</p>
+                        <div style="display: flex; justify-content: center;">
+                            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCompras'); document.getElementById('modalVerCompras').remove();" style="min-width: 100px;">
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Generate carousel slides for each sale
+            let slidesHtml = '';
+            let indicatorsHtml = '';
+
+            ventas.forEach((venta, index) => {
+                const fecha = new Date(venta.fecha).toLocaleString('es-ES', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+
+                const metodoPagoIcon = {
+                    'efectivo': 'fa-money-bill-wave',
+                    'tarjeta': 'fa-credit-card',
+                    'bizum': 'fa-mobile-alt'
+                }[venta.metodoPago] || 'fa-money-bill-wave';
+
+                // Generate table rows for products
+                let lineasHtml = '';
+                let totalIva = 0;
+                if (venta.lineas && venta.lineas.length > 0) {
+                    venta.lineas.forEach(linea => {
+                        lineasHtml += `
+                            <tr style="border-bottom: 1px solid ${borderColor};">
+                                <td style="padding: 8px; color: ${textColor};">${linea.producto_nombre || 'Producto'}</td>
+                                <td style="padding: 8px; text-align: center; color: ${textColor};">${linea.cantidad}</td>
+                                <td style="padding: 8px; text-align: right; color: ${textColor};">${linea.precioUnitarioConIva.toFixed(2).replace('.', ',')} €</td>
+                                <td style="padding: 8px; text-align: right; color: ${textColor};">${linea.subtotalConIva.toFixed(2).replace('.', ',')} €</td>
+                            </tr>
+                        `;
+                        totalIva += linea.subtotalConIva;
+                    });
+                }
+
+                const activeClass = index === 0 ? 'active' : '';
+                const displayStyle = index === 0 ? 'block' : 'none';
+
+                slidesHtml += `
+                    <div class="carousel-sale-slide ${activeClass}" data-index="${index}" style="display: ${displayStyle};">
+                        <div style="background: ${isDark ? '#374151' : '#f3f4f6'}; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                <div>
+                                    <span style="color: ${labelColor}; font-size: 13px;">Ticket #${venta.id}</span>
+                                    <div style="color: ${textColor}; font-weight: 600;">${fecha}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <span style="color: ${labelColor}; font-size: 13px;">${venta.usuario_nombre || 'Cajero'}</span>
+                                    <div style="color: ${textColor};"><i class="fas ${metodoPagoIcon}"></i> ${venta.metodoPago}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="max-height: 250px; overflow-y: auto; border: 1px solid ${borderColor}; border-radius: 8px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead style="background: ${isDark ? '#1f2937' : '#f9fafb'}; position: sticky; top: 0;">
+                                    <tr>
+                                        <th style="padding: 8px; text-align: left; color: ${labelColor};">Producto</th>
+                                        <th style="padding: 8px; text-align: center; color: ${labelColor};">Cant.</th>
+                                        <th style="padding: 8px; text-align: right; color: ${labelColor};">Precio</th>
+                                        <th style="padding: 8px; text-align: right; color: ${labelColor};">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${lineasHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
+                            <div style="background: ${isDark ? '#1f2937' : '#f3f4f6'}; padding: 10px 20px; border-radius: 8px;">
+                                <span style="color: ${labelColor};">Total: </span>
+                                <span style="color: ${textColor}; font-size: 18px; font-weight: bold;">${parseFloat(venta.total).toFixed(2).replace('.', ',')} €</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                indicatorsHtml += `
+                    <button class="carousel-indicator ${activeClass}" onclick="changeSaleSlide(${index})" 
+                        style="width: 10px; height: 10px; border-radius: 50%; border: none; background: ${index === 0 ? (isDark ? '#60a5fa' : '#3b82f6') : (isDark ? '#4b5563' : '#d1d5db')}; cursor: pointer; transition: background 0.3s;"></button>
+                `;
+            });
+
+            // Build carousel modal
+            modal.innerHTML = `
+                <div class="modal-content" style="width: 900px; min-height: 520px; max-height: 85vh; text-align: left; overflow: hidden; display: flex; flex-direction: column; background: ${bgColor}; box-sizing: border-box; position: relative; padding: 20px 90px;">
+                    <!-- Flecha ir a primera -->
+                    <button onclick="firstSaleSlide()" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); background: none; border: none; color: ${labelColor}; font-size: 20px; cursor: pointer; padding: 10px; z-index: 10;">
+                        <i class="fas fa-angle-double-left"></i>
+                    </button>
+                    
+                    <!-- Flecha izquierda -->
+                    <button onclick="prevSaleSlide()" style="position: absolute; left: 60px; top: 50%; transform: translateY(-50%); background: none; border: none; color: ${labelColor}; font-size: 28px; cursor: pointer; padding: 10px; z-index: 10;">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    
+                    <!-- Flecha derecha -->
+                    <button onclick="nextSaleSlide()" style="position: absolute; right: 60px; top: 50%; transform: translateY(-50%); background: none; border: none; color: ${labelColor}; font-size: 28px; cursor: pointer; padding: 10px; z-index: 10;">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    
+                    <!-- Flecha ir a última -->
+                    <button onclick="lastSaleSlide()" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); background: none; border: none; color: ${labelColor}; font-size: 20px; cursor: pointer; padding: 10px; z-index: 10;">
+                        <i class="fas fa-angle-double-right"></i>
+                    </button>
+                    
+                    <h3 style="margin-bottom: 15px; color: ${textColor}; text-align: center;">
+                        <span id="compraActualTitulo">Compra 1 de ${ventas.length}</span>
+                    </h3>
+                    
+                    <div style="flex: 1; overflow-y: auto; padding: 5px; min-height: 350px; max-height: 400px;">
+                        ${slidesHtml}
+                    </div>
+                    
+                    <div style="display: flex; justify-content: center; margin-top: 5px;">
+                        <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCompras'); document.getElementById('modalVerCompras').remove();" style="min-width: 100px;">
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Actualizar título al cambiar de slide
+            modal.dataset.totalSlides = ventas.length;
+
+            // Agregar función para actualizar el título
+            window.updateCompraTitulo = function (index, total) {
+                const titulo = document.getElementById('compraActualTitulo');
+                if (titulo) {
+                    titulo.textContent = `Compra ${index + 1} de ${total}`;
+                }
+            };
+        })
+        .catch(err => {
+            console.error('Error cargando compras:', err);
+            const modal = document.getElementById('modalVerCompras');
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 500px; text-align: left;">
+                    <h3 style="margin-bottom: 15px; color: ${textColor};">Error</h3>
+                    <p style="color: ${labelColor}; margin-bottom: 20px;">Error al cargar las compras del cliente.</p>
+                    <div style="display: flex; justify-content: center;">
+                        <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCompras'); document.getElementById('modalVerCompras').remove();" style="min-width: 100px;">
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+}
+
+let currentSaleSlide = 0;
+
+function changeSaleSlide(index) {
+    const modal = document.getElementById('modalVerCompras');
+    if (!modal) return;
+
+    const isDark = document.body.classList.contains('dark-mode');
+    const totalSlides = parseInt(modal.dataset.totalSlides) || 0;
+    const slides = modal.querySelectorAll('.carousel-sale-slide');
+
+    // Hide all slides
+    slides.forEach(slide => slide.style.display = 'none');
+
+    // Show selected slide
+    slides[index].style.display = 'block';
+
+    // Actualizar título
+    const titulo = document.getElementById('compraActualTitulo');
+    if (titulo) {
+        titulo.textContent = `Compra ${index + 1} de ${totalSlides}`;
+    }
+
+    currentSaleSlide = index;
+}
+
+function nextSaleSlide() {
+    const modal = document.getElementById('modalVerCompras');
+    if (!modal) return;
+
+    const totalSlides = parseInt(modal.dataset.totalSlides) || 0;
+    const nextIndex = (currentSaleSlide + 1) % totalSlides;
+    changeSaleSlide(nextIndex);
+}
+
+function prevSaleSlide() {
+    const modal = document.getElementById('modalVerCompras');
+    if (!modal) return;
+
+    const totalSlides = parseInt(modal.dataset.totalSlides) || 0;
+    const prevIndex = (currentSaleSlide - 1 + totalSlides) % totalSlides;
+    changeSaleSlide(prevIndex);
+}
+
+function firstSaleSlide() {
+    changeSaleSlide(0);
+}
+
+function lastSaleSlide() {
+    const modal = document.getElementById('modalVerCompras');
+    if (!modal) return;
+    const totalSlides = parseInt(modal.dataset.totalSlides) || 0;
+    changeSaleSlide(totalSlides - 1);
 }
 
 /**
@@ -3561,11 +4820,24 @@ function confirmarEliminarCategoria(id, nombre) {
  */
 function abrirModalEditarCategoria(id, nombre, descripcion = '') {
     const modal = document.getElementById('modalEditarCategoria');
+
+    // Detectar tema actual
+    const isDark = document.body.classList.contains('dark-mode');
+    const bgColor = isDark ? '#1f2937' : 'white';
+    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const inputBg = isDark ? '#374151' : 'white';
+    const inputBorder = isDark ? '#4b5563' : '#e5e7eb';
+    const footerBg = isDark ? '#374151' : '#f9fafb';
+    const footerBorder = isDark ? '#4b5563' : '#e5e7eb';
+    const btnCancelBg = isDark ? '#4b5563' : 'white';
+    const btnCancelColor = isDark ? '#e5e7eb' : '#374151';
+    const btnCancelBorder = isDark ? '#6b7280' : '#d1d5db';
+
     if (!modal) {
         // Crear el modal si no existe
         const modalHtml = `
             <div id="modalEditarCategoria" class="modal-overlay" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
-                <div class="modal-content" style="background: white; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); max-width: 500px; width: 90%; overflow: hidden;">
+                <div class="modal-content" style="background: ${bgColor}; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); max-width: 500px; width: 90%; overflow: hidden;">
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
                         <h3 style="margin: 0; font-size: 18px;">Editar Categoría</h3>
                         <button onclick="cerrarModal('modalEditarCategoria')" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
@@ -3573,16 +4845,16 @@ function abrirModalEditarCategoria(id, nombre, descripcion = '') {
                     <div style="padding: 25px;">
                         <input type="hidden" id="editarCategoriaId">
                         <div style="margin-bottom: 20px;">
-                            <label for="editarCategoriaNombre" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Nombre:</label>
-                            <input type="text" id="editarCategoriaNombre" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box;" required>
+                            <label for="editarCategoriaNombre" style="display: block; margin-bottom: 8px; font-weight: 600; color: ${textColor};">Nombre:</label>
+                            <input type="text" id="editarCategoriaNombre" style="width: 100%; padding: 12px; border: 1px solid ${inputBorder}; border-radius: 8px; font-size: 14px; box-sizing: border-box; background: ${inputBg}; color: ${textColor};" required>
                         </div>
                         <div style="margin-bottom: 20px;">
-                            <label for="editarCategoriaDescripcion" style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Descripción:</label>
-                            <textarea id="editarCategoriaDescripcion" rows="4" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; box-sizing: border-box; resize: vertical; font-family: inherit;"></textarea>
+                            <label for="editarCategoriaDescripcion" style="display: block; margin-bottom: 8px; font-weight: 600; color: ${textColor};">Descripción:</label>
+                            <textarea id="editarCategoriaDescripcion" rows="4" style="width: 100%; padding: 12px; border: 1px solid ${inputBorder}; border-radius: 8px; font-size: 14px; box-sizing: border-box; resize: vertical; font-family: inherit; background: ${inputBg}; color: ${textColor};"></textarea>
                         </div>
                     </div>
-                    <div style="padding: 15px 25px; background: #f9fafb; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e5e7eb;">
-                        <button onclick="cerrarModal('modalEditarCategoria')" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; color: #374151; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s;">Cancelar</button>
+                    <div style="padding: 15px 25px; background: ${footerBg}; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid ${footerBorder};">
+                        <button onclick="cerrarModal('modalEditarCategoria')" style="padding: 10px 20px; border: 1px solid ${btnCancelBorder}; background: ${btnCancelBg}; color: ${btnCancelColor}; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s;">Cancelar</button>
                         <button onclick="guardarEditarCategoria()" style="padding: 10px 20px; background: #4f46e5; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s;">Guardar</button>
                     </div>
                 </div>
@@ -3711,24 +4983,78 @@ function mostrarPanelCambiarIVA() {
     seccionActual = 'tarifa-iva';
     adminTablaHeaderHTML = '';
 
+    // Generar opciones del select de tipos de IVA
+    let opcionesIva = '<option value="">Selecciona un tipo de IVA</option>';
+    tiposIva.forEach(tipo => {
+        opcionesIva += `<option value="${tipo.id}">${tipo.porcentaje}% (${tipo.nombre})</option>`;
+    });
+
+    // Generar filas de la tabla de tipos de IVA
+    let filasTablaIva = '';
+    tiposIva.forEach(tipo => {
+        filasTablaIva += `
+            <tr>
+                <td style="text-align: center; width: 40px;">${tipo.id}</td>
+                <td style="">${tipo.nombre}</td>
+                <td style="text-align: center; font-weight: 600; width: 80px;">${tipo.porcentaje}%</td>
+                <td style="text-align: center; width: 100px;">
+                    <button class="btn-admin-accion" onclick="editarIva(${tipo.id}, '${tipo.nombre}', ${tipo.porcentaje})" title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-admin-accion btn-eliminar" onclick="eliminarIva(${tipo.id})" title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
+    });
+
     contenedor.innerHTML = `
         <div class="admin-tabla-header">
             <h2 style="margin: 0; font-size: 24px; font-weight: 600;">Cambiar IVA General</h2>
         </div>
         <div style="display: flex; gap: 20px; align-items: flex-start;">
-            <div class="tarifa-panel-inputs">
+            <div class="tarifa-panel-inputs" style="min-width: 350px;">
                 <p class="tarifa-panel-desc">
                     Esta opción cambiará el IVA de todos los productos. El IVA actual de los productos se mostrará a continuación.
                 </p>
                 <div class="tarifa-input-group">
-                    <label>Nuevo IVA (%):</label>
-                    <input type="number" id="nuevoIVA" min="0" max="100" step="0.01" placeholder="Ej: 21" 
-                        class="tarifa-input"
-                        oninput="actualizarPrevisualizacionIVAAuto()">
+                    <label>Nuevo tipo de IVA:</label>
+                    <select id="nuevoIVA" class="tarifa-input" onchange="actualizarPrevisualizacionIVAAuto()">
+                        ${opcionesIva}
+                    </select>
                 </div>
                 <button onclick="aplicarCambioIVA()" class="tarifa-btn-aplicar">
                     <i class="fas fa-save"></i> Aplicar Cambio de IVA
                 </button>
+                <button onclick="abrirModalProgramarIVA()" class="tarifa-btn-programar" style="margin-top: 10px;">
+                    <i class="fas fa-clock"></i> Programar Cambio
+                </button>
+                <button onclick="abrirModalVerCambiosProgramados()" class="tarifa-btn-programar" style="margin-top: 10px;">
+                    <i class="fas fa-list"></i> Ver Cambios Programados
+                </button>
+            </div>
+            <div style="flex: 1; max-width: 550px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 600;">Tipos de IVA</h3>
+                    <button onclick="abrirModalNuevoIva()" class="btn-admin-accion btn-nuevo" style="padding: 4px 10px; font-size: 0.8rem;">
+                        <i class="fas fa-plus"></i> Añadir
+                    </button>
+                </div>
+                <div style="max-height: 200px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 4px;">
+                    <table class="admin-tabla" style="width: 100%; font-size: 0.85rem;">
+                        <thead style="position: sticky; top: 0; background: #f9fafb; z-index: 1;">
+                            <tr>
+                                <th style="width: 40px;">ID</th>
+                                <th>Nombre</th>
+                                <th style="width: 80px; text-align: center;">%</th>
+                                <th style="width: 100px; text-align: center;">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filasTablaIva}
+                        </tbody>
+                    </table>
+                </div>
             </div>
             <div id="previsualizacionCambios" style="flex: 1;"></div>
         </div>`;
@@ -3747,18 +5073,18 @@ function actualizarPrevisualizacionIVAAuto() {
     clearTimeout(debounceTimerIVA);
     debounceTimerIVA = setTimeout(() => {
         previsualizarCambioIVA();
-    }, 500);
+    }, 300);
 }
 
 function previsualizarCambioIVA() {
-    const nuevoIVA = parseFloat(document.getElementById('nuevoIVA').value);
+    const nuevoIdIva = document.getElementById('nuevoIVA').value;
 
-    if (isNaN(nuevoIVA) || nuevoIVA < 0 || nuevoIVA > 100) {
-        alert('Por favor, introduce un IVA válido (0-100)');
+    if (!nuevoIdIva) {
+        alert('Por favor, selecciona un tipo de IVA');
         return;
     }
 
-    fetch('api/productos.php?previsualizarIVA=' + nuevoIVA)
+    fetch('api/productos.php?previsualizarIVA=' + nuevoIdIva)
         .then(res => res.json())
         .then(data => {
             if (data.error) {
@@ -3766,7 +5092,8 @@ function previsualizarCambioIVA() {
                 return;
             }
             productosPrevisualizacionIVA = data.productos;
-            mostrarTablaPrevisualizacionIVA(data.productos, nuevoIVA);
+            const nuevoIVAPorcentaje = data.productos.length > 0 ? data.productos[0].iva_nuevo : 0;
+            mostrarTablaPrevisualizacionIVA(data.productos, nuevoIVAPorcentaje);
         })
         .catch(err => {
             console.error('Error:', err);
@@ -3825,23 +5152,362 @@ function mostrarTablaPrevisualizacionIVA(productos, nuevoIVA) {
     contenedor.innerHTML = html;
 }
 
-function aplicarCambioIVA() {
-    const nuevoIVA = parseFloat(document.getElementById('nuevoIVA').value);
+/**
+ * Abre el modal para programar un cambio de IVA
+ */
+function abrirModalProgramarIVA() {
+    const nuevoIdIva = document.getElementById('nuevoIVA').value;
+    const cambioId = document.getElementById('ivaProgramado').dataset.cambioId;
 
-    if (isNaN(nuevoIVA) || nuevoIVA < 0 || nuevoIVA > 100) {
-        alert('Por favor, introduce un IVA válido (0-100)');
+    // Si no hay cambioId, es un nuevo cambio - solo resetear si no hay productos seleccionados
+    if (!cambioId && productosExcluidos.length === 0) {
+        document.getElementById('ivaProgramado').value = '';
+        delete document.getElementById('ivaProgramado').dataset.cambioId;
+    }
+
+    if (!nuevoIdIva && !cambioId) {
+        alert('Por favor, selecciona un tipo de IVA');
         return;
     }
 
+    // Guardar el IVA seleccionado en un campo oculto
+    if (nuevoIdIva) {
+        document.getElementById('ivaProgramado').value = nuevoIdIva;
+    }
+
+    // Obtener el nombre del tipo de IVA seleccionado
+    const selectIva = document.getElementById('nuevoIVA');
+    const nombreIva = selectIva.options[selectIva.selectedIndex].textContent;
+    document.getElementById('ivaProgramadoNombre').textContent = nombreIva;
+
+    // Solo establecer fecha mínima si es un nuevo cambio (no edición)
+    if (!cambioId) {
+        // Establecer fecha y hora mínima (ahora)
+        const ahora = new Date();
+        ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
+        document.getElementById('fechaProgramada').min = ahora.toISOString().slice(0, 16);
+    }
+
+    // Abrir el modal
+    document.getElementById('modalProgramarIVA').style.display = 'flex';
+}
+
+/**
+ * Abre el modal para ver los cambios de IVA programados
+ */
+function abrirModalVerCambiosProgramados() {
+    // Cargar los cambios programados desde la API
+    fetch('api/productos.php?accion=obtener_cambios_iva_programados')
+        .then(res => res.json())
+        .then(data => {
+            const contenedor = document.getElementById('listaCambiosProgramadosIVA');
+
+            if (!data.cambios || data.cambios.length === 0) {
+                contenedor.innerHTML = '<p style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay cambios de IVA programados</p>';
+            } else {
+                let html = `
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead style="background: var(--bg-secondary); position: sticky; top: 0;">
+                            <tr>
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-main);">Fecha Programada</th>
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-main);">Nuevo IVA</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Estado</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Afectados</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Excluidos</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+                data.cambios.forEach(cambio => {
+                    const fecha = new Date(cambio.fecha_programada);
+                    const fechaFormateada = fecha.toLocaleString('es-ES', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    });
+
+                    const estadoClass = cambio.estado === 'aplicado' ? 'style="color: green;"' :
+                        cambio.estado === 'pendiente' ? 'style="color: orange;"' : 'style="color: red;"';
+
+                    const excluidos = cambio.productos_excluidos ?
+                        cambio.productos_excluidos.split(',').length + ' productos' : 'Ninguno';
+
+                    const afectados = cambio.productos_afectados !== undefined ? cambio.productos_afectados + ' productos' : '-';
+
+                    const acciones = cambio.estado === 'pendiente' ? `
+                        <button class="btn-admin-accion" onclick="verDetallesCambioIVA(${cambio.id})" title="Ver Detalles">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-admin-accion" onclick="editarCambioProgramadoIVA(${cambio.id})" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-admin-accion btn-eliminar" onclick="eliminarCambioProgramadoIVA(${cambio.id})" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>` : `
+                        <button class="btn-admin-accion" onclick="verDetallesCambioIVA(${cambio.id})" title="Ver Detalles">
+                            <i class="fas fa-eye"></i>
+                        </button>`;
+
+                    html += `
+                        <tr style="border-bottom: 1px solid var(--border-main);">
+                            <td style="padding: 10px;">${fechaFormateada}</td>
+                            <td style="padding: 10px;">${cambio.iva_porcentaje}% (${cambio.iva_nombre})</td>
+                            <td style="padding: 10px; text-align: center;" ${estadoClass}>${cambio.estado.toUpperCase()}</td>
+                            <td style="padding: 10px; text-align: center;">${afectados}</td>
+                            <td style="padding: 10px; text-align: center;">${excluidos}</td>
+                            <td style="padding: 10px; text-align: center;">${acciones}</td>
+                        </tr>`;
+                });
+
+                html += '</tbody></table>';
+                contenedor.innerHTML = html;
+            }
+
+            // Abrir el modal
+            document.getElementById('modalVerCambiosProgramadosIVA').style.display = 'flex';
+        })
+        .catch(err => {
+            console.error('Error cargando cambios programados:', err);
+            alert('Error al cargar los cambios programados');
+        });
+}
+
+/**
+ * Elimina un cambio de IVA programado
+ */
+function eliminarCambioProgramadoIVA(id) {
+    if (!confirm('¿Estás seguro de que deseas eliminar este cambio programado?')) {
+        return;
+    }
+
+    fetch('api/productos.php?accion=eliminar_cambio_iva_programado&id=' + id, {
+        method: 'DELETE'
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                alert('Cambio programado eliminado correctamente');
+                abrirModalVerCambiosProgramados(); // Recargar la lista
+            } else {
+                alert('Error al eliminar: ' + data.error);
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al eliminar el cambio programado');
+        });
+}
+
+/**
+ * Ver los detalles de un cambio de IVA programado
+ */
+function verDetallesCambioIVA(id) {
+    fetch('api/productos.php?accion=obtener_cambio_iva_programado&id=' + id)
+        .then(res => res.json())
+        .then(data => {
+            console.log('Cambio IVA data:', data);
+            if (data.cambio) {
+                const cambio = data.cambio;
+
+                // Mostrar info del cambio
+                const fechaProgramada = cambio.fecha_programada ? new Date(cambio.fecha_programada).toLocaleString('es-ES') : 'No definida';
+                const fechaCreacion = cambio.created_at ? new Date(cambio.created_at).toLocaleString('es-ES') : 'No definida';
+                const infoHTML = `
+                    <div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <p><strong>Fecha programada:</strong> ${fechaProgramada}</p>
+                        <p><strong>Nuevo IVA:</strong> ${cambio.iva_nombre || 'General'} (${cambio.iva_porcentaje}%)</p>
+                        <p><strong>Estado:</strong> ${cambio.estado === 'aplicado' ? '<span style="color: green;">Aplicado</span>' : '<span style="color: orange;">Pendiente</span>'}</p>
+                        <p><strong>Creado:</strong> ${fechaCreacion}</p>
+                    </div>
+                `;
+                document.getElementById('detallesCambioIVAInfo').innerHTML = infoHTML;
+
+                // Cargar productos afectados
+                fetch('api/productos.php?accion=obtener_productos_cambio_iva&id=' + id)
+                    .then(res => res.json())
+                    .then(dataProductos => {
+                        console.log('IVA response:', dataProductos);
+                        let tablaHTML = '';
+                        if (dataProductos.ok && dataProductos.productos && dataProductos.productos.length > 0) {
+                            tablaHTML = `
+                                <table class="tabla-admin" style="width: 100%; font-size: 13px;">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Nombre</th>
+                                            <th>IVA Anterior</th>
+                                            <th>IVA Nuevo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${dataProductos.productos.map(p => `
+                                            <tr>
+                                                <td>${p.id}</td>
+                                                <td>${p.nombre}</td>
+                                                <td>${p.iva_anterior}%</td>
+                                                <td>${p.iva_nuevo}%</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            `;
+                        } else {
+                            tablaHTML = '<p style="padding: 20px; text-align: center;">' +
+                                (dataProductos.error ? 'Error: ' + dataProductos.error : 'No hay productos afectados') +
+                                '</p>';
+                        }
+                        document.getElementById('detallesCambioIVATabla').innerHTML = tablaHTML;
+                    });
+
+                abrirModal('modalVerDetallesCambioIVA');
+            } else {
+                alert('Error al cargar los detalles del cambio');
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al cargar los detalles del cambio');
+        });
+}
+
+/**
+ * Edita un cambio de IVA programado (abre el modal de programación con los datos cargados)
+ */
+function editarCambioProgramadoIVA(id) {
+    // Primero cerrar el modal de ver cambios
+    cerrarModal('modalVerCambiosProgramadosIVA');
+
+    // Cargar los datos del cambio y abrir el modal de programación
+    fetch('api/productos.php?accion=obtener_cambio_iva_programado&id=' + id)
+        .then(res => res.json())
+        .then(data => {
+            if (data.cambio) {
+                const cambio = data.cambio;
+
+                // Seleccionar el IVA
+                document.getElementById('nuevoIVA').value = cambio.iva_id;
+
+                // Obtener el nombre del IVA seleccionado y guardarlo
+                const selectIva = document.getElementById('nuevoIVA');
+                const nombreIva = selectIva.options[selectIva.selectedIndex].textContent;
+                document.getElementById('ivaProgramadoNombre').textContent = nombreIva;
+
+                // Establecer la fecha
+                const fecha = new Date(cambio.fecha_programada);
+                fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
+                document.getElementById('fechaProgramada').value = fecha.toISOString().slice(0, 16);
+
+                // Cargar productos excluidos si hay
+                if (cambio.productos_excluidos) {
+                    productosExcluidos = cambio.productos_excluidos.split(',').map(Number);
+                } else {
+                    productosExcluidos = [];
+                }
+
+                // Guardar el ID del cambio para actualizarlo y el IVA
+                document.getElementById('ivaProgramado').value = cambio.iva_id;
+                document.getElementById('ivaProgramado').dataset.cambioId = id;
+
+                // Abrir el modal de programación
+                abrirModalProgramarIVA();
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al cargar los datos del cambio');
+        });
+}
+
+/**
+ * Programa un cambio de IVA para una fecha futura
+ */
+function programarCambioIVA() {
+    const nuevoIdIva = document.getElementById('ivaProgramado').value;
+    const fechaHora = document.getElementById('fechaProgramada').value;
+    const productosExcluir = productosExcluidos.join(',');
+    const cambioId = document.getElementById('ivaProgramado').dataset.cambioId;
+
+    if (!fechaHora) {
+        alert('Por favor, selecciona una fecha y hora');
+        return;
+    }
+
+    const fechaObj = new Date(fechaHora);
+    const ahora = new Date();
+
+    if (fechaObj <= ahora && !cambioId) {
+        alert('La fecha programada debe ser posterior a la hora actual');
+        return;
+    }
+
+    // Si hay un cambioId, es una edición; otherwise, es nuevo
+    if (cambioId) {
+        // Actualizar cambio existente
+        fetch('api/productos.php?accion=actualizar_cambio_iva_programado&id=' + cambioId, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'iva_id=' + nuevoIdIva + '&fecha_programada=' + encodeURIComponent(fechaHora) + '&productos_excluidos=' + productosExcluir
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                alert('Cambio de IVA actualizado correctamente');
+                cerrarModal('modalProgramarIVA');
+                productosExcluidos = [];
+                delete document.getElementById('ivaProgramado').dataset.cambioId;
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error al actualizar el cambio');
+            });
+    } else {
+        // Crear nuevo cambio
+        fetch('api/productos.php?accion=programar_cambio_iva', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'iva_id=' + nuevoIdIva + '&fecha_programada=' + encodeURIComponent(fechaHora) + '&productos_excluidos=' + productosExcluir
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                alert('Cambio de IVA programado para el ' + data.fecha_formateada);
+                cerrarModal('modalProgramarIVA');
+                productosExcluidos = [];
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error al programar el cambio');
+            });
+    }
+}
+
+function aplicarCambioIVA() {
+    const nuevoIdIva = document.getElementById('nuevoIVA').value;
+
+    if (!nuevoIdIva) {
+        alert('Por favor, selecciona un tipo de IVA');
+        return;
+    }
+
+    // Obtener el nombre del tipo de IVA seleccionado
+    const selectIva = document.getElementById('nuevoIVA');
+    const nombreIva = selectIva.options[selectIva.selectedIndex].textContent;
+
     const mensaje = productosExcluidos.length > 0
-        ? `¿Estás seguro de cambiar el IVA a ${nuevoIVA}%? (${productosExcluidos.length} productos excluidos)`
-        : `¿Estás seguro de cambiar el IVA a ${nuevoIVA}% para todos los productos?`;
+        ? `¿Estás seguro de cambiar el IVA a ${nombreIva}? (${productosExcluidos.length} productos excluidos)`
+        : `¿Estás seguro de cambiar el IVA a ${nombreIva} para todos los productos?`;
 
     if (!confirm(mensaje)) {
         return;
     }
 
-    let url = 'api/productos.php?cambiarIVA=' + nuevoIVA;
+    let url = 'api/productos.php?cambiarIVA=' + nuevoIdIva;
     if (productosExcluidos.length > 0) {
         url += '&excluidos=' + productosExcluidos.join(',');
     }
@@ -3855,6 +5521,13 @@ function aplicarCambioIVA() {
             }
             alert('IVA actualizado correctamente. Productos afectados: ' + data.actualizados);
             productosExcluidos = [];
+            // Recargar tipos de IVA y actualizar la tabla
+            cargarTiposIva().then(() => {
+                if (seccionActual === 'tarifa-iva') {
+                    mostrarPanelCambiarIVA();
+                }
+            });
+            actualizarSelectsIva();
         })
         .catch(err => {
             console.error('Error:', err);
@@ -3887,9 +5560,537 @@ function mostrarPanelAjustePrecios() {
                 <button onclick="aplicarAjustePrecios()" class="tarifa-btn-aplicar tarifa-btn-precios">
                     <i class="fas fa-save"></i> Aplicar Ajuste de Precios
                 </button>
+                <button onclick="abrirModalProgramarAjustePrecios()" class="tarifa-btn-programar" style="margin-top: 10px;">
+                    <i class="fas fa-clock"></i> Programar Ajuste
+                </button>
+                <button onclick="abrirModalVerAjustesProgramados()" class="tarifa-btn-programar" style="margin-top: 10px;">
+                    <i class="fas fa-list"></i> Ver Ajustes Programados
+                </button>
             </div>
             <div id="previsualizacionCambios" style="flex: 1;"></div>
         </div>`;
+}
+
+/**
+ * Muestra el panel de tarifas prefijadas en la vista de admin
+ */
+function mostrarPanelTarifasPrefijadas(abrirModal = false) {
+    const contenedor = document.getElementById('adminContenido');
+    seccionActual = 'tarifas-prefijadas';
+    adminTablaHeaderHTML = '';
+
+    // Detectar tema actual
+    const isDark = document.body.classList.contains('dark-mode');
+    const bgColor = isDark ? '#1f2937' : 'white';
+    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const subTextColor = isDark ? '#9ca3af' : '#6b7280';
+    const borderColor = isDark ? '#374151' : '#e5e7eb';
+    const tableHeaderBg = isDark ? '#111827' : '#f9fafb';
+    const tableRowBorder = isDark ? '#374151' : '#e5e7eb';
+    const cardBg = isDark ? '#1f2937' : 'white';
+    const modalContentBg = isDark ? '#1f2937' : 'white';
+
+    // Cargar tarifas y productos desde las APIs
+    return Promise.all([
+        fetch('api/tarifas.php').then(res => res.json()),
+        fetch('api/productos.php').then(res => res.json())
+    ])
+        .then(([tarifas, productos]) => {
+            // Calcular precios para cada producto
+            let filasTablaProductos = '';
+            productos.forEach(prod => {
+                let precioBaseOriginal = parseFloat(prod.precio);
+                const iva = parseFloat(prod.iva) || 21;
+
+                // Si mostramos con IVA, el precio base sobre el que editamos será con IVA
+                let precioBaseAMostrar = precioBaseOriginal;
+                if (tarifasMostrarConIva) {
+                    precioBaseAMostrar = precioBaseOriginal * (1 + iva / 100);
+                }
+
+                let fila = `
+                <tr style="border-bottom: 1px solid ${tableRowBorder};">
+                    <td style="padding: 10px; font-weight: 500; color: ${textColor};">${prod.nombre}</td>
+                    <td style="padding: 10px; color: ${isDark ? '#f3f4f6' : '#1f2937'}; font-weight: 600;">${precioBaseAMostrar.toFixed(2)} €</td>`;
+
+                tarifas.forEach(tarifa => {
+                    const idTarifa = tarifa.id;
+                    const dataTarifa = prod.preciosTarifas && prod.preciosTarifas[idTarifa];
+
+                    let precioFinal = 0;
+                    let esManual = false;
+
+                    if (dataTarifa) {
+                        // Usar el precio de la tabla productos_tarifas
+                        precioFinal = parseFloat(dataTarifa.precio);
+                        esManual = dataTarifa.es_manual == 1;
+
+                        // Aplicar IVA si es necesario (el precio en DB es base)
+                        if (tarifasMostrarConIva) {
+                            precioFinal = precioFinal * (1 + iva / 100);
+                        }
+                    } else {
+                        // Cálculo tradicional por si no está en la tabla (no debería ocurrir tras migración)
+                        const descuento = parseFloat(tarifa.descuento_porcentaje) || 0;
+                        precioFinal = precioBaseAMostrar * (1 - descuento / 100);
+                    }
+
+                    const manualStyle = esManual ? 'border: 1px solid #10b981; background: #ecfdf5; color: #065f46;' : (isDark ? 'border: 1px solid #374151; background: #111827; color: #10b981;' : 'border: 1px solid #d1d5db; background: white; color: #10b981;');
+                    const disabledAttr = tarifasMostrarConIva ? 'disabled' : '';
+                    const disabledStyle = tarifasMostrarConIva ? 'opacity: 0.5; cursor: not-allowed;' : '';
+
+                    fila += `
+                    <td style="padding: 10px;">
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <input type="number" step="0.01" 
+                                value="${precioFinal.toFixed(2)}" 
+                                onchange="actualizarPrecioTarifaIndividual(${prod.id}, ${idTarifa}, this, ${iva})"
+                                ${disabledAttr}
+                                style="width: 80px; padding: 4px 6px; border-radius: 4px; font-weight: 600; text-align: right; ${manualStyle} ${disabledStyle}">
+                            <span style="font-size: 14px; font-weight: 600; color: #10b981;">€</span>
+                            ${esManual ? '<i class="fas fa-hand-paper" title="Precio manual" style="color: #10b981; font-size: 12px;"></i>' : ''}
+                        </div>
+                    </td>`;
+                });
+
+                fila += `</tr>`;
+                filasTablaProductos += fila;
+            });
+
+            let filasTablaTarifas = '';
+            tarifas.forEach(tarifa => {
+                const requiereCliente = tarifa.requiere_cliente ? 'Sí' : 'No';
+                const descuentoBadge = `<span style="background: ${isDark ? '#1e3a8a' : '#dbeafe'}; color: ${isDark ? '#bfdbfe' : '#1e40af'}; padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 13px;">${tarifa.descuento_porcentaje}%</span>`;
+                filasTablaTarifas += `
+                <tr style="border-bottom: 1px solid ${tableRowBorder};">
+                    <td style="padding: 12px; font-weight: 600; color: ${textColor};">${tarifa.nombre}</td>
+                    <td style="padding: 12px; color: ${subTextColor};">${tarifa.descripcion || '-'}</td>
+                    <td style="padding: 12px;">${descuentoBadge}</td>
+                    <td style="padding: 12px; color: ${tarifa.requiere_cliente ? '#10b981' : subTextColor};">${requiereCliente}</td>
+                    <td style="padding: 12px;">
+                        <button onclick="abrirModalEditarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}', '${(tarifa.descripcion || '').replace(/'/g, "\\'")}', ${tarifa.descuento_porcentaje}, ${tarifa.requiere_cliente ? 1 : 0})" style="padding: 6px 12px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 5px;"><i class="fas fa-edit"></i> Editar</button>
+                        <button onclick="eliminarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}')" style="padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;"><i class="fas fa-trash"></i> Eliminar</button>
+                    </td>
+                </tr>`;
+            });
+
+            // Generar los encabezados dinámicamente
+            let cabecerasPrecios = `
+                <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor}; border-bottom: 2px solid ${borderColor}; position: -webkit-sticky; position: sticky; top: -1px; z-index: 10; background: ${tableHeaderBg}; outline: 1px solid ${borderColor}; outline-offset: -1px; border:none;">Producto</th>
+                <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor}; border-bottom: 2px solid ${borderColor}; position: -webkit-sticky; position: sticky; top: -1px; z-index: 10; background: ${tableHeaderBg}; outline: 1px solid ${borderColor}; outline-offset: -1px; border:none;">Precio</th>`;
+
+            let detalleDescuentos = [];
+            tarifas.forEach(tarifa => {
+                cabecerasPrecios += `<th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor}; border-bottom: 2px solid ${borderColor}; position: -webkit-sticky; position: sticky; top: -1px; z-index: 10; background: ${tableHeaderBg}; outline: 1px solid ${borderColor}; outline-offset: -1px; border:none;">${tarifa.nombre}</th>`;
+                detalleDescuentos.push(`${tarifa.nombre} (${tarifa.descuento_porcentaje}%)`);
+            });
+            let descripcionDescuentos = "Vista de precios según las tarifas aplicadas. Descuentos: " + (detalleDescuentos.length > 0 ? detalleDescuentos.join(", ") : "Ninguno");
+
+            contenedor.innerHTML = `
+            <div class="admin-tabla-header">
+                <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: ${textColor};">Tarifas Prefijadas</h2>
+                <p style="color: ${subTextColor}; margin-top: 5px;">Vista de precios según las tarifas aplicadas.</p>
+            </div>
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+                <input type="text" 
+                    id="buscarProductoTarifa"
+                    placeholder="Buscar producto..." 
+                    value="${tarifaBusquedaProducto}"
+                    oninput="tarifaBusquedaProducto = this.value; filtrarTablaTarifas();"
+                    style="padding: 10px 15px; border: 1px solid ${borderColor}; border-radius: 8px; font-size: 14px; background: ${isDark ? '#374151' : 'white'}; color: ${textColor}; outline: none; transition: border-color 0.2s; min-width: 600px;"
+                    onfocus="this.style.borderColor = '#6366f1';"
+                    onblur="this.style.borderColor = '${borderColor}';">
+                <button onclick="abrirModalTarifas()" style="padding: 10px 20px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: background 0.2s;">
+                    <i class="fas fa-tags" style="margin-right: 8px;"></i> Ver/Editar Tarifas
+                </button>
+                <button onclick="toggleTarifasIva()" style="padding: 10px 20px; background: ${tarifasMostrarConIva ? '#10b981' : (isDark ? '#4b5563' : '#4b5563')}; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: background 0.2s;">
+                    <i class="fas ${tarifasMostrarConIva ? 'fa-file-invoice-dollar' : 'fa-coins'}" style="margin-right: 8px;"></i>
+                    ${tarifasMostrarConIva ? 'Ver Sin IVA' : 'Ver Con IVA'}
+                </button>
+            </div>
+            
+
+            <div style="margin-top: 40px; border-top: 2px solid ${borderColor}; padding-top: 30px;">
+                <div class="admin-tabla-header">
+                    <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: ${textColor};">Precios por Producto</h2>
+                    <p style="color: ${subTextColor}; margin-top: 5px;">${descripcionDescuentos} ${tarifasMostrarConIva ? '(Precios con IVA incluido)' : '(Precios base sin IVA)'}</p>
+                </div>
+                <div style="overflow-x: auto; max-height: 300px; overflow-y: auto; border: 1px solid ${borderColor}; border-radius: 8px;">
+                    <table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 8px; background: ${cardBg};" class="tabla-precios-producto">
+                        <thead class="tabla-precios-head">
+                            <tr>
+                                ${cabecerasPrecios}
+                            </tr>
+                        </thead>
+                        <tbody id="tablaPreciosProductos">${filasTablaProductos}</tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="modalesTarifas"></div>
+            
+            <!-- Modal de Tarifas -->
+            <div id="modalTarifas" class="modal-overlay" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+                <div class="modal-content" style="background: ${modalContentBg}; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); max-width: 800px; width: 90%; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; border: 1px solid ${borderColor};">
+                    <div style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0; font-size: 18px; font-weight: 600;">Gestión de Tarifas</h3>
+                        <button onclick="cerrarModal('modalTarifas')" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1; opacity: 0.8; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">&times;</button>
+                    </div>
+                    <div style="padding: 20px; overflow-y: auto; flex: 1;">
+                        <div style="margin-bottom: 20px;">
+                            <button onclick="abrirModalNuevaTarifa()" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'">
+                                <i class="fas fa-plus"></i> Nueva Tarifa
+                            </button>
+                        </div>
+                        <p style="color: ${subTextColor}; margin-top: 0; margin-bottom: 15px; font-size: 14px;">Gestiona las tarifas disponibles en el selector de tickets del cajero.</p>
+                        <div style="overflow-x: auto; max-height: 400px; overflow-y: auto; border: 1px solid ${borderColor}; border-radius: 8px;">
+                            <table style="width: 100%; border-collapse: collapse; background: ${isDark ? '#111827' : 'white'};" class="tabla-tarifas">
+                                <thead class="tabla-tarifas-head" style="position: sticky; top: 0; z-index: 10; background: ${tableHeaderBg}; border-bottom: 2px solid ${borderColor};">
+                                    <tr>
+                                        <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor};">Nombre</th>
+                                        <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor};">Descripción</th>
+                                        <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor};">Descuento</th>
+                                        <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor};">Requiere Cliente</th>
+                                        <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor};">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaTarifas">${filasTablaTarifas}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+            if (abrirModal) {
+                abrirModalTarifas();
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            contenedor.innerHTML = '<p style="color: red;">Error al cargar las tarifas o productos</p>';
+        });
+}
+
+/**
+ * Abre el modal de tarifas
+ */
+function abrirModalTarifas() {
+    document.getElementById('modalTarifas').style.display = 'flex';
+}
+
+/**
+ * Abre el modal para crear una nueva tarifa
+ */
+function abrirModalNuevaTarifa() {
+    const modalesDiv = document.getElementById('modalesTarifas');
+
+    // Detectar tema actual
+    const isDark = document.body.classList.contains('dark-mode');
+    const bgColor = isDark ? '#1f2937' : 'white';
+    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const inputBg = isDark ? '#374151' : 'white';
+    const inputBorder = isDark ? '#4b5563' : '#e5e7eb';
+    const footerBg = isDark ? '#374151' : '#f9fafb';
+    const footerBorder = isDark ? '#4b5563' : '#e5e7eb';
+    const btnCancelBg = isDark ? '#4b5563' : 'white';
+    const btnCancelColor = isDark ? '#e5e7eb' : '#374151';
+    const btnCancelBorder = isDark ? '#6b7280' : '#d1d5db';
+
+    modalesDiv.innerHTML = `
+        <div id="modalNuevaTarifa" class="modal-overlay" style="display: flex; position: fixed; z-index: 10001; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+            <div class="modal-content" style="background: ${bgColor}; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-width: 500px; width: 90%; overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 18px;">Nueva Tarifa</h3>
+                    <button onclick="cerrarModal('modalNuevaTarifa')" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+                </div>
+                <div style="padding: 25px;">
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Nombre:</label>
+                        <input type="text" id="nuevaTarifaNombre" style="width: 100%; padding: 10px; border: 1px solid ${inputBorder}; border-radius: 6px; font-size: 14px; box-sizing: border-box; background: ${inputBg}; color: ${textColor};" required>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Descripción:</label>
+                        <textarea id="nuevaTarifaDescripcion" rows="3" style="width: 100%; padding: 10px; border: 1px solid ${inputBorder}; border-radius: 6px; font-size: 14px; box-sizing: border-box; resize: vertical; background: ${inputBg}; color: ${textColor};"></textarea>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Descuento (%):</label>
+                        <input type="number" id="nuevaTarifaDescuento" step="0.01" min="0" max="100" value="0" style="width: 100%; padding: 10px; border: 1px solid ${inputBorder}; border-radius: 6px; font-size: 14px; box-sizing: border-box; background: ${inputBg}; color: ${textColor};">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="nuevaTarifaRequiereCliente" style="width: 18px; height: 18px; margin-right: 8px;">
+                            <span style="font-weight: 500; color: ${textColor};">Requiere búsqueda de cliente</span>
+                        </label>
+                    </div>
+                </div>
+                <div style="padding: 15px 25px; background: ${footerBg}; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid ${footerBorder};">
+                    <button onclick="cerrarModal('modalNuevaTarifa')" style="padding: 10px 20px; border: 1px solid ${btnCancelBorder}; background: ${btnCancelBg}; color: ${btnCancelColor}; border-radius: 6px; cursor: pointer; font-weight: 500;">Cancelar</button>
+                    <button onclick="guardarNuevaTarifa()" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">Guardar</button>
+                </div>
+            </div>
+        </div>`;
+}
+
+/**
+ * Guarda una nueva tarifa
+ */
+function guardarNuevaTarifa() {
+    const nombre = document.getElementById('nuevaTarifaNombre').value.trim();
+    const descripcion = document.getElementById('nuevaTarifaDescripcion').value.trim();
+    const descuento_porcentaje = parseFloat(document.getElementById('nuevaTarifaDescuento').value) || 0;
+    const requiere_cliente = document.getElementById('nuevaTarifaRequiereCliente').checked ? 1 : 0;
+
+    if (!nombre) {
+        alert('El nombre es obligatorio');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('nombre', nombre);
+    formData.append('descripcion', descripcion);
+    formData.append('descuento_porcentaje', descuento_porcentaje);
+    formData.append('requiere_cliente', requiere_cliente);
+
+    fetch('api/tarifas.php', {
+        method: 'POST',
+        body: formData
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            cerrarModal('modalNuevaTarifa');
+            // Recargar panel y reabrir modal
+            cerrarModal('modalTarifas');
+            mostrarPanelTarifasPrefijadas(true);
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al guardar la tarifa');
+        });
+}
+
+/**
+ * Abre el modal para editar una tarifa
+ */
+function abrirModalEditarTarifa(id, nombre, descripcion, descuento, requiereCliente) {
+    const modalesDiv = document.getElementById('modalesTarifas');
+
+    // Detectar tema actual
+    const isDark = document.body.classList.contains('dark-mode');
+    const bgColor = isDark ? '#1f2937' : 'white';
+    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const inputBg = isDark ? '#374151' : 'white';
+    const inputBorder = isDark ? '#4b5563' : '#e5e7eb';
+    const footerBg = isDark ? '#374151' : '#f9fafb';
+    const footerBorder = isDark ? '#4b5563' : '#e5e7eb';
+    const btnCancelBg = isDark ? '#4b5563' : 'white';
+    const btnCancelColor = isDark ? '#e5e7eb' : '#374151';
+    const btnCancelBorder = isDark ? '#6b7280' : '#d1d5db';
+
+    modalesDiv.innerHTML = `
+        <div id="modalEditarTarifa" class="modal-overlay" style="display: flex; position: fixed; z-index: 10001; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+            <div class="modal-content" style="background: ${bgColor}; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-width: 500px; width: 90%; overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 18px;">Editar Tarifa</h3>
+                    <button onclick="cerrarModal('modalEditarTarifa')" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+                </div>
+                <div style="padding: 25px;">
+                    <input type="hidden" id="editarTarifaId" value="${id}">
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Nombre:</label>
+                        <input type="text" id="editarTarifaNombre" value="${nombre}" style="width: 100%; padding: 10px; border: 1px solid ${inputBorder}; border-radius: 6px; font-size: 14px; box-sizing: border-box; background: ${inputBg}; color: ${textColor};" required>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Descripción:</label>
+                        <textarea id="editarTarifaDescripcion" rows="3" style="width: 100%; padding: 10px; border: 1px solid ${inputBorder}; border-radius: 6px; font-size: 14px; box-sizing: border-box; resize: vertical; background: ${inputBg}; color: ${textColor};">${descripcion || ''}</textarea>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Descuento (%):</label>
+                        <input type="number" id="editarTarifaDescuento" step="0.01" min="0" max="100" value="${descuento}" style="width: 100%; padding: 10px; border: 1px solid ${inputBorder}; border-radius: 6px; font-size: 14px; box-sizing: border-box; background: ${inputBg}; color: ${textColor};">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="editarTarifaRequiereCliente" ${requiereCliente === 1 ? 'checked' : ''} style="width: 18px; height: 18px; margin-right: 8px;">
+                            <span style="font-weight: 500; color: ${textColor};">Requiere búsqueda de cliente</span>
+                        </label>
+                    </div>
+                </div>
+                <div style="padding: 15px 25px; background: ${footerBg}; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid ${footerBorder};">
+                    <button onclick="cerrarModal('modalEditarTarifa')" style="padding: 10px 20px; border: 1px solid ${btnCancelBorder}; background: ${btnCancelBg}; color: ${btnCancelColor}; border-radius: 6px; cursor: pointer; font-weight: 500;">Cancelar</button>
+                    <button onclick="guardarEditarTarifa()" style="padding: 10px 20px; background: #4f46e5; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">Guardar</button>
+                </div>
+            </div>
+        </div>`;
+}
+
+/**
+ * Guarda los cambios de una tarifa editada
+ */
+function guardarEditarTarifa() {
+    const id = document.getElementById('editarTarifaId').value;
+    const nombre = document.getElementById('editarTarifaNombre').value.trim();
+    const descripcion = document.getElementById('editarTarifaDescripcion').value.trim();
+    const descuento_porcentaje = parseFloat(document.getElementById('editarTarifaDescuento').value) || 0;
+    const requiere_cliente = document.getElementById('editarTarifaRequiereCliente').checked ? 1 : 0;
+
+    if (!nombre) {
+        alert('El nombre es obligatorio');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('editar', id);
+    formData.append('nombre', nombre);
+    formData.append('descripcion', descripcion);
+    formData.append('descuento_porcentaje', descuento_porcentaje);
+    formData.append('requiere_cliente', requiere_cliente);
+
+    // Siempre mostrar modal de confirmación para todas las tarifas al guardar
+    tarifaDataPendiente = formData;
+
+    // Mostrar modal de confirmación
+    const listaDiv = document.getElementById('listaProductosConflictivos');
+    listaDiv.innerHTML = '<p style="margin: 10px 0;">¿Desea recalcular los precios de todos los productos según el nuevo descuento?</p>';
+
+    abrirModal('modalConflictosTarifa');
+}
+
+/**
+ * Envía la petición para guardar la tarifa
+ */
+function ejecutarGuardarTarifa(formData) {
+    fetch('api/tarifas.php', {
+        method: 'POST',
+        body: formData
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            cerrarModal('modalEditarTarifa');
+            cerrarModal('modalConflictosTarifa');
+            // Recargar panel y reabrir modal
+            cerrarModal('modalTarifas');
+            mostrarPanelTarifasPrefijadas(true);
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al guardar los cambios');
+        });
+}
+
+/**
+ * Resuelve el conflicto de precios manuales
+ */
+function confirmarCambioTarifa(sobreescribir) {
+    if (!tarifaDataPendiente) return;
+
+    if (sobreescribir) {
+        tarifaDataPendiente.append('sobreescribirManuales', '1');
+    } else {
+        tarifaDataPendiente.append('sobreescribirManuales', '0');
+    }
+
+    ejecutarGuardarTarifa(tarifaDataPendiente);
+    tarifaDataPendiente = null;
+}
+
+/**
+ * Actualiza el precio de un producto para una tarifa específica (edición manual)
+ */
+function actualizarPrecioTarifaIndividual(idProducto, idTarifa, input, iva) {
+    let nuevoPrecio = parseFloat(input.value) || 0;
+
+    // Si mostramos con IVA, el valor del input tiene IVA y hay que quitárselo
+    if (tarifasMostrarConIva) {
+        nuevoPrecio = nuevoPrecio / (1 + iva / 100);
+    }
+
+    const formData = new FormData();
+    formData.append('actualizarPrecioIndividual', '1');
+    formData.append('idTarifa', idTarifa);
+    formData.append('idProducto', idProducto);
+    formData.append('precio', nuevoPrecio.toFixed(4));
+    formData.append('esManual', '1');
+
+    fetch('api/tarifas.php', {
+        method: 'POST',
+        body: formData
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                // Marcar el input visualmente como manual
+                input.style.border = '1px solid #10b981';
+                input.style.background = '#ecfdf5';
+                input.style.color = '#065f46';
+
+                // Añadir el icono si no existe
+                const parent = input.parentElement;
+                if (!parent.querySelector('.fa-hand-paper')) {
+                    const icon = document.createElement('i');
+                    icon.className = 'fas fa-hand-paper';
+                    icon.title = 'Precio manual';
+                    icon.style.color = '#10b981';
+                    icon.style.fontSize = '12px';
+                    parent.appendChild(icon);
+                }
+            } else {
+                alert('Error al actualizar el precio: ' + (data.error || ''));
+                mostrarPanelTarifasPrefijadas(); // Recargar para revertir
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al conectar con la API');
+            mostrarPanelTarifasPrefijadas();
+        });
+}
+
+/**
+ * Elimina una tarifa (la marca como inactiva)
+ */
+function eliminarTarifa(id, nombre) {
+    if (!confirm('¿Estás seguro de que quieres eliminar la tarifa "' + nombre + '"?')) {
+        return;
+    }
+
+    console.log('Eliminando tarifa con ID:', id);
+
+    fetch('api/tarifas.php?eliminar=' + id, {
+        method: 'DELETE'
+    })
+        .then(res => {
+            console.log('Response status:', res.status);
+            if (!res.ok) {
+                throw new Error('HTTP error! status: ' + res.status);
+            }
+            return res.json();
+        })
+        .then(data => {
+            console.log('Response data:', data);
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            alert('Tarifa eliminada correctamente');
+            // Recargar panel y reabrir modal
+            cerrarModal('modalTarifas');
+            mostrarPanelTarifasPrefijadas(true);
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al eliminar la tarifa: ' + err.message);
+        });
+}
+
+function toggleTarifasIva() {
+    tarifasMostrarConIva = !tarifasMostrarConIva;
+    mostrarPanelTarifasPrefijadas();
 }
 
 let debounceTimerPrecios = null;
@@ -3929,6 +6130,216 @@ function previsualizarAjustePrecios() {
         .catch(err => {
             console.error('Error:', err);
             alert('Error al previsualizar');
+        });
+}
+
+/**
+ * Muestra el panel de historial de precios en la vista de admin
+ */
+function mostrarPanelHistorialPrecios() {
+    const contenedor = document.getElementById('adminContenido');
+    seccionActual = 'historial-precios';
+    adminTablaHeaderHTML = '';
+
+    // Detectar tema actual
+    const isDark = document.body.classList.contains('dark-mode');
+    const bgColor = isDark ? '#1f2937' : '#ffffff';
+    const textColor = isDark ? '#e5e7eb' : '#1f2937';
+    const subTextColor = isDark ? '#9ca3af' : '#6b7280';
+    const borderColor = isDark ? '#374151' : '#e5e7eb';
+    const inputBg = isDark ? '#374151' : '#ffffff';
+    const tableHeaderBg = isDark ? '#111827' : '#f3f4f6';
+
+    contenedor.innerHTML = `
+        <div style="padding: 20px; background: ${bgColor}; border-radius: 8px;">
+            <h3 style="margin-bottom: 20px; color: ${textColor};">Historial de Precios</h3>
+            
+            <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <label style="display: block; margin-bottom: 8px; color: ${textColor}; font-weight: 500;">Seleccionar Producto:</label>
+                    <select id="selectHistorialProducto" 
+                        style="width: 100%; padding: 10px; border: 1px solid ${borderColor}; border-radius: 8px; background: ${inputBg}; color: ${textColor}; font-size: 14px; cursor: pointer;"
+                        onchange="cargarHistorialPrecios()">
+                        <option value="" style="background: ${bgColor}; color: ${textColor};">-- Seleccionar un producto --</option>
+                    </select>
+                </div>
+                <div style="flex: 1; min-width: 250px;">
+                    <label style="display: block; margin-bottom: 8px; color: ${textColor}; font-weight: 500;">Seleccionar Tarifa:</label>
+                    <select id="selectHistorialTarifa" 
+                        style="width: 100%; padding: 10px; border: 1px solid ${borderColor}; border-radius: 8px; background: ${inputBg}; color: ${textColor}; font-size: 14px; cursor: pointer;"
+                        onchange="cargarHistorialPrecios()">
+                        <option value="" style="background: ${bgColor}; color: ${textColor};">-- Todas las tarifas --</option>
+                        <option value="base" style="background: ${bgColor}; color: ${textColor};">Precio Base</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="tablaHistorialPreciosContainer" style="display: none;">
+                <table style="width: 100%; border-collapse: collapse; margin-top: 20px; border: 1px solid ${borderColor}; background: ${bgColor};">
+                    <thead>
+                        <tr style="background: ${tableHeaderBg};">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Precio</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Válido Desde</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Válido Hasta</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Tarifa</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaHistorialPreciosBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="historialPreciosMensaje" style="margin-top: 20px; color: ${subTextColor}; font-style: italic;">
+                Seleccione un producto para ver su historial de precios
+            </div>
+        </div>
+    `;
+
+    // Observer para detectar cambios en el tema
+    const observer = new MutationObserver(() => {
+        // Cuando cambie el tema, volver a cargar el panel
+        if (seccionActual === 'historial-precios') {
+            mostrarPanelHistorialPrecios();
+        }
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
+    // Cargar la lista de productos
+    fetch('api/productos.php?listaProductos')
+        .then(res => res.json())
+        .then(productos => {
+            const select = document.getElementById('selectHistorialProducto');
+            productos.forEach(prod => {
+                const option = document.createElement('option');
+                option.value = prod.id;
+                option.textContent = prod.nombre;
+                select.appendChild(option);
+            });
+        })
+        .catch(err => {
+            console.error('Error cargando productos:', err);
+        });
+
+    // Cargar la lista de tarifas
+    fetch('api/tarifas.php')
+        .then(res => res.json())
+        .then(tarifas => {
+            const select = document.getElementById('selectHistorialTarifa');
+            tarifas.forEach(tarifa => {
+                const option = document.createElement('option');
+                option.value = tarifa.id;
+                option.textContent = tarifa.nombre;
+                option.style.background = bgColor;
+                option.style.color = textColor;
+                select.appendChild(option);
+            });
+        })
+        .catch(err => {
+            console.error('Error cargando tarifas:', err);
+        });
+}
+
+/**
+ * Carga el historial de precios del producto seleccionado
+ */
+function cargarHistorialPrecios() {
+    const select = document.getElementById('selectHistorialProducto');
+    const idProducto = select.value;
+    const selectTarifa = document.getElementById('selectHistorialTarifa');
+    const idTarifa = selectTarifa ? selectTarifa.value : '';
+    const container = document.getElementById('tablaHistorialPreciosContainer');
+    const mensaje = document.getElementById('historialPreciosMensaje');
+    const tbody = document.getElementById('tablaHistorialPreciosBody');
+
+    // Detectar tema actual
+    const isDark = document.body.classList.contains('dark-mode');
+    const textColor = isDark ? '#e5e7eb' : '#1f2937';
+    const subTextColor = isDark ? '#9ca3af' : '#6b7280';
+    const borderColor = isDark ? '#374151' : '#e5e7eb';
+    const rowBg = isDark ? '#1f2937' : '#ffffff';
+    const rowAltBg = isDark ? '#111827' : '#f3f4f6';
+
+    if (!idProducto) {
+        container.style.display = 'none';
+        mensaje.style.display = 'block';
+        mensaje.textContent = 'Seleccione un producto para ver su historial de precios';
+        return;
+    }
+
+    // Mostrar mensaje de carga
+    mensaje.textContent = 'Cargando historial...';
+    mensaje.style.display = 'block';
+    container.style.display = 'none';
+
+    fetch('api/productos.php?historialPrecios=' + idProducto)
+        .then(res => res.json())
+        .then(historial => {
+            mensaje.style.display = 'none';
+
+            if (!historial || historial.length === 0) {
+                mensaje.textContent = 'No hay historial de precios para este producto';
+                mensaje.style.display = 'block';
+                container.style.display = 'none';
+                return;
+            }
+
+            // Filtrar por tarifa si se ha seleccionado una
+            let historialFiltrado = historial;
+            if (idTarifa) {
+                if (idTarifa === 'base') {
+                    // Mostrar solo precios base (sin tarifa)
+                    historialFiltrado = historial.filter(item => !item.id_tarifa || item.id_tarifa === null);
+                } else {
+                    // Mostrar solo precios de la tarifa seleccionada
+                    historialFiltrado = historial.filter(item => item.id_tarifa == idTarifa);
+                }
+            }
+
+            if (historialFiltrado.length === 0) {
+                mensaje.textContent = idTarifa === 'base'
+                    ? 'No hay historial de precios base para este producto'
+                    : 'No hay historial de precios para esta tarifa';
+                mensaje.style.display = 'block';
+                container.style.display = 'none';
+                return;
+            }
+
+            let html = '';
+            historialFiltrado.forEach((item, index) => {
+                const fechaDesde = new Date(item.valido_desde).toLocaleString('es-ES', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+
+                // El precio más reciente es "Actual", los demás muestran la fecha del siguiente cambio
+                let fechaHasta = '—';
+                if (index === 0) {
+                    fechaHasta = 'Actual';
+                } else if (historialFiltrado[index - 1] && historialFiltrado[index - 1].valido_desde) {
+                    const fechaAnterior = new Date(historialFiltrado[index - 1].valido_desde).toLocaleString('es-ES', {
+                        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                    });
+                    fechaHasta = fechaAnterior;
+                }
+
+                html += `
+                    <tr style="background: ${index % 2 === 0 ? rowBg : rowAltBg}; border-bottom: 1px solid ${borderColor};">
+                        <td style="padding: 12px; color: ${textColor}; font-weight: 600;">${item.precio.toFixed(2)} €</td>
+                        <td style="padding: 12px; color: ${textColor};">${fechaDesde}</td>
+                        <td style="padding: 12px; color: ${subTextColor};">${fechaHasta}</td>
+                        <td style="padding: 12px; color: ${subTextColor};">${item.tarifa || 'Precio Base'}</td>
+                        <td style="padding: 12px; color: ${subTextColor};">${item.usuario || 'Sistema'}</td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+            container.style.display = 'block';
+        })
+        .catch(err => {
+            console.error('Error cargando historial:', err);
+            mensaje.textContent = 'Error al cargar el historial de precios';
+            mensaje.style.display = 'block';
         });
 }
 
@@ -4091,6 +6502,343 @@ function aplicarAjustePrecios() {
 }
 
 /**
+ * Abre el modal para programar un ajuste de precios
+ */
+function abrirModalProgramarAjustePrecios() {
+    const ajusteId = document.getElementById('ajusteProgramadoPorcentaje').dataset.ajusteId;
+    const porcentajeInput = document.getElementById('porcentajeAjuste').value;
+
+    // Si no hay ajusteId, es un nuevo ajuste - tomar el valor del input principal
+    if (!ajusteId && porcentajeInput) {
+        document.getElementById('ajusteProgramadoPorcentaje').value = porcentajeInput;
+    }
+
+    // Calcular productos afectados
+    const totalProductos = productosPrevisualizacionPrecios ? productosPrevisualizacionPrecios.length : 0;
+    const productosAfectados = totalProductos - productosExcluidos.length;
+    document.getElementById('ajusteProgramadoProductosCount').textContent = productosAfectados;
+
+    // Solo establecer fecha mínima si es un nuevo ajuste (no edición)
+    if (!ajusteId) {
+        // Establecer fecha y hora mínima (ahora)
+        const ahora = new Date();
+        ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
+        document.getElementById('fechaProgramadaAjuste').min = ahora.toISOString().slice(0, 16);
+    }
+
+    // Abrir el modal
+    document.getElementById('modalProgramarAjustePrecios').style.display = 'flex';
+}
+
+/**
+ * Programa un ajuste de precios para una fecha futura
+ */
+function programarAjustePrecios() {
+    const porcentaje = parseFloat(document.getElementById('ajusteProgramadoPorcentaje').value);
+    const fechaHora = document.getElementById('fechaProgramadaAjuste').value;
+    const productosExcluir = productosExcluidos.join(',');
+    const ajusteId = document.getElementById('ajusteProgramadoPorcentaje').dataset.ajusteId;
+
+    if (isNaN(porcentaje)) {
+        alert('Por favor, introduce un porcentaje válido');
+        return;
+    }
+
+    if (!fechaHora) {
+        alert('Por favor, selecciona una fecha y hora');
+        return;
+    }
+
+    const fechaObj = new Date(fechaHora);
+    const ahora = new Date();
+
+    if (fechaObj <= ahora && !ajusteId) {
+        alert('La fecha programada debe ser posterior a la hora actual');
+        return;
+    }
+
+    // Si hay un ajusteId, es una edición; otherwise, es nuevo
+    if (ajusteId) {
+        // Actualizar ajuste existente
+        fetch('api/productos.php?accion=actualizar_ajuste_precios_programado&id=' + ajusteId, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'porcentaje=' + porcentaje + '&fecha_programada=' + encodeURIComponent(fechaHora) + '&productos_excluidos=' + productosExcluir
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                alert('Ajuste de precios actualizado correctamente');
+                cerrarModal('modalProgramarAjustePrecios');
+                delete document.getElementById('ajusteProgramadoPorcentaje').dataset.ajusteId;
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error al actualizar el ajuste');
+            });
+    } else {
+        // Crear nuevo ajuste
+        fetch('api/productos.php?accion=programar_ajuste_precios', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'porcentaje=' + porcentaje + '&fecha_programada=' + encodeURIComponent(fechaHora) + '&productos_excluidos=' + productosExcluir
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                alert('Ajuste de precios programado para el ' + data.fecha_formateada);
+                cerrarModal('modalProgramarAjustePrecios');
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error al programar el ajuste');
+            });
+    }
+}
+
+/**
+ * Abre el modal para ver los ajustes de precios programados
+ */
+function abrirModalVerAjustesProgramados() {
+    // Cargar los ajustes programados desde la API
+    fetch('api/productos.php?accion=obtener_ajustes_precios_programados')
+        .then(res => res.json())
+        .then(data => {
+            const contenedor = document.getElementById('listaAjustesProgramadosPrecios');
+
+            if (!data.ajustes || data.ajustes.length === 0) {
+                contenedor.innerHTML = '<p style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay ajustes de precios programados</p>';
+            } else {
+                let html = `
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead style="background: var(--bg-secondary); position: sticky; top: 0;">
+                            <tr>
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-main);">Fecha Programada</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Porcentaje</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Estado</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Afectados</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Excluidos</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+                data.ajustes.forEach(ajuste => {
+                    const fecha = new Date(ajuste.fecha_programada);
+                    const fechaFormateada = fecha.toLocaleString('es-ES', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    });
+
+                    const estadoClass = ajuste.estado === 'aplicado' ? 'style="color: green;"' :
+                        ajuste.estado === 'pendiente' ? 'style="color: orange;"' : 'style="color: red;"';
+
+                    const signoPorcentaje = ajuste.porcentaje > 0 ? '+' : '';
+
+                    const excluidos = ajuste.productos_excluidos ?
+                        ajuste.productos_excluidos.split(',').length + ' productos' : 'Ninguno';
+
+                    const afectados = ajuste.productos_afectados !== undefined ? ajuste.productos_afectados + ' productos' : '-';
+
+                    const acciones = ajuste.estado === 'pendiente' ? `
+                        <button class="btn-admin-accion" onclick="verDetallesAjustePrecios(${ajuste.id})" title="Ver Detalles">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-admin-accion" onclick="editarAjusteProgramadoPrecios(${ajuste.id})" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-admin-accion btn-eliminar" onclick="eliminarAjusteProgramadoPrecios(${ajuste.id})" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>` : `
+                        <button class="btn-admin-accion" onclick="verDetallesAjustePrecios(${ajuste.id})" title="Ver Detalles">
+                            <i class="fas fa-eye"></i>
+                        </button>`;
+
+                    html += `
+                        <tr style="border-bottom: 1px solid var(--border-main);">
+                            <td style="padding: 10px;">${fechaFormateada}</td>
+                            <td style="padding: 10px; text-align: center; font-weight: 600;">${signoPorcentaje}${ajuste.porcentaje}%</td>
+                            <td style="padding: 10px; text-align: center;" ${estadoClass}>${ajuste.estado.toUpperCase()}</td>
+                            <td style="padding: 10px; text-align: center;">${afectados}</td>
+                            <td style="padding: 10px; text-align: center;">${excluidos}</td>
+                            <td style="padding: 10px; text-align: center;">${acciones}</td>
+                        </tr>`;
+                });
+
+                html += '</tbody></table>';
+                contenedor.innerHTML = html;
+            }
+
+            // Abrir el modal
+            document.getElementById('modalVerAjustesProgramadosPrecios').style.display = 'flex';
+        })
+        .catch(err => {
+            console.error('Error cargando ajustes programados:', err);
+            alert('Error al cargar los ajustes programados');
+        });
+}
+
+/**
+ * Elimina un ajuste de precios programado
+ */
+function eliminarAjusteProgramadoPrecios(id) {
+    if (!confirm('¿Estás seguro de que deseas eliminar este ajuste programado?')) {
+        return;
+    }
+
+    fetch('api/productos.php?accion=eliminar_ajuste_precios_programado&id=' + id, {
+        method: 'DELETE'
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                alert('Ajuste programado eliminado correctamente');
+                abrirModalVerAjustesProgramados(); // Recargar la lista
+            } else {
+                alert('Error al eliminar: ' + data.error);
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al eliminar el ajuste programado');
+        });
+}
+
+/**
+ * Ver los detalles de un ajuste de precios programado
+ */
+function verDetallesAjustePrecios(id) {
+    fetch('api/productos.php?accion=obtener_ajuste_precios_programado&id=' + id)
+        .then(res => res.json())
+        .then(data => {
+            if (data.ajuste) {
+                const ajuste = data.ajuste;
+
+                // Determinar tipo de ajuste
+                const tipoTexto = ajuste.porcentaje > 0 ? 'Aumento' : 'Reducción';
+
+                // Mostrar info del ajuste
+                const fechaProgramada = ajuste.fecha_programada ? new Date(ajuste.fecha_programada).toLocaleString('es-ES') : 'No definida';
+                const fechaCreacion = ajuste.created_at ? new Date(ajuste.created_at).toLocaleString('es-ES') : 'No definida';
+                const infoHTML = `
+                    <div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <p><strong>Fecha programada:</strong> ${fechaProgramada}</p>
+                        <p><strong>Tipo:</strong> ${tipoTexto}</p>
+                        <p><strong>Porcentaje:</strong> ${Math.abs(ajuste.porcentaje)}%</p>
+                        <p><strong>Estado:</strong> ${ajuste.estado === 'aplicado' ? '<span style="color: green;">Aplicado</span>' : '<span style="color: orange;">Pendiente</span>'}</p>
+                        <p><strong>Creado:</strong> ${fechaCreacion}</p>
+                    </div>
+                `;
+                document.getElementById('detallesAjustePreciosInfo').innerHTML = infoHTML;
+
+                // Cargar productos afectados
+                fetch('api/productos.php?accion=obtener_productos_ajuste_precios&id=' + id)
+                    .then(res => res.json())
+                    .then(dataProductos => {
+                        console.log('Precios response:', dataProductos);
+                        let tablaHTML = '';
+                        if (dataProductos.ok && dataProductos.productos && dataProductos.productos.length > 0) {
+                            tablaHTML = `
+                                <table class="tabla-admin" style="width: 100%; font-size: 13px;">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Nombre</th>
+                                            <th>Precio Anterior</th>
+                                            <th>Nuevo Precio</th>
+                                            <th>Cambio</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${dataProductos.productos.map(p => {
+                                const cambio = p.precio_nuevo - p.precio_anterior;
+                                const cambioTexto = cambio >= 0 ? `+${cambio.toFixed(2)}€` : `${cambio.toFixed(2)}€`;
+                                return `
+                                                <tr>
+                                                    <td>${p.id}</td>
+                                                    <td>${p.nombre}</td>
+                                                    <td>${parseFloat(p.precio_anterior).toFixed(2)}€</td>
+                                                    <td>${parseFloat(p.precio_nuevo).toFixed(2)}€</td>
+                                                    <td>${cambioTexto}</td>
+                                                </tr>
+                                            `;
+                            }).join('')}
+                                    </tbody>
+                                </table>
+                            `;
+                        } else {
+                            tablaHTML = '<p style="padding: 20px; text-align: center;">' +
+                                (dataProductos.error ? 'Error: ' + dataProductos.error : 'No hay productos afectados') +
+                                '</p>';
+                        }
+                        document.getElementById('detallesAjustePreciosTabla').innerHTML = tablaHTML;
+                    });
+
+                abrirModal('modalVerDetallesAjustePrecios');
+            } else {
+                alert('Error al cargar los detalles del ajuste');
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al cargar los detalles del ajuste');
+        });
+}
+
+/**
+ * Edita un ajuste de precios programado
+ */
+function editarAjusteProgramadoPrecios(id) {
+    // Cerrar el modal de ver ajustes
+    cerrarModal('modalVerAjustesProgramadosPrecios');
+
+    // Cargar los datos del ajuste
+    fetch('api/productos.php?accion=obtener_ajuste_precios_programado&id=' + id)
+        .then(res => res.json())
+        .then(data => {
+            if (data.ajuste) {
+                const ajuste = data.ajuste;
+
+                // Establecer el porcentaje
+                document.getElementById('porcentajeAjuste').value = ajuste.porcentaje;
+
+                // Establecer la fecha
+                const fecha = new Date(ajuste.fecha_programada);
+                fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
+                document.getElementById('fechaProgramadaAjuste').value = fecha.toISOString().slice(0, 16);
+
+                // Cargar productos excluidos si hay
+                if (ajuste.productos_excluidos) {
+                    productosExcluidos = ajuste.productos_excluidos.split(',').map(Number);
+                } else {
+                    productosExcluidos = [];
+                }
+
+                // Guardar el ID del ajuste para actualizarlo
+                document.getElementById('ajusteProgramadoPorcentaje').dataset.ajusteId = id;
+
+                // Actualizar el contador de productos
+                const totalProductos = productosPrevisualizacionPrecios ? productosPrevisualizacionPrecios.length : 0;
+                const productosAfectados = totalProductos - productosExcluidos.length;
+                document.getElementById('ajusteProgramadoProductosCount').textContent = productosAfectados;
+
+                // Abrir el modal de programación
+                abrirModalProgramarAjustePrecios();
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al cargar los datos del ajuste');
+        });
+}
+
+/**
  * Confirma la eliminación de la asociación proveedor-producto
  */
 function confirmarEliminarProductoProveedor(idAsociacion, nombreProducto) {
@@ -4107,11 +6855,3 @@ function confirmarEliminarProductoProveedor(idAsociacion, nombreProducto) {
             .catch(err => console.error('Error eliminando asociación:', err));
     }
 }
-
-
-
-
-
-
-
-

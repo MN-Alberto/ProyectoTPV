@@ -21,6 +21,22 @@ if (!isset($_SESSION['rolUsuario']) || $_SESSION['rolUsuario'] !== 'admin') {
 
 // Si el usuario solicita cerrar sesión
 if (isset($_REQUEST['cerrarSesion'])) {
+    // Registrar logout antes de destruir sesión
+    try {
+        require_once(__DIR__ . '/../config/confDB.php');
+        $pdo = new PDO(RUTA, USUARIO, PASS);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $stmt = $pdo->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion) VALUES ('logout', :usuario_id, :usuario_nombre, :descripcion)");
+        $stmt->execute([
+            ':usuario_id' => $_SESSION['idUsuario'] ?? null,
+            ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
+            ':descripcion' => 'Usuario cerró sesión'
+        ]);
+    } catch (Exception $e) {
+        // Silenciar errores de logging
+    }
+
     // Limpiar todas las variables de sesión
     $_SESSION = array();
     // Destruimos la sesión

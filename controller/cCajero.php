@@ -3,7 +3,7 @@
  * Controlador del cajero. Gestiona la vista del TPV para empleados.
  * 
  * @author Alberto Méndez
- * @version 1.6 (02/03/2026)
+ * @version 1.7 (09/03/2026)
  */
 
 // Requerimos los modelos necesarios
@@ -12,6 +12,7 @@ require_once(__DIR__ . '/../model/Categoria.php');
 require_once(__DIR__ . '/../model/Venta.php');
 require_once(__DIR__ . '/../model/LineaVenta.php');
 require_once(__DIR__ . '/../model/Caja.php');
+require_once(__DIR__ . '/../core/conexionDB.php');
 
 // Verificamos que el usuario está guardado en la sesión, si no lo está redirigimos al login
 if (!isset($_SESSION['idUsuario'])) {
@@ -22,6 +23,22 @@ if (!isset($_SESSION['idUsuario'])) {
 
 // Si el usuario solicita cerrar sesión destruimos la sesión completamente
 if (isset($_REQUEST['cerrarSesion'])) {
+    // Registrar logout antes de destruir sesión
+    try {
+        require_once(__DIR__ . '/../config/confDB.php');
+        $pdo = new PDO(RUTA, USUARIO, PASS);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $stmt = $pdo->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion) VALUES ('logout', :usuario_id, :usuario_nombre, :descripcion)");
+        $stmt->execute([
+            ':usuario_id' => $_SESSION['idUsuario'] ?? null,
+            ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
+            ':descripcion' => 'Usuario cerró sesión'
+        ]);
+    } catch (Exception $e) {
+        // Silenciar errores de logging
+    }
+
     // Destruir todas las variables de sesión
     $_SESSION = array();
     // Destruir la sesión
@@ -45,6 +62,16 @@ $cambioAnterior = $ultimaSesionCerrada ? $ultimaSesionCerrada->getCambio() : 0;
 $idCategoriaSeleccionada = null;
 $productos = Producto::obtenerTodos();
 
+// Cargar tarifas prefijadas para el selector de tickets
+try {
+    $conexion = ConexionDB::getInstancia()->getConexion();
+    $stmt = $conexion->query("SELECT * FROM tarifas_prefijadas WHERE activo = 1 ORDER BY orden");
+    $tarifas = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Si la tabla no existe, usar array vacío
+    $tarifas = [];
+}
+
 // Procesar nueva venta
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
     // Si la solicitud es para registrar una nueva venta
@@ -67,13 +94,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $venta->setEstado('completada');
             // Indicamos el tipo de documento en base a lo que se haya seleccionado
             $venta->setTipoDocumento($_POST['tipoDocumento'] ?? 'ticket');
+            // Indicamos la tarifa aplicada
+            $venta->setIdTarifa($_POST['idTarifa'] ?? null);
 
             //Calculamos el total y validamos el stock.
             $total = 0;
             $stockValido = true;
             // Recorremos los productos del carrito para validar el stock y calcular el total con IVA
             foreach ($carrito as $item) {
-                // Buscamos el producto por id para asegurar datos frescos y obtener su IVA
+                // Buscamos el producto por id para asegurar datos frescos
                 $producto = Producto::buscarPorId($item['idProducto']);
 
                 // Si el producto no existe o no hay stock suficiente
@@ -82,13 +111,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                     break;
                 }
 
-                // Calcular el precio con IVA (PVP) para este producto
-                $ivaPorcentaje = (float) $producto->getIva();
-                $precioUnitarioBase = (float) $item['precio']; // Precio base guardado en el carrito
-                $precioUnitarioConIva = $precioUnitarioBase * (1 + ($ivaPorcentaje / 100));
+                // Usar el PVP unitario redondeado enviado desde el carrito (garantiza precisión financiera)
+                // Si por algún motivo no viniera, lo calculamos como fallback
+                $precioUnitarioConIva = isset($item['pvpUnitario']) ? (float)$item['pvpUnitario'] : (float)$item['precio'] * (1 + ($producto->getIvaPorcentaje() / 100));
 
-                // Sumamos al total acumulado
-                $total += $precioUnitarioConIva * $item['cantidad'];
+                // Sumamos al total acumulado redondeado a 2 decimales para evitar arrastre de coma flotante
+                $total += round($precioUnitarioConIva * $item['cantidad'], 2);
             }
 
             // Si el stock no es válido, guardamos un error en la sesión y recargamos la página
@@ -109,19 +137,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $descuentoTarifaValor = (float) ($_POST['descuentoTarifaValor'] ?? 0);
             $descuentoTarifaCupon = $_POST['descuentoTarifaCupon'] ?? '';
 
-            // Obtenemos los datos del descuento manual
+            // Obtenemos los datos del descuento manual (cupones globales)
             $descuentoManualTipo = $_POST['descuentoManualTipo'] ?? $descuentoTipo;
             $descuentoManualValor = (float) ($_POST['descuentoManualValor'] ?? $descuentoValor);
 
-            $importeDescuentoTarifa = 0;
             $importeDescuentoManual = 0;
-
-            // Calcular descuento de tarifa (Cliente registrado, Mayorista)
-            if ($descuentoTarifaCupon && $descuentoTarifaCupon !== '') {
-                if ($descuentoTarifaTipo === 'porcentaje') {
-                    $importeDescuentoTarifa = $total * ($descuentoTarifaValor / 100);
-                }
-            }
 
             // Calcular descuento manual (código promocional)
             if ($descuentoManualTipo === 'porcentaje') {
@@ -130,8 +150,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 $importeDescuentoManual = $descuentoManualValor;
             }
 
-            // Descuento total
-            $importeDescuento = $importeDescuentoTarifa + $importeDescuentoManual;
+            // Descuento total (Ya no hay importeDescuentoTarifa global porque es por producto)
+            $importeDescuento = $importeDescuentoManual;
 
             // Restamos el descuento al total
             $total = max(0, $total - $importeDescuento);
@@ -151,9 +171,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $venta->setDescuentoTipo($_POST['descuentoTipo'] ?? 'ninguno');
             $venta->setDescuentoValor((float) ($_POST['descuentoValor'] ?? 0));
             $venta->setDescuentoCupon($_POST['descuentoCupon'] ?? '');
-            $venta->setDescuentoTarifaTipo($_POST['descuentoTarifaTipo'] ?? 'ningeno');
-            $venta->setDescuentoTarifaValor((float) ($_POST['descuentoTarifaValor'] ?? 0));
-            $venta->setDescuentoTarifaCupon($_POST['descuentoTarifaCupon'] ?? '');
+            $venta->setDescuentoTarifaTipo('ninguno');
+            $venta->setDescuentoTarifaValor(0);
+            $venta->setDescuentoTarifaCupon('');
             $venta->setDescuentoManualTipo($_POST['descuentoManualTipo'] ?? 'ninguno');
             $venta->setDescuentoManualValor((float) ($_POST['descuentoManualValor'] ?? 0));
             $venta->setDescuentoManualCupon($_POST['descuentoManualCupon'] ?? '');
@@ -175,7 +195,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             }
 
             // Insertamos la venta
+            // Guardamos el DNI del cliente en la venta
+            $clienteNif = $_POST['clienteNif'] ?? '';
+            error_log("Cliente NIF recibido: '" . $clienteNif . "'");
+            $venta->setClienteDni($clienteNif);
             $venta->insertar();
+
+            // Registrar la venta en el log del sistema
+            try {
+                $conexion = ConexionDB::getInstancia()->getConexion();
+                $stmtLog = $conexion->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES ('venta', :usuario_id, :usuario_nombre, :descripcion, :detalles)");
+                $stmtLog->execute([
+                    ':usuario_id' => $_SESSION['idUsuario'],
+                    ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
+                    ':descripcion' => 'Venta registrada por ' . ($_SESSION['nombreUsuario'] ?? 'Desconocido'),
+                    ':detalles' => json_encode([
+                        'id_venta' => $venta->getId(),
+                        'total' => $total,
+                        'metodo_pago' => $venta->getMetodoPago(),
+                        'cliente' => $clienteNif ?: 'Sin cliente',
+                        'productos' => count($carrito)
+                    ])
+                ]);
+            } catch (Exception $e) {
+                error_log("Error al registrar log de venta: " . $e->getMessage());
+            }
+
+            // Actualizar estadísticas del cliente si se especificó un DNI
+            $clienteNif = $_POST['clienteNif'] ?? '';
+            if (!empty($clienteNif)) {
+                try {
+                    $conexion = ConexionDB::getInstancia()->getConexion();
+                    // Calcular total de productos en el carrito
+                    $totalProductos = 0;
+                    foreach ($carrito as $item) {
+                        $totalProductos += $item['cantidad'];
+                    }
+                    // Actualizar productos comprados y ventas realizadas del cliente
+                    $stmtCliente = $conexion->prepare(
+                        "UPDATE clientes SET 
+                            productos_comprados = productos_comprados + ?, 
+                            compras_realizadas = compras_realizadas + 1 
+                        WHERE dni = ? AND activo = 1"
+                    );
+                    $stmtCliente->execute([$totalProductos, $clienteNif]);
+                } catch (Exception $e) {
+                    // Si falla la actualización del cliente, no detenemos la venta
+                    error_log("Error al actualizar estadísticas del cliente: " . $e->getMessage());
+                }
+            }
 
             // Insertamos las líneas de venta y actualizamos el stock
             $lineasVenta = [];
@@ -191,10 +259,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 $linea->setIdProducto($item['idProducto']);
                 // Indicamos la cantidad
                 $linea->setCantidad($item['cantidad']);
-                // Indicamos el precio unitario
-                $linea->setPrecioUnitario($item['precio']);
+                // Indicamos el precio unitario (Base sin IVA)
+                // Lo calculamos a partir del PVP unitario redondeado para mantener consistencia perfecta
+                $pvpUnitarioItem = isset($item['pvpUnitario']) ? (float)$item['pvpUnitario'] : null;
+                $ivaItem = $producto ? (float)$producto->getIvaPorcentaje() : 21;
+                
+                if ($pvpUnitarioItem !== null) {
+                    $precioBaseCalculado = $pvpUnitarioItem / (1 + ($ivaItem / 100));
+                } else {
+                    $precioBaseCalculado = isset($item['precio']) ? (float)$item['precio'] : 0;
+                }
+                
+                $linea->setPrecioUnitario($precioBaseCalculado);
+                
+                // Calculamos el precio original base (sin IVA) para guardarlo
+                $pvpOriginalUnitario = isset($item['pvpOriginalUnitario']) ? (float)$item['pvpOriginalUnitario'] : $pvpUnitarioItem;
+                $precioOriginalBase = $pvpOriginalUnitario / (1 + ($ivaItem / 100));
+                $linea->setPrecioOriginal($precioOriginalBase);
+                
+                // Guardamos el nombre de la tarifa aplicada
+                $linea->setTarifaNombre($item['tarifaNombre'] ?? null);
+                
                 // Indicamos el IVA aplicado
-                $linea->setIva($producto ? $producto->getIva() : 21);
+                $linea->setIva($producto ? $producto->getIvaPorcentaje() : 21);
                 // Insertamos la línea de venta
                 $linea->insertar();
 
@@ -204,12 +291,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                     $producto->actualizarStock(-$item['cantidad']);
                 }
 
-                // Guardamos la línea de venta (ahora incluye IVA)
+                // Guardamos la línea de venta (incluyendo pvpUnitario y pvpOriginal para impresión exacta)
                 $lineasVenta[] = [
                     'nombre' => $item['nombre'],
                     'cantidad' => $item['cantidad'],
-                    'precio' => $item['precio'],
-                    'iva' => $producto ? $producto->getIva() : 21
+                    'precio' => $precioBaseCalculado,
+                    'pvpUnitario' => $pvpUnitarioItem,
+                    'pvpOriginalUnitario' => isset($item['pvpOriginalUnitario']) ? (float)$item['pvpOriginalUnitario'] : $pvpUnitarioItem,
+                    'tarifaNombre' => $item['tarifaNombre'] ?? 'Tarifa',
+                    'iva' => $ivaItem
                 ];
             }
 
@@ -230,9 +320,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $_SESSION['ultimaVentaDescuentoCupon'] = $_POST['descuentoCupon'] ?? '';
 
             // Guardamos los datos del descuento de tarifa (cliente registrado, mayorista)
-            $_SESSION['ultimaVentaDescuentoTarifaTipo'] = $_POST['descuentoTarifaTipo'] ?? 'ninguno';
-            $_SESSION['ultimaVentaDescuentoTarifaValor'] = $_POST['descuentoTarifaValor'] ?? 0;
-            $_SESSION['ultimaVentaDescuentoTarifaCupon'] = $_POST['descuentoTarifaCupon'] ?? '';
+            $_SESSION['ultimaVentaDescuentoTarifaTipo'] = 'ninguno';
+            $_SESSION['ultimaVentaDescuentoTarifaValor'] = 0;
+            $_SESSION['ultimaVentaDescuentoTarifaCupon'] = '';
 
             // Guardamos los datos del descuento manual (código promocional)
             $_SESSION['ultimaVentaDescuentoManualTipo'] = $_POST['descuentoManualTipo'] ?? 'ninguno';
@@ -292,9 +382,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
         Venta::cerrarCaja();
         // Obtenemos el cambio a guardar para el siguiente turno
         $cambio = isset($_POST['cambio']) ? (float) $_POST['cambio'] : null;
+
+        // Obtener datos del arqueo si se proporcionaron
+        $efectivoContado = isset($_POST['arqueoTotalContado']) ? (float) $_POST['arqueoTotalContado'] : 0;
+        $detalleConteo = isset($_POST['arqueoDetalleConteo']) ? $_POST['arqueoDetalleConteo'] : null;
+        $observaciones = isset($_POST['arqueoObservaciones']) ? $_POST['arqueoObservaciones'] : null;
+
         // Cerramos la sesión de caja formal
         if ($sesionCaja) {
+            // Registrar arqueo antes de cerrar si se proporcionó
+            if ($efectivoContado > 0) {
+                try {
+                    $sesionCaja->registrarArqueo(
+                        $_SESSION['idUsuario'],
+                        $efectivoContado,
+                        $detalleConteo,
+                        $observaciones,
+                        'cierre'
+                    );
+                } catch (Exception $e) {
+                    error_log("Error al registrar arqueo: " . $e->getMessage());
+                }
+            }
+
             $sesionCaja->cerrar($cambio);
+
+            // Registrar cierre de caja en el log del sistema
+            try {
+                $conexion = ConexionDB::getInstancia()->getConexion();
+                $stmtLog = $conexion->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES ('cierre_caja', :usuario_id, :usuario_nombre, :descripcion, :detalles)");
+                $stmtLog->execute([
+                    ':usuario_id' => $_SESSION['idUsuario'],
+                    ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
+                    ':descripcion' => 'Cierre de caja por ' . ($_SESSION['nombreUsuario'] ?? 'Desconocido'),
+                    ':detalles' => json_encode([
+                        'importe_final' => $sesionCaja->getImporteActual(),
+                        'cambio' => $cambio,
+                        'arqueo_efectivo_contado' => $efectivoContado
+                    ])
+                ]);
+            } catch (Exception $e) {
+                error_log("Error al registrar log de cierre de caja: " . $e->getMessage());
+            }
         }
 
         // Guardamos en la sesión que se ha confirmado el cierre de caja y recargamos la página
@@ -311,6 +440,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
         $cambioRecovery = isset($_POST['cambioRecovery']) ? (float) $_POST['cambioRecovery'] : 0;
         // Abrimos la caja indicando el id del usuario que la abrió, el importe inicial y el cambio recovery
         Caja::abrir($_SESSION['idUsuario'], $importeInicial, $cambioRecovery);
+
+        // Registrar apertura de caja en el log del sistema
+        try {
+            $conexion = ConexionDB::getInstancia()->getConexion();
+            $stmtLog = $conexion->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES ('apertura_caja', :usuario_id, :usuario_nombre, :descripcion, :detalles)");
+            $stmtLog->execute([
+                ':usuario_id' => $_SESSION['idUsuario'],
+                ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
+                ':descripcion' => 'Apertura de caja por ' . ($_SESSION['nombreUsuario'] ?? 'Desconocido'),
+                ':detalles' => json_encode([
+                    'importe_inicial' => $importeInicial,
+                    'cambio_recovery' => $cambioRecovery
+                ])
+            ]);
+        } catch (Exception $e) {
+            error_log("Error al registrar log de apertura de caja: " . $e->getMessage());
+        }
+
         // Recargamos la página
         header('Location: index.php');
         exit();
@@ -372,7 +519,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 $devolucion->setIdUsuario($_SESSION['idUsuario']);
                 $devolucion->setIdProducto($idProducto);
                 $devolucion->setCantidad($cantidadSolicitada);
-                $devolucion->setImporteTotal((float) $item['importe']);
+                // Redondear importe a 2 decimales
+                $devolucion->setImporteTotal(round((float) $item['importe'], 2));
                 $devolucion->setIdVenta($idVenta);
                 $devolucion->setIdSesionCaja($sesionCaja ? $sesionCaja->getId() : null);
                 $devolucion->setMetodoPago($metodoPago);
@@ -393,7 +541,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 if ($sesionCaja) {
                     $sesionCaja->actualizarEfectivo(-$totalReembolso);
                 }
+
+                // Registrar log de devolución
+                try {
+                    $pdoLog = ConexionDB::getInstancia()->getConexion();
+                    $cantidadTotalDevuelta = 0;
+                    if (!empty($productos)) {
+                        foreach ($productos as $p) {
+                            $cantidadTotalDevuelta += (int) ($p['cantidad'] ?? 0);
+                        }
+                    }
+                    // Redondear el total a 2 decimales
+                    $totalReembolsoRedondeado = round($totalReembolso, 2);
+                    $detallesDevolucion = array(
+                        'ticket' => $idVenta,
+                        'productos_devueltos' => $cantidadTotalDevuelta,
+                        'total_devolucion' => $totalReembolsoRedondeado
+                    );
+                    $stmtLog = $pdoLog->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES (:tipo, :usuario_id, :usuario_nombre, :descripcion, :detalles)");
+                    $stmtLog->execute([
+                        ':tipo' => 'devolucion',
+                        ':usuario_id' => $_SESSION['idUsuario'] ?? null,
+                        ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
+                        ':descripcion' => 'Devolución de ticket #' . $idVenta,
+                        ':detalles' => json_encode($detallesDevolucion, JSON_UNESCAPED_UNICODE)
+                    ]);
+                } catch (Exception $e) {
+                    // Silenciar errores de logging
+                    error_log('Error al registrar log de devolución: ' . $e->getMessage());
+                }
+
                 $_SESSION['devolucionExito'] = true;
+                // Guardar detalles para mostrar en el modal - usar el total reales procesado
+                $_SESSION['devolucionDetalles'] = array(
+                    'ticket' => $idVenta,
+                    'productos' => $cantidadTotalDevuelta,
+                    'total' => $totalReembolsoRedondeado
+                );
             } else {
                 $_SESSION['ventaError'] = "Error al procesar algunas líneas de la devolución.";
             }
@@ -420,6 +604,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 $sesionCaja->actualizarEfectivo(-$importe);
                 // Registramos el retiro en la base de datos
                 $sesionCaja->registrarRetiro($importe, $_SESSION['idUsuario'], $motivo);
+
+                // Registrar retiro de caja en el log del sistema
+                try {
+                    $conexion = ConexionDB::getInstancia()->getConexion();
+                    $stmtLog = $conexion->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES ('retiro_caja', :usuario_id, :usuario_nombre, :descripcion, :detalles)");
+                    $stmtLog->execute([
+                        ':usuario_id' => $_SESSION['idUsuario'],
+                        ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
+                        ':descripcion' => 'Retiro de caja por ' . ($_SESSION['nombreUsuario'] ?? 'Desconocido'),
+                        ':detalles' => json_encode([
+                            'importe' => $importe,
+                            'motivo' => $motivo
+                        ])
+                    ]);
+                } catch (Exception $e) {
+                    error_log("Error al registrar log de retiro de caja: " . $e->getMessage());
+                }
+
                 // Guardamos en la sesión que se ha realizado un retiro
                 $_SESSION['retiroExito'] = true;
             }

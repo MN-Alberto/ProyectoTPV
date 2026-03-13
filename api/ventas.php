@@ -13,6 +13,75 @@ require_once(__DIR__ . '/../model/Venta.php');
 // Establecemos el tipo de contenido de la respuesta, en este caso JSON
 header('Content-Type: application/json; charset=utf-8');
 
+// Endpoint para obtener estadísticas de productos
+if (isset($_GET['accion']) && $_GET['accion'] === 'estadisticas_productos') {
+    try {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+
+        $estadisticas = [];
+
+        // 1. Producto más vendido en toda la historia
+        $stmt = $conexion->query("
+            SELECT p.nombre, SUM(lv.cantidad) as cantidad 
+            FROM lineasVenta lv 
+            JOIN productos p ON lv.idProducto = p.id 
+            GROUP BY p.id 
+            ORDER BY cantidad DESC 
+            LIMIT 1
+        ");
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $estadisticas['mas_vendido_historia'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
+
+        // 2. Producto más vendido del mes actual
+        $stmt = $conexion->query("
+            SELECT p.nombre, SUM(lv.cantidad) as cantidad 
+            FROM lineasVenta lv 
+            JOIN productos p ON lv.idProducto = p.id 
+            JOIN ventas v ON lv.idVenta = v.id 
+            WHERE MONTH(v.fecha) = MONTH(CURRENT_DATE()) AND YEAR(v.fecha) = YEAR(CURRENT_DATE())
+            GROUP BY p.id 
+            ORDER BY cantidad DESC 
+            LIMIT 1
+        ");
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $estadisticas['mas_vendido_mes'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
+
+        // 3. Producto más vendido de la semana actual (desde el lunes)
+        $stmt = $conexion->query("
+            SELECT p.nombre, SUM(lv.cantidad) as cantidad 
+            FROM lineasVenta lv 
+            JOIN productos p ON lv.idProducto = p.id 
+            JOIN ventas v ON lv.idVenta = v.id 
+            WHERE YEARWEEK(v.fecha, 1) = YEARWEEK(CURRENT_DATE(), 1)
+            GROUP BY p.id 
+            ORDER BY cantidad DESC 
+            LIMIT 1
+        ");
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $estadisticas['mas_vendido_semana'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
+
+        // 4. Producto menos vendido del mes actual
+        $stmt = $conexion->query("
+            SELECT p.nombre, COALESCE(SUM(lv.cantidad), 0) as cantidad 
+            FROM productos p 
+            LEFT JOIN lineasVenta lv ON lv.idProducto = p.id 
+            LEFT JOIN ventas v ON lv.idVenta = v.id AND MONTH(v.fecha) = MONTH(CURRENT_DATE()) AND YEAR(v.fecha) = YEAR(CURRENT_DATE())
+            WHERE p.activo = 1
+            GROUP BY p.id 
+            ORDER BY cantidad ASC 
+            LIMIT 1
+        ");
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $estadisticas['menos_vendido_mes'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
+
+        echo json_encode(['success' => true, 'estadisticas' => $estadisticas]);
+        exit();
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        exit();
+    }
+}
+
 // Si se solicita el historial de ventas de la sesión de caja actual
 if (isset($_GET['historialCaja'])) {
     try {
@@ -75,15 +144,16 @@ if (isset($_GET['detalleVenta'])) {
 
         // Obtener las líneas de venta
         $stmtLineas = $conexion->prepare("
-            SELECT lv.*, p.nombre as producto_nombre, p.iva as iva_producto
+            SELECT lv.*, p.nombre as producto_nombre, i.porcentaje as iva_producto
             FROM lineasVenta lv
             LEFT JOIN productos p ON lv.idProducto = p.id
+            LEFT JOIN iva i ON p.idIva = i.id
             WHERE lv.idVenta = ?
         ");
         $stmtLineas->execute([$idVenta]);
         $lineas = $stmtLineas->fetchAll(PDO::FETCH_ASSOC);
 
-        // Añadir campo iva a cada línea (priorizar lv.iva si existe, si no usar p.iva)
+        // Añadir campo iva a cada línea (priorizar lv.iva si existe, si no usar iva del producto)
         foreach ($lineas as &$linea) {
             if (!isset($linea['iva']) || $linea['iva'] === null) {
                 $linea['iva'] = $linea['iva_producto'] ?? 21;
@@ -91,7 +161,7 @@ if (isset($_GET['detalleVenta'])) {
         }
 
         // Obtener datos de descuento de la venta (si existen)
-        $stmtDescuento = $conexion->prepare("SHOW COLUMNS FROM ventas LIKE 'descuento%'");
+        $stmtDescuento = $conexion->prepare("SHOW COLUMNS FROM tickets LIKE 'descuento%'");
         $stmtDescuento->execute();
         $camposDescuento = $stmtDescuento->fetchAll(PDO::FETCH_COLUMN);
 
@@ -168,9 +238,16 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
             $stmtLineas = $conexion->prepare("DELETE FROM lineasVenta");
             $stmtLineas->execute();
 
-            // Luego eliminar las ventas
-            $stmtVentas = $conexion->prepare("DELETE FROM ventas");
-            $stmtVentas->execute();
+            // Luego eliminar las ventas de ambas tablas
+            $stmtTickets = $conexion->prepare("DELETE FROM tickets");
+            $stmtTickets->execute();
+
+            $stmtFacturas = $conexion->prepare("DELETE FROM facturas");
+            $stmtFacturas->execute();
+
+            // También limpiar la tabla maestra de IDs
+            $stmtIds = $conexion->prepare("DELETE FROM ventas_ids");
+            $stmtIds->execute();
 
             // Confirmar transacción
             $conexion->commit();
@@ -227,9 +304,11 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
         // Construir consulta
         $sql = "
             SELECT v.id, v.fecha, v.total, v.metodoPago as forma_pago, v.tipoDocumento, u.nombre as usuario_nombre,
+            t.nombre as tarifa_nombre,
             (SELECT SUM(lv.cantidad) FROM lineasVenta lv WHERE lv.idVenta = v.id) as cantidad_productos
             FROM ventas v
             LEFT JOIN usuarios u ON v.idUsuario = u.id
+            LEFT JOIN tarifas_prefijadas t ON v.idTarifa = t.id
         ";
         if (!empty($condiciones)) {
             $sql .= " WHERE " . implode(" AND ", $condiciones);

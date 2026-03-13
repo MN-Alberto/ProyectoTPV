@@ -12,8 +12,28 @@ session_start();
 require_once(__DIR__ . '/../config/confDB.php');
 require_once(__DIR__ . '/../model/Usuario.php');
 
+// Obtener conexión a la base de datos
+$pdo = ConexionDB::getInstancia()->getConexion();
+
 // Indicamos al navegador que es un tipo JSON
 header('Content-Type: application/json; charset=utf-8');
+
+// Función para registrar logs de usuarios
+function registrarLogUsuario($pdo, $tipo, $usuario_id, $usuario_nombre, $descripcion, $detalles = null)
+{
+    try {
+        $stmt = $pdo->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES (:tipo, :usuario_id, :usuario_nombre, :descripcion, :detalles)");
+        $stmt->execute([
+            ':tipo' => $tipo,
+            ':usuario_id' => $usuario_id,
+            ':usuario_nombre' => $usuario_nombre,
+            ':descripcion' => $descripcion,
+            ':detalles' => $detalles ? (is_array($detalles) ? json_encode($detalles, JSON_UNESCAPED_UNICODE) : $detalles) : null
+        ]);
+    } catch (Exception $e) {
+        // Silenciar errores de logging
+    }
+}
 
 // NOTA: La seguridad ya está garantizada por el controlador cAdmin.php
 // que verifica que el usuario es administrador antes de mostrar la vista.
@@ -28,6 +48,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
     if ($id > 0) {
         $usuario = Usuario::buscarPorId($id);
         if ($usuario && $usuario->eliminar()) {
+            // Registrar log de eliminación de usuario
+            $adminId = $_SESSION['id'] ?? null;
+            $adminNombre = $_SESSION['nombre'] ?? 'Admin';
+            $usuarioEliminado = $usuario->getNombre() . ' (' . $usuario->getEmail() . ')';
+            registrarLogUsuario($pdo, 'eliminacion_usuario', $adminId, $adminNombre, 'Usuario eliminado: ' . $usuarioEliminado . ' (ID: ' . $id . ')');
+
             http_response_code(200);
             echo json_encode(['ok' => true]);
         } else {
@@ -58,10 +84,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    // Validar formato de email
+    // Validar formato de email (formato: texto@texto.dominio)
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         http_response_code(400);
         echo json_encode(['ok' => false, 'error' => 'El formato del email no es válido.']);
+        exit();
+    }
+
+    // Validar formato específico de email (debe tener @ y al menos un punto en el dominio)
+    if (!preg_match('/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/', $email)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'El email debe tener formato: nombre@dominio.com']);
         exit();
     }
 
@@ -74,6 +107,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
 
+        // Guardar valores anteriores para comparar cambios
+        $valoresAnteriores = array(
+            'nombre' => $usuario->getNombre(),
+            'email' => $usuario->getEmail(),
+            'rol' => $usuario->getRol(),
+            'activo' => (bool) $usuario->getActivo(),
+            'permisos' => $usuario->getPermisos()
+        );
+
         $usuario->setNombre($nombre);
         $usuario->setEmail($email);
         $usuario->setRol($rol);
@@ -81,11 +123,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $usuario->setPermisos($permisos);
 
         // Solo actualizar contraseña si se proporciona una nueva
+        $passwordCambiada = false;
         if (!empty($password)) {
             $usuario->setPassword(password_hash($password, PASSWORD_DEFAULT));
+            $passwordCambiada = true;
         }
 
         if ($usuario->actualizar()) {
+            // Registrar log de modificación de usuario con detalles de cambios
+            $adminId = $_SESSION['id'] ?? null;
+            $adminNombre = $_SESSION['nombre'] ?? 'Admin';
+
+            // Comparar cambios
+            $cambios = array();
+            if ($valoresAnteriores['nombre'] !== $nombre) {
+                $cambios['nombre'] = array('antes' => $valoresAnteriores['nombre'], 'después' => $nombre);
+            }
+            if ($valoresAnteriores['email'] !== $email) {
+                $cambios['email'] = array('antes' => $valoresAnteriores['email'], 'después' => $email);
+            }
+            if ($valoresAnteriores['rol'] !== $rol) {
+                $cambios['rol'] = array('antes' => $valoresAnteriores['rol'], 'después' => $rol);
+            }
+            if ($valoresAnteriores['activo'] !== (bool) $activo) {
+                $cambios['activo'] = array('antes' => $valoresAnteriores['activo'] ? 'Sí' : 'No', 'después' => $activo ? 'Sí' : 'No');
+            }
+            if ($passwordCambiada) {
+                $cambios['password'] = array('antes' => '(oculta)', 'después' => '(nueva)');
+            }
+            if ($valoresAnteriores['permisos'] !== $permisos) {
+                $cambios['permisos'] = array('antes' => $valoresAnteriores['permisos'], 'después' => $permisos);
+            }
+
+            $detalles = count($cambios) > 0 ? $cambios : null;
+            registrarLogUsuario($pdo, 'modificacion_usuario', $adminId, $adminNombre, 'Usuario modificado: ' . $nombre . ' (ID: ' . $id . ')', $detalles);
+
             http_response_code(200);
             echo json_encode(['ok' => true]);
         } else {
@@ -117,6 +189,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $nuevoUsuario->setFechaAlta(date('Y-m-d H:i:s'));
 
         if ($nuevoUsuario->insertar()) {
+            // Registrar log de creación de usuario con detalles
+            $adminId = $_SESSION['id'] ?? null;
+            $adminNombre = $_SESSION['nombre'] ?? 'Admin';
+            $detallesUsuario = array(
+                'nombre' => $nombre,
+                'email' => $email,
+                'rol' => $rol,
+                'activo' => (bool) $activo,
+                'permisos' => $permisos
+            );
+            registrarLogUsuario($pdo, 'creacion_usuario', $adminId, $adminNombre, 'Usuario creado: ' . $nombre . ' (' . $email . ')', $detallesUsuario);
+
             http_response_code(201);
             echo json_encode(['ok' => true]);
         } else {

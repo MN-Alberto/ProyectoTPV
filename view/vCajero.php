@@ -127,7 +127,8 @@
 
                 <!-- Botón NUEVO PRODUCTO: abre el modal para crear un nuevo producto (requiere permiso: crear_productos) -->
                 <button type="button" class="btn-nuevo-producto" id="btnNuevoProducto"
-                    onclick="abrirModalNuevoProducto()" style="display:none;">
+                    onclick="abrirModalNuevoProducto()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                    style="display:none; <?php echo !$sesionCaja ? 'opacity: 0.3; cursor: not-allowed;' : ''; ?>">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -138,7 +139,8 @@
 
                 <!-- Botón CLIENTE HABITUAL: abre el modal para gestionar clientes habituales -->
                 <button type="button" class="btn-nuevo-producto" id="btnClienteHabitual"
-                    onclick="abrirModalClienteHabitual()">
+                    onclick="abrirModalClienteHabitual()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                    style="<?php echo !$sesionCaja ? 'opacity: 0.3; cursor: not-allowed;' : ''; ?>">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
@@ -175,6 +177,27 @@
             <?php else: ?>
                 <!-- Bucle PHP: genera una tarjeta por cada producto -->
                 <?php foreach ($productos as $prod): ?>
+                    <?php
+                    // 1. Encontrar la tarifa 'Cliente' (por defecto)
+                    $tarifaClienteId = null;
+                    foreach ($tarifas as $t) {
+                        if ($t['nombre'] === 'Cliente') {
+                            $tarifaClienteId = $t['id'];
+                            break;
+                        }
+                    }
+
+                    // 2. Comprobar si hay precio para esa tarifa (ya sea manual o calculado)
+                    $preciosManuales = $prod->getPreciosTarifas();
+                    $precioBaseEfectivo = $prod->getPrecio();
+                    if ($tarifaClienteId && isset($preciosManuales[$tarifaClienteId])) {
+                        $precioBaseEfectivo = $preciosManuales[$tarifaClienteId]['precio'];
+                    }
+
+                    // 3. Calcular PVP inicial
+                    $precioPVP = $precioBaseEfectivo * (1 + ($prod->getIvaPorcentaje() / 100));
+                    $precioPVP_fmt = number_format($precioPVP, 2, '.', '');
+                    ?>
                     <!-- Tarjeta de producto con atributos data-* para el carrito JS -->
                     <!-- data-id: ID del producto -->
                     <!-- data-nombre: nombre del producto (escapado con htmlspecialchars) -->
@@ -183,7 +206,10 @@
                     <!-- Si el stock es 0, la tarjeta se muestra con opacidad reducida y sin interacción -->
                     <div class="producto-card" data-id="<?php echo $prod->getId(); ?>"
                         data-nombre="<?php echo htmlspecialchars($prod->getNombre()); ?>"
-                        data-precio="<?php echo $prod->getPrecio(); ?>" data-iva="<?php echo $prod->getIva(); ?>"
+                        data-precio="<?php echo $precioBaseEfectivo; ?>"
+                        data-precio-original="<?php echo $prod->getPrecio(); ?>" data-pvp="<?php echo $precioPVP_fmt; ?>"
+                        data-iva="<?php echo $prod->getIvaPorcentaje(); ?>"
+                        data-precios-tarifas='<?php echo htmlspecialchars(json_encode($prod->getPreciosTarifas()), ENT_QUOTES, 'UTF-8'); ?>'
                         data-stock="<?php echo $prod->getStock(); ?>" onclick="agregarAlCarrito(this)" style="<?php if ($prod->getStock() <= 0) {
                                echo 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);';
                            } ?>">
@@ -203,11 +229,22 @@
 
                         <!-- Precio y stock del producto -->
                         <!-- El stock se muestra en rojo y subrayado si es 0 o menor -->
-                        <div class="producto-info-inferior">
-                            <?php
-                            $precioPVP = $prod->getPrecio() * (1 + ($prod->getIva() / 100));
-                            ?>
+                        <div class="producto-info-inferior" style="display: flex; flex-direction: column; gap: 2px;">
                             <span class="producto-precio"><?php echo number_format($precioPVP, 2, ',', '.'); ?> €</span>
+
+                            <!-- Selector de tarifa -->
+                            <select class="tarifa-selector" onclick="event.stopPropagation()"
+                                onfocus="guardarTarifaAnterior(this)"
+                                onchange="actualizarPrecioCard(this, <?php echo $prod->getPrecio(); ?>, <?php echo $prod->getIvaPorcentaje(); ?>)">
+                                <?php foreach ($tarifas as $tarifa): ?>
+                                    <option value="<?php echo $tarifa['descuento_porcentaje']; ?>"
+                                        data-requiere-cliente="<?php echo $tarifa['requiere_cliente']; ?>"
+                                        data-tarifa-id="<?php echo $tarifa['id']; ?>" <?php echo ($tarifa['nombre'] === 'Cliente') ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($tarifa['nombre']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+
                             <span class="producto-stock" <?php if ($prod->getStock() <= 0) {
                                 echo 'style="color: red; text-decoration: underline;"';
                             } ?>>Stock: <?php echo $prod->getStock(); ?></span>
@@ -312,13 +349,17 @@
                     <option value="bizum">Bizum</option>
                 </select>
 
-                <!-- Selector de tarifa: Cliente, Cliente registrado, Mayorista nivel 1, Mayorista nivel 2 -->
-                <select id="tarifaVenta">
-                    <option value="cliente">Cliente</option>
-                    <option value="registrado">Cliente registrado</option>
-                    <option value="mayorista1">Mayorista nivel 1</option>
-                    <option value="mayorista2">Mayorista nivel 2</option>
-                </select>
+                <!-- Selector de tarifa: ahora gestionado por producto, mantenemos el ID occulto para compatibilidad JS -->
+                <?php
+                $idTarifaCliente = 1;
+                foreach ($tarifas as $t) {
+                    if ($t['nombre'] === 'Cliente') {
+                        $idTarifaCliente = $t['id'];
+                        break;
+                    }
+                }
+                ?>
+                <input type="hidden" id="tarifaVenta" value="<?php echo $idTarifaCliente; ?>">
 
                 <!-- Aviso legal: no se permite pago en efectivo superior a 1.000€ -->
                 <div id="avisoLimiteEfectivo"
@@ -346,6 +387,8 @@
         <input type="hidden" name="metodoPago" id="inputMetodoPago">
         <!-- Tipo de documento (ticket/factura) -->
         <input type="hidden" name="tipoDocumento" id="inputTipoDocumento">
+        <!-- Tarifa seleccionada -->
+        <input type="hidden" name="idTarifa" id="inputIdTarifa">
         <!-- Dinero entregado por el cliente (en pago efectivo) -->
         <input type="hidden" name="dineroEntregado" id="inputDineroEntregadoFinal">
         <!-- Cambio devuelto al cliente -->
@@ -636,7 +679,7 @@
 </div>
 
 <!-- ##=========================== MODAL: BUSCAR CLIENTE REGISTRADO ===========================## -->
-<!-- Modal para buscar un cliente registrado por DNI y aplicar descuento del 2% -->
+<!-- Modal para buscar un cliente registrado por DNI y aplicar descuento según tarifa -->
 <div class="modal-overlay" id="modalBuscarClienteRegistrado" style="display:none;">
     <div class="modal-content" style="max-width: 400px; text-align: left;">
         <h3 style="margin-bottom: 5px;">Cliente Registrado</h3>
@@ -655,7 +698,7 @@
         </div>
 
         <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalBuscarClienteRegistrado')" style="flex: 1;">
+            <button class="btn-modal-cancelar" onclick="cerrarModalBuscarClienteRegistrado()" style="flex: 1;">
                 Cancelar
             </button>
             <button class="btn-exito" onclick="buscarClienteRegistrado()" style="flex: 1;">
@@ -731,7 +774,7 @@
     <!-- Script: datos de la última venta pasados de PHP a JavaScript -->
     <!-- Se usa para las funciones de impresión y envío por correo -->
     <script>
-        const ultimaVenta = {
+        let ultimaVenta = {
             id: <?php echo $_SESSION['ultimaVentaId'] ?? 'null'; ?>,                                          // ID de        la venta
             total: '<?php echo number_format($_SESSION['ultimaVentaTotal'] ?? 0, 2, ',', '.'); ?>',       // Total formateado
             tipo: '<?php echo $_SESSION['ultimaVentaTipo'] ?? 'ticket'; ?>',                                     // 'ticket' o 'factura'
@@ -918,7 +961,7 @@
             <div id="devolucionPaso2" style="display: none;">
                 <div
                     style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding: 15px; background: var(--bg-accent-danger); border-radius: 12px; border: 1px solid var(--accent-danger); opacity: 0.9;">
-                    <div>
+                    <div style="flex: 1;">
                         <div style="font-weight: 700; color: var(--text-main); font-size: 1rem; margin-bottom: 5px;">
                             Información
                             del Ticket</div>
@@ -927,17 +970,23 @@
                             <span id="infoTicketFecha"></span>
                         </div>
                     </div>
-                    <div style="text-align: right;">
-                        <div
-                            style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">
-                            Total Original</div>
-                        <div id="infoTicketTotal"
-                            style="font-size: 1.2rem; font-weight: 800; color: var(--accent-danger);"></div>
+                    <div style="text-align: right; display: flex; gap: 20px; align-items: center;">
+                        <button type="button" onclick="seleccionarTodosProductos()"
+                            style="background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border-main); padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                            <i class="fas fa-check-double" style="margin-right: 6px;"></i> Seleccionar Todo
+                        </button>
+                        <div style="text-align: right;">
+                            <div
+                                style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">
+                                Total Original</div>
+                            <div id="infoTicketTotal"
+                                style="font-size: 1.2rem; font-weight: 800; color: var(--accent-danger);"></div>
+                        </div>
                     </div>
                 </div>
 
                 <div
-                    style="border: 1px solid var(--border-main); border-radius: 12px; overflow: hidden; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                    style="border: 1px solid var(--border-main); border-radius: 12px; overflow: hidden; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); max-height: 300px; overflow-y: auto;">
                     <table class="tabla-productos-devolucion" style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="background: var(--bg-panel); border-bottom: 2px solid var(--border-main);">
@@ -994,11 +1043,22 @@
         <div class="modal-footer-premium"
             style="flex-shrink: 0; background: var(--bg-panel); border-top: 1px solid var(--border-main); display: flex; justify-content: space-between; align-items: center; padding: 20px 30px;">
             <div id="resumenReembolso" style="display: none;">
-                <span
-                    style="display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Total
-                    a reembolsar</span>
-                <span id="totalReembolsoDisplay"
-                    style="font-size: 1.6rem; font-weight: 800; color: var(--accent-danger);">0,00 €</span>
+                <div style="display: flex; gap: 30px; align-items: flex-end;">
+                    <div>
+                        <span
+                            style="display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Total
+                            venta original</span>
+                        <span id="totalOriginalDisplay"
+                            style="font-size: 1.2rem; font-weight: 600; color: var(--text-main);">0,00 €</span>
+                    </div>
+                    <div>
+                        <span
+                            style="display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Total
+                            a reembolsar</span>
+                        <span id="totalReembolsoDisplay"
+                            style="font-size: 1.6rem; font-weight: 800; color: var(--accent-danger);">0,00 €</span>
+                    </div>
+                </div>
                 <div id="errorEfectivoInsuficiente"
                     style="display: none; color: var(--accent-danger); font-size: 0.8rem; font-weight: 600; margin-top: 5px; background: rgba(220, 38, 38, 0.1); padding: 5px 10px; border-radius: 6px;">
                     <i class="fas fa-exclamation-triangle"></i> No hay suficiente efectivo en caja (Disponible: <span
@@ -1021,25 +1081,52 @@
 <!-- ##=========================== MODAL: DEVOLUCIÓN ÉXITO ===========================## -->
 <!-- Se muestra automáticamente cuando $_SESSION['devolucionExito'] está definida -->
 <!-- Confirma que la devolución se ha procesado correctamente -->
-<?php if (isset($_SESSION['devolucionExito'])): ?>
-    <div class="modal-overlay" id="devolucionExito">
-        <div class="modal-content modal-exito modal-border-red" style="max-width: 400px;">
+<?php
+// Debug: mostrar si la sesión está definida
+// var_dump(isset($_SESSION['devolucionExito']));
+// var_dump($_SESSION['devolucionExito'] ?? 'no definido');
+// var_dump($_SESSION['devolucionDetalles'] ?? 'no definido');
+?>
+<?php if (isset($_SESSION['devolucionExito']) && $_SESSION['devolucionExito'] === true): ?>
+    <div class="modal-overlay" id="devolucionExito"
+        style="display: flex !important; z-index: 99999; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6);">
+        <div class="modal-content modal-exito modal-border-red"
+            style="max-width: 450px; background: #1f2937; border-radius: 12px; padding: 25px; margin: auto; color: #f3f4f6; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
             <!-- Icono de devolución en fondo rojo claro -->
-            <div class="icon-container-discount icon-bg-red">
-                <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none"
-                    stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M1 4v6h6"></path>
-                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-                </svg>
+            <div style="text-align: center; margin-bottom: 15px;">
+                <div
+                    style="background: #fee2e2; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
+                        stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 4v6h6"></path>
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                    </svg>
+                </div>
             </div>
-            <h3 class="total-devolucion-label" style="margin-top: 10px;">Devolución Realizada</h3>
-            <p class="modal-subtitulo-cliente">El importe ha sido restado de las ganancias del método
-                seleccionado correctamente.</p>
-            <button class="btn-cerrar-exito" style="background: #b91c1c; margin-top: 20px;"
-                onclick="document.getElementById('devolucionExito').remove()">Aceptar</button>
+            <h3 style="text-align: center; margin: 10px 0; font-size: 1.4rem; color: #f3f4f6;">Devolución Realizada</h3>
+            <p style="text-align: center; margin: 10px 0; color: #9ca3af;">La devolución se ha procesado correctamente.</p>
+            <?php if (isset($_SESSION['devolucionDetalles']) && is_array($_SESSION['devolucionDetalles'])): ?>
+                <div style="background: #374151; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: left;">
+                    <p style="margin: 5px 0; font-size: 0.9rem; color: #e5e7eb;"><strong>Ticket:</strong>
+                        #<?php echo htmlspecialchars($_SESSION['devolucionDetalles']['ticket'] ?? ''); ?></p>
+                    <p style="margin: 5px 0; font-size: 0.9rem; color: #e5e7eb;"><strong>Productos devueltos:</strong>
+                        <?php echo htmlspecialchars($_SESSION['devolucionDetalles']['productos'] ?? ''); ?></p>
+                    <p style="margin: 5px 0; font-size: 0.9rem; color: #e5e7eb;"><strong>Importe devuelto:</strong> <span
+                            style="color: #f87171; font-weight: bold;">-<?php echo number_format($_SESSION['devolucionDetalles']['total'] ?? 0, 2, ',', '.'); ?>
+                            €</span></p>
+                </div>
+                <?php unset($_SESSION['devolucionDetalles']); ?>
+            <?php endif; ?>
+            <div style="text-align: center; margin-top: 15px;">
+                <button onclick="document.getElementById('devolucionExito').remove()"
+                    style="background: #dc2626; color: white; padding: 10px 30px; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; width: 100%;">Aceptar</button>
+            </div>
         </div>
     </div>
-    <?php unset($_SESSION['devolucionExito']); ?>
+    <?php
+    // Limpiar la sesión después de mostrar
+    unset($_SESSION['devolucionExito']);
+?>
 <?php endif; ?>
 
 <!-- ##=========================== MODAL: RETIRAR DINERO ===========================## -->
@@ -1175,11 +1262,11 @@
 
 <!-- ##=========================== MODAL: PREVISUALIZACIÓN DE CIERRE DE CAJA ===========================## -->
 <!-- Se muestra cuando el cajero pulsa "Hacer Caja" y se genera la previsualización -->
-<!-- Muestra el resumen de ventas del día desglosado por método de pago -->
-<!-- Permite cancelar o confirmar el cierre definitivo de la caja -->
+<!-- ##=========================== MODAL: ARQUEO DE CAJA ===========================## -->
+<!-- Primer modal: conteo de dinero antes del cierre -->
 <?php if (isset($_SESSION['cajaPrevisualizacion']) && $_SESSION['cajaPrevisualizacion'] && isset($_SESSION['resumenCaja'])): ?>
-    <div class="modal-overlay" id="cajaPrevisualizacion">
-        <div class="modal-content modal-exito" style="max-width: 450px;">
+    <div class="modal-overlay" id="arqueoModal">
+        <div class="modal-content modal-exito" style="max-width: 500px;">
             <!-- Icono de caja/billete en azul -->
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2563eb"
                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 15px;">
@@ -1188,7 +1275,84 @@
                 <path d="M17 12h.01"></path>
                 <path d="M7 12h.01"></path>
             </svg>
-            <h3 style="color: #1a1a2e; font-size: 1.4rem; margin-bottom: 20px;">Cierre de Caja</h3>
+            <h3 style="color: var(--text-main); font-size: 1.4rem; margin-bottom: 10px;">Arqueo de Caja</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
+                Efectivo esperado: <strong
+                    style="color: var(--accent); font-size: 1.1rem;"><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?>
+                    €</strong>
+            </p>
+
+            <!-- Billetes -->
+            <div style="margin-bottom: 12px;">
+                <p style="margin: 0 0 6px 0; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">BILLETES</p>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+                    <?php foreach ([500, 200, 100, 50, 20, 10, 5] as $valor): ?>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span style="font-size: 0.75rem; width: 40px;"><?php echo $valor; ?>€</span>
+                            <input type="number" min="0" value="0" data-denominacion="<?php echo $valor; ?>"
+                                class="arqueo-billete"
+                                style="width: 50px; padding: 4px; text-align: center; border: 1px solid var(--border-main); border-radius: 4px; font-size: 0.8rem; background: var(--bg-input); color: var(--text-main);"
+                                onchange="calcularArqueo()" oninput="calcularArqueo()">
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <!-- Monedas -->
+            <div style="margin-bottom: 12px;">
+                <p style="margin: 0 0 6px 0; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">MONEDAS</p>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+                    <?php foreach ([2, 1, 0.50, 0.20, 0.10, 0.05, 0.02, 0.01] as $valor): ?>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span style="font-size: 0.75rem; width: 40px;"><?php echo str_replace('.', ',', $valor); ?>€</span>
+                            <input type="number" min="0" value="0" data-denominacion="<?php echo $valor; ?>"
+                                class="arqueo-moneda"
+                                style="width: 50px; padding: 4px; text-align: center; border: 1px solid var(--border-main); border-radius: 4px; font-size: 0.8rem; background: var(--bg-input); color: var(--text-main);"
+                                onchange="calcularArqueo()" oninput="calcularArqueo()">
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <!-- Resultado -->
+            <div
+                style="background: var(--bg-main); padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border-main);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: var(--text-muted);">Efectivo esperado:</span>
+                    <span id="arqueoEsperado"
+                        style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?>
+                        €</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: var(--text-muted);">Efectivo contado:</span>
+                    <span id="arqueoContado" style="font-weight: 600; color: var(--accent);">0,00 €</span>
+                </div>
+                <div
+                    style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px dashed var(--border-main);">
+                    <span style="font-weight: 600;">Diferencia:</span>
+                    <span id="arqueoDiferencia" style="font-weight: 700; color: var(--accent-success);">0,00 €</span>
+                </div>
+            </div>
+
+            <!-- Observaciones -->
+            <textarea id="arqueoObservaciones" placeholder="Observaciones (opcional)"
+                style="width: 100%; padding: 10px; border: 1px solid var(--border-main); border-radius: 6px; resize: none; font-size: 0.85rem; margin-bottom: 20px; background: var(--bg-input); color: var(--text-main);"
+                rows="2"></textarea>
+
+            <!-- Botones -->
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button class="btn-modal-cancelar"
+                    onclick="document.getElementById('arqueoModal').style.display='none';">Cancelar</button>
+                <button class="btn-cerrar-exito" style="margin-top: 0; background: var(--accent);"
+                    onclick="continuarArqueo()">Continuar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ##=========================== MODAL: RESUMEN DE CAJA ===========================## -->
+    <!-- Segundo modal: resumen de ventas -->
+    <div class="modal-overlay" id="cajaPrevisualizacion" style="display: none;">
+        <div class="modal-content modal-exito" style="max-width: 450px;">
 
             <!-- Contenedor imprimible del resumen de caja -->
             <div id="cajaResumenImprimible" class="resumen-caja-container">
@@ -1286,9 +1450,23 @@
                     </div>
                     <!-- Efectivo real que debería haber en la caja física -->
                     <div class="caja-efectivo-real">
-                        <span>EFECTIVO REAL EN CAJA:</span>
+                        <span>EFECTIVO ESPERADO:</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?> €</span>
                     </div>
+                    <!-- Arqueo: efectivo contado y diferencia -->
+                    <div id="arqueoResumen"
+                        style="background: var(--bg-accent-success); padding: 10px; border-radius: 8px; margin-top: 10px; border: 1px solid var(--accent-success); opacity: 0.9;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span style="color: var(--text-main);">Efectivo contado:</span>
+                            <span id="arqueoContadoResumen" style="font-weight: 600; color: var(--text-main);">--</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--text-main);">Diferencia:</span>
+                            <span id="arqueoDiferenciaResumen" style="font-weight: 600;">--</span>
+                        </div>
+                    </div>
+                    <input type="hidden" id="arqueoTotalContado" value="0">
+                    <input type="hidden" id="arqueoDiferenciaValue" value="0">
                 </div>
 
                 <!-- Footer visible solo al imprimir: espacio para firma y sello -->
@@ -1320,8 +1498,11 @@
                     <input type="hidden" name="accion" value="confirmarCaja">
                     <input type="hidden" name="cambio" id="cambioHidden"
                         value="<?php echo $_SESSION['resumenCaja']['importeActual']; ?>">
+                    <input type="hidden" name="arqueoTotalContado" id="arqueoTotalContadoForm" value="0">
+                    <input type="hidden" name="arqueoDetalleConteo" id="arqueoDetalleConteoForm" value="">
+                    <input type="hidden" name="arqueoObservaciones" id="arqueoObservacionesHidden" value="">
                     <button type="submit" class="btn-cerrar-exito" style="margin-top: 0; background: #2563eb;"
-                        onclick="document.getElementById('cambioHidden').value = document.getElementById('cambio').value">Confirmar
+                        onclick="document.getElementById('cambioHidden').value = document.getElementById('cambio').value; document.getElementById('arqueoObservacionesHidden').value = document.getElementById('arqueoObservaciones').value || '';">Confirmar
                         Cierre</button>
                 </form>
             </div>
@@ -1346,8 +1527,9 @@
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
-            <h3 style="color: #1a1a2e; font-size: 1.4rem; margin-bottom: 20px;">Caja Cerrada Correctamente</h3>
-            <p style="color: #6b7280; font-size: 0.95rem; margin-bottom: 20px;">El recuento de ventas ha vuelto a 0 para el
+            <h3 style="color: var(--text-main); font-size: 1.4rem; margin-bottom: 20px;">Caja Cerrada Correctamente</h3>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px;">El recuento de ventas ha vuelto a
+                0 para el
                 contador del día de mañana.</p>
 
             <!-- Bloque oculto con el HTML del resumen para imprimir -->
@@ -1552,6 +1734,185 @@
 
 <script>
     /**
+     * Calcula el arqueo de caja en tiempo real
+     */
+    function calcularArqueo() {
+        let total = 0;
+
+        // Calcular total de billetes
+        document.querySelectorAll('.arqueo-billete').forEach(input => {
+            const cantidad = parseInt(input.value) || 0;
+            const denominacion = parseFloat(input.dataset.denominacion);
+            total += cantidad * denominacion;
+        });
+
+        // Calcular total de monedas
+        document.querySelectorAll('.arqueo-moneda').forEach(input => {
+            const cantidad = parseInt(input.value) || 0;
+            const denominacion = parseFloat(input.dataset.denominacion);
+            total += cantidad * denominacion;
+        });
+
+        // Redondear a 2 decimales
+        total = Math.round(total * 100) / 100;
+
+        // Obtener el efectivo esperado (quitar puntos de miles y cambiar coma por punto)
+        const efectivoEsperadoStr = document.getElementById('arqueoEsperado').textContent.replace('€', '').trim();
+        const efectivoEsperado = parseFloat(efectivoEsperadoStr.replace(/\./g, '').replace(',', '.')) || 0;
+
+        // Calcular diferencia
+        const diferencia = Math.round((total - efectivoEsperado) * 100) / 100;
+
+        // Actualizar displays
+        document.getElementById('arqueoContado').textContent = total.toFixed(2).replace('.', ',') + ' €';
+
+        const diffElement = document.getElementById('arqueoDiferencia');
+        diffElement.textContent = (diferencia >= 0 ? '+' : '') + diferencia.toFixed(2).replace('.', ',') + ' €';
+
+        // Cambiar color según la diferencia
+        if (diferencia === 0) {
+            diffElement.style.color = '#059669'; // Verde - caja correcta
+            diffElement.textContent = '✓ Caja correcta';
+        } else if (diferencia > 0) {
+            diffElement.style.color = '#2563eb'; // Azul - sobrante
+            diffElement.textContent = '+' + diferencia.toFixed(2).replace('.', ',') + ' € (Sobrante)';
+        } else {
+            diffElement.style.color = '#dc2626'; // Rojo - faltante
+            diffElement.textContent = diferencia.toFixed(2).replace('.', ',') + ' € (Faltante)';
+        }
+
+        // Guardar el total en un campo oculto para el formulario
+        const form = document.querySelector('#cajaPrevisualizacion form');
+        if (form) {
+            let oculto = document.getElementById('arqueoTotalContado');
+            if (!oculto) {
+                oculto = document.createElement('input');
+                oculto.type = 'hidden';
+                oculto.id = 'arqueoTotalContado';
+                oculto.name = 'arqueoTotalContado';
+                form.appendChild(oculto);
+            }
+            oculto.value = total;
+
+            // Guardar detalle del conteo
+            let detalleOculto = document.getElementById('arqueoDetalleConteo');
+            if (!detalleOculto) {
+                detalleOculto = document.createElement('input');
+                detalleOculto.type = 'hidden';
+                detalleOculto.id = 'arqueoDetalleConteo';
+                detalleOculto.name = 'arqueoDetalleConteo';
+                form.appendChild(detalleOculto);
+            }
+
+            const detalle = {};
+            document.querySelectorAll('.arqueo-billete').forEach(input => {
+                detalle['billete_' + input.dataset.denominacion] = parseInt(input.value) || 0;
+            });
+            document.querySelectorAll('.arqueo-moneda').forEach(input => {
+                detalle['moneda_' + input.dataset.denominacion] = parseInt(input.value) || 0;
+            });
+            detalleOculto.value = JSON.stringify(detalle);
+        }
+    }
+
+    /**
+     * Continúa del arqueo al resumen de caja
+     */
+    function continuarArqueo() {
+        // Guardar datos del arqueo en campos hidden del formulario del segundo modal
+        let form = document.querySelector('#cajaPrevisualizacion form');
+        if (!form) {
+            // Crear formulario si no existe
+            form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'index.php';
+            form.innerHTML = `
+                <input type="hidden" name="accion" value="confirmarCaja">
+                <input type="hidden" name="cambio" id="cambioHidden" value="<?php echo $_SESSION['resumenCaja']['importeActual']; ?>">
+                <input type="hidden" name="arqueoTotalContado" id="arqueoTotalContado" value="0">
+                <input type="hidden" name="arqueoDetalleConteo" id="arqueoDetalleConteo" value="">
+                <input type="hidden" name="arqueoObservaciones" id="arqueoObservacionesHidden" value="">
+            `;
+            document.getElementById('cajaPrevisualizacion').appendChild(form);
+        }
+
+        // Calcular el total del arqueo
+        let total = 0;
+        document.querySelectorAll('.arqueo-billete').forEach(input => {
+            total += (parseInt(input.value) || 0) * parseFloat(input.dataset.denominacion);
+        });
+        document.querySelectorAll('.arqueo-moneda').forEach(input => {
+            total += (parseInt(input.value) || 0) * parseFloat(input.dataset.denominacion);
+        });
+        total = Math.round(total * 100) / 100;
+
+        // Obtener el efectivo esperado
+        const efectivoEsperadoStr = document.getElementById('arqueoEsperado').textContent.replace('€', '').trim();
+        const efectivoEsperado = parseFloat(efectivoEsperadoStr.replace(/\./g, '').replace(',', '.')) || 0;
+
+        // Calcular diferencia
+        const diferencia = Math.round((total - efectivoEsperado) * 100) / 100;
+
+        // Crear detalle del conteo
+        const detalle = {};
+        document.querySelectorAll('.arqueo-billete').forEach(input => {
+            detalle['billete_' + input.dataset.denominacion] = parseInt(input.value) || 0;
+        });
+        document.querySelectorAll('.arqueo-moneda').forEach(input => {
+            detalle['moneda_' + input.dataset.denominacion] = parseInt(input.value) || 0;
+        });
+
+        // Actualizar los campos hidden del formulario
+        const arqueoTotalContadoEl = document.getElementById('arqueoTotalContado');
+        const arqueoDetalleConteoEl = document.getElementById('arqueoDetalleConteo');
+        if (arqueoTotalContadoEl) {
+            arqueoTotalContadoEl.value = total.toFixed(2);
+        }
+        if (arqueoDetalleConteoEl) {
+            arqueoDetalleConteoEl.value = JSON.stringify(detalle);
+        }
+
+        // Actualizar la visualización del arqueo en el resumen
+        const arqueoContadoResumen = document.getElementById('arqueoContadoResumen');
+        const arqueoDiferenciaResumen = document.getElementById('arqueoDiferenciaResumen');
+        if (arqueoContadoResumen) {
+            arqueoContadoResumen.textContent = total.toFixed(2).replace('.', ',') + ' €';
+        }
+        if (arqueoDiferenciaResumen) {
+            if (diferencia === 0) {
+                arqueoDiferenciaResumen.textContent = '✓ Caja correcta';
+                arqueoDiferenciaResumen.style.color = '#059669';
+            } else if (diferencia > 0) {
+                arqueoDiferenciaResumen.textContent = '+' + diferencia.toFixed(2).replace('.', ',') + ' € (Sobrante)';
+                arqueoDiferenciaResumen.style.color = '#2563eb';
+            } else {
+                arqueoDiferenciaResumen.textContent = diferencia.toFixed(2).replace('.', ',') + ' € (Faltante)';
+                arqueoDiferenciaResumen.style.color = '#dc2626';
+            }
+        }
+
+        // También actualizar los campos del formulario de confirmación
+        const arqueoTotalForm = document.getElementById('arqueoTotalContadoForm');
+        const arqueoDetalleForm = document.getElementById('arqueoDetalleConteoForm');
+        if (arqueoTotalForm) {
+            arqueoTotalForm.value = total.toFixed(2);
+        }
+        if (arqueoDetalleForm) {
+            arqueoDetalleForm.value = JSON.stringify(detalle);
+        }
+
+        // Copiar observaciones
+        const observaciones = document.getElementById('arqueoObservaciones');
+        if (observaciones && document.getElementById('arqueoObservacionesHidden')) {
+            document.getElementById('arqueoObservacionesHidden').value = observaciones.value;
+        }
+
+        // Cerrar arqueo y abrir resumen
+        document.getElementById('arqueoModal').style.display = 'none';
+        document.getElementById('cajaPrevisualizacion').style.display = 'flex';
+    }
+
+    /**
      * Muestra el modal con el historial de ventas de hoy
      */
     function mostrarHistorialVentas() {
@@ -1709,165 +2070,6 @@
             });
     }
 
-    /**
-     * Reimprime un ticket de una venta existente.
-     * @param {number} idVenta - El ID de la venta a reimprimir.
-     */
-    function reimprimirTicket(idVenta) {
-        // Abrir la ventana primero para evitar el bloqueo de popups (requiere contexto de usuario directo)
-        const ventana = window.open('', '_blank', 'width=450,height=700');
-
-        if (!ventana) {
-            alert('El navegador ha bloqueado la ventana de impresión. Por favor, permite los popups para poder imprimir el ticket.');
-            return;
-        }
-
-        // Mostrar un mensaje de carga mientras se obtienen los datos
-        ventana.document.write(`
-            <html>
-                <head><title>Cargando...</title></head>
-                <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 80vh; flex-direction: column; color: #666;">
-                    <div style="border: 4px solid #f3f3f3; border-top: 4px solid #2563eb; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
-                    <p>Obteniendo datos del ticket #${idVenta}...</p>
-                    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
-                </body>
-            </html>
-        `);
-
-        fetch('api/ventas.php?detalleVenta=' + idVenta)
-            .then(res => {
-                if (!res.ok) throw new Error('Error en la respuesta del servidor (HTTP ' + res.status + ')');
-                return res.json();
-            })
-            .then(data => {
-                if (data.error) {
-                    ventana.close();
-                    alert('Error al obtener datos: ' + data.error);
-                    return;
-                }
-
-                const venta = data.venta;
-                const lineas = data.lineas;
-
-                const isFactura = (venta.tipoDocumento === 'factura');
-                const tipoTitulo = isFactura ? 'FACTURA' : 'TICKET DE VENTA';
-
-                let lineasHtml = '';
-                let desgloseIva = {};
-                let sumaPVP = 0;
-
-                lineas.forEach(item => {
-                    const priceBase = parseFloat(item.precioUnitario) || 0;
-                    const qty = parseInt(item.cantidad) || 0;
-                    const ivaPorc = parseInt(item.iva) || 21;
-
-                    const subtotalBase = priceBase * qty;
-                    const cuotaIva = subtotalBase * (ivaPorc / 100);
-                    const subtotalPVP = subtotalBase + cuotaIva;
-
-                    sumaPVP += subtotalPVP;
-
-                    if (!desgloseIva[ivaPorc]) {
-                        desgloseIva[ivaPorc] = { base: 0, cuota: 0 };
-                    }
-                    desgloseIva[ivaPorc].base += subtotalBase;
-                    desgloseIva[ivaPorc].cuota += cuotaIva;
-
-                    lineasHtml += `
-                        <tr>
-                            <td style="padding: 5px 0;">${item.producto_nombre}</td>
-                            <td style="text-align:center;">${qty}</td>
-                            <td style="text-align:right;">${priceBase.toFixed(2).replace('.', ',')} €</td>
-                            <td style="text-align:center;">${ivaPorc}%</td>
-                            <td style="text-align:right;">${subtotalPVP.toFixed(2).replace('.', ',')} €</td>
-                        </tr>
-                    `;
-                });
-
-                const total = parseFloat(venta.total).toFixed(2).replace('.', ',');
-                const fecha = new Date(venta.fecha).toLocaleString('es-ES', {
-                    day: '2-digit', month: '2-digit', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit', second: '2-digit'
-                });
-
-                const contenido = `
-                    <html>
-                    <head>
-                        <title>${tipoTitulo} #${venta.id}</title>
-                        <style>
-                            body { font-family: 'Courier New', Courier, monospace; font-size: 13px; padding: 20px; line-height: 1.4; color: #000; }
-                            .header { text-align: center; margin-bottom: 20px; border-bottom: 1px dashed #000; padding-bottom: 15px; }
-                            table { width: 100%; border-collapse: collapse; }
-                            th { border-bottom: 1px solid #000; padding: 5px 0; text-align: left; font-size: 11px; text-transform: uppercase; }
-                            .total-row { border-top: 1px solid #000; margin-top: 15px; padding-top: 10px; font-weight: bold; font-size: 16px; text-align: right; }
-                            .footer { text-align: center; margin-top: 30px; font-size: 11px; font-style: italic; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="header">
-                            <strong style="font-size: 16px;">TPV BAZAR</strong><br>
-                            NIF: B12345678<br>
-                            C/ Falsa 123, Madrid<br><br>
-                            <span style="font-size: 14px; font-weight: bold;">${tipoTitulo}</span><br>
-                            Nº Ticket: ${venta.id}<br>
-                            Fecha: ${fecha}
-                        </div>
-                        <table class="tabla-lineas">
-                            <thead>
-                                <tr>
-                                    <th>Producto</th>
-                                    <th style="text-align:center">Uds.</th>
-                                    <th style="text-align:right">Base</th>
-                                    <th style="text-align:center">IVA</th>
-                                    <th style="text-align:right">PVP</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${lineasHtml}
-                            </tbody>
-                        </table>
-
-                        <div style="margin-top: 10px; border-top: 1px dashed #000; padding-top: 10px;">
-                            <strong style="font-size: 11px;">Desglose Fiscal:</strong>
-                            <table style="width: 100%; font-size: 11px; margin-top: 5px;">
-                                ${Object.keys(desgloseIva).map(porc => `
-                                    <tr>
-                                        <td>Base al ${porc}%:</td>
-                                        <td style="text-align:right;">${desgloseIva[porc].base.toFixed(2).replace('.', ',')} €</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Cuota IVA (${porc}%):</td>
-                                        <td style="text-align:right;">${desgloseIva[porc].cuota.toFixed(2).replace('.', ',')} €</td>
-                                    </tr>
-                                `).join('')}
-                            </table>
-                        </div>
-
-                        <div class="total-row">TOTAL (PVP): ${total} €</div>
-                        <div style="margin-top: 10px; font-size: 12px;">Método de pago: ${venta.metodoPago || 'Efectivo'}</div>
-                        <div class="footer">Este documento es una copia del original.<br>¡Gracias por su visita!</div>
-                    </body>
-                    </html>
-                `;
-
-                // Escribir el contenido final
-                ventana.document.open();
-                ventana.document.write(contenido);
-                ventana.document.close();
-
-                // Imprimir y cerrar
-                setTimeout(() => {
-                    ventana.focus();
-                    ventana.print();
-                    ventana.close();
-                }, 400);
-            })
-            .catch(err => {
-                if (ventana) ventana.close();
-                console.error('Error en reimprimirTicket:', err);
-                alert('No se pudo obtener la información del ticket para imprimir. ' + err.message);
-            });
-    }
 
     /**
      * Envía un ticket por correo electrónico
@@ -1986,13 +2188,17 @@
      * cupon: código del cupón usado (si aplica)
      */
     let descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
-    let descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
 
     /**
      * Flag que indica si la caja está abierta (true) o cerrada (false).
      * Se inicializa desde PHP según el estado de $sesionCaja.
      */
     let cajaAbierta = <?php echo $sesionCaja ? 'true' : 'false'; ?>;
+
+    /**
+     * Tarifas prefijadas cargadas desde la base de datos
+     */
+    const tarifasPrefijadas = <?php echo json_encode($tarifas); ?>;
 
     /**
      * Efectivo actual en caja para validaciones (p.ej. devoluciones).
@@ -2007,43 +2213,64 @@
      * @param {HTMLElement} elemento - La tarjeta de producto clickeada
      */
     function agregarAlCarrito(elemento) {
-        const id = parseInt(elemento.dataset.id);
-        const nombre = elemento.dataset.nombre;
-        const precio = parseFloat(elemento.dataset.precio);
-        const stockMax = parseInt(elemento.dataset.stock);
+        const id = parseInt(elemento.dataset.id) || 0;
+        const nombre = elemento.dataset.nombre || 'Producto sin nombre';
+        const precioBase = parseFloat(elemento.dataset.precio) || 0;
+        const iva = parseInt(elemento.dataset.iva || 21);
 
-        // Buscar si el producto ya está en el carrito
-        const existente = carrito.find(item => item.idProducto === id);
+        // PVP Actual: Intentar leer de data-pvp, si no existe o es NaN, calcularlo ahora.
+        let pvpActual = parseFloat(elemento.dataset.pvp);
+        if (isNaN(pvpActual)) {
+            pvpActual = round2(precioBase * (1 + (iva / 100)));
+        } else {
+            pvpActual = round2(pvpActual);
+        }
+
+        const stockMax = parseInt(elemento.dataset.stock) || 0;
+
+        // Obtener datos de la tarifa seleccionada
+        const selectTarifa = elemento.querySelector('.tarifa-selector');
+        let tarifaNombre = 'Cliente';
+        let tarifaDescuento = 0;
+        let precioBaseSinTarifa = parseFloat(elemento.dataset.precioOriginal || elemento.dataset.precio) || precioBase;
+
+        // PVP Original sin ninguna tarifa aplicada
+        let pvpOriginalUnitario = round2(precioBaseSinTarifa * (1 + (iva / 100)));
+
+        if (selectTarifa) {
+            const selectedOption = selectTarifa.options[selectTarifa.selectedIndex];
+            tarifaNombre = selectedOption.text;
+            tarifaDescuento = parseFloat(selectTarifa.value) || 0;
+        }
+
+        const existente = carrito.find(item => item.idProducto === id && item.tarifaNombre === tarifaNombre);
+
         if (existente) {
-            // Si ya existe, verificar stock antes de incrementar
             if (existente.cantidad >= stockMax) {
                 alert('No hay más stock disponible para este producto.');
                 return;
             }
             existente.cantidad++;
         } else {
-            // Si no existe, verificar que tenga stock y añadirlo
             if (stockMax <= 0) {
                 alert('Este producto no tiene stock disponible.');
                 return;
             }
-            let ivaValue = elemento.dataset.iva;
-            let ivaParseado = parseInt(ivaValue);
-            // Si el IVA es NaN o undefined, usar 21 por defecto
-            if (isNaN(ivaParseado)) {
-                ivaParseado = 21;
-            }
             carrito.push({
                 idProducto: id,
                 nombre: nombre,
-                precio: precio,
-                iva: ivaParseado,
+                precio: precioBase,
+                pvpOriginalUnitario: pvpOriginalUnitario,
+                pvpUnitario: pvpActual,
+                iva: iva,
                 cantidad: 1,
-                stockMax: stockMax
+                stockMax: stockMax,
+                tarifaNombre: tarifaNombre,
+                tarifaDescuento: tarifaDescuento
             });
         }
 
-        // Actualizar la visualización del ticket
+        resetearTarifaCard(elemento);
         actualizarTicket();
     }
 
@@ -2083,9 +2310,13 @@
     function vaciarCarrito() {
         carrito = [];
         descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
-        descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
-        // Resetear también el select de tarifa
-        document.getElementById('tarifaVenta').value = 'cliente';
+        // Resetear también el select de tarifa a Cliente
+        const tarifaCliente = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+        if (tarifaCliente) {
+            document.getElementById('tarifaVenta').value = tarifaCliente.id;
+        } else if (tarifasPrefijadas.length > 0) {
+            document.getElementById('tarifaVenta').value = tarifasPrefijadas[0].id;
+        }
         actualizarTicket();
     }
 
@@ -2103,7 +2334,6 @@
         const ventaPospuesta = {
             carrito: carrito,
             descuento: descuento,
-            descuentoTarifa: descuentoTarifa,
             tarifa: document.getElementById('tarifaVenta').value,
             fecha: new Date().toLocaleString('es-ES')
         };
@@ -2114,8 +2344,12 @@
         // Vaciar el carrito
         carrito = [];
         descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
-        descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
-        document.getElementById('tarifaVenta').value = 'cliente';
+        const tarifaCliente2 = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+        if (tarifaCliente2) {
+            document.getElementById('tarifaVenta').value = tarifaCliente2.id;
+        } else if (tarifasPrefijadas.length > 0) {
+            document.getElementById('tarifaVenta').value = tarifasPrefijadas[0].id;
+        }
         actualizarTicket();
 
         // Mostrar mensaje
@@ -2139,36 +2373,43 @@
 
         const ventaPospuesta = JSON.parse(ventaJson);
 
-        // Verificar si hay productos actuales en el carrito
+        // Restaurar el carrito y descuento
         if (carrito.length > 0) {
             if (!confirm('⚠️ Ya hay productos en el carrito. ¿Quieres añadir los productos pospuestos?')) {
                 return;
             }
-            // Añadir los productos pospuestos al carrito existente manteniendo su IVA
-            ventaPospuesta.carrito.forEach(producto => {
-                // Crear un objeto temporal con los datos del producto para usar con agregarAlCarrito
-                const productoTemp = {
-                    dataset: {
-                        id: producto.idProducto,
-                        nombre: producto.nombre,
-                        precio: producto.precio,
-                        iva: producto.iva || 21,
-                        stock: producto.stockMax || 999
-                    }
-                };
-                agregarAlCarrito(productoTemp);
+            // Añadir los productos pospuestos al carrito existente manteniendo sus datos redondeados
+            ventaPospuesta.carrito.forEach(productoPospuesto => {
+                // Buscamos si ya existe el mismo producto con la misma tarifa para agruparlo
+                const existente = carrito.find(item =>
+                    item.idProducto === productoPospuesto.idProducto &&
+                    item.tarifaNombre === productoPospuesto.tarifaNombre
+                );
+
+                if (existente) {
+                    existente.cantidad += productoPospuesto.cantidad;
+                } else {
+                    carrito.push(productoPospuesto);
+                }
             });
         } else {
-            // Restaurar el carrito y descuento
+            // Restaurar el carrito y descuento directamente
             carrito = ventaPospuesta.carrito;
             descuento = ventaPospuesta.descuento || { tipo: 'ninguno', valor: 0, cupon: '' };
-            descuentoTarifa = ventaPospuesta.descuentoTarifa || { tipo: 'ninguno', valor: 0, cupon: '' };
-            // Restaurar la tarifa
+            // Restaurar la tarifa seleccionada en el selector global
             if (ventaPospuesta.tarifa) {
                 document.getElementById('tarifaVenta').value = ventaPospuesta.tarifa;
+            } else {
+                const tarifaCliente3 = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+                if (tarifaCliente3) {
+                    document.getElementById('tarifaVenta').value = tarifaCliente3.id;
+                } else if (tarifasPrefijadas.length > 0) {
+                    document.getElementById('tarifaVenta').value = tarifasPrefijadas[0].id;
+                }
             }
-            actualizarTicket();
         }
+
+        actualizarTicket();
 
         // Limpiar la venta pospuesta
         sessionStorage.removeItem('ventaPospuesta');
@@ -2196,9 +2437,48 @@
         }
     }
 
+    /**
+     * Verifica y aplica cambios de IVA programados
+     */
+    function verificarCambiosIvaProgramados() {
+        fetch('api/productos.php?accion=aplicar_cambios_iva_programados')
+            .then(res => res.json())
+            .then(data => {
+                if (data.aplicados > 0) {
+                    console.log('Se aplicaron ' + data.aplicados + ' cambios de IVA programados');
+
+                    // Actualizar los productos del carrito con los nuevos IVA y precios
+                    if (carrito.length > 0 && data.nuevosIVA) {
+                        carrito.forEach(item => {
+                            const nuevoIVA = data.nuevosIVA[item.id];
+                            if (nuevoIVA) {
+                                // Actualizar el IVA del producto
+                                item.iva = nuevoIVA;
+                                // Recalcular el PVP con el nuevo IVA
+                                const precioBase = parseFloat(item.precio || item.precioConDescuento || 0);
+                                item.pvpUnitario = round2(precioBase * (1 + (nuevoIVA / 100)));
+                                // También actualizar el PVP original si existe
+                                if (item.pvpOriginalUnitario) {
+                                    const precioOriginal = parseFloat(item.precio || 0);
+                                    item.pvpOriginalUnitario = round2(precioOriginal * (1 + (nuevoIVA / 100)));
+                                }
+                            }
+                        });
+                        // Actualizar el ticket con los nuevos precios
+                        actualizarTicket();
+                    }
+
+                    // Recargar los productos del catálogo para mostrar los nuevos precios
+                    buscarProductos();
+                }
+            })
+            .catch(err => console.error('Error verificando cambios IVA programados:', err));
+    }
+
     // Inicializar botón de recuperar al cargar la página
     document.addEventListener('DOMContentLoaded', function () {
         actualizarBotonRecuperar();
+        verificarCambiosIvaProgramados();
     });
 
     /**
@@ -2208,43 +2488,21 @@
      * @returns {number} Total final (mínimo 0)
      */
     function obtenerTotalCalculado() {
-        // Calcular base imponible (suma de precio * cantidad de cada producto)
-        let baseImponible = carrito.reduce((sum, item) => {
-            return sum + (item.precio * item.cantidad);
+        // El total es la suma de los subtotales de cada línea (PVP ya redondeado)
+        let totalPVPBruto = carrito.reduce((sum, item) => {
+            const subtotalLinea = round2(item.pvpUnitario * item.cantidad);
+            return sum + subtotalLinea;
         }, 0);
 
-        let importeDescuento = 0;
-
-        // Aplicar descuento de tarifa (porcentaje sobre base imponible)
-        if (descuentoTarifa.tipo === 'porcentaje') {
-            importeDescuento += baseImponible * (descuentoTarifa.valor / 100);
-        } else if (descuentoTarifa.tipo === 'fijo') {
-            importeDescuento += descuentoTarifa.valor;
-        }
-
-        // Aplicar descuento manual (porcentaje o cupón sobre base imponible)
+        // Calcular descuento manual (global) sobre el total PVP acumulado
+        let importeDescuentoManual = 0;
         if (descuento.tipo === 'porcentaje') {
-            importeDescuento += baseImponible * (descuento.valor / 100);
+            importeDescuentoManual = round2(totalPVPBruto * (descuento.valor / 100));
         } else if (descuento.tipo === 'fijo') {
-            importeDescuento += descuento.valor;
+            importeDescuentoManual = round2(descuento.valor);
         }
 
-        // Calcular base imponible con descuento
-        let baseConDescuento = baseImponible - importeDescuento;
-
-        // Calcular el IVA sobre la base imponible con descuento
-        let ivaTotal = 0;
-        if (baseImponible > 0) {
-            ivaTotal = carrito.reduce((sum, item) => {
-                // Calcular la parte proporcional del IVA para cada producto
-                let proporcion = (item.precio * item.cantidad) / baseImponible;
-                let baseProductoConDescuento = baseConDescuento * proporcion;
-                return sum + (baseProductoConDescuento * (item.iva / 100));
-            }, 0);
-        }
-
-        // Retornar total (base con descuento + IVA) redondeado a 2 decimales
-        return Math.max(0, Math.round((baseConDescuento + ivaTotal) * 100) / 100);
+        return Math.max(0, round2(totalPVPBruto - importeDescuentoManual));
     }
 
     /**
@@ -2275,12 +2533,27 @@
 
         // Iterar sobre cada producto del carrito
         carrito.forEach((item, i) => {
-            const precioPVP = item.precio * (1 + (item.iva / 100));
-            const subtotal = precioPVP * item.cantidad;
+            // Asegurar que pvpUnitario existe (fallback para items antiguos o corruptos)
+            if (isNaN(item.pvpUnitario) || item.pvpUnitario === undefined) {
+                const precio = parseFloat(item.precioConDescuento || item.precio || 0);
+                const iva = parseInt(item.iva || 21);
+                item.pvpUnitario = round2(precio * (1 + (iva / 100)));
+            }
+            if (isNaN(item.pvpOriginalUnitario) || item.pvpOriginalUnitario === undefined) {
+                const precio = parseFloat(item.precio || 0);
+                const iva = parseInt(item.iva || 21);
+                item.pvpOriginalUnitario = round2(precio * (1 + (iva / 100)));
+            }
 
-            // Generar fila con: nombre, controles de cantidad (−/input/+), precio PVP, subtotal y botón eliminar
+            const subtotalRebajado = round2(item.pvpUnitario * item.cantidad);
+
             html += `<tr>
-                <td>${item.nombre} <small style="color: #666; display: block; font-size: 0.7rem;">IVA: ${item.iva}%</small></td>
+                <td>
+                    ${item.nombre} 
+                    <small style="color: #666; display: block; font-size: 0.7rem;">
+                        ${item.tarifaNombre !== 'Cliente' ? '<strong>' + item.tarifaNombre + '</strong> | ' : ''} IVA: ${item.iva}%
+                    </small>
+                </td>
                 <td>
                     <div class="cantidad-control">
                         <button onclick="cambiarCantidad(${i}, ${item.cantidad - 1})">−</button>
@@ -2291,8 +2564,8 @@
                         <button onclick="cambiarCantidad(${i}, ${item.cantidad + 1})">+</button>
                     </div>
                 </td>
-                <td>${precioPVP.toFixed(2).replace('.', ',')} €</td>
-                <td>${subtotal.toFixed(2).replace('.', ',')} €</td>
+                <td>${item.pvpUnitario.toFixed(2).replace('.', ',')} €</td>
+                <td>${subtotalRebajado.toFixed(2).replace('.', ',')} €</td>
                 <td><button class="btn-quitar" onclick="eliminarDelCarrito(${i})">✕</button></td>
             </tr>`;
         });
@@ -2300,94 +2573,96 @@
         html += '</tbody></table>';
         contenedor.innerHTML = html;
 
-        // Calcular desglose de totales con descuento
-        let baseImponible = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
-        let totalPVP = obtenerTotalCalculado();
+        // Calcular desglose de totales
+        let totalPVPBruto = carrito.reduce((sum, item) => sum + round2(item.pvpUnitario * item.cantidad), 0);
+        let totalPVPFinal = obtenerTotalCalculado();
+        let descuentoManualImporte = round2(totalPVPBruto - totalPVPFinal);
 
-        // Calcular descuentos (sobre base imponible)
-        let descuentoTarifaImporte = 0;
-        let descuentoManualImporte = 0;
+        // Agrupar ahorros de tarifas
+        const ahorrosTarifasAgrupados = {};
+        carrito.forEach(item => {
+            const ahorroUnitario = round2(item.pvpOriginalUnitario - item.pvpUnitario);
+            const ahorroLinea = round2(ahorroUnitario * item.cantidad);
 
-        if (descuentoTarifa.tipo === 'porcentaje') {
-            descuentoTarifaImporte = baseImponible * (descuentoTarifa.valor / 100);
-        } else if (descuentoTarifa.tipo === 'fijo') {
-            descuentoTarifaImporte = descuentoTarifa.valor;
+            if (ahorroLinea > 0) {
+                const nombre = item.tarifaNombre;
+                if (!ahorrosTarifasAgrupados[nombre]) {
+                    ahorrosTarifasAgrupados[nombre] = 0;
+                }
+                ahorrosTarifasAgrupados[nombre] = round2(ahorrosTarifasAgrupados[nombre] + ahorroLinea);
+            }
+        });
+
+        const ahorroTarifasTotal = round2(Object.values(ahorrosTarifasAgrupados).reduce((a, b) => a + b, 0));
+
+        let htmlDesglose = `<div class="resumen-final-premium">`;
+
+        // IVA Total: Recalculo exacto agrupando por tipo de IVA
+        const desglosePorIVA = {};
+        carrito.forEach(item => {
+            const subtotalLineaPVP = round2(item.pvpUnitario * item.cantidad);
+            const factorDescuentoManual = totalPVPBruto > 0 ? (totalPVPFinal / totalPVPBruto) : 0;
+            const subtotalFinalPVP = subtotalLineaPVP * factorDescuentoManual;
+
+            const tipoIVA = parseInt(item.iva);
+            if (!desglosePorIVA[tipoIVA]) desglosePorIVA[tipoIVA] = 0;
+            desglosePorIVA[tipoIVA] += subtotalFinalPVP;
+        });
+
+        let baseImponibleCalculada = 0;
+        for (const [iva, pvpAcumulado] of Object.entries(desglosePorIVA)) {
+            baseImponibleCalculada += round2(pvpAcumulado / (1 + (parseInt(iva) / 100)));
         }
 
-        if (descuento.tipo === 'porcentaje') {
-            descuentoManualImporte = baseImponible * (descuento.valor / 100);
-        } else if (descuento.tipo === 'fijo') {
-            descuentoManualImporte = descuento.valor;
-        }
+        baseImponibleCalculada = round2(baseImponibleCalculada);
+        const ivaTotal = round2(totalPVPFinal - baseImponibleCalculada);
 
-        let importeDescuento = descuentoTarifaImporte + descuentoManualImporte;
+        // Mostrar Base Imponible (Total Final - IVA)
+        htmlDesglose += `
+        <div class="resumen-fila-mini">
+            <span>Base Imponible:</span>
+            <span>${baseImponibleCalculada.toFixed(2).replace('.', ',')} €</span>
+        </div>`;
 
-        // Generar HTML del desglose (solo si hay descuento aplicado real > 0)
-        let htmlDesglose = '';
-        if (importeDescuento > 0.01) {
-            // Calcular descuento de tarifa y descuento manual por separado
-            let lineasDescuento = [];
-
-            // Construir líneas de descuento separadas
-            if (descuentoTarifaImporte > 0.01) {
-                const textoTarifa = descuentoTarifa.cupon === 'CLIENTE_REGISTRADO' ? 'Cliente registrado (' + descuentoTarifa.valor + '%)' :
-                    descuentoTarifa.cupon === 'MAYORISTA_NIVEL1' ? 'Mayorista nivel 1 (' + descuentoTarifa.valor + '%)' :
-                        descuentoTarifa.cupon === 'MAYORISTA_NIVEL2' ? 'Mayorista nivel 2 (' + descuentoTarifa.valor + '%)' :
-                            (descuentoTarifa.tipo === 'porcentaje' ? descuentoTarifa.valor + '%' : 'Cupón ' + descuentoTarifa.cupon);
-                lineasDescuento.push(`
-                    <div class="resumen-fila-mini descuento-texto">
-                        <span>${textoTarifa}:</span>
-                        <span>- ${descuentoTarifaImporte.toFixed(2).replace('.', ',')} €</span>
-                    </div>`);
-            }
-
-            if (descuentoManualImporte > 0.01) {
-                const textoManual = descuento.tipo === 'porcentaje' ? 'Descuento (' + descuento.valor + '%)' : 'Cupón ' + descuento.cupon;
-                lineasDescuento.push(`
-                    <div class="resumen-fila-mini descuento-texto">
-                        <span>${textoManual}:</span>
-                        <span>- ${descuentoManualImporte.toFixed(2).replace('.', ',')} €</span>
-                    </div>`);
-            }
-
-            htmlDesglose = `
-                <div class="resumen-final-premium">
-                    <div class="resumen-fila-mini">
-                        <span>Base Imponible:</span>
-                        <span>${baseImponible.toFixed(2).replace('.', ',')} €</span>
-                    </div>
-                    ${lineasDescuento.join('')}
-                    <div class="resumen-fila-mini" style="font-weight: bold; border-top: 1px solid #e5e7eb; padding-top: 8px;">
-                        <span>Total (IVA incl.):</span>
-                        <span>${totalPVP.toFixed(2).replace('.', ',')} €</span>
-                    </div>
+        // Mostrar ahorros por tarifa si existen
+        if (ahorroTarifasTotal > 0.005) {
+            for (const [nombre, importe] of Object.entries(ahorrosTarifasAgrupados)) {
+                htmlDesglose += `
+                <div class="resumen-fila-mini descuento-texto">
+                    <span>Ahorro ${nombre}:</span>
+                    <span>- ${importe.toFixed(2).replace('.', ',')} €</span>
                 </div>`;
-        } else {
-            // No hay descuento - mostrar base imponible, IVA y total
-            if (baseImponible > 0) {
-                // Calcular IVA total
-                let ivaTotal = totalPVP - baseImponible;
-                htmlDesglose = `
-                    <div class="resumen-final-premium">
-                        <div class="resumen-fila-mini">
-                            <span>Base Imponible:</span>
-                            <span>${baseImponible.toFixed(2).replace('.', ',')} €</span>
-                        </div>
-                        <div class="resumen-fila-mini">
-                            <span>IVA:</span>
-                            <span>${ivaTotal.toFixed(2).replace('.', ',')} €</span>
-                        </div>
-                        <div class="resumen-fila-mini" style="font-weight: bold; border-top: 1px solid #e5e7eb; padding-top: 8px;">
-                            <span>Total:</span>
-                            <span>${totalPVP.toFixed(2).replace('.', ',')} €</span>
-                        </div>
-                    </div>`;
             }
         }
 
-        // Actualizar el DOM con el desglose y el total
+        // Subtotal tras tarifas solo si hay cupón manual
+        if (descuentoManualImporte > 0.005) {
+            const textoManual = descuento.tipo === 'porcentaje' ? 'Descuento (' + descuento.valor + '%)' : 'Cupón ' + (descuento.cupon || 'Manual');
+            htmlDesglose += `
+            <div class="resumen-fila-mini descuento-texto" style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #16a34a;">
+                    <span style="cursor: pointer; color: #ef4444; margin-right: 5px;" onclick="quitarDescuento()" title="Quitar descuento">
+                        <i class="fas fa-times-circle"></i>
+                    </span>${textoManual}:
+                </span>
+                <span style="color: #16a34a;">- ${descuentoManualImporte.toFixed(2).replace('.', ',')} €</span>
+            </div>`;
+        }
+
+        htmlDesglose += `
+            <div class="resumen-fila-mini">
+                <span>IVA:</span>
+                <span>${ivaTotal.toFixed(2).replace('.', ',')} €</span>
+            </div>
+            <div class="resumen-fila-mini" style="font-weight: bold; border-top: 1px solid #e5e7eb; padding-top: 8px;">
+                <span>Total Final (IVA incl.):</span>
+                <span>${totalPVPFinal.toFixed(2).replace('.', ',')} €</span>
+            </div>
+        </div>`;
+
+        // Actualizar el DOM
         document.getElementById('ticketDesglose').innerHTML = htmlDesglose;
-        totalEl.textContent = totalPVP.toFixed(2).replace('.', ',') + ' €';
+        totalEl.textContent = totalPVPFinal.toFixed(2).replace('.', ',') + ' €';
 
         // Verificar si se supera el límite de 1.000€ en efectivo
         // verificarLimiteEfectivo();
@@ -2407,7 +2682,33 @@
     function aplicarDescuento() {
         if (carrito.length === 0) return;
         document.getElementById('modalDescuento').style.display = 'flex';
+
+        // Mostrar/ocultar botón de quitar descuento según si hay descuento activo
+        const btnQuitar = document.getElementById('btnQuitarDescuento');
+        if (descuento && descuento.tipo !== 'ninguno' && descuento.valor > 0) {
+            btnQuitar.style.display = 'block';
+        } else {
+            btnQuitar.style.display = 'none';
+        }
+
         document.getElementById('inputPorcentajeDescuento').focus();
+    }
+
+    /**
+     * quitarDescuento()
+     * Elimina el descuento activo y actualiza el ticket.
+     */
+    function quitarDescuento() {
+        // Resetear descuento
+        descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+
+        // Limpiar los inputs del modal
+        document.getElementById('inputPorcentajeDescuento').value = '';
+        document.getElementById('inputCuponDescuento').value = '';
+
+        // Cerrar modal y actualizar ticket
+        cerrarModal('modalDescuento');
+        actualizarTicket();
     }
 
     /**
@@ -2683,25 +2984,23 @@
         document.getElementById('inputClienteDireccionFinal').value = direccion;
         document.getElementById('inputObservacionesFinal').value = observaciones;
 
-        // Datos del descuento
-        // Si hay descuento de tarifa, guardarlo (se prioriza para mostrar en ticket)
-        if (descuentoTarifa.cupon && descuentoTarifa.cupon !== '') {
-            document.getElementById('inputDescuentoTipo').value = descuentoTarifa.tipo;
-            document.getElementById('inputDescuentoValor').value = descuentoTarifa.valor;
-            document.getElementById('inputDescuentoCupon').value = descuentoTarifa.cupon;
-        } else {
-            document.getElementById('inputDescuentoTipo').value = descuento.tipo;
-            document.getElementById('inputDescuentoValor').value = descuento.valor;
-            document.getElementById('inputDescuentoCupon').value = descuento.cupon;
-        }
-        // Guardar también los valores de descuentoTarifa por separado
-        document.getElementById('inputDescuentoTarifaTipo').value = descuentoTarifa.tipo;
-        document.getElementById('inputDescuentoTarifaValor').value = descuentoTarifa.valor;
-        document.getElementById('inputDescuentoTarifaCupon').value = descuentoTarifa.cupon;
-        // Guardar descuento manual por separado también
+        // Datos del descuento manual (cupones, descuentos porcentuales globales, etc.)
+        document.getElementById('inputDescuentoTipo').value = descuento.tipo;
+        document.getElementById('inputDescuentoValor').value = descuento.valor;
+        document.getElementById('inputDescuentoCupon').value = descuento.cupon;
+
+        // Mantener campos legacy vacíos o con valores seguros para evitar errores en el backend si los espera
+        document.getElementById('inputDescuentoTarifaTipo').value = 'ninguno';
+        document.getElementById('inputDescuentoTarifaValor').value = 0;
+        document.getElementById('inputDescuentoTarifaCupon').value = '';
+
+        // Guardar descuento manual por separado también (redundancia de seguridad)
         document.getElementById('inputDescuentoManualTipo').value = descuento.tipo;
         document.getElementById('inputDescuentoManualValor').value = descuento.valor;
         document.getElementById('inputDescuentoManualCupon').value = descuento.cupon;
+
+        // Tarifa seleccionada
+        document.getElementById('inputIdTarifa').value = document.getElementById('tarifaVenta').value;
 
         // Enviar el formulario al servidor
         document.getElementById('formVenta').submit();
@@ -2766,13 +3065,24 @@
             }
 
             // Cálculos por unidad
-            const cuotaIvaUnidad = precioBase * (ivaPorc / 100);
-            const precioPVP = precioBase + cuotaIvaUnidad;
+            let precioPVP = 0;
+            let precioBaseIndividual = precioBase;
+
+            if (item.pvpUnitario !== null && item.pvpUnitario !== undefined) {
+                // Si tenemos el PVP unitario exacto guardado, lo usamos como fuente de verdad
+                precioPVP = parseFloat(item.pvpUnitario) || 0;
+                // Calculamos la base hacia atrás para el desglose fiscal
+                precioBaseIndividual = precioPVP / (1 + (ivaPorc / 100));
+            } else {
+                // Fallback para ventas antiguas sin pvpUnitario
+                const cuotaIvaUnidad = precioBase * (ivaPorc / 100);
+                precioPVP = precioBase + cuotaIvaUnidad;
+            }
 
             // Cálculos totales de la línea
-            const subtotalBase = precioBase * cantidad;
-            const subtotalIva = cuotaIvaUnidad * cantidad;
-            const subtotalPVP = precioPVP * cantidad;
+            const subtotalPVP = round2(precioPVP * cantidad);
+            const subtotalBase = round2(subtotalPVP / (1 + (ivaPorc / 100)));
+            const subtotalIva = round2(subtotalPVP - subtotalBase);
 
             sumaTotalesNumeric += subtotalPVP;
 
@@ -2798,28 +3108,36 @@
         });
 
         // Calcular descuentos aplicados sobre el total PVP
+        // Calcular ahorros de tarifas agrupados por nombre
+        const ahorrosTarifasAgrupados = {};
         let importeDescuentoTarifa = 0;
-        let importeDescuentoManual = 0;
-        let textoDescuentoTarifa = '';
-        let textoDescuentoManual = '';
 
-        // Calcular descuento de tarifa (Cliente registrado, Mayorista nivel 1, Mayorista nivel 2)
-        if (ultimaVenta.descuentoTarifaCupon && ultimaVenta.descuentoTarifaCupon !== '') {
-            if (ultimaVenta.descuentoTarifaTipo === 'porcentaje') {
-                importeDescuentoTarifa = sumaTotalesNumeric * (ultimaVenta.descuentoTarifaValor / 100);
-                if (ultimaVenta.descuentoTarifaCupon === 'CLIENTE_REGISTRADO') {
-                    textoDescuentoTarifa = 'Cliente registrado (' + ultimaVenta.descuentoTarifaValor + '%)';
-                } else if (ultimaVenta.descuentoTarifaCupon === 'MAYORISTA_NIVEL1') {
-                    textoDescuentoTarifa = 'Mayorista nivel 1 (' + ultimaVenta.descuentoTarifaValor + '%)';
-                } else if (ultimaVenta.descuentoTarifaCupon === 'MAYORISTA_NIVEL2') {
-                    textoDescuentoTarifa = 'Mayorista nivel 2 (' + ultimaVenta.descuentoTarifaValor + '%)';
+        if (ultimaVenta.carrito && Array.isArray(ultimaVenta.carrito)) {
+            ultimaVenta.carrito.forEach(item => {
+                const pvpOrig = parseFloat(item.pvpOriginalUnitario || item.pvpUnitario || 0);
+                const pvpReal = parseFloat(item.pvpUnitario || 0);
+                const ahorroUnitario = round2(pvpOrig - pvpReal);
+                const ahorroLinea = round2(ahorroUnitario * (parseInt(item.cantidad) || 0));
+
+                if (ahorroLinea > 0.005) {
+                    const nombre = item.tarifaNombre || 'Tarifa';
+                    if (!ahorrosTarifasAgrupados[nombre]) {
+                        ahorrosTarifasAgrupados[nombre] = 0;
+                    }
+                    ahorrosTarifasAgrupados[nombre] = round2(ahorrosTarifasAgrupados[nombre] + ahorroLinea);
+                    importeDescuentoTarifa = round2(importeDescuentoTarifa + ahorroLinea);
                 }
-            }
+            });
         }
 
+        // Texto descriptivo para el descuento de tarifa (se mantiene por compatibilidad si fuera necesario)
+        let textoDescuentoTarifa = Object.keys(ahorrosTarifasAgrupados).join(', ');
+
         // Calcular descuento manual (código promocional o porcentaje manual)
+        let importeDescuentoManual = 0;
+        let textoDescuentoManual = '';
         let tipoManual = ultimaVenta.descuentoManualTipo || ultimaVenta.descuentoTipo;
-        let valorManual = ultimaVenta.descuentoManualValor || ultimaVenta.descuentoValor;
+        let valorManual = parseFloat(ultimaVenta.descuentoManualValor || ultimaVenta.descuentoValor) || 0;
         let cuponManual = ultimaVenta.descuentoManualCupon || ultimaVenta.descuentoCupon;
 
         if (tipoManual === 'porcentaje') {
@@ -2833,13 +3151,10 @@
             textoDescuentoManual = 'Cupón ' + cuponManual;
         }
 
-        // Descuento total
-        let importeDescuentoPVP = importeDescuentoTarifa + importeDescuentoManual;
-        const totalVentaPVP = Math.max(0, sumaTotalesNumeric - importeDescuentoPVP);
+        // Descuento total (solo el manual, ya que las tarifas ya están en sumaTotalesNumeric)
+        const totalVentaPVP = Math.max(0, sumaTotalesNumeric - importeDescuentoManual);
 
-        // Si hay descuento, debemos prorratearlo en la base e IVA para el desglose (simplificado: aplicamos proporción al total)
-        // O simplemente mostrar el desglose de los productos y luego el descuento. 
-        // Normalmente el IVA se calcula sobre la base tras descuento.
+        // Si hay descuento manual, debemos prorratearlo en la base e IVA para el desglose
         let factorDescuento = sumaTotalesNumeric > 0 ? (totalVentaPVP / sumaTotalesNumeric) : 1;
 
         // Generar tabla de totales con desglose fiscal
@@ -2847,34 +3162,26 @@
             <table class="tabla-totales" style="width:100%; font-size: 0.9rem; margin-top:10px;">
         `;
 
-        // Si hay descuento, mostrar subtotal y líneas de descuento
-        if (importeDescuentoPVP > 0.01) {
+        // Mostrar ahorros por tarifa agrupados si existen (como información, no restan del total de nuevo)
+        if (importeDescuentoTarifa > 0.01) {
+            for (const [nombre, importe] of Object.entries(ahorrosTarifasAgrupados)) {
+                totalesHtml += `
+                    <tr>
+                        <td style="color: #16a34a;"><strong>Ahorro ${nombre}:</strong></td>
+                        <td style="text-align:right; color: #16a34a;">- ${importe.toFixed(2).replace('.', ',')} €*</td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Si hay descuento manual, lo mostramos
+        if (importeDescuentoManual > 0.01 && textoDescuentoManual) {
             totalesHtml += `
                 <tr>
-                    <td><strong>Subtotal:</strong></td>
-                    <td style="text-align:right">${sumaTotalesNumeric.toFixed(2).replace('.', ',')} €</td>
+                    <td style="color: #16a34a;"><strong>Descuento (${textoDescuentoManual}):</strong></td>
+                    <td style="text-align:right; color: #16a34a;">- ${importeDescuentoManual.toFixed(2).replace('.', ',')} €</td>
                 </tr>
             `;
-
-            // Mostrar descuento de tarifa si existe
-            if (importeDescuentoTarifa > 0.01 && textoDescuentoTarifa) {
-                totalesHtml += `
-                    <tr>
-                        <td style="color: #16a34a;"><strong>Descuento (${textoDescuentoTarifa}):</strong></td>
-                        <td style="text-align:right; color: #16a34a;">- ${importeDescuentoTarifa.toFixed(2).replace('.', ',')} €</td>
-                    </tr>
-                `;
-            }
-
-            // Mostrar descuento manual si existe
-            if (importeDescuentoManual > 0.01 && textoDescuentoManual) {
-                totalesHtml += `
-                    <tr>
-                        <td style="color: #16a34a;"><strong>Descuento (${textoDescuentoManual}):</strong></td>
-                        <td style="text-align:right; color: #16a34a;">- ${importeDescuentoManual.toFixed(2).replace('.', ',')} €</td>
-                    </tr>
-                `;
-            }
         }
 
         // Base imponible y cuota IVA por cada tipo
@@ -2885,8 +3192,8 @@
         `;
 
         Object.keys(desgloseIva).sort().forEach(porc => {
-            const baseFinal = desgloseIva[porc].base * factorDescuento;
-            const cuotaFinal = desgloseIva[porc].cuota * factorDescuento;
+            const baseFinal = round2(desgloseIva[porc].base * factorDescuento);
+            const cuotaFinal = round2(desgloseIva[porc].cuota * factorDescuento);
 
             totalesHtml += `
                 <tr style="font-size: 0.8rem; color: #444;">
@@ -2902,10 +3209,11 @@
 
         totalesHtml += `
             <tr style="border-top: 1px solid #000;">
-                <td style="font-size: 1.1rem; padding-top:10px;"><strong>TOTAL (PVP):</strong></td>
-                <td style="font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;">${totalVentaPVP.toFixed(2).replace('.', ',')} €</td>
+                <td style="font-size: 1.2rem; padding-top:10px;"><strong>TOTAL:</strong></td>
+                <td style="font-size: 1.2rem; font-weight: bold; text-align:right; padding-top:10px;">${totalVentaPVP.toFixed(2).replace('.', ',')} €</td>
             </tr>
             </table>
+            ${importeDescuentoTarifa > 0.01 ? '<div style="font-size: 0.75rem; color: #666; margin-top: 5px;">* Los ahorros por tarifa ya están aplicados en el precio de cada artículo.</div>' : ''}
         `;
 
         // Observaciones del cliente (si las hay)
@@ -3281,6 +3589,8 @@
                 document.getElementById('infoTicketId').textContent = 'TICKET #' + ticketActualDevolucion.id;
                 document.getElementById('infoTicketFecha').textContent = new Date(ticketActualDevolucion.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 document.getElementById('infoTicketTotal').textContent = parseFloat(ticketActualDevolucion.total).toFixed(2).replace('.', ',') + ' €';
+                // Also update the original total in the footer
+                document.getElementById('totalOriginalDisplay').textContent = parseFloat(ticketActualDevolucion.total).toFixed(2).replace('.', ',') + ' €';
 
                 renderizarTablaDevolucion();
             })
@@ -3330,6 +3640,38 @@
             tbody.appendChild(tr);
         });
 
+        recalcularTotalReembolso();
+    }
+
+    /**
+     * Selecciona todos los productos disponibles para devolver (toggle).
+     */
+    function seleccionarTodosProductos() {
+        const inputs = document.querySelectorAll('.cant-dev-input');
+        let allSelected = true;
+
+        // Check if all products are already selected
+        inputs.forEach(input => {
+            const index = input.dataset.index;
+            const linea = lineasVentaDevolucion[index];
+            const disponible = parseInt(linea.cantidad) - parseInt(linea.cantidad_devuelta);
+            if (parseInt(input.value) !== disponible) {
+                allSelected = false;
+            }
+        });
+
+        // Toggle: select all or deselect all
+        inputs.forEach(input => {
+            const index = input.dataset.index;
+            const linea = lineasVentaDevolucion[index];
+            const disponible = parseInt(linea.cantidad) - parseInt(linea.cantidad_devuelta);
+
+            if (allSelected) {
+                input.value = 0;
+            } else {
+                input.value = disponible;
+            }
+        });
         recalcularTotalReembolso();
     }
 
@@ -3435,6 +3777,24 @@
         // Redondear el total hacia abajo a 2 decimales
         total = Math.floor(total * 100) / 100;
 
+        // Si se devuelven TODOS los productos disponibles, mostrar el total original de la venta
+        let totalUnidadesDisponibles = 0;
+        let totalUnidadesSeleccionadas = 0;
+        const inputsCheck = document.querySelectorAll('.cant-dev-input');
+        inputsCheck.forEach(input => {
+            const index = input.dataset.index;
+            const linea = lineasVentaDevolucion[index];
+            const comprado = parseInt(linea.cantidad);
+            const devuelto = parseInt(linea.cantidad_devuelta);
+            const disponible = comprado - devuelto;
+            totalUnidadesDisponibles += disponible;
+            totalUnidadesSeleccionadas += parseInt(input.value) || 0;
+        });
+
+        if (totalUnidadesSeleccionadas === totalUnidadesDisponibles && totalUnidadesDisponibles > 0) {
+            total = parseFloat(ticketActualDevolucion.total);
+        }
+
         document.getElementById('totalReembolsoDisplay').textContent = total.toFixed(2).replace('.', ',') + ' €';
 
         // Validación de efectivo disponible
@@ -3472,6 +3832,7 @@
         document.getElementById('devolucionSubtitulo').textContent = 'Introduce el ID del Ticket para comenzar';
         document.getElementById('inputTicketIdDev').value = '';
         document.getElementById('errorTicketDev').style.display = 'none';
+        document.getElementById('totalOriginalDisplay').textContent = '0,00 €';
         lineasVentaDevolucion = [];
         ticketActualDevolucion = null;
     }
@@ -3484,14 +3845,27 @@
         const productosDev = [];
         let totalReembolso = 0;
 
+        // Verificar si se devuelven TODOS los productos disponibles
+        let totalUnidadesDisponibles = 0;
+        let totalUnidadesSeleccionadas = 0;
+
         inputs.forEach(input => {
             const cant = parseInt(input.value) || 0;
+            const index = input.dataset.index;
+            const linea = lineasVentaDevolucion[index];
+            const comprado = parseInt(linea.cantidad);
+            const devuelto = parseInt(linea.cantidad_devuelta);
+            const disponible = comprado - devuelto;
+
+            totalUnidadesDisponibles += disponible;
+            totalUnidadesSeleccionadas += cant;
+
             if (cant > 0) {
-                const index = input.dataset.index;
                 const linea = lineasVentaDevolucion[index];
                 // Usar precio con IVA (el que se pagó en el momento de la compra)
                 const precioConIva = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
-                const subtotal = cant * precioConIva;
+                // Redondear a 2 decimales para evitar errores de precisión
+                const subtotal = Math.round(cant * precioConIva * 100) / 100;
 
                 productosDev.push({
                     idProducto: linea.idProducto,
@@ -3504,29 +3878,54 @@
 
         if (productosDev.length === 0) return;
 
+        // Si se devuelven TODOS los productos disponibles, usar el total original de la venta
+        // Esto asegura que el reembolso sea exacto incluyendo descuentos
+        if (totalUnidadesSeleccionadas === totalUnidadesDisponibles && totalUnidadesDisponibles > 0) {
+            totalReembolso = parseFloat(ticketActualDevolucion.total);
+        }
+
+        // Redondear total final a 2 decimales
+        totalReembolso = Math.round(totalReembolso * 100) / 100;
+
         const metodoPago = document.querySelector('input[name="metodoPagoDev"]:checked').value;
 
-        // Crear un formulario temporal para enviar por POST (o usar Fetch si prefieres, 
-        // pero cCajero.php está preparado para POST síncrono por lo visto en registrarVenta)
-        // No obstante, como es una lista de productos, haremos un fetch para mayor limpieza 
-        // y luego recargaremos o redirigiremos.
+        // Crear formulario oculto y enviarlo para procesar la devolución
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'index.php';
 
-        const data = new FormData();
-        data.append('accion', 'tramitarMultiDevolucion');
-        data.append('idVenta', ticketActualDevolucion.id);
-        data.append('metodoPago', metodoPago);
-        data.append('productos', JSON.stringify(productosDev));
-        data.append('totalReembolso', totalReembolso);
+        const accionInput = document.createElement('input');
+        accionInput.type = 'hidden';
+        accionInput.name = 'accion';
+        accionInput.value = 'tramitarMultiDevolucion';
+        form.appendChild(accionInput);
 
-        fetch('index.php', {
-            method: 'POST',
-            body: data
-        }).then(() => {
-            // Recargar para mostrar mensajes de éxito de sesión
-            location.reload();
-        }).catch(err => {
-            alert('Error al procesar la devolución: ' + err.message);
-        });
+        const idVentaInput = document.createElement('input');
+        idVentaInput.type = 'hidden';
+        idVentaInput.name = 'idVenta';
+        idVentaInput.value = ticketActualDevolucion.id;
+        form.appendChild(idVentaInput);
+
+        const metodoPagoInput = document.createElement('input');
+        metodoPagoInput.type = 'hidden';
+        metodoPagoInput.name = 'metodoPago';
+        metodoPagoInput.value = metodoPago;
+        form.appendChild(metodoPagoInput);
+
+        const productosInput = document.createElement('input');
+        productosInput.type = 'hidden';
+        productosInput.name = 'productos';
+        productosInput.value = JSON.stringify(productosDev);
+        form.appendChild(productosInput);
+
+        const totalInput = document.createElement('input');
+        totalInput.type = 'hidden';
+        totalInput.name = 'totalReembolso';
+        totalInput.value = totalReembolso;
+        form.appendChild(totalInput);
+
+        document.body.appendChild(form);
+        form.submit();
     }
 
     // ======================== UTILIDADES ========================
@@ -3602,38 +4001,38 @@
 
     // Listener para el selector de método de pago:
     // Cada vez que cambia, verifica si se debe mostrar el aviso de límite de efectivo
-    document.addEventListener('DOMContentLoaded', () => {
-        const selectPago = document.getElementById('metodoPago');
-        if (selectPago) {
-            selectPago.addEventListener('change', verificarLimiteEfectivo);
-        }
-
-        // Listener para el selector de tarifa
-        const selectTarifa = document.getElementById('tarifaVenta');
-        if (selectTarifa) {
-            selectTarifa.addEventListener('change', cambiarTarifa);
-        }
-    });
+    const selectPago = document.getElementById('metodoPago');
+    if (selectPago) {
+        selectPago.addEventListener('change', verificarLimiteEfectivo);
+    }
 
     /**
      * Maneja el cambio de tarifa para aplicar descuentos según el tipo de cliente
      */
     function cambiarTarifa() {
-        const tarifa = document.getElementById('tarifaVenta').value;
+        const tarifaId = document.getElementById('tarifaVenta').value;
 
-        if (tarifa === 'registrado') {
+        // Buscar la tarifa en el array de tarifas prefijadas
+        const tarifa = tarifasPrefijadas.find(t => t.id == tarifaId);
+
+        if (!tarifa) {
+            eliminarDescuentoPorTarifa();
+            return;
+        }
+
+        if (tarifa.requiere_cliente == 1 || tarifa.requiere_cliente === true) {
             // Abrir modal para buscar cliente registrado
             abrirModalBuscarClienteRegistrado();
-        } else if (tarifa === 'cliente') {
-            // Tarifa normal de cliente - sin descuento
+        } else if (parseFloat(tarifa.descuento_porcentaje) === 0) {
+            // Tarifa sin descuento
             eliminarDescuentoPorTarifa();
-        } else if (tarifa === 'mayorista1') {
-            // Mayorista nivel 1 - 12% descuento
-            descuentoTarifa = { tipo: 'porcentaje', valor: 12, cupon: 'MAYORISTA_NIVEL1' };
-            actualizarTicket();
-        } else if (tarifa === 'mayorista2') {
-            // Mayorista nivel 2 - 16% descuento
-            descuentoTarifa = { tipo: 'porcentaje', valor: 16, cupon: 'MAYORISTA_NIVEL2' };
+        } else {
+            // Aplicar descuento
+            descuentoTarifa = {
+                tipo: 'porcentaje',
+                valor: parseFloat(tarifa.descuento_porcentaje),
+                cupon: tarifa.nombre.toUpperCase().replace(/\s+/g, '_')
+            };
             actualizarTicket();
         }
     }
@@ -3650,11 +4049,22 @@
     }
 
     /**
-     * Busca un cliente por DNI y aplica el descuento del 2%
+     * Busca un cliente por DNI y aplica el descuento configurado en la tarifa
      */
     async function buscarClienteRegistrado() {
         const dni = document.getElementById('dniBusquedaCliente').value.trim();
         const mensajeDiv = document.getElementById('mensajeResultadoBusqueda');
+
+        // Determinar qué tarifa estamos validando
+        let tarifaActual = null;
+        if (productoPendienteTarifa) {
+            const select = productoPendienteTarifa.card.querySelector('.tarifa-selector');
+            const tarifaId = select.options[select.selectedIndex].dataset.tarifaId;
+            tarifaActual = tarifasPrefijadas.find(t => t.id == tarifaId);
+        } else {
+            const tarifaIdActual = document.getElementById('tarifaVenta').value;
+            tarifaActual = tarifasPrefijadas.find(t => t.id == tarifaIdActual);
+        }
 
         if (!dni) {
             mensajeDiv.textContent = 'Por favor, introduce un DNI';
@@ -3672,19 +4082,39 @@
                 mensajeDiv.className = 'mensaje-error';
                 mensajeDiv.style.display = 'block';
                 // Cambiar la tarifa a Cliente
-                document.getElementById('tarifaVenta').value = 'cliente';
+                const tarifaCliente4 = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+                if (tarifaCliente4) {
+                    document.getElementById('tarifaVenta').value = tarifaCliente4.id;
+                } else if (tarifasPrefijadas.length > 0) {
+                    document.getElementById('tarifaVenta').value = tarifasPrefijadas[0].id;
+                }
                 return;
             }
 
             const cliente = await response.json();
 
             if (cliente && cliente.activo == 1) {
-                // Cliente encontrado y activo - aplicar descuento del 2%
-                descuentoTarifa = { tipo: 'porcentaje', valor: 2, cupon: 'CLIENTE_REGISTRADO' };
+                // Poblamos los campos del cliente para que se guarden con la venta
+                document.getElementById('clienteNif').value = cliente.dni;
+                document.getElementById('clienteNombre').value = cliente.nombre + ' ' + cliente.apellidos;
+                document.getElementById('clienteDireccion').value = '';
+                document.getElementById('clienteObservaciones').value = '';
+
+                // El descuento ya no es global, se aplica al añadir el producto al carrito abajo
+                const nombreTarifa = tarifaActual ? tarifaActual.nombre : 'Cliente Registrado';
+                const descuentoValor = tarifaActual ? parseFloat(tarifaActual.descuento_porcentaje) : 0;
+
                 actualizarTicket();
-                mensajeDiv.textContent = 'Cliente encontrado: ' + cliente.nombre + ' ' + cliente.apellidos + '. Descuento del 2% aplicado.';
+                mensajeDiv.textContent = `Cliente encontrado: ${cliente.nombre} ${cliente.apellidos}. Tarifa ${nombreTarifa} (${descuentoValor}%) validada.`;
                 mensajeDiv.className = 'mensaje-exito';
                 mensajeDiv.style.display = 'block';
+
+                // Si había un producto esperando por esta identificación, lo añadimos al carrito
+                if (productoPendienteTarifa) {
+                    agregarAlCarrito(productoPendienteTarifa.card);
+                    productoPendienteTarifa = null;
+                }
+
                 setTimeout(() => {
                     cerrarModal('modalBuscarClienteRegistrado');
                 }, 1500);
@@ -3696,22 +4126,42 @@
                 mensajeDiv.textContent = 'No se encuentra ningún cliente con ese DNI';
                 mensajeDiv.className = 'mensaje-error';
                 mensajeDiv.style.display = 'block';
-                document.getElementById('tarifaVenta').value = 'cliente';
+                // Cambiar la tarifa a Cliente
+                const tarifaCliente5 = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+                if (tarifaCliente5) {
+                    document.getElementById('tarifaVenta').value = tarifaCliente5.id;
+                } else if (tarifasPrefijadas.length > 0) {
+                    document.getElementById('tarifaVenta').value = tarifasPrefijadas[0].id;
+                }
             }
         } catch (error) {
             console.error('Error al buscar cliente:', error);
             mensajeDiv.textContent = 'Error al buscar el cliente';
             mensajeDiv.className = 'mensaje-error';
-            mensajeDiv.style.display = 'block';
+            if (productoPendienteTarifa) {
+                revertirTarifaCard(productoPendienteTarifa.card.dataset.id);
+                productoPendienteTarifa = null;
+            }
         }
     }
 
     /**
-     * Elimina el descuento aplicado por tarifa de cliente registrado o mayorista
+     * Sobrescribimos el cierre del modal para manejar la reversión de tarifa si se cancela
+     */
+    function cerrarModalBuscarClienteRegistrado() {
+        if (productoPendienteTarifa) {
+            revertirTarifaCard(productoPendienteTarifa.card.dataset.id);
+            productoPendienteTarifa = null;
+        }
+        cerrarModal('modalBuscarClienteRegistrado');
+    }
+
+    /**
+     * Elimina el descuento aplicado por tarifa
      */
     function eliminarDescuentoPorTarifa() {
-        // Solo eliminar si hay descuento de tarifa activo
-        if (descuentoTarifa.cupon === 'CLIENTE_REGISTRADO' || descuentoTarifa.cupon === 'MAYORISTA_NIVEL1' || descuentoTarifa.cupon === 'MAYORISTA_NIVEL2') {
+        // Eliminar cualquier descuento de tarifa activo (no importa el nombre del cupón)
+        if (descuentoTarifa && descuentoTarifa.tipo !== 'ninguno') {
             descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
             actualizarTicket();
         }

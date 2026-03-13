@@ -48,9 +48,9 @@ body.dark-mode {
     --bg-accent-success: #064e3b;
     --bg-accent-danger: #7f1d1d;
     --bg-accent-warning: #7c2d12;
-    --scrollbar-track: #1f2937;
-    --scrollbar-thumb: #374151;
-    --scrollbar-hover: #4b5563;
+    --scrollbar-track: #374151;
+    --scrollbar-thumb: #ffffff;
+    --scrollbar-hover: #e5e7eb;
 }
 
 /* ======================== SCROLLBAR CUSTOMIZATION ======================== */
@@ -161,27 +161,27 @@ body.dark-mode {
 }
 
 .cat-btn {
-    padding: 8px 18px;
+    padding: 7px 15px;
     border-radius: 20px;
     background: #e5e7eb;
     color: #374151;
     text-decoration: none;
-    /* font-size: 0.85rem; */
-    font-size: 1.2rem;
+    font-size: 1rem;
     font-weight: 500;
     white-space: nowrap;
     transition: all 0.2s ease-in-out;
+    margin-bottom: 3px;
 }
 
 .cat-btn:hover {
     background: #d1d5db;
-    scale: 1.10;
+    scale: 1.08;
     cursor: pointer;
 }
 
 .cat-btn.activa {
     background: #1a1a2e;
-    scale: 1.10;
+    scale: 1.08;
     cursor: default;
     font-weight: bold;
     color: #fff;
@@ -270,6 +270,33 @@ body.dark-mode {
     font-size: 0.85rem;
     color: var(--text-muted);
     font-weight: 500;
+}
+
+.tarifa-selector {
+    width: 100%;
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    font-size: 11px;
+    padding: 4px;
+    margin: 8px 0;
+    background: var(--bg-input);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.tarifa-selector:hover {
+    border-color: var(--accent);
+}
+
+.tarifa-selector:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+body.dark-mode .tarifa-selector:focus {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .sin-productos {
@@ -1417,6 +1444,25 @@ body.dark-mode .btn-apply-premium:hover {
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
 }
 
+.btn-quitar-descuento {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn-quitar-descuento:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+}
+
 
 #inputPorcentajeDescuento {
     height: 25px;
@@ -1815,6 +1861,37 @@ body.dark-mode .ver-prod-valor {
 body.dark-mode .btn-cerrar-modal {
     background: #374151;
     color: #e5e7eb;
+}
+
+/* Refinamientos para Arqueo de Caja en Modo Oscuro */
+body.dark-mode #arqueoModal .modal-content {
+    background: #1f2937;
+    border: 1px solid #374151;
+}
+
+body.dark-mode .resumen-total-ventas {
+    border-top-color: #4b5563;
+}
+
+body.dark-mode .resumen-caja-detalles span {
+    color: #9ca3af;
+}
+
+body.dark-mode .resumen-caja-detalles .caja-efectivo-real span {
+    color: #f9fafb;
+}
+
+body.dark-mode .resumen-caja-titulo {
+    color: #f9fafb;
+}
+
+body.dark-mode #arqueoResumen {
+    background: #064e3b !important;
+    border-color: #059669 !important;
+}
+
+body.dark-mode #arqueoResumen span {
+    color: #ecfdf5 !important;
 }
 
 /* ======================== RESUMEN CAJA Y DETALLES ======================== */

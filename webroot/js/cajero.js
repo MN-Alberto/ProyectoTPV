@@ -6,6 +6,36 @@
  * y el renderizado dinámico de la cuadrícula de productos mediante AJAX.
  */
 
+// ======================== TARIFAS (AJAX) ========================
+let tarifasDisponibles = [];
+// Almacena el producto que está esperando a que se identifique un cliente
+let productoPendienteTarifa = null;
+// Almacena la tarifa anterior para poder revertir si el cliente no se encuentra
+let tarifaAnteriorCard = new Map();
+
+/**
+ * Redondeo financiero a 2 decimales exactos.
+ * @param {number} num 
+ * @returns {number}
+ */
+function round2(num) {
+    if (isNaN(num) || num === null) return 0;
+    return Math.round((num + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * Carga las tarifas desde la API para usarlas en el selector de productos.
+ */
+function cargarTarifasCajero() {
+    return fetch('api/tarifas.php')
+        .then(res => res.json())
+        .then(data => {
+            tarifasDisponibles = data;
+            return data;
+        })
+        .catch(err => console.error('Error cargando tarifas:', err));
+}
+
 // ======================== CATEGORÍAS (AJAX) ========================
 
 /**
@@ -126,27 +156,59 @@ function renderProductos(productos) {
     productos.forEach(prod => {
         // Formatear el precio con 2 decimales y coma.
         const ivaProd = (prod.iva !== null && prod.iva !== undefined && prod.iva !== "") ? parseInt(prod.iva) : 21;
-        const precioPVP = parseFloat(prod.precio) * (1 + (ivaProd / 100));
-        let precioFmt = precioPVP.toFixed(2).replace('.', ',');
+
+        // 1. Encontrar tarifa 'Cliente' (por defecto)
+        const tarifaCliente = tarifasDisponibles.find(t => t.nombre === 'Cliente');
+        const tarifaClienteId = tarifaCliente ? tarifaCliente.id : null;
+
+        // 2. Comprobar si hay precio para esa tarifa (ya sea manual o calculado)
+        const preciosManuales = prod.preciosTarifas || {};
+        const precioBaseOriginal = parseFloat(prod.precio) || 0;
+        let precioBaseEfectivo = precioBaseOriginal;
+
+        // Usar precio de tarifa si existe, sin importar si es manual o calculado
+        if (tarifaClienteId && preciosManuales[tarifaClienteId]) {
+            precioBaseEfectivo = preciosManuales[tarifaClienteId].precio;
+        }
+
+        const precioPVP = precioBaseEfectivo * (1 + (ivaProd / 100));
+        let precioFmt = round2(precioPVP).toFixed(2).replace('.', ',');
 
         // Usar la imagen del producto si existe; de lo contrario, usar el logo por defecto.
         let imgSrc = prod.imagen && prod.imagen !== '' ? prod.imagen : 'webroot/img/logo.PNG';
 
+        // Generar selector de tarifas
+        let selectorTarifas = `<select class="tarifa-selector" 
+                                onclick="event.stopPropagation()" 
+                                onfocus="guardarTarifaAnterior(this)"
+                                onchange="actualizarPrecioCard(this, ${precioBaseOriginal}, ${ivaProd})">`;
+
+        tarifasDisponibles.forEach(tarifa => {
+            const selected = tarifa.nombre === 'Cliente' ? 'selected' : '';
+            selectorTarifas += `<option value="${tarifa.descuento_porcentaje}" 
+                                        data-requiere-cliente="${tarifa.requiere_cliente}" 
+                                        data-tarifa-id="${tarifa.id}"
+                                        ${selected}>${tarifa.nombre}</option>`;
+        });
+        selectorTarifas += `</select>`;
+
         // Generar la tarjeta del producto.
-        // Si el stock es 0 o menor, se aplica un estilo visual de "no disponible"
-        // (opacidad reducida, cursor no permitido, sin animaciones de hover).
         html += `<div class="producto-card" data-id="${prod.id}"
-                    data-nombre="${prod.nombre.replace(/"/g, '"')}"
-                    data-precio="${prod.precio}" 
+                    data-nombre="${prod.nombre.replace(/"/g, '&quot;')}"
+                    data-precio="${precioBaseEfectivo}" 
+                    data-precio-original="${precioBaseOriginal}"
+                    data-pvp="${round2(precioPVP).toFixed(2)}"
                     data-iva="${ivaProd}"
-                    data-stock="${prod.stock}"
+                    data-precios-tarifas='${JSON.stringify(preciosManuales)}'
+                    data-stock="${prod.stock || 0}"
                     onclick="agregarAlCarrito(this)" style="${prod.stock <= 0 ? 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);' : ''}">
                     <div class="producto-nombre">${prod.nombre}</div>
                     <div class="producto-imagen">
                         <img src="${imgSrc}" alt="${prod.nombre.replace(/"/g, '"')}">
                     </div>
-                    <div class="producto-info-inferior">
+                    <div class="producto-info-inferior" style="display: flex; flex-direction: column; gap: 2px;">
                         <span class="producto-precio">${precioFmt} €</span>
+                        ${selectorTarifas}
                         <span class="producto-stock" ${prod.stock <= 0 ? 'style="color: red; text-decoration: underline;"' : ''}>Stock: ${prod.stock}</span>
                     </div>
                 </div>`;
@@ -154,6 +216,141 @@ function renderProductos(productos) {
 
     // Insertar todo el HTML generado en la cuadrícula de productos.
     grid.innerHTML = html;
+}
+
+/**
+ * Guarda la tarifa actual antes de cambiarla para poder revertir si es necesario.
+ */
+function guardarTarifaAnterior(selectElement) {
+    const card = selectElement.closest('.producto-card');
+    const id = card.dataset.id;
+    tarifaAnteriorCard.set(id, selectElement.value);
+}
+
+/**
+ * Revierte el selector de tarifa a su valor anterior.
+ */
+function revertirTarifaCard(cardId) {
+    const card = document.querySelector(`.producto-card[data-id="${cardId}"]`);
+    if (card) {
+        const select = card.querySelector('.tarifa-selector');
+        if (select && tarifaAnteriorCard.has(cardId)) {
+            select.value = tarifaAnteriorCard.get(cardId);
+            // Actualizar precio visualmente
+            const iva = parseInt(card.dataset.iva);
+            const precioOriginal = parseFloat(card.dataset.precioOriginal || card.dataset.precio);
+            actualizarPrecioCard(select, precioOriginal, iva, false);
+        }
+    }
+}
+
+/**
+ * Resetea el selector de tarifa de una card a la tarifa "Cliente".
+ */
+function resetearTarifaCard(card) {
+    if (!card) return;
+    const select = card.querySelector('.tarifa-selector');
+    if (select) {
+        // Buscar la opción de "Cliente" (normalmente descuento 0 y nombre "Cliente")
+        let optionCliente = null;
+        let tarifaClienteId = null;
+        for (let i = 0; i < select.options.length; i++) {
+            if (select.options[i].text === 'Cliente') {
+                optionCliente = select.options[i];
+                tarifaClienteId = optionCliente.dataset.tarifaId;
+                break;
+            }
+        }
+
+        if (optionCliente) {
+            select.value = optionCliente.value;
+            const iva = parseInt(card.dataset.iva);
+            
+            // Obtener los precios de tarifa almacenados
+            const preciosTarifasStr = card.dataset.preciosTarifas || '{}';
+            let preciosTarifas = {};
+            try {
+                preciosTarifas = JSON.parse(preciosTarifasStr);
+            } catch (e) { console.error("Error parseando preciosTarifas", e); }
+            
+            // Si existe precio para la tarifa Cliente, usarlo directamente
+            let precioBase;
+            if (tarifaClienteId && preciosTarifas[tarifaClienteId]) {
+                precioBase = preciosTarifas[tarifaClienteId].precio;
+            } else {
+                // Si no hay precio de tarifa, usar el precio original
+                precioBase = parseFloat(card.dataset.precioOriginal || card.dataset.precio);
+            }
+            
+            actualizarPrecioCard(select, precioBase, iva, false);
+        }
+    }
+}
+
+/**
+ * Actualiza el precio mostrado en la tarjeta del producto según la tarifa seleccionada.
+ * @param {boolean} triggerAutoAdd - Si es true, intentará añadir al carrito si se cumplen las condiciones.
+ */
+function actualizarPrecioCard(selectElement, precioBase, iva, triggerAutoAdd = true) {
+    const card = selectElement.closest('.producto-card');
+    const precioSpan = card.querySelector('.producto-precio');
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const tarifaId = selectedOption.dataset.tarifaId;
+    const descuento = parseFloat(selectElement.value) || 0;
+    const requiereCliente = selectedOption.dataset.requiereCliente === "1" || selectedOption.dataset.requiereCliente === "true";
+
+    // Si no tenemos el precio original guardado, lo guardamos ahora
+    if (!card.dataset.precioOriginal) {
+        card.dataset.precioOriginal = precioBase;
+    }
+    const precioBaseOriginal = parseFloat(card.dataset.precioOriginal);
+
+    // Obtener precios por tarifa
+    const preciosTarifasStr = card.dataset.preciosTarifas || '{}';
+    let preciosTarifas = {};
+    try {
+        preciosTarifas = JSON.parse(preciosTarifasStr);
+    } catch (e) { console.error("Error parseando preciosTarifas", e); }
+
+    // Calcular nuevo precio base
+    let nuevoPrecioBase;
+    // Usar precio de tarifa si existe (ya sea manual o calculado)
+    if (preciosTarifas[tarifaId]) {
+        nuevoPrecioBase = preciosTarifas[tarifaId].precio;
+    } else {
+        // Usar descuento porcentual sobre el precio base original
+        nuevoPrecioBase = precioBaseOriginal * (1 - (descuento / 100));
+    }
+
+    // Calcular precio final con IVA para mostrar (PVP unitario)
+    // REDONDEAMOS EL PVP UNITARIO A 2 DECIMALES PARA EVITAR DESCUADRES (PVP x Cantidad)
+    const precioFinalConIva = round2(nuevoPrecioBase * (1 + (iva / 100)));
+
+    // Actualizar texto en la tarjeta
+    precioSpan.textContent = precioFinalConIva.toFixed(2).replace('.', ',') + ' €';
+
+    // El nuevo precio base efectivo para el carrito lo recalculamos desde el PVP redondeado
+    const nuevoPrecioBaseAjustado = precioFinalConIva / (1 + (iva / 100));
+
+    // Actualizar el data-precio y data-pvp de la card
+    card.dataset.precio = nuevoPrecioBaseAjustado;
+    card.dataset.pvp = precioFinalConIva.toFixed(2);
+
+    // Lógica de cliente registrado
+    if (requiereCliente && triggerAutoAdd) {
+        // No hay cliente o el cliente cambia: guardar estado y abrir modal
+        productoPendienteTarifa = {
+            card: card,
+            precioBase: precioBase,
+            ivaSize: iva
+        };
+        abrirModalBuscarClienteRegistrado();
+    } else if (triggerAutoAdd && descuento > 0) {
+        // Tarifa con descuento pero sin requerir cliente (ej: una oferta puntual)
+        // El usuario dijo "si cambio a alguna otra se actualiza el precio", 
+        // pero para el caso del cliente dijo explícitamente "si está se añade al carrito".
+        // Para tarifas normales parece que solo Actualiza el precio. No añadiré al carrito automáticamente salvo que sea restringida.
+    }
 }
 
 // ======================== PERMISOS Y CREAR PRODUCTOS ========================
@@ -262,9 +459,13 @@ function abrirModalNuevoProducto() {
         });
 }
 
-// Verificar permisos al cargar la página cuando el DOM esté listo
+// Verificar permisos y cargar tarifas al cargar la página
 document.addEventListener('DOMContentLoaded', function () {
     verificarPermisoCrearProductos();
+    cargarTarifasCajero().then(() => {
+        // Si ya hay productos cargados (por PHP), podríamos querer refrescarlos o confiar en la carga inicial de PHP
+        // Pero para que el selector funcione con los productos iniciales de PHP, PHP también debe generarlo.
+    });
 });
 
 // ======================== FUNCIONES DE MODAL (necesarias para el modal de nuevo producto) ========================

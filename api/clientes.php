@@ -16,9 +16,34 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->exec("SET NAMES utf8mb4");
 
+    /**
+     * Valida un DNI español (8 dígitos + 1 letra).
+     * La letra se calcula dividiendo el número entre 23 y cogiendo el resto.
+     * @param string $dni El DNI a validar
+     * @return bool True si el DNI es válido
+     */
+    function validarDNI($dni)
+    {
+        // Verificar formato: 8 dígitos + 1 letra
+        if (!preg_match('/^\\d{8}[A-Z]$/', strtoupper($dni))) {
+            return false;
+        }
+
+        // Extraer números y letra
+        $dni = strtoupper($dni);
+        $numeros = intval(substr($dni, 0, 8));
+        $letra = substr($dni, 8, 1);
+
+        // Calcular la letra correcta según el algoritmo español
+        $letras = 'TRWAGMYFPDXBNJZSQVHLCKE';
+        $letraCorrecta = $letras[$numeros % 23];
+
+        return $letra === $letraCorrecta;
+    }
+
     // Manejar POST para crear nuevo cliente
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $dni = $_POST['dni'] ?? '';
+        $dni = strtoupper(trim($_POST['dni'] ?? ''));
         $nombre = $_POST['nombre'] ?? '';
         $apellidos = $_POST['apellidos'] ?? '';
         $fecha_alta = $_POST['fecha_alta'] ?? date('Y-m-d');
@@ -26,6 +51,13 @@ try {
         if (empty($dni) || empty($nombre) || empty($apellidos)) {
             http_response_code(400);
             echo json_encode(['error' => 'DNI, nombre y apellidos son obligatorios']);
+            exit;
+        }
+
+        // Validar formato DNI (8 dígitos + letra válida)
+        if (!validarDNI($dni)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'El DNI debe tener 8 dígitos seguidos de una letra válida (ejemplo: 12345678A)']);
             exit;
         }
 
@@ -54,7 +86,7 @@ try {
         parse_str(file_get_contents("php://input"), $_PUT);
 
         $id = $_PUT['id'] ?? '';
-        $dni = $_PUT['dni'] ?? '';
+        $dni = strtoupper(trim($_PUT['dni'] ?? ''));
         $nombre = $_PUT['nombre'] ?? '';
         $apellidos = $_PUT['apellidos'] ?? '';
         $fecha_alta = $_PUT['fecha_alta'] ?? '';
@@ -62,6 +94,13 @@ try {
         if (empty($id) || empty($dni) || empty($nombre) || empty($apellidos)) {
             http_response_code(400);
             echo json_encode(['error' => 'Todos los campos son obligatorios']);
+            exit;
+        }
+
+        // Validar formato DNI (8 dígitos + letra válida)
+        if (!validarDNI($dni)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'El DNI debe tener 8 dígitos seguidos de una letra válida (ejemplo: 12345678A)']);
             exit;
         }
 
@@ -112,6 +151,59 @@ try {
             http_response_code(500);
             echo json_encode(['error' => 'Error al activar el cliente']);
         }
+        exit;
+    }
+
+    // Manejar GET para obtener las compras de un cliente por DNI (debe estar ANTES de la verificación por DNI)
+    if (isset($_GET['compras']) && isset($_GET['dni'])) {
+        $dni = $_GET['dni'];
+
+        // Primero verificar que el cliente existe
+        $stmt = $pdo->prepare("SELECT id FROM clientes WHERE dni = ? AND activo = 1");
+        $stmt->execute([$dni]);
+        $cliente = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$cliente) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Cliente no encontrado']);
+            exit;
+        }
+
+        // Obtener las ventas del cliente
+        $stmt = $pdo->prepare("
+            SELECT v.*, u.nombre as usuario_nombre 
+            FROM ventas v 
+            LEFT JOIN usuarios u ON v.idUsuario = u.id 
+            WHERE v.cliente_dni = ? AND v.estado = 'completada' 
+            ORDER BY v.fecha DESC
+        ");
+        $stmt->execute([$dni]);
+        $ventas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Para cada venta, obtener las líneas de productos
+        foreach ($ventas as &$venta) {
+            $stmtLineas = $pdo->prepare("
+                SELECT lv.*, p.nombre as producto_nombre, p.imagen as producto_imagen
+                FROM lineasVenta lv
+                JOIN productos p ON lv.idProducto = p.id
+                WHERE lv.idVenta = ?
+            ");
+            $stmtLineas->execute([$venta['id']]);
+            $lineas = $stmtLineas->fetchAll(PDO::FETCH_ASSOC);
+
+            // Calcular precio con IVA para cada línea
+            foreach ($lineas as &$linea) {
+                $iva = isset($linea['iva']) ? floatval($linea['iva']) : 21;
+                $precioBase = floatval($linea['precioUnitario']);
+                $precioConIva = $precioBase * (1 + $iva / 100);
+                $linea['precioUnitarioConIva'] = round($precioConIva, 2);
+                $linea['subtotalConIva'] = round($precioConIva * $linea['cantidad'], 2);
+            }
+
+            $venta['lineas'] = $lineas;
+        }
+
+        echo json_encode($ventas);
         exit;
     }
 
