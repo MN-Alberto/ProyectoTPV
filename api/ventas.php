@@ -13,6 +13,75 @@ require_once(__DIR__ . '/../model/Venta.php');
 // Establecemos el tipo de contenido de la respuesta, en este caso JSON
 header('Content-Type: application/json; charset=utf-8');
 
+// Endpoint para obtener estadísticas de productos
+if (isset($_GET['accion']) && $_GET['accion'] === 'estadisticas_productos') {
+    try {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+
+        $estadisticas = [];
+
+        // 1. Producto más vendido en toda la historia
+        $stmt = $conexion->query("
+            SELECT p.nombre, SUM(lv.cantidad) as cantidad 
+            FROM lineasVenta lv 
+            JOIN productos p ON lv.idProducto = p.id 
+            GROUP BY p.id 
+            ORDER BY cantidad DESC 
+            LIMIT 1
+        ");
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $estadisticas['mas_vendido_historia'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
+
+        // 2. Producto más vendido del mes actual
+        $stmt = $conexion->query("
+            SELECT p.nombre, SUM(lv.cantidad) as cantidad 
+            FROM lineasVenta lv 
+            JOIN productos p ON lv.idProducto = p.id 
+            JOIN ventas v ON lv.idVenta = v.id 
+            WHERE MONTH(v.fecha) = MONTH(CURRENT_DATE()) AND YEAR(v.fecha) = YEAR(CURRENT_DATE())
+            GROUP BY p.id 
+            ORDER BY cantidad DESC 
+            LIMIT 1
+        ");
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $estadisticas['mas_vendido_mes'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
+
+        // 3. Producto más vendido de la semana actual (desde el lunes)
+        $stmt = $conexion->query("
+            SELECT p.nombre, SUM(lv.cantidad) as cantidad 
+            FROM lineasVenta lv 
+            JOIN productos p ON lv.idProducto = p.id 
+            JOIN ventas v ON lv.idVenta = v.id 
+            WHERE YEARWEEK(v.fecha, 1) = YEARWEEK(CURRENT_DATE(), 1)
+            GROUP BY p.id 
+            ORDER BY cantidad DESC 
+            LIMIT 1
+        ");
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $estadisticas['mas_vendido_semana'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
+
+        // 4. Producto menos vendido del mes actual
+        $stmt = $conexion->query("
+            SELECT p.nombre, COALESCE(SUM(lv.cantidad), 0) as cantidad 
+            FROM productos p 
+            LEFT JOIN lineasVenta lv ON lv.idProducto = p.id 
+            LEFT JOIN ventas v ON lv.idVenta = v.id AND MONTH(v.fecha) = MONTH(CURRENT_DATE()) AND YEAR(v.fecha) = YEAR(CURRENT_DATE())
+            WHERE p.activo = 1
+            GROUP BY p.id 
+            ORDER BY cantidad ASC 
+            LIMIT 1
+        ");
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $estadisticas['menos_vendido_mes'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
+
+        echo json_encode(['success' => true, 'estadisticas' => $estadisticas]);
+        exit();
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        exit();
+    }
+}
+
 // Si se solicita el historial de ventas de la sesión de caja actual
 if (isset($_GET['historialCaja'])) {
     try {

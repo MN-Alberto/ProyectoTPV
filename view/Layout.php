@@ -51,6 +51,15 @@
                         <i class="fas fa-moon"></i>
                     </button>
                 </div>
+                <?php if (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'admin'): ?>
+                    <a href="?ctl=cajero" class="btn-ir-cajero" title="Ir a Vista de Cajero">
+                        <i class="fas fa-cash-register"></i> Cajero
+                    </a>
+                <?php elseif (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'cajero' && isset($_SESSION['rolUsuario']) && $_SESSION['rolUsuario'] === 'admin'): ?>
+                    <a href="?ctl=admin" class="btn-ir-cajero" title="Volver a Administración">
+                        <i class="fas fa-user-shield"></i> Admin
+                    </a>
+                <?php endif; ?>
                 <span>Hola, <strong><?php echo htmlspecialchars($_SESSION['nombreUsuario']); ?></strong></span>
                 <form action="<?php echo $_SERVER["PHP_SELF"]; ?>" method="post">
                     <input type="submit" name="cerrarSesion" class="btn-cerrar-sesion" value="Cerrar Sesión">

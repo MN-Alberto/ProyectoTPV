@@ -8,6 +8,9 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// Iniciamos la sesión para acceder a las variables de sesión
+session_start();
+
 require_once(__DIR__ . '/../config/confDB.php');
 require_once(__DIR__ . '/../core/conexionDB.php');
 
@@ -46,7 +49,7 @@ function actualizarPreciosProductosPorTarifa($conexion, $idTarifa, $columnName, 
         try {
             $pdoHistorial = new PDO(RUTA, USUARIO, PASS);
             $stmtHistorial = $pdoHistorial->prepare("INSERT INTO productos_historial_precios (id_producto, precio, id_tarifa, usuario_id) VALUES (:id_producto, :precio, :id_tarifa, :usuario_id)");
-            $adminId = $_SESSION['id'] ?? null;
+            $adminId = $_SESSION['idUsuario'] ?? $_SESSION['id'] ?? null;
             $stmtHistorial->execute([
                 ':id_producto' => $idProducto,
                 ':precio' => $nuevoPrecio,
@@ -218,7 +221,7 @@ try {
             // Guardar en historial de precios
             try {
                 $pdoHistorial = new PDO(RUTA, USUARIO, PASS);
-                $adminId = $_SESSION['id'] ?? null;
+                $adminId = $_SESSION['idUsuario'] ?? $_SESSION['id'] ?? null;
                 $stmtHistorial = $pdoHistorial->prepare("INSERT INTO productos_historial_precios (id_producto, precio, id_tarifa, usuario_id) VALUES (:id_producto, :precio, :id_tarifa, :usuario_id)");
                 $stmtHistorial->execute([
                     ':id_producto' => $idProducto,
@@ -235,8 +238,8 @@ try {
                 $pdoLog = new PDO(RUTA, USUARIO, PASS);
                 $pdoLog->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-                $adminId = $_SESSION['id'] ?? null;
-                $adminNombre = $_SESSION['nombre'] ?? 'Admin';
+                $adminId = $_SESSION['idUsuario'] ?? $_SESSION['id'] ?? null;
+                $adminNombre = $_SESSION['nombreUsuario'] ?? 'Admin';
 
                 $descripcionLog = "Precio de tarifa '$tarifa[nombre]' actualizado para producto '$nombreProducto'";
                 $detallesLog = json_encode([

@@ -558,6 +558,21 @@ body.dark-mode #previsualizacionCambios tbody tr:hover {
     background: #10b981;
 }
 
+.tarifa-btn-programar {
+    padding: 12px 24px;
+    background: #8b5cf6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    width: 100%;
+}
+
+.tarifa-btn-programar:hover {
+    background: #7c3aed;
+}
+
 /* Modo oscuro para paneles de tarifas */
 body.dark-mode .tarifa-panel-inputs {
     background: #1f2937;

@@ -133,6 +133,36 @@ body.dark-mode .btn-cerrar-sesion:hover {
     background: #dc2626;
 }
 
+.btn-ir-cajero {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    margin-right: 15px;
+}
+
+.btn-ir-cajero:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+body.dark-mode .btn-ir-cajero {
+    background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+}
+
+body.dark-mode .btn-ir-cajero:hover {
+    background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+}
+
 body.dark-mode footer {
     background: #0f0f1a;
     color: #9ca3af;

@@ -1444,6 +1444,25 @@ body.dark-mode .btn-apply-premium:hover {
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
 }
 
+.btn-quitar-descuento {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn-quitar-descuento:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+}
+
 
 #inputPorcentajeDescuento {
     height: 25px;

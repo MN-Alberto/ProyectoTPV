@@ -2437,9 +2437,48 @@
         }
     }
 
+    /**
+     * Verifica y aplica cambios de IVA programados
+     */
+    function verificarCambiosIvaProgramados() {
+        fetch('api/productos.php?accion=aplicar_cambios_iva_programados')
+            .then(res => res.json())
+            .then(data => {
+                if (data.aplicados > 0) {
+                    console.log('Se aplicaron ' + data.aplicados + ' cambios de IVA programados');
+
+                    // Actualizar los productos del carrito con los nuevos IVA y precios
+                    if (carrito.length > 0 && data.nuevosIVA) {
+                        carrito.forEach(item => {
+                            const nuevoIVA = data.nuevosIVA[item.id];
+                            if (nuevoIVA) {
+                                // Actualizar el IVA del producto
+                                item.iva = nuevoIVA;
+                                // Recalcular el PVP con el nuevo IVA
+                                const precioBase = parseFloat(item.precio || item.precioConDescuento || 0);
+                                item.pvpUnitario = round2(precioBase * (1 + (nuevoIVA / 100)));
+                                // También actualizar el PVP original si existe
+                                if (item.pvpOriginalUnitario) {
+                                    const precioOriginal = parseFloat(item.precio || 0);
+                                    item.pvpOriginalUnitario = round2(precioOriginal * (1 + (nuevoIVA / 100)));
+                                }
+                            }
+                        });
+                        // Actualizar el ticket con los nuevos precios
+                        actualizarTicket();
+                    }
+
+                    // Recargar los productos del catálogo para mostrar los nuevos precios
+                    buscarProductos();
+                }
+            })
+            .catch(err => console.error('Error verificando cambios IVA programados:', err));
+    }
+
     // Inicializar botón de recuperar al cargar la página
     document.addEventListener('DOMContentLoaded', function () {
         actualizarBotonRecuperar();
+        verificarCambiosIvaProgramados();
     });
 
     /**
@@ -2600,9 +2639,13 @@
         if (descuentoManualImporte > 0.005) {
             const textoManual = descuento.tipo === 'porcentaje' ? 'Descuento (' + descuento.valor + '%)' : 'Cupón ' + (descuento.cupon || 'Manual');
             htmlDesglose += `
-            <div class="resumen-fila-mini descuento-texto">
-                <span>${textoManual}:</span>
-                <span>- ${descuentoManualImporte.toFixed(2).replace('.', ',')} €</span>
+            <div class="resumen-fila-mini descuento-texto" style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #16a34a;">
+                    <span style="cursor: pointer; color: #ef4444; margin-right: 5px;" onclick="quitarDescuento()" title="Quitar descuento">
+                        <i class="fas fa-times-circle"></i>
+                    </span>${textoManual}:
+                </span>
+                <span style="color: #16a34a;">- ${descuentoManualImporte.toFixed(2).replace('.', ',')} €</span>
             </div>`;
         }
 
@@ -2639,7 +2682,33 @@
     function aplicarDescuento() {
         if (carrito.length === 0) return;
         document.getElementById('modalDescuento').style.display = 'flex';
+
+        // Mostrar/ocultar botón de quitar descuento según si hay descuento activo
+        const btnQuitar = document.getElementById('btnQuitarDescuento');
+        if (descuento && descuento.tipo !== 'ninguno' && descuento.valor > 0) {
+            btnQuitar.style.display = 'block';
+        } else {
+            btnQuitar.style.display = 'none';
+        }
+
         document.getElementById('inputPorcentajeDescuento').focus();
+    }
+
+    /**
+     * quitarDescuento()
+     * Elimina el descuento activo y actualiza el ticket.
+     */
+    function quitarDescuento() {
+        // Resetear descuento
+        descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+
+        // Limpiar los inputs del modal
+        document.getElementById('inputPorcentajeDescuento').value = '';
+        document.getElementById('inputCuponDescuento').value = '';
+
+        // Cerrar modal y actualizar ticket
+        cerrarModal('modalDescuento');
+        actualizarTicket();
     }
 
     /**

@@ -1,4 +1,8 @@
 ﻿// ======================== RENDER PRODUCTOS (MODO TABLA - ADMIN) ========================
+// Este módulo contiene todas las funciones relacionadas con la renderización de productos
+// en el panel de administración, incluyendo búsqueda, filtrado, ordenación y visualización.
+
+// ======================== VARIABLES GLOBALES ========================
 
 // Variable global para el término de búsqueda en tarifas
 let tarifaBusquedaProducto = '';
@@ -45,6 +49,40 @@ function cargarTiposIva() {
             return data;
         })
         .catch(err => console.error('Error cargando tipos de IVA:', err));
+}
+
+/**
+ * Verifica y aplica cambios de IVA programados
+ */
+function verificarCambiosIvaProgramados() {
+    fetch('api/productos.php?accion=aplicar_cambios_iva_programados')
+        .then(res => res.json())
+        .then(data => {
+            if (data.aplicados > 0) {
+                console.log('Se aplicaron ' + data.aplicados + ' cambios de IVA programados');
+                // Recargar tipos de IVA si estamos en esa sección
+                cargarTiposIva();
+            }
+        })
+        .catch(err => console.error('Error verificando cambios IVA programados:', err));
+}
+
+/**
+ * Verifica y aplica ajustes de precios programados
+ */
+function verificarAjustesPreciosProgramados() {
+    fetch('api/productos.php?accion=aplicar_ajustes_precios_programados')
+        .then(res => res.json())
+        .then(data => {
+            if (data.aplicados > 0) {
+                console.log('Se aplicaron ' + data.aplicados + ' ajustes de precios programados');
+                // Recargar la sección actual si es necesario
+                if (seccionActual === 'tarifa-ajuste') {
+                    mostrarPanelAjustePrecios();
+                }
+            }
+        })
+        .catch(err => console.error('Error verificando ajustes de precios programados:', err));
 }
 
 /**
@@ -234,6 +272,9 @@ function getAdminTablaHeader(textoBusqueda = '', idCategoriaSeleccionada = '', o
                 <button class="btn-admin-accion ${mostrarConIva ? 'btn-ver' : 'btn-editar'}" onclick="toggleMostrarIva()" style="min-width: 150px;">
                     <i class="fas ${mostrarConIva ? 'fa-file-invoice-dollar' : 'fa-coins'}"></i> 
                     ${mostrarConIva ? 'Ver Sin IVA' : 'Ver Con IVA'}
+                </button>
+                <button class="btn-admin-accion btn-ver" onclick="abrirModalEstadisticasProductos()">
+                    <i class="fas fa-chart-bar"></i> Estadísticas
                 </button>
                 <button class="btn-admin-accion btn-nuevo" onclick="nuevoProducto()">
                     <i class="fas fa-plus"></i> Nuevo Producto
@@ -522,6 +563,63 @@ function nuevoProducto() {
 
     // Abrir el modal de edición (que sirve tanto para crear como para editar)
     abrirModal('modalEditarProducto');
+}
+
+/**
+ * Abre el modal de estadísticas de productos y carga los datos.
+ */
+async function abrirModalEstadisticasProductos() {
+    const modal = document.getElementById('modalEstadisticasProductos');
+    const contenido = document.getElementById('estadisticasProductosContenido');
+
+    // Mostrar modal
+    modal.style.display = 'flex';
+
+    // Mostrar cargando
+    contenido.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin" style="font-size: 40px; color: #3b82f6;"></i><p>Cargando estadísticas...</p></div>';
+
+    try {
+        const response = await fetch('api/ventas.php?accion=estadisticas_productos');
+        const data = await response.json();
+
+        if (data.success) {
+            const stats = data.estadisticas;
+            const isDark = document.body.classList.contains('dark-mode');
+            const textColor = isDark ? '#e5e7eb' : '#1f2937';
+            const cardBg = isDark ? '#374151' : '#f3f4f6';
+            const borderColor = isDark ? '#4b5563' : '#e5e7eb';
+
+            contenido.innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px;">
+                    <div style="background: ${cardBg}; padding: 20px; border-radius: 8px; border: 1px solid ${borderColor};">
+                        <h4 style="margin: 0 0 10px 0; color: ${textColor};"><i class="fas fa-trophy" style="color: #fbbf24;"></i> Más vendido (Historia)</h4>
+                        <p style="font-size: 18px; font-weight: bold; color: ${textColor}; margin: 0;">${stats.mas_vendido_historia?.nombre || 'Sin datos'}</p>
+                        <p style="color: #059669; font-weight: bold; margin: 5px 0 0 0;">${stats.mas_vendido_historia?.cantidad || 0} unidades</p>
+                    </div>
+                    <div style="background: ${cardBg}; padding: 20px; border-radius: 8px; border: 1px solid ${borderColor};">
+                        <h4 style="margin: 0 0 10px 0; color: ${textColor};"><i class="fas fa-calendar-alt" style="color: #3b82f6;"></i> Más vendido (Mes)</h4>
+                        <p style="font-size: 18px; font-weight: bold; color: ${textColor}; margin: 0;">${stats.mas_vendido_mes?.nombre || 'Sin datos'}</p>
+                        <p style="color: #059669; font-weight: bold; margin: 5px 0 0 0;">${stats.mas_vendido_mes?.cantidad || 0} unidades</p>
+                    </div>
+                    <div style="background: ${cardBg}; padding: 20px; border-radius: 8px; border: 1px solid ${borderColor};">
+                        <h4 style="margin: 0 0 10px 0; color: ${textColor};"><i class="fas fa-calendar-week" style="color: #10b981;"></i> Más vendido (Semana)</h4>
+                        <p style="font-size: 18px; font-weight: bold; color: ${textColor}; margin: 0;">${stats.mas_vendido_semana?.nombre || 'Sin datos'}</p>
+                        <p style="color: #059669; font-weight: bold; margin: 5px 0 0 0;">${stats.mas_vendido_semana?.cantidad || 0} unidades</p>
+                    </div>
+                    <div style="background: ${cardBg}; padding: 20px; border-radius: 8px; border: 1px solid ${borderColor};">
+                        <h4 style="margin: 0 0 10px 0; color: ${textColor};"><i class="fas fa-arrow-down" style="color: #ef4444;"></i> Menos vendido (Mes)</h4>
+                        <p style="font-size: 18px; font-weight: bold; color: ${textColor}; margin: 0;">${stats.menos_vendido_mes?.nombre || 'Sin datos'}</p>
+                        <p style="color: #dc2626; font-weight: bold; margin: 5px 0 0 0;">${stats.menos_vendido_mes?.cantidad || 0} unidades</p>
+                    </div>
+                </div>
+            `;
+        } else {
+            contenido.innerHTML = `<p style="color: #dc2626; text-align: center;">Error: ${data.error || 'Error desconocido'}</p>`;
+        }
+    } catch (error) {
+        console.error('Error cargando estadísticas:', error);
+        contenido.innerHTML = `<p style="color: #dc2626; text-align: center;">Error al cargar las estadísticas</p>`;
+    }
 }
 
 /**
@@ -4928,6 +5026,12 @@ function mostrarPanelCambiarIVA() {
                 <button onclick="aplicarCambioIVA()" class="tarifa-btn-aplicar">
                     <i class="fas fa-save"></i> Aplicar Cambio de IVA
                 </button>
+                <button onclick="abrirModalProgramarIVA()" class="tarifa-btn-programar" style="margin-top: 10px;">
+                    <i class="fas fa-clock"></i> Programar Cambio
+                </button>
+                <button onclick="abrirModalVerCambiosProgramados()" class="tarifa-btn-programar" style="margin-top: 10px;">
+                    <i class="fas fa-list"></i> Ver Cambios Programados
+                </button>
             </div>
             <div style="flex: 1; max-width: 550px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -5048,6 +5152,341 @@ function mostrarTablaPrevisualizacionIVA(productos, nuevoIVA) {
     contenedor.innerHTML = html;
 }
 
+/**
+ * Abre el modal para programar un cambio de IVA
+ */
+function abrirModalProgramarIVA() {
+    const nuevoIdIva = document.getElementById('nuevoIVA').value;
+    const cambioId = document.getElementById('ivaProgramado').dataset.cambioId;
+
+    // Si no hay cambioId, es un nuevo cambio - solo resetear si no hay productos seleccionados
+    if (!cambioId && productosExcluidos.length === 0) {
+        document.getElementById('ivaProgramado').value = '';
+        delete document.getElementById('ivaProgramado').dataset.cambioId;
+    }
+
+    if (!nuevoIdIva && !cambioId) {
+        alert('Por favor, selecciona un tipo de IVA');
+        return;
+    }
+
+    // Guardar el IVA seleccionado en un campo oculto
+    if (nuevoIdIva) {
+        document.getElementById('ivaProgramado').value = nuevoIdIva;
+    }
+
+    // Obtener el nombre del tipo de IVA seleccionado
+    const selectIva = document.getElementById('nuevoIVA');
+    const nombreIva = selectIva.options[selectIva.selectedIndex].textContent;
+    document.getElementById('ivaProgramadoNombre').textContent = nombreIva;
+
+    // Solo establecer fecha mínima si es un nuevo cambio (no edición)
+    if (!cambioId) {
+        // Establecer fecha y hora mínima (ahora)
+        const ahora = new Date();
+        ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
+        document.getElementById('fechaProgramada').min = ahora.toISOString().slice(0, 16);
+    }
+
+    // Abrir el modal
+    document.getElementById('modalProgramarIVA').style.display = 'flex';
+}
+
+/**
+ * Abre el modal para ver los cambios de IVA programados
+ */
+function abrirModalVerCambiosProgramados() {
+    // Cargar los cambios programados desde la API
+    fetch('api/productos.php?accion=obtener_cambios_iva_programados')
+        .then(res => res.json())
+        .then(data => {
+            const contenedor = document.getElementById('listaCambiosProgramadosIVA');
+
+            if (!data.cambios || data.cambios.length === 0) {
+                contenedor.innerHTML = '<p style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay cambios de IVA programados</p>';
+            } else {
+                let html = `
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead style="background: var(--bg-secondary); position: sticky; top: 0;">
+                            <tr>
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-main);">Fecha Programada</th>
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-main);">Nuevo IVA</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Estado</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Afectados</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Excluidos</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+                data.cambios.forEach(cambio => {
+                    const fecha = new Date(cambio.fecha_programada);
+                    const fechaFormateada = fecha.toLocaleString('es-ES', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    });
+
+                    const estadoClass = cambio.estado === 'aplicado' ? 'style="color: green;"' :
+                        cambio.estado === 'pendiente' ? 'style="color: orange;"' : 'style="color: red;"';
+
+                    const excluidos = cambio.productos_excluidos ?
+                        cambio.productos_excluidos.split(',').length + ' productos' : 'Ninguno';
+
+                    const afectados = cambio.productos_afectados !== undefined ? cambio.productos_afectados + ' productos' : '-';
+
+                    const acciones = cambio.estado === 'pendiente' ? `
+                        <button class="btn-admin-accion" onclick="verDetallesCambioIVA(${cambio.id})" title="Ver Detalles">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-admin-accion" onclick="editarCambioProgramadoIVA(${cambio.id})" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-admin-accion btn-eliminar" onclick="eliminarCambioProgramadoIVA(${cambio.id})" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>` : `
+                        <button class="btn-admin-accion" onclick="verDetallesCambioIVA(${cambio.id})" title="Ver Detalles">
+                            <i class="fas fa-eye"></i>
+                        </button>`;
+
+                    html += `
+                        <tr style="border-bottom: 1px solid var(--border-main);">
+                            <td style="padding: 10px;">${fechaFormateada}</td>
+                            <td style="padding: 10px;">${cambio.iva_porcentaje}% (${cambio.iva_nombre})</td>
+                            <td style="padding: 10px; text-align: center;" ${estadoClass}>${cambio.estado.toUpperCase()}</td>
+                            <td style="padding: 10px; text-align: center;">${afectados}</td>
+                            <td style="padding: 10px; text-align: center;">${excluidos}</td>
+                            <td style="padding: 10px; text-align: center;">${acciones}</td>
+                        </tr>`;
+                });
+
+                html += '</tbody></table>';
+                contenedor.innerHTML = html;
+            }
+
+            // Abrir el modal
+            document.getElementById('modalVerCambiosProgramadosIVA').style.display = 'flex';
+        })
+        .catch(err => {
+            console.error('Error cargando cambios programados:', err);
+            alert('Error al cargar los cambios programados');
+        });
+}
+
+/**
+ * Elimina un cambio de IVA programado
+ */
+function eliminarCambioProgramadoIVA(id) {
+    if (!confirm('¿Estás seguro de que deseas eliminar este cambio programado?')) {
+        return;
+    }
+
+    fetch('api/productos.php?accion=eliminar_cambio_iva_programado&id=' + id, {
+        method: 'DELETE'
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                alert('Cambio programado eliminado correctamente');
+                abrirModalVerCambiosProgramados(); // Recargar la lista
+            } else {
+                alert('Error al eliminar: ' + data.error);
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al eliminar el cambio programado');
+        });
+}
+
+/**
+ * Ver los detalles de un cambio de IVA programado
+ */
+function verDetallesCambioIVA(id) {
+    fetch('api/productos.php?accion=obtener_cambio_iva_programado&id=' + id)
+        .then(res => res.json())
+        .then(data => {
+            console.log('Cambio IVA data:', data);
+            if (data.cambio) {
+                const cambio = data.cambio;
+
+                // Mostrar info del cambio
+                const fechaProgramada = cambio.fecha_programada ? new Date(cambio.fecha_programada).toLocaleString('es-ES') : 'No definida';
+                const fechaCreacion = cambio.created_at ? new Date(cambio.created_at).toLocaleString('es-ES') : 'No definida';
+                const infoHTML = `
+                    <div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <p><strong>Fecha programada:</strong> ${fechaProgramada}</p>
+                        <p><strong>Nuevo IVA:</strong> ${cambio.iva_nombre || 'General'} (${cambio.iva_porcentaje}%)</p>
+                        <p><strong>Estado:</strong> ${cambio.estado === 'aplicado' ? '<span style="color: green;">Aplicado</span>' : '<span style="color: orange;">Pendiente</span>'}</p>
+                        <p><strong>Creado:</strong> ${fechaCreacion}</p>
+                    </div>
+                `;
+                document.getElementById('detallesCambioIVAInfo').innerHTML = infoHTML;
+
+                // Cargar productos afectados
+                fetch('api/productos.php?accion=obtener_productos_cambio_iva&id=' + id)
+                    .then(res => res.json())
+                    .then(dataProductos => {
+                        console.log('IVA response:', dataProductos);
+                        let tablaHTML = '';
+                        if (dataProductos.ok && dataProductos.productos && dataProductos.productos.length > 0) {
+                            tablaHTML = `
+                                <table class="tabla-admin" style="width: 100%; font-size: 13px;">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Nombre</th>
+                                            <th>IVA Anterior</th>
+                                            <th>IVA Nuevo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${dataProductos.productos.map(p => `
+                                            <tr>
+                                                <td>${p.id}</td>
+                                                <td>${p.nombre}</td>
+                                                <td>${p.iva_anterior}%</td>
+                                                <td>${p.iva_nuevo}%</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            `;
+                        } else {
+                            tablaHTML = '<p style="padding: 20px; text-align: center;">' +
+                                (dataProductos.error ? 'Error: ' + dataProductos.error : 'No hay productos afectados') +
+                                '</p>';
+                        }
+                        document.getElementById('detallesCambioIVATabla').innerHTML = tablaHTML;
+                    });
+
+                abrirModal('modalVerDetallesCambioIVA');
+            } else {
+                alert('Error al cargar los detalles del cambio');
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al cargar los detalles del cambio');
+        });
+}
+
+/**
+ * Edita un cambio de IVA programado (abre el modal de programación con los datos cargados)
+ */
+function editarCambioProgramadoIVA(id) {
+    // Primero cerrar el modal de ver cambios
+    cerrarModal('modalVerCambiosProgramadosIVA');
+
+    // Cargar los datos del cambio y abrir el modal de programación
+    fetch('api/productos.php?accion=obtener_cambio_iva_programado&id=' + id)
+        .then(res => res.json())
+        .then(data => {
+            if (data.cambio) {
+                const cambio = data.cambio;
+
+                // Seleccionar el IVA
+                document.getElementById('nuevoIVA').value = cambio.iva_id;
+
+                // Obtener el nombre del IVA seleccionado y guardarlo
+                const selectIva = document.getElementById('nuevoIVA');
+                const nombreIva = selectIva.options[selectIva.selectedIndex].textContent;
+                document.getElementById('ivaProgramadoNombre').textContent = nombreIva;
+
+                // Establecer la fecha
+                const fecha = new Date(cambio.fecha_programada);
+                fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
+                document.getElementById('fechaProgramada').value = fecha.toISOString().slice(0, 16);
+
+                // Cargar productos excluidos si hay
+                if (cambio.productos_excluidos) {
+                    productosExcluidos = cambio.productos_excluidos.split(',').map(Number);
+                } else {
+                    productosExcluidos = [];
+                }
+
+                // Guardar el ID del cambio para actualizarlo y el IVA
+                document.getElementById('ivaProgramado').value = cambio.iva_id;
+                document.getElementById('ivaProgramado').dataset.cambioId = id;
+
+                // Abrir el modal de programación
+                abrirModalProgramarIVA();
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al cargar los datos del cambio');
+        });
+}
+
+/**
+ * Programa un cambio de IVA para una fecha futura
+ */
+function programarCambioIVA() {
+    const nuevoIdIva = document.getElementById('ivaProgramado').value;
+    const fechaHora = document.getElementById('fechaProgramada').value;
+    const productosExcluir = productosExcluidos.join(',');
+    const cambioId = document.getElementById('ivaProgramado').dataset.cambioId;
+
+    if (!fechaHora) {
+        alert('Por favor, selecciona una fecha y hora');
+        return;
+    }
+
+    const fechaObj = new Date(fechaHora);
+    const ahora = new Date();
+
+    if (fechaObj <= ahora && !cambioId) {
+        alert('La fecha programada debe ser posterior a la hora actual');
+        return;
+    }
+
+    // Si hay un cambioId, es una edición; otherwise, es nuevo
+    if (cambioId) {
+        // Actualizar cambio existente
+        fetch('api/productos.php?accion=actualizar_cambio_iva_programado&id=' + cambioId, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'iva_id=' + nuevoIdIva + '&fecha_programada=' + encodeURIComponent(fechaHora) + '&productos_excluidos=' + productosExcluir
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                alert('Cambio de IVA actualizado correctamente');
+                cerrarModal('modalProgramarIVA');
+                productosExcluidos = [];
+                delete document.getElementById('ivaProgramado').dataset.cambioId;
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error al actualizar el cambio');
+            });
+    } else {
+        // Crear nuevo cambio
+        fetch('api/productos.php?accion=programar_cambio_iva', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'iva_id=' + nuevoIdIva + '&fecha_programada=' + encodeURIComponent(fechaHora) + '&productos_excluidos=' + productosExcluir
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                alert('Cambio de IVA programado para el ' + data.fecha_formateada);
+                cerrarModal('modalProgramarIVA');
+                productosExcluidos = [];
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error al programar el cambio');
+            });
+    }
+}
+
 function aplicarCambioIVA() {
     const nuevoIdIva = document.getElementById('nuevoIVA').value;
 
@@ -5120,6 +5559,12 @@ function mostrarPanelAjustePrecios() {
                 </div>
                 <button onclick="aplicarAjustePrecios()" class="tarifa-btn-aplicar tarifa-btn-precios">
                     <i class="fas fa-save"></i> Aplicar Ajuste de Precios
+                </button>
+                <button onclick="abrirModalProgramarAjustePrecios()" class="tarifa-btn-programar" style="margin-top: 10px;">
+                    <i class="fas fa-clock"></i> Programar Ajuste
+                </button>
+                <button onclick="abrirModalVerAjustesProgramados()" class="tarifa-btn-programar" style="margin-top: 10px;">
+                    <i class="fas fa-list"></i> Ver Ajustes Programados
                 </button>
             </div>
             <div id="previsualizacionCambios" style="flex: 1;"></div>
@@ -5698,28 +6143,39 @@ function mostrarPanelHistorialPrecios() {
 
     // Detectar tema actual
     const isDark = document.body.classList.contains('dark-mode');
-    const bgColor = isDark ? '#1f2937' : 'white';
-    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const bgColor = isDark ? '#1f2937' : '#ffffff';
+    const textColor = isDark ? '#e5e7eb' : '#1f2937';
     const subTextColor = isDark ? '#9ca3af' : '#6b7280';
     const borderColor = isDark ? '#374151' : '#e5e7eb';
-    const inputBg = isDark ? '#374151' : 'white';
-    const tableHeaderBg = isDark ? '#111827' : '#f9fafb';
+    const inputBg = isDark ? '#374151' : '#ffffff';
+    const tableHeaderBg = isDark ? '#111827' : '#f3f4f6';
 
     contenedor.innerHTML = `
-        <div style="padding: 20px;">
+        <div style="padding: 20px; background: ${bgColor}; border-radius: 8px;">
             <h3 style="margin-bottom: 20px; color: ${textColor};">Historial de Precios</h3>
             
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; margin-bottom: 8px; color: ${textColor}; font-weight: 500;">Seleccionar Producto:</label>
-                <select id="selectHistorialProducto" 
-                    style="width: 100%; max-width: 500px; padding: 10px; border: 1px solid ${borderColor}; border-radius: 8px; background: ${inputBg}; color: ${textColor}; font-size: 14px;"
-                    onchange="cargarHistorialPrecios()">
-                    <option value="">-- Seleccionar un producto --</option>
-                </select>
+            <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <label style="display: block; margin-bottom: 8px; color: ${textColor}; font-weight: 500;">Seleccionar Producto:</label>
+                    <select id="selectHistorialProducto" 
+                        style="width: 100%; padding: 10px; border: 1px solid ${borderColor}; border-radius: 8px; background: ${inputBg}; color: ${textColor}; font-size: 14px; cursor: pointer;"
+                        onchange="cargarHistorialPrecios()">
+                        <option value="" style="background: ${bgColor}; color: ${textColor};">-- Seleccionar un producto --</option>
+                    </select>
+                </div>
+                <div style="flex: 1; min-width: 250px;">
+                    <label style="display: block; margin-bottom: 8px; color: ${textColor}; font-weight: 500;">Seleccionar Tarifa:</label>
+                    <select id="selectHistorialTarifa" 
+                        style="width: 100%; padding: 10px; border: 1px solid ${borderColor}; border-radius: 8px; background: ${inputBg}; color: ${textColor}; font-size: 14px; cursor: pointer;"
+                        onchange="cargarHistorialPrecios()">
+                        <option value="" style="background: ${bgColor}; color: ${textColor};">-- Todas las tarifas --</option>
+                        <option value="base" style="background: ${bgColor}; color: ${textColor};">Precio Base</option>
+                    </select>
+                </div>
             </div>
 
             <div id="tablaHistorialPreciosContainer" style="display: none;">
-                <table style="width: 100%; border-collapse: collapse; margin-top: 20px; border: 1px solid ${borderColor};">
+                <table style="width: 100%; border-collapse: collapse; margin-top: 20px; border: 1px solid ${borderColor}; background: ${bgColor};">
                     <thead>
                         <tr style="background: ${tableHeaderBg};">
                             <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Precio</th>
@@ -5740,6 +6196,15 @@ function mostrarPanelHistorialPrecios() {
         </div>
     `;
 
+    // Observer para detectar cambios en el tema
+    const observer = new MutationObserver(() => {
+        // Cuando cambie el tema, volver a cargar el panel
+        if (seccionActual === 'historial-precios') {
+            mostrarPanelHistorialPrecios();
+        }
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
     // Cargar la lista de productos
     fetch('api/productos.php?listaProductos')
         .then(res => res.json())
@@ -5755,6 +6220,24 @@ function mostrarPanelHistorialPrecios() {
         .catch(err => {
             console.error('Error cargando productos:', err);
         });
+
+    // Cargar la lista de tarifas
+    fetch('api/tarifas.php')
+        .then(res => res.json())
+        .then(tarifas => {
+            const select = document.getElementById('selectHistorialTarifa');
+            tarifas.forEach(tarifa => {
+                const option = document.createElement('option');
+                option.value = tarifa.id;
+                option.textContent = tarifa.nombre;
+                option.style.background = bgColor;
+                option.style.color = textColor;
+                select.appendChild(option);
+            });
+        })
+        .catch(err => {
+            console.error('Error cargando tarifas:', err);
+        });
 }
 
 /**
@@ -5763,17 +6246,19 @@ function mostrarPanelHistorialPrecios() {
 function cargarHistorialPrecios() {
     const select = document.getElementById('selectHistorialProducto');
     const idProducto = select.value;
+    const selectTarifa = document.getElementById('selectHistorialTarifa');
+    const idTarifa = selectTarifa ? selectTarifa.value : '';
     const container = document.getElementById('tablaHistorialPreciosContainer');
     const mensaje = document.getElementById('historialPreciosMensaje');
     const tbody = document.getElementById('tablaHistorialPreciosBody');
 
     // Detectar tema actual
     const isDark = document.body.classList.contains('dark-mode');
-    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const textColor = isDark ? '#e5e7eb' : '#1f2937';
     const subTextColor = isDark ? '#9ca3af' : '#6b7280';
     const borderColor = isDark ? '#374151' : '#e5e7eb';
-    const rowBg = isDark ? '#1f2937' : 'white';
-    const rowAltBg = isDark ? '#111827' : '#f9fafb';
+    const rowBg = isDark ? '#1f2937' : '#ffffff';
+    const rowAltBg = isDark ? '#111827' : '#f3f4f6';
 
     if (!idProducto) {
         container.style.display = 'none';
@@ -5799,14 +6284,43 @@ function cargarHistorialPrecios() {
                 return;
             }
 
+            // Filtrar por tarifa si se ha seleccionado una
+            let historialFiltrado = historial;
+            if (idTarifa) {
+                if (idTarifa === 'base') {
+                    // Mostrar solo precios base (sin tarifa)
+                    historialFiltrado = historial.filter(item => !item.id_tarifa || item.id_tarifa === null);
+                } else {
+                    // Mostrar solo precios de la tarifa seleccionada
+                    historialFiltrado = historial.filter(item => item.id_tarifa == idTarifa);
+                }
+            }
+
+            if (historialFiltrado.length === 0) {
+                mensaje.textContent = idTarifa === 'base'
+                    ? 'No hay historial de precios base para este producto'
+                    : 'No hay historial de precios para esta tarifa';
+                mensaje.style.display = 'block';
+                container.style.display = 'none';
+                return;
+            }
+
             let html = '';
-            historial.forEach((item, index) => {
+            historialFiltrado.forEach((item, index) => {
                 const fechaDesde = new Date(item.valido_desde).toLocaleString('es-ES', {
                     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
                 });
 
-                // El precio más reciente es "Actual", los demás muestran "—"
-                const fechaHasta = index === 0 ? 'Actual' : '—';
+                // El precio más reciente es "Actual", los demás muestran la fecha del siguiente cambio
+                let fechaHasta = '—';
+                if (index === 0) {
+                    fechaHasta = 'Actual';
+                } else if (historialFiltrado[index - 1] && historialFiltrado[index - 1].valido_desde) {
+                    const fechaAnterior = new Date(historialFiltrado[index - 1].valido_desde).toLocaleString('es-ES', {
+                        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                    });
+                    fechaHasta = fechaAnterior;
+                }
 
                 html += `
                     <tr style="background: ${index % 2 === 0 ? rowBg : rowAltBg}; border-bottom: 1px solid ${borderColor};">
@@ -5988,6 +6502,343 @@ function aplicarAjustePrecios() {
 }
 
 /**
+ * Abre el modal para programar un ajuste de precios
+ */
+function abrirModalProgramarAjustePrecios() {
+    const ajusteId = document.getElementById('ajusteProgramadoPorcentaje').dataset.ajusteId;
+    const porcentajeInput = document.getElementById('porcentajeAjuste').value;
+
+    // Si no hay ajusteId, es un nuevo ajuste - tomar el valor del input principal
+    if (!ajusteId && porcentajeInput) {
+        document.getElementById('ajusteProgramadoPorcentaje').value = porcentajeInput;
+    }
+
+    // Calcular productos afectados
+    const totalProductos = productosPrevisualizacionPrecios ? productosPrevisualizacionPrecios.length : 0;
+    const productosAfectados = totalProductos - productosExcluidos.length;
+    document.getElementById('ajusteProgramadoProductosCount').textContent = productosAfectados;
+
+    // Solo establecer fecha mínima si es un nuevo ajuste (no edición)
+    if (!ajusteId) {
+        // Establecer fecha y hora mínima (ahora)
+        const ahora = new Date();
+        ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
+        document.getElementById('fechaProgramadaAjuste').min = ahora.toISOString().slice(0, 16);
+    }
+
+    // Abrir el modal
+    document.getElementById('modalProgramarAjustePrecios').style.display = 'flex';
+}
+
+/**
+ * Programa un ajuste de precios para una fecha futura
+ */
+function programarAjustePrecios() {
+    const porcentaje = parseFloat(document.getElementById('ajusteProgramadoPorcentaje').value);
+    const fechaHora = document.getElementById('fechaProgramadaAjuste').value;
+    const productosExcluir = productosExcluidos.join(',');
+    const ajusteId = document.getElementById('ajusteProgramadoPorcentaje').dataset.ajusteId;
+
+    if (isNaN(porcentaje)) {
+        alert('Por favor, introduce un porcentaje válido');
+        return;
+    }
+
+    if (!fechaHora) {
+        alert('Por favor, selecciona una fecha y hora');
+        return;
+    }
+
+    const fechaObj = new Date(fechaHora);
+    const ahora = new Date();
+
+    if (fechaObj <= ahora && !ajusteId) {
+        alert('La fecha programada debe ser posterior a la hora actual');
+        return;
+    }
+
+    // Si hay un ajusteId, es una edición; otherwise, es nuevo
+    if (ajusteId) {
+        // Actualizar ajuste existente
+        fetch('api/productos.php?accion=actualizar_ajuste_precios_programado&id=' + ajusteId, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'porcentaje=' + porcentaje + '&fecha_programada=' + encodeURIComponent(fechaHora) + '&productos_excluidos=' + productosExcluir
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                alert('Ajuste de precios actualizado correctamente');
+                cerrarModal('modalProgramarAjustePrecios');
+                delete document.getElementById('ajusteProgramadoPorcentaje').dataset.ajusteId;
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error al actualizar el ajuste');
+            });
+    } else {
+        // Crear nuevo ajuste
+        fetch('api/productos.php?accion=programar_ajuste_precios', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'porcentaje=' + porcentaje + '&fecha_programada=' + encodeURIComponent(fechaHora) + '&productos_excluidos=' + productosExcluir
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                alert('Ajuste de precios programado para el ' + data.fecha_formateada);
+                cerrarModal('modalProgramarAjustePrecios');
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error al programar el ajuste');
+            });
+    }
+}
+
+/**
+ * Abre el modal para ver los ajustes de precios programados
+ */
+function abrirModalVerAjustesProgramados() {
+    // Cargar los ajustes programados desde la API
+    fetch('api/productos.php?accion=obtener_ajustes_precios_programados')
+        .then(res => res.json())
+        .then(data => {
+            const contenedor = document.getElementById('listaAjustesProgramadosPrecios');
+
+            if (!data.ajustes || data.ajustes.length === 0) {
+                contenedor.innerHTML = '<p style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay ajustes de precios programados</p>';
+            } else {
+                let html = `
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead style="background: var(--bg-secondary); position: sticky; top: 0;">
+                            <tr>
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-main);">Fecha Programada</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Porcentaje</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Estado</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Afectados</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Excluidos</th>
+                                <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-main);">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+                data.ajustes.forEach(ajuste => {
+                    const fecha = new Date(ajuste.fecha_programada);
+                    const fechaFormateada = fecha.toLocaleString('es-ES', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    });
+
+                    const estadoClass = ajuste.estado === 'aplicado' ? 'style="color: green;"' :
+                        ajuste.estado === 'pendiente' ? 'style="color: orange;"' : 'style="color: red;"';
+
+                    const signoPorcentaje = ajuste.porcentaje > 0 ? '+' : '';
+
+                    const excluidos = ajuste.productos_excluidos ?
+                        ajuste.productos_excluidos.split(',').length + ' productos' : 'Ninguno';
+
+                    const afectados = ajuste.productos_afectados !== undefined ? ajuste.productos_afectados + ' productos' : '-';
+
+                    const acciones = ajuste.estado === 'pendiente' ? `
+                        <button class="btn-admin-accion" onclick="verDetallesAjustePrecios(${ajuste.id})" title="Ver Detalles">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-admin-accion" onclick="editarAjusteProgramadoPrecios(${ajuste.id})" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-admin-accion btn-eliminar" onclick="eliminarAjusteProgramadoPrecios(${ajuste.id})" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>` : `
+                        <button class="btn-admin-accion" onclick="verDetallesAjustePrecios(${ajuste.id})" title="Ver Detalles">
+                            <i class="fas fa-eye"></i>
+                        </button>`;
+
+                    html += `
+                        <tr style="border-bottom: 1px solid var(--border-main);">
+                            <td style="padding: 10px;">${fechaFormateada}</td>
+                            <td style="padding: 10px; text-align: center; font-weight: 600;">${signoPorcentaje}${ajuste.porcentaje}%</td>
+                            <td style="padding: 10px; text-align: center;" ${estadoClass}>${ajuste.estado.toUpperCase()}</td>
+                            <td style="padding: 10px; text-align: center;">${afectados}</td>
+                            <td style="padding: 10px; text-align: center;">${excluidos}</td>
+                            <td style="padding: 10px; text-align: center;">${acciones}</td>
+                        </tr>`;
+                });
+
+                html += '</tbody></table>';
+                contenedor.innerHTML = html;
+            }
+
+            // Abrir el modal
+            document.getElementById('modalVerAjustesProgramadosPrecios').style.display = 'flex';
+        })
+        .catch(err => {
+            console.error('Error cargando ajustes programados:', err);
+            alert('Error al cargar los ajustes programados');
+        });
+}
+
+/**
+ * Elimina un ajuste de precios programado
+ */
+function eliminarAjusteProgramadoPrecios(id) {
+    if (!confirm('¿Estás seguro de que deseas eliminar este ajuste programado?')) {
+        return;
+    }
+
+    fetch('api/productos.php?accion=eliminar_ajuste_precios_programado&id=' + id, {
+        method: 'DELETE'
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                alert('Ajuste programado eliminado correctamente');
+                abrirModalVerAjustesProgramados(); // Recargar la lista
+            } else {
+                alert('Error al eliminar: ' + data.error);
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al eliminar el ajuste programado');
+        });
+}
+
+/**
+ * Ver los detalles de un ajuste de precios programado
+ */
+function verDetallesAjustePrecios(id) {
+    fetch('api/productos.php?accion=obtener_ajuste_precios_programado&id=' + id)
+        .then(res => res.json())
+        .then(data => {
+            if (data.ajuste) {
+                const ajuste = data.ajuste;
+
+                // Determinar tipo de ajuste
+                const tipoTexto = ajuste.porcentaje > 0 ? 'Aumento' : 'Reducción';
+
+                // Mostrar info del ajuste
+                const fechaProgramada = ajuste.fecha_programada ? new Date(ajuste.fecha_programada).toLocaleString('es-ES') : 'No definida';
+                const fechaCreacion = ajuste.created_at ? new Date(ajuste.created_at).toLocaleString('es-ES') : 'No definida';
+                const infoHTML = `
+                    <div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <p><strong>Fecha programada:</strong> ${fechaProgramada}</p>
+                        <p><strong>Tipo:</strong> ${tipoTexto}</p>
+                        <p><strong>Porcentaje:</strong> ${Math.abs(ajuste.porcentaje)}%</p>
+                        <p><strong>Estado:</strong> ${ajuste.estado === 'aplicado' ? '<span style="color: green;">Aplicado</span>' : '<span style="color: orange;">Pendiente</span>'}</p>
+                        <p><strong>Creado:</strong> ${fechaCreacion}</p>
+                    </div>
+                `;
+                document.getElementById('detallesAjustePreciosInfo').innerHTML = infoHTML;
+
+                // Cargar productos afectados
+                fetch('api/productos.php?accion=obtener_productos_ajuste_precios&id=' + id)
+                    .then(res => res.json())
+                    .then(dataProductos => {
+                        console.log('Precios response:', dataProductos);
+                        let tablaHTML = '';
+                        if (dataProductos.ok && dataProductos.productos && dataProductos.productos.length > 0) {
+                            tablaHTML = `
+                                <table class="tabla-admin" style="width: 100%; font-size: 13px;">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Nombre</th>
+                                            <th>Precio Anterior</th>
+                                            <th>Nuevo Precio</th>
+                                            <th>Cambio</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${dataProductos.productos.map(p => {
+                                const cambio = p.precio_nuevo - p.precio_anterior;
+                                const cambioTexto = cambio >= 0 ? `+${cambio.toFixed(2)}€` : `${cambio.toFixed(2)}€`;
+                                return `
+                                                <tr>
+                                                    <td>${p.id}</td>
+                                                    <td>${p.nombre}</td>
+                                                    <td>${parseFloat(p.precio_anterior).toFixed(2)}€</td>
+                                                    <td>${parseFloat(p.precio_nuevo).toFixed(2)}€</td>
+                                                    <td>${cambioTexto}</td>
+                                                </tr>
+                                            `;
+                            }).join('')}
+                                    </tbody>
+                                </table>
+                            `;
+                        } else {
+                            tablaHTML = '<p style="padding: 20px; text-align: center;">' +
+                                (dataProductos.error ? 'Error: ' + dataProductos.error : 'No hay productos afectados') +
+                                '</p>';
+                        }
+                        document.getElementById('detallesAjustePreciosTabla').innerHTML = tablaHTML;
+                    });
+
+                abrirModal('modalVerDetallesAjustePrecios');
+            } else {
+                alert('Error al cargar los detalles del ajuste');
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al cargar los detalles del ajuste');
+        });
+}
+
+/**
+ * Edita un ajuste de precios programado
+ */
+function editarAjusteProgramadoPrecios(id) {
+    // Cerrar el modal de ver ajustes
+    cerrarModal('modalVerAjustesProgramadosPrecios');
+
+    // Cargar los datos del ajuste
+    fetch('api/productos.php?accion=obtener_ajuste_precios_programado&id=' + id)
+        .then(res => res.json())
+        .then(data => {
+            if (data.ajuste) {
+                const ajuste = data.ajuste;
+
+                // Establecer el porcentaje
+                document.getElementById('porcentajeAjuste').value = ajuste.porcentaje;
+
+                // Establecer la fecha
+                const fecha = new Date(ajuste.fecha_programada);
+                fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
+                document.getElementById('fechaProgramadaAjuste').value = fecha.toISOString().slice(0, 16);
+
+                // Cargar productos excluidos si hay
+                if (ajuste.productos_excluidos) {
+                    productosExcluidos = ajuste.productos_excluidos.split(',').map(Number);
+                } else {
+                    productosExcluidos = [];
+                }
+
+                // Guardar el ID del ajuste para actualizarlo
+                document.getElementById('ajusteProgramadoPorcentaje').dataset.ajusteId = id;
+
+                // Actualizar el contador de productos
+                const totalProductos = productosPrevisualizacionPrecios ? productosPrevisualizacionPrecios.length : 0;
+                const productosAfectados = totalProductos - productosExcluidos.length;
+                document.getElementById('ajusteProgramadoProductosCount').textContent = productosAfectados;
+
+                // Abrir el modal de programación
+                abrirModalProgramarAjustePrecios();
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al cargar los datos del ajuste');
+        });
+}
+
+/**
  * Confirma la eliminación de la asociación proveedor-producto
  */
 function confirmarEliminarProductoProveedor(idAsociacion, nombreProducto) {
@@ -6004,17 +6855,3 @@ function confirmarEliminarProductoProveedor(idAsociacion, nombreProducto) {
             .catch(err => console.error('Error eliminando asociación:', err));
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
