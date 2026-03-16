@@ -25,6 +25,7 @@ class Venta
     private $cambioDevuelto;
     private $idTarifa; // ID de la tarifa prefijada aplicada
     private $clienteDni; // DNI del cliente asociado a la venta
+    private $idSesionCaja; // ID de la sesión de caja en la que se realizó la venta
 
     // Campos de descuento
     private $descuentoTipo;
@@ -156,6 +157,16 @@ class Venta
     public function setClienteDni($clienteDni)
     {
         $this->clienteDni = $clienteDni;
+    }
+
+    public function getIdSesionCaja()
+    {
+        return $this->idSesionCaja;
+    }
+
+    public function setIdSesionCaja($idSesionCaja)
+    {
+        $this->idSesionCaja = $idSesionCaja;
     }
 
     // Getters y Setters de descuentos
@@ -405,8 +416,8 @@ class Venta
             // 2. Insertar en la tabla real correspondiente (tickets o facturas) con el ID obtenido
             $tabla = $this->getTabla();
             $stmt = $conexion->prepare(
-                "INSERT INTO {$tabla} (id, idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni) 
-                 VALUES (:id, :idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni)"
+                "INSERT INTO {$tabla} (id, idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni, idSesionCaja) 
+                 VALUES (:id, :idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni, :idSesionCaja)"
             );
             
             // Vinculamos los parámetros
@@ -432,6 +443,7 @@ class Venta
             $stmt->bindParam(':descuentoManualCupon', $this->descuentoManualCupon);
             $stmt->bindParam(':idTarifa', $this->idTarifa, PDO::PARAM_INT);
             $stmt->bindParam(':clienteDni', $this->clienteDni, PDO::PARAM_STR);
+            $stmt->bindParam(':idSesionCaja', $this->idSesionCaja, PDO::PARAM_INT);
             
             // Ejecutamos la consulta de inserción
             $stmt->execute();
@@ -718,6 +730,7 @@ class Venta
         $venta->setCerrada($fila['cerrada'] ?? 0);
         $venta->setImporteEntregado($fila['importeEntregado'] ?? null);
         $venta->setCambioDevuelto($fila['cambioDevuelto'] ?? null);
+        $venta->setIdSesionCaja($fila['idSesionCaja'] ?? null);
         // Devolvemos la venta
         return $venta;
     }

@@ -517,3 +517,51 @@ function abrirImagenGrande(src, alt = '') {
     document.body.appendChild(overlay);
 }
 
+/**
+ * Muestra el modal de cierre temporal.
+ */
+function mostrarModalCierreTemporal() {
+    document.getElementById('modalCierreTemporal').style.display = 'flex';
+}
+
+/**
+ * Realiza una pausa/descanso cerrando la sesión del usuario pero manteniendo la caja abierta.
+ */
+function pausarSesion(motivo = 'pausa') {
+    const btnCerrarSesion = document.querySelector('input[name="cerrarSesion"]');
+    if (btnCerrarSesion && !motivo) {
+        btnCerrarSesion.click();
+    } else {
+        // Fallback: enviar el cierre de sesión manualmente con el motivo
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'index.php';
+        
+        const inputLogout = document.createElement('input');
+        inputLogout.type = 'hidden';
+        inputLogout.name = 'cerrarSesion';
+        inputLogout.value = 'Cerrar Sesión';
+        form.appendChild(inputLogout);
+
+        if (motivo) {
+            const inputMotivo = document.createElement('input');
+            inputMotivo.type = 'hidden';
+            inputMotivo.name = 'motivoCierre';
+            inputMotivo.value = motivo;
+            form.appendChild(inputMotivo);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+/**
+ * Inicia el proceso de cambio de turno.
+ * En este sistema, el cambio de turno simplemente cierra la sesión del usuario
+ * manteniendo la caja abierta para el siguiente empleado.
+ */
+function cambiarTurno() {
+    pausarSesion('turno');
+}
+

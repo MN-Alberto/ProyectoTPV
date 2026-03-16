@@ -5,7 +5,7 @@
     display: flex;
     flex-direction: column;
     background: var(--bg-main);
-    overflow: hidden;
+    overflow-y: auto; /* Permitir scroll global si el contenido es grande */
 }
 
 .admin-header {
@@ -59,7 +59,7 @@
     border-radius: 12px;
     border: 1px solid var(--border-main);
     padding: 15px;
-    overflow-y: auto;
+    overflow-y: visible; /* Permitir que el scroll sea manejado por el contenedor padre si es necesario */
 }
 
 .admin-tabla .col-acciones {
@@ -913,6 +913,97 @@ body.dark-mode #modalVerCliente span:last-child {
     opacity: 0.85;
 }
 
+/* Estilos para la sección de acciones de exportación */
+.export-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 15px;
+    padding: 10px;
+}
+
+.export-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.export-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.export-card-icon {
+    font-size: 1.5rem;
+    color: #3b82f6;
+    margin-bottom: 5px;
+}
+
+.export-card-info h4 {
+    margin: 0 0 5px 0;
+    font-size: 1rem;
+    color: #1a1a2e;
+}
+
+.export-card-info p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+.export-card-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: auto;
+}
+
+.btn-export {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s;
+}
+
+.btn-export:hover {
+    opacity: 0.9;
+}
+
+.btn-export.json {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.btn-export.pdf {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+body.dark-mode .export-card {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+body.dark-mode .export-card-info h4 {
+    color: #f3f4f6;
+}
+
+body.dark-mode .btn-export.json {
+    background: #374151;
+    color: #f3f4f6;
+}
+
 .btn-cambiar-imagen {
     display: inline-flex;
     align-items: center;
@@ -1411,7 +1502,54 @@ body.dark-mode .admin-sidebar {
     border: 1px solid #dbeafe;
     border-radius: 10px;
     padding: 12px;
-    margin-bottom: 12px;
+    margin-bottom: 25px;
+}
+
+.config-section {
+    margin-bottom: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-main);
+    border-radius: 12px;
+    padding: 15px;
+}
+
+/* Modo Optimizado para Configuración */
+.admin-dashboard.admin-mode-config .admin-stats-grid {
+    display: grid; /* Mantener visible */
+}
+
+.admin-dashboard.admin-mode-config .admin-content-panel {
+    min-height: calc(100vh - 350px); /* Ajuste dinámico para evitar scroll interno */
+}
+
+.admin-dashboard.admin-mode-config .admin-view-subtitle {
+    margin-bottom: 5px;
+    padding-bottom: 5px;
+}
+
+.config-section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-main);
+}
+
+.config-section-header i {
+    font-size: 1.25rem;
+    color: var(--accent);
+}
+
+.config-section-header h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+}
+
+.acciones-section {
+    border-left: 4px solid var(--accent);
 }
 
 body.dark-mode .tema-editor-intro {
@@ -1443,8 +1581,8 @@ body.dark-mode .tema-intro-subtitulo {
 .tema-secciones-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-bottom: 15px;
+    gap: 15px;
+    margin-bottom: 5px;
     min-width: 0;
 }
 
@@ -1486,7 +1624,7 @@ body.dark-mode .tema-seccion-card:hover {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 12px;
+    padding: 8px 10px;
     background: #f8fafc;
     border-bottom: 1px solid #e5e7eb;
 }
@@ -1519,10 +1657,10 @@ body.dark-mode .tema-seccion-titulo {
 }
 
 .tema-seccion-body {
-    padding: 12px;
+    padding: 8px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
 }
 
 .tema-campo {
@@ -1532,7 +1670,7 @@ body.dark-mode .tema-seccion-titulo {
 }
 
 .tema-label {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 600;
     color: #6b7280;
     text-transform: uppercase;
@@ -1622,13 +1760,13 @@ body.dark-mode .tema-select-font:focus {
 }
 
 .tema-preview {
-    padding: 10px 14px;
+    margin-top: 5px;
+    padding: 6px;
     border-radius: 6px;
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.8rem;
     text-align: center;
     transition: all 0.15s ease;
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border: 1px dashed rgba(0, 0, 0, 0.1);
 }
 
 /* Estilos para la sección de iconos */

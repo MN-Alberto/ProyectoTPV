@@ -1,5 +1,8 @@
 <script src="webroot/js/admin.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <section id="cajero">
     <!-- Panel izquierdo: Navegación de Admin -->
     <div class="cajero-productos admin-sidebar" style="max-width: 300px; border-right: 1px solid #e5e7eb;">
@@ -61,9 +64,19 @@
             <button class="cat-btn" data-seccion="historial-precios" style="width: 100%; text-align: left;">
                 <i class="fas fa-history" style="margin-right: 10px;"></i> Historial de Precios
             </button>
-            <button class="cat-btn" data-seccion="configuracion" style="width: 100%; text-align: left;">
-                <i class="fas fa-cog" style="margin-right: 10px;"></i> Configuración
+            <button class="cat-btn" id="btnConfig" style="width: 100%; text-align: left;">
+                <i class="fas fa-cog" style="margin-right: 10px;"></i> Configuración ▾
             </button>
+            <div id="submenuConfig" style="display: none; padding-left: 20px;">
+                <button class="cat-btn submenu-btn" data-seccion="config-tema"
+                    style="width: 100%; text-align: left; font-size: 13px;">
+                    <i class="fas fa-palette" style="margin-right: 10px;"></i> Tema
+                </button>
+                <button class="cat-btn submenu-btn" data-seccion="config-acciones"
+                    style="width: 100%; text-align: left; font-size: 13px;">
+                    <i class="fas fa-cogs" style="margin-right: 10px;"></i> Acciones
+                </button>
+            </div>
         </div>
     </div>
 
@@ -310,6 +323,14 @@
             <div class="ver-prod-fila">
                 <span class="ver-prod-label">Crear Productos</span>
                 <span id="verUsuarioCrearProductos" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Total Descansos</span>
+                <span id="verUsuarioTotalDescansos" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Total Cambios Turno</span>
+                <span id="verUsuarioTotalTurnos" class="ver-prod-valor"></span>
             </div>
         </div>
 
@@ -941,7 +962,9 @@
         'tarifa-ajuste': 'Ajuste de Precios',
         clientes: 'Gestión de Clientes',
         'tarifa-prefijadas': 'Tarifas Prefijadas',
-        'historial-precios': 'Historial de Precios'
+        'historial-precios': 'Historial de Precios',
+        'config-tema': 'Configuración: Tema',
+        'config-acciones': 'Configuración: Acciones'
     };
 
     document.querySelectorAll('.cat-btn[data-seccion]').forEach(btn => {
@@ -952,6 +975,14 @@
 
             const seccion = btn.dataset.seccion;
             document.getElementById('adminTitulo').textContent = TITULOS[seccion] ?? seccion;
+
+            // Toggle modo configuración para ganar espacio
+            const dashboard = document.querySelector('.admin-dashboard');
+            if (seccion.startsWith('config-') || seccion === 'configuracion') {
+                dashboard.classList.add('admin-mode-config');
+            } else {
+                dashboard.classList.remove('admin-mode-config');
+            }
 
             switch (seccion) {
                 case 'dashboard':
@@ -978,6 +1009,12 @@
                     break;
                 case 'configuracion':
                     cargarConfiguracion();
+                    break;
+                case 'config-tema':
+                    cargarConfiguracion('tema');
+                    break;
+                case 'config-acciones':
+                    cargarConfiguracion('acciones');
                     break;
                 case 'logs':
                     cargarLogs();
@@ -1007,19 +1044,38 @@
         });
     });
 
+    // Toggle submenu de Configuración
+    document.getElementById('btnConfig').addEventListener('click', function (e) {
+        e.stopPropagation();
+        var submenu = document.getElementById('submenuConfig');
+        submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
+        
+        // Cerrar otros submenus
+        document.getElementById('submenuTarifas').style.display = 'none';
+    });
+
     // Toggle submenu de Tarifas
     document.getElementById('btnTarifas').addEventListener('click', function (e) {
         e.stopPropagation();
         var submenu = document.getElementById('submenuTarifas');
         submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
+
+        // Cerrar otros submenus
+        document.getElementById('submenuConfig').style.display = 'none';
     });
 
-    // Cerrar submenu al hacer click fuera
+    // Cerrar submenus al hacer click fuera
     document.addEventListener('click', function (e) {
-        var submenu = document.getElementById('submenuTarifas');
-        var btn = document.getElementById('btnTarifas');
-        if (!btn.contains(e.target) && !submenu.contains(e.target)) {
-            submenu.style.display = 'none';
+        var subTarifas = document.getElementById('submenuTarifas');
+        var subConfig = document.getElementById('submenuConfig');
+        var btnTarifas = document.getElementById('btnTarifas');
+        var btnConfig = document.getElementById('btnConfig');
+
+        if (!btnTarifas.contains(e.target) && !subTarifas.contains(e.target)) {
+            subTarifas.style.display = 'none';
+        }
+        if (!btnConfig.contains(e.target) && !subConfig.contains(e.target)) {
+            subConfig.style.display = 'none';
         }
     });
     document.getElementById('adminContenido').innerHTML = HTML_DASHBOARD;

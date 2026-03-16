@@ -224,6 +224,8 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             'rol' => $usuario->getRol(),
             'fechaAlta' => $usuario->getFechaAlta(),
             'activo' => (int) $usuario->getActivo(),
+            'total_descansos' => $usuario->getTotalDescansos(),
+            'total_turnos' => $usuario->getTotalTurnos(),
             'permisos' => $usuario->getPermisos()
         ]);
     } else {
@@ -252,6 +254,8 @@ foreach ($usuarios as $usr) {
         'rol' => $usr->getRol(),
         'fechaAlta' => $usr->getFechaAlta(),
         'activo' => (int) $usr->getActivo(),
+        'total_descansos' => $usr->getTotalDescansos(),
+        'total_turnos' => $usr->getTotalTurnos(),
         'permisos' => $usr->getPermisos()
     ];
 }

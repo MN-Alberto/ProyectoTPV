@@ -20,6 +20,9 @@ class Usuario
     private $rol; // 'admin' o 'empleado'
     private $fechaAlta;
     private $activo;
+    private $totalDescansos;
+    private $totalTurnos;
+    private $permisos;
 
     // ======================== GETTERS ========================
 
@@ -56,6 +59,16 @@ class Usuario
     public function getActivo()
     {
         return $this->activo;
+    }
+
+    public function getTotalDescansos()
+    {
+        return $this->totalDescansos;
+    }
+
+    public function getTotalTurnos()
+    {
+        return $this->totalTurnos;
     }
 
     public function getPermisos()
@@ -98,6 +111,16 @@ class Usuario
     public function setActivo($activo)
     {
         $this->activo = $activo;
+    }
+
+    public function setTotalDescansos($totalDescansos)
+    {
+        $this->totalDescansos = $totalDescansos;
+    }
+
+    public function setTotalTurnos($totalTurnos)
+    {
+        $this->totalTurnos = $totalTurnos;
     }
 
     public function setPermisos($permisos)
@@ -255,8 +278,8 @@ class Usuario
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "INSERT INTO usuarios (nombre, email, password, rol, fechaAlta, activo, permisos) 
-             VALUES (:nombre, :email, :password, :rol, :fechaAlta, :activo, :permisos)"
+            "INSERT INTO usuarios (nombre, email, password, rol, fechaAlta, activo, total_descansos, total_turnos, permisos) 
+             VALUES (:nombre, :email, :password, :rol, :fechaAlta, :activo, :total_descansos, :total_turnos, :permisos)"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':nombre', $this->nombre);
@@ -265,6 +288,8 @@ class Usuario
         $stmt->bindParam(':rol', $this->rol);
         $stmt->bindParam(':fechaAlta', $this->fechaAlta);
         $stmt->bindParam(':activo', $this->activo, PDO::PARAM_BOOL);
+        $stmt->bindParam(':total_descansos', $this->totalDescansos, PDO::PARAM_INT);
+        $stmt->bindParam(':total_turnos', $this->totalTurnos, PDO::PARAM_INT);
         $stmt->bindParam(':permisos', $this->permisos);
         // Ejecutamos la consulta
         $resultado = $stmt->execute();
@@ -285,7 +310,8 @@ class Usuario
         // Preparamos la consulta
         $stmt = $conexion->prepare(
             "UPDATE usuarios SET nombre = :nombre, email = :email, password = :password, 
-             rol = :rol, activo = :activo, permisos = :permisos WHERE id = :id"
+             rol = :rol, activo = :activo, total_descansos = :total_descansos, 
+             total_turnos = :total_turnos, permisos = :permisos WHERE id = :id"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':nombre', $this->nombre);
@@ -293,6 +319,8 @@ class Usuario
         $stmt->bindParam(':password', $this->password);
         $stmt->bindParam(':rol', $this->rol);
         $stmt->bindParam(':activo', $this->activo, PDO::PARAM_BOOL);
+        $stmt->bindParam(':total_descansos', $this->totalDescansos, PDO::PARAM_INT);
+        $stmt->bindParam(':total_turnos', $this->totalTurnos, PDO::PARAM_INT);
         $stmt->bindParam(':permisos', $this->permisos);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
         // Ejecutamos la consulta
@@ -333,6 +361,32 @@ class Usuario
         return null;
     }
 
+    /**
+     * Incrementa el contador de descansos de un usuario.
+     * @param int $id El ID del usuario.
+     * @return bool
+     */
+    public static function incrementarDescansos($id)
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->prepare("UPDATE usuarios SET total_descansos = total_descansos + 1 WHERE id = :id");
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        return $stmt->execute();
+    }
+
+    /**
+     * Incrementa el contador de turnos de un usuario.
+     * @param int $id El ID del usuario.
+     * @return bool
+     */
+    public static function incrementarTurnos($id)
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->prepare("UPDATE usuarios SET total_turnos = total_turnos + 1 WHERE id = :id");
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        return $stmt->execute();
+    }
+
     // ======================== MÉTODOS AUXILIARES ========================
 
     /**
@@ -352,6 +406,8 @@ class Usuario
         $usuario->setRol($fila['rol']);
         $usuario->setFechaAlta($fila['fechaAlta']);
         $usuario->setActivo($fila['activo']);
+        $usuario->setTotalDescansos(isset($fila['total_descansos']) ? $fila['total_descansos'] : 0);
+        $usuario->setTotalTurnos(isset($fila['total_turnos']) ? $fila['total_turnos'] : 0);
         $usuario->setPermisos(isset($fila['permisos']) ? $fila['permisos'] : null);
         // Devolvemos el usuario
         return $usuario;

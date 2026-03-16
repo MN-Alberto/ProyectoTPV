@@ -28,11 +28,25 @@
 
         <!-- ==================== BUSCADOR DE PRODUCTOS ==================== -->
         <!-- Input de búsqueda que filtra productos en tiempo real mediante la función buscarProductos() -->
-        <div id="formBuscarProducto" style="align-items: center;">
-            <label for="inputBuscarProducto" style="font-weight: 600; white-space: nowrap;">Buscar:</label>
-            <input type="text" id="inputBuscarProducto" class="input-buscarProducto"
-                placeholder="Escribe el nombre del producto a buscar..." oninput="buscarProductos()" autocomplete="off"
-                style="width: 100%;" />
+        <div id="formBuscarProducto">
+            <div style="display: flex; gap: 10px; align-items: center; flex: 1;">
+                <label for="inputBuscarProducto" style="font-weight: 600; white-space: nowrap;">Buscar:</label>
+                <input type="text" id="inputBuscarProducto" class="input-buscarProducto"
+                    placeholder="Escribe el nombre del producto a buscar..." oninput="buscarProductos()" autocomplete="off"
+                    style="width: 100%;" />
+            </div>
+
+            <!-- INDICADOR DE EFECTIVO EN CAJA -->
+            <?php if ($sesionCaja): ?>
+                <div class="indicador-efectivo" title="Efectivo actual en caja">
+                    <span class="label">Efectivo en caja:</span>
+                    <span class="amount"><?php echo number_format($sesionCaja->getImporteActual(), 2, ',', '.'); ?> €</span>
+                </div>
+            <?php else: ?>
+                <div class="indicador-efectivo caja-cerrada">
+                    <span class="label">Caja Cerrada</span>
+                </div>
+            <?php endif; ?>
         </div>
 
         <!-- ==================== FILTROS DE CATEGORÍA ==================== -->
@@ -114,6 +128,17 @@
                     Retirar Dinero
                 </button>
 
+                <!-- Botón CIERRE TEMPORAL: permite pausar la sesión o cambiar de turno -->
+                <button type="button" class="btn-historial" id="btnCierreTemporal" onclick="mostrarModalCierreTemporal()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                    style="background: #64748b; color: white; <?php echo !$sesionCaja ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    Pausa / Turno
+                </button>
+
                 <!-- Botón HISTORIAL DE VENTAS: abre el modal con el historial de ventas de la sesión actual -->
                 <button type="button" class="btn-historial" id="btnHistorial" onclick="mostrarHistorialVentas()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
                     style="<?php echo !$sesionCaja ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>">
@@ -151,19 +176,6 @@
                     Nuevo Cliente
                 </button>
             </div>
-
-            <!-- INDICADOR DE EFECTIVO EN CAJA -->
-            <!-- Muestra el importe actual en caja si hay sesión activa, o "Caja Cerrada" si no -->
-            <?php if ($sesionCaja): ?>
-                <div class="indicador-efectivo" title="Efectivo actual en caja">
-                    <span class="label">Efectivo en caja:</span>
-                    <span class="amount"><?php echo number_format($sesionCaja->getImporteActual(), 2, ',', '.'); ?> €</span>
-                </div>
-            <?php else: ?>
-                <div class="indicador-efectivo caja-cerrada">
-                    <span class="label">Caja Cerrada</span>
-                </div>
-            <?php endif; ?>
         </div>
 
         <!-- ==================== GRID DE PRODUCTOS ==================== -->
@@ -1129,6 +1141,62 @@
 ?>
 <?php endif; ?>
 
+<!-- ##=========================== MODAL: CIERRE TEMPORAL ===========================## -->
+<!-- Modal para elegir entre pausa (descanso) o cambio de turno (cierre sesión caja) -->
+<div class="modal-overlay" id="modalCierreTemporal" style="display:none;">
+    <div class="modal-content modal-premium" style="max-width: 500px;">
+        <div class="modal-header-premium" style="background: linear-gradient(135deg, #4b5563, #1f2937);">
+            <div class="icon-container-discount">
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
+                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+            </div>
+            <h3>Cierre Temporal</h3>
+            <p>Selecciona el motivo de la interrupción</p>
+        </div>
+
+        <div class="modal-body-premium">
+            <div class="modal-opciones-doc" style="margin-top: 20px;">
+                <!-- Opción 1: Pausa / Descanso (Logout simple, caja abierta) -->
+                <div class="opcion-doc" onclick="pausarSesion()">
+                    <div style="background: #eff6ff; padding: 15px; border-radius: 50%; margin-bottom: 10px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+                            stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="6" y="4" width="4" height="16"></rect>
+                            <rect x="14" y="4" width="4" height="16"></rect>
+                        </svg>
+                    </div>
+                    <span class="opcion-titulo">Pausa / Descanso</span>
+                    <span class="opcion-desc">Cerrar sesión de usuario.<br>La caja se mantiene <b>Abierta</b>.</span>
+                </div>
+
+                <!-- Opción 2: Cambio de Turno (Cierre de caja completo) -->
+                <div class="opcion-doc" onclick="cambiarTurno()">
+                    <div style="background: #f0fdf4; padding: 15px; border-radius: 50%; margin-bottom: 10px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+                            stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 2.1l4 4-4 4"></path>
+                            <path d="M3 12.2v-2a4 4 0 0 1 4-4h12.8"></path>
+                            <path d="M7 21.9l-4-4 4-4"></path>
+                            <path d="M21 11.8v2a4 4 0 0 1-4 4H4.2"></path>
+                        </svg>
+                    </div>
+                    <span class="opcion-titulo">Cambio de Turno</span>
+                    <span class="opcion-desc">Cerrar sesión de usuario.<br>La caja se mantiene <b>Abierta</b>.</span>
+                </div>
+            </div>
+
+            <div style="margin-top: 30px; border-top: 1px solid var(--border-main); padding-top: 20px; text-align: center;">
+                <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalCierreTemporal')">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ##=========================== MODAL: RETIRAR DINERO ===========================## -->
 <!-- Modal para retirar efectivo de la caja (ej: pago a proveedor, ingreso en banco) -->
 <!-- Se envía por POST con la acción "retirarDinero" al controlador -->
@@ -1679,6 +1747,109 @@
         unset($_SESSION['resumenCaja']);
 ?>
 <?php endif; ?>
+
+<!-- ##=========================== MODALES DE BIENVENIDA (RECUPERACIÓN DE SESIÓN) ===========================## -->
+
+<!-- Modal: Descanso Terminado -->
+<div class="modal-overlay" id="modalDescansoTerminado" style="display:none;">
+    <div class="modal-content modal-exito modal-border-blue" style="max-width: 400px;">
+        <div class="icon-container-discount" style="background: rgba(37, 99, 235, 0.1); border: 2px solid #2563eb;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none"
+                stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12h1m8-9v1m8 8h1m-9 8v1M5.6 5.6l.7.7m12.1 12.1l.7.7m0-12.8l-.7.7m-12.1 12.1l-.7.7"></path>
+                <circle cx="12" cy="12" r="4"></circle>
+            </svg>
+        </div>
+        <h3 style="color: var(--text-main); margin-top: 15px;">¡Bienvenido de nuevo!</h3>
+        <p style="color: var(--text-muted); margin-bottom: 20px;">Tu descanso ha terminado. La sesión de caja sigue activa y lista para trabajar.</p>
+        <button class="btn-cerrar-exito" style="background: #2563eb; width: 100%;"
+            onclick="cerrarModalBienvenida('modalDescansoTerminado')">Continuar</button>
+    </div>
+</div>
+
+<!-- Modal: Nuevo Turno -->
+<div class="modal-overlay" id="modalNuevoTurno" style="display:none;">
+    <div class="modal-content modal-premium" style="max-width: 450px;">
+        <div class="modal-header-premium modal-header-blue">
+            <div class="icon-container-discount">
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
+                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <polyline points="16 11 18 13 22 9"></polyline>
+                </svg>
+            </div>
+            <h3>Inicio de Nuevo Turno</h3>
+            <p>Información sobre el relevo de caja</p>
+        </div>
+        <div class="modal-body-premium" style="text-align: center;">
+            <div style="background: var(--bg-main); padding: 15px; border-radius: 12px; border: 1px solid var(--border-main); margin-bottom: 20px;">
+                <p style="margin-bottom: 10px; font-size: 0.9rem; color: var(--text-muted);">El turno anterior fue cerrado por:</p>
+                <div style="font-weight: 600; font-size: 1.1rem; color: var(--text-main); margin-bottom: 5px;" id="welcomeOldUser">--</div>
+                <div style="font-size: 0.85rem; color: var(--accent);" id="welcomeCloseTime">--</div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-top: 1px dashed var(--border-main);">
+                <span style="color: var(--text-muted); font-size: 0.9rem;">Hora actual:</span>
+                <span style="font-weight: 600;" id="welcomeCurrentTime"><?php echo date('H:i'); ?></span>
+            </div>
+            
+            <button class="btn-apply-premium" style="width: 100%; margin-top: 20px; background: #2563eb; color: white;"
+                onclick="cerrarModalBienvenida('modalNuevoTurno')">Empezar Turno</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /**
+     * Cierra el modal de bienvenida y limpia el estado en el servidor.
+     */
+    function cerrarModalBienvenida(idModal) {
+        document.getElementById(idModal).style.display = 'none';
+        
+        // Llamada AJAX para limpiar la interrupción en la base de datos y sesión
+        fetch('api/caja.php?accion=limpiarInterrupcion')
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error('Error al limpiar interrupción:', data.message);
+                }
+            })
+            .catch(error => console.error('Error en fetch:', error));
+    }
+
+    // Comprobar si hay datos de recuperación al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+        <?php if (isset($_SESSION['interrupcionRecuperada'])): ?>
+            const datos = <?php echo json_encode($_SESSION['interrupcionRecuperada']); ?>;
+            
+            if (datos.tipo === 'pausa') {
+                // Si es pausa, solo mostramos el modal si es el mismo usuario
+                if (datos.usuarioId == <?php echo $_SESSION['idUsuario']; ?>) {
+                    document.getElementById('modalDescansoTerminado').style.display = 'flex';
+                } else {
+                    // Si entró otro usuario después de una pausa, limpiar silenciosamente
+                    fetch('api/caja.php?accion=limpiarInterrupcion');
+                }
+            } else if (datos.tipo === 'turno') {
+                // Si es cambio de turno, siempre lo mostramos
+                document.getElementById('welcomeOldUser').textContent = datos.usuarioNombre;
+                
+                // Formatear fecha/hora de cierre
+                try {
+                    const fechaCierre = new Date(datos.fecha);
+                    document.getElementById('welcomeCloseTime').textContent = 'Cerrado a las ' + 
+                        fechaCierre.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                } catch(e) {
+                    document.getElementById('welcomeCloseTime').textContent = 'Cerrado recientemente';
+                }
+                
+                document.getElementById('modalNuevoTurno').style.display = 'flex';
+            }
+        <?php endif; ?>
+    });
+</script>
+<?php unset($_SESSION['interrupcionRecuperada']); ?>
 
 <!-- Carga del script externo del cajero (funciones de búsqueda y filtrado de productos) -->
 <script src="webroot/js/cajero.js"></script>

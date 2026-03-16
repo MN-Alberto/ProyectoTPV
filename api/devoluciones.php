@@ -24,8 +24,9 @@ $method = $_SERVER['REQUEST_METHOD'];
 if ($method === 'GET') {
     if (isset($_GET['todas'])) {
         $orden = $_GET['orden'] ?? 'fecha_desc';
+        $filtroFecha = $_GET['filtroFecha'] ?? null;
         try {
-            $devoluciones = Devolucion::obtenerTodas($orden);
+            $devoluciones = Devolucion::obtenerTodas($orden, $filtroFecha);
             echo json_encode($devoluciones);
         } catch (Exception $e) {
             http_response_code(500);

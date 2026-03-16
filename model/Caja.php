@@ -21,6 +21,10 @@ class Caja
     private $importeActual;
     private $cambio; // Cambio guardado para el siguiente turno
     private $estado; // 'abierta', 'cerrada'
+    private $interrupcionTipo; // 'pausa', 'turno'
+    private $interrupcionUsuarioId;
+    private $interrupcionUsuarioNombre;
+    private $interrupcionFecha;
 
     // ======================== GETTERS ========================
     public function getId()
@@ -55,6 +59,22 @@ class Caja
     {
         return $this->estado;
     }
+    public function getInterrupcionTipo()
+    {
+        return $this->interrupcionTipo;
+    }
+    public function getInterrupcionUsuarioId()
+    {
+        return $this->interrupcionUsuarioId;
+    }
+    public function getInterrupcionUsuarioNombre()
+    {
+        return $this->interrupcionUsuarioNombre;
+    }
+    public function getInterrupcionFecha()
+    {
+        return $this->interrupcionFecha;
+    }
 
     // ======================== SETTERS ========================
     public function setId($id)
@@ -88,6 +108,22 @@ class Caja
     public function setEstado($estado)
     {
         $this->estado = $estado;
+    }
+    public function setInterrupcionTipo($tipo)
+    {
+        $this->interrupcionTipo = $tipo;
+    }
+    public function setInterrupcionUsuarioId($id)
+    {
+        $this->interrupcionUsuarioId = $id;
+    }
+    public function setInterrupcionUsuarioNombre($nombre)
+    {
+        $this->interrupcionUsuarioNombre = $nombre;
+    }
+    public function setInterrupcionFecha($fecha)
+    {
+        $this->interrupcionFecha = $fecha;
     }
 
     /**
@@ -309,6 +345,10 @@ class Caja
         $caja->setImporteActual($fila['importeActual']);
         $caja->setCambio(isset($fila['cambio']) ? $fila['cambio'] : 0);
         $caja->setEstado($fila['estado']);
+        $caja->setInterrupcionTipo($fila['interrupcion_tipo'] ?? null);
+        $caja->setInterrupcionUsuarioId($fila['interrupcion_usuario_id'] ?? null);
+        $caja->setInterrupcionUsuarioNombre($fila['interrupcion_usuario_nombre'] ?? null);
+        $caja->setInterrupcionFecha($fila['interrupcion_fecha'] ?? null);
         // Devolvemos la instancia
         return $caja;
     }
@@ -327,10 +367,14 @@ class Caja
         $stmtVentas = $conexion->prepare("
             SELECT COALESCE(SUM(v.total), 0) as total 
             FROM ventas v 
-            WHERE v.idSesionCaja = :idSesion 
-            AND v.metodoPago = 'Efectivo'
+            WHERE (v.idSesionCaja = :idSesion OR (v.idSesionCaja IS NULL AND v.fecha >= :fechaApertura AND (v.fecha <= :fechaCierre OR :fechaCierre2 IS NULL)))
+            AND v.metodoPago = 'efectivo'
+            AND v.estado = 'completada'
         ");
         $stmtVentas->bindParam(':idSesion', $this->id, PDO::PARAM_INT);
+        $stmtVentas->bindParam(':fechaApertura', $this->fechaApertura);
+        $stmtVentas->bindParam(':fechaCierre', $this->fechaCierre);
+        $stmtVentas->bindParam(':fechaCierre2', $this->fechaCierre);
         $stmtVentas->execute();
         $ventasEfectivo = (float) $stmtVentas->fetch(PDO::FETCH_ASSOC)['total'];
 
@@ -441,5 +485,49 @@ class Caja
         $stmt->bindParam(':idSesion', $this->id, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Registra una interrupción temporal en la sesión (pausa o cambio de turno).
+     * @param int $idUsuario
+     * @param string $nombreUsuario
+     * @param string $tipo
+     * @return bool
+     */
+    public function registrarInterrupcion($idUsuario, $nombreUsuario, $tipo)
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->prepare("
+            UPDATE caja_sesiones 
+            SET interrupcion_tipo = :tipo, 
+                interrupcion_usuario_id = :idUsuario, 
+                interrupcion_usuario_nombre = :nombreUsuario, 
+                interrupcion_fecha = CURRENT_TIMESTAMP 
+            WHERE id = :id
+        ");
+        $stmt->bindParam(':tipo', $tipo);
+        $stmt->bindParam(':idUsuario', $idUsuario, PDO::PARAM_INT);
+        $stmt->bindParam(':nombreUsuario', $nombreUsuario);
+        $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
+        return $stmt->execute();
+    }
+
+    /**
+     * Limpia los datos de interrupción de la sesión actual.
+     * @return bool
+     */
+    public function limpiarInterrupcion()
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $stmt = $conexion->prepare("
+            UPDATE caja_sesiones 
+            SET interrupcion_tipo = NULL, 
+                interrupcion_usuario_id = NULL, 
+                interrupcion_usuario_nombre = NULL, 
+                interrupcion_fecha = NULL 
+            WHERE id = :id
+        ");
+        $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
+        return $stmt->execute();
     }
 }

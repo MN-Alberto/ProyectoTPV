@@ -146,15 +146,29 @@ class Devolucion
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta
-        $stmt = $conexion->prepare("SELECT SUM(importeTotal) as total FROM devoluciones WHERE idSesionCaja = :idSesionCaja");
-        // Vinculamos los parámetros
+        
+        // Obtenemos la fecha de apertura de la sesión para el fallback híbrido
+        $stmtSesion = $conexion->prepare("SELECT fechaApertura, fechaCierre FROM caja_sesiones WHERE id = :id");
+        $stmtSesion->execute([':id' => $idSesionCaja]);
+        $sesion = $stmtSesion->fetch();
+        $fechaApertura = $sesion['fechaApertura'] ?? null;
+        $fechaCierre = $sesion['fechaCierre'] ?? null;
+
+        // Preparamos la consulta con lógica híbrida
+        $stmt = $conexion->prepare("
+            SELECT SUM(importeTotal) as total 
+            FROM devoluciones 
+            WHERE idSesionCaja = :idSesionCaja 
+            OR (idSesionCaja IS NULL AND fecha >= :fechaApertura AND (:fechaCierre IS NULL OR fecha <= :fechaCierre2))
+        ");
+        
         $stmt->bindParam(':idSesionCaja', $idSesionCaja, PDO::PARAM_INT);
-        // Ejecutamos la consulta
+        $stmt->bindParam(':fechaApertura', $fechaApertura);
+        $stmt->bindParam(':fechaCierre', $fechaCierre);
+        $stmt->bindParam(':fechaCierre2', $fechaCierre);
+        
         $stmt->execute();
-        // Obtenemos la fila
         $fila = $stmt->fetch();
-        // Devolvemos el total
         return (float) ($fila['total'] ?? 0);
     }
 
@@ -169,16 +183,30 @@ class Devolucion
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta
-        $stmt = $conexion->prepare("SELECT SUM(importeTotal) as total FROM devoluciones WHERE idSesionCaja = :idSesionCaja AND metodoPago = :metodo");
-        // Vinculamos los parámetros
+
+        // Obtenemos la fecha de apertura de la sesión para el fallback híbrido
+        $stmtSesion = $conexion->prepare("SELECT fechaApertura, fechaCierre FROM caja_sesiones WHERE id = :id");
+        $stmtSesion->execute([':id' => $idSesionCaja]);
+        $sesion = $stmtSesion->fetch();
+        $fechaApertura = $sesion['fechaApertura'] ?? null;
+        $fechaCierre = $sesion['fechaCierre'] ?? null;
+
+        // Preparamos la consulta con lógica híbrida
+        $stmt = $conexion->prepare("
+            SELECT SUM(importeTotal) as total 
+            FROM devoluciones 
+            WHERE (idSesionCaja = :idSesionCaja OR (idSesionCaja IS NULL AND fecha >= :fechaApertura AND (:fechaCierre IS NULL OR fecha <= :fechaCierre2)))
+            AND metodoPago = :metodo
+        ");
+        
         $stmt->bindParam(':idSesionCaja', $idSesionCaja, PDO::PARAM_INT);
+        $stmt->bindParam(':fechaApertura', $fechaApertura);
+        $stmt->bindParam(':fechaCierre', $fechaCierre);
+        $stmt->bindParam(':fechaCierre2', $fechaCierre);
         $stmt->bindParam(':metodo', $metodo);
-        // Ejecutamos la consulta
+        
         $stmt->execute();
-        // Obtenemos la fila
         $fila = $stmt->fetch();
-        // Devolvemos el total
         return (float) ($fila['total'] ?? 0);
     }
 
@@ -186,16 +214,36 @@ class Devolucion
      * Obtiene todas las devoluciones con información de producto y usuario.
      * 
      * @param string $orden
+     * @param string|null $filtroFecha
      * @return array
      */
-    public static function obtenerTodas($orden = 'fecha_desc')
+    public static function obtenerTodas($orden = 'fecha_desc', $filtroFecha = null)
     {
         $conexion = ConexionDB::getInstancia()->getConexion();
+
+        $condiciones = [];
+        if ($filtroFecha) {
+            switch ($filtroFecha) {
+                case 'hoy':
+                    $condiciones[] = "DATE(d.fecha) = CURDATE()";
+                    break;
+                case '7dias':
+                    $condiciones[] = "d.fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+                    break;
+                case '30dias':
+                    $condiciones[] = "d.fecha >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+                    break;
+            }
+        }
 
         $sql = "SELECT d.*, p.nombre as producto_nombre, u.nombre as usuario_nombre 
                 FROM devoluciones d
                 LEFT JOIN productos p ON d.idProducto = p.id
                 LEFT JOIN usuarios u ON d.idUsuario = u.id";
+
+        if (!empty($condiciones)) {
+            $sql .= " WHERE " . implode(" AND ", $condiciones);
+        }
 
         switch ($orden) {
             case 'fecha_asc':

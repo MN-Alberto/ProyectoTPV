@@ -1,4 +1,4 @@
-﻿// ======================== RENDER PRODUCTOS (MODO TABLA - ADMIN) ========================
+// ======================== RENDER PRODUCTOS (MODO TABLA - ADMIN) ========================
 // Este módulo contiene todas las funciones relacionadas con la renderización de productos
 // en el panel de administración, incluyendo búsqueda, filtrado, ordenación y visualización.
 
@@ -1123,6 +1123,8 @@ function verUsuario(id) {
             document.getElementById('verUsuarioCrearProductos').innerHTML = crearProductos
                 ? '<span class="admin-badge badge-activo">Sí</span>'
                 : '<span class="admin-badge badge-inactivo">No</span>';
+            document.getElementById('verUsuarioTotalDescansos').textContent = data.total_descansos || 0;
+            document.getElementById('verUsuarioTotalTurnos').textContent = data.total_turnos || 0;
 
             abrirModal('modalVerUsuario');
         })
@@ -2040,7 +2042,7 @@ function generarSeccionTema(seccion) {
                     <div class="tema-preview-icono" id="preview_header_icon">
                         ${headerIconVal ? headerIconVal : '<span style="color: var(--text-muted);">Vista previa del icono</span>'}
                     </div>
-                    <div class="tema-campo" style="margin-top: 20px;">
+                    <div class="tema-campo" style="margin-top: 15px;">
                         <label class="tema-label">Favicon</label>
                         <input type="file" id="tema_favicon" accept="image/*" onchange="previsualizarFavicon(this)">
                         <p class="tema-ayuda">Sube una imagen para el favicon (16x16, 32x32 o 48x48 píxeles)</p>
@@ -2093,7 +2095,7 @@ function generarSeccionTema(seccion) {
 /**
  * Carga la configuración del tema desde la API y renderiza el editor.
  */
-function cargarConfiguracion() {
+function cargarConfiguracion(subseccion = 'todas') {
     seccionActual = 'configuracion';
     adminTablaHeaderHTML = '';
 
@@ -2105,7 +2107,7 @@ function cargarConfiguracion() {
         .then(config => {
             // Mezclar config de la BD con los defaults
             temaActual = { ...TEMA_DEFAULTS, ...config };
-            renderEditorTema();
+            renderEditorTema(subseccion);
         })
         .catch(err => {
             console.error('Error cargando configuración:', err);
@@ -2608,26 +2610,189 @@ function getTipoLogTexto(tipo) {
 /**
  * Renderiza el editor de tema completo.
  */
-function renderEditorTema() {
+function renderEditorTema(subseccion = 'todas') {
     const contenedor = document.getElementById('adminContenido');
 
-    let html = `
-        <div class="tema-editor">
-            <div class="tema-secciones-grid">
-                ${SECCIONES_TEMA.map(s => generarSeccionTema(s)).join('')}
-            </div>
-            <div class="tema-botones">
-                <button class="btn-modal-cancelar tema-btn-reset" onclick="restaurarTemaDefault()">
-                    <i class="fas fa-undo"></i> Restaurar Predeterminados
-                </button>
-                <button class="btn-exito tema-btn-guardar" onclick="guardarTema()">
-                    <i class="fas fa-save"></i> Guardar Cambios
-                </button>
-            </div>
-        </div>
-    `;
+    let html = '<div class="tema-editor">';
 
+    // SECCIÓN 1: TEMA
+    if (subseccion === 'todas' || subseccion === 'tema') {
+        html += `
+            <div class="config-section">
+                <div class="tema-secciones-grid">
+                    ${SECCIONES_TEMA.map(s => generarSeccionTema(s)).join('')}
+                </div>
+                <div class="tema-botones" style="margin-top: 25px; border-top: 1px solid var(--border-main); padding-top: 20px;">
+                    <button class="btn-modal-cancelar tema-btn-reset" onclick="restaurarTemaDefault()">
+                        <i class="fas fa-undo"></i> Restaurar Predeterminados
+                    </button>
+                    <button class="btn-exito tema-btn-guardar" onclick="guardarTema()">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // SECCIÓN 2: ACCIONES (Exportaciones)
+    if (subseccion === 'todas' || subseccion === 'acciones') {
+        html += `
+            <div class="config-section">
+                <div class="export-grid">
+                    <div class="export-card">
+                        <div class="export-card-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+                        <div class="export-card-info">
+                            <h4>Ventas de la Semana</h4>
+                            <p>Exportar todas las ventas realizadas en los últimos 7 días.</p>
+                        </div>
+                        <div class="export-card-actions">
+                            <button class="btn-export json" onclick="exportarSemanal('ventas', 'json')">JSON</button>
+                            <button class="btn-export pdf" onclick="exportarSemanal('ventas', 'pdf')">PDF</button>
+                        </div>
+                    </div>
+                    <div class="export-card">
+                        <div class="export-card-icon"><i class="fas fa-cash-register"></i></div>
+                        <div class="export-card-info">
+                            <h4>Sesiones de Caja</h4>
+                            <p>Exportar el historial de sesiones de caja de la semana.</p>
+                        </div>
+                        <div class="export-card-actions">
+                            <button class="btn-export json" onclick="exportarSemanal('sesiones', 'json')">JSON</button>
+                            <button class="btn-export pdf" onclick="exportarSemanal('sesiones', 'pdf')">PDF</button>
+                        </div>
+                    </div>
+                    <div class="export-card">
+                        <div class="export-card-icon"><i class="fas fa-money-bill-wave"></i></div>
+                        <div class="export-card-info">
+                            <h4>Retiros de Caja</h4>
+                            <p>Exportar todos los retiros de efectivo de la semana.</p>
+                        </div>
+                        <div class="export-card-actions">
+                            <button class="btn-export json" onclick="exportarSemanal('retiros', 'json')">JSON</button>
+                            <button class="btn-export pdf" onclick="exportarSemanal('retiros', 'pdf')">PDF</button>
+                        </div>
+                    </div>
+                    <div class="export-card">
+                        <div class="export-card-icon"><i class="fas fa-undo"></i></div>
+                        <div class="export-card-info">
+                            <h4>Devoluciones</h4>
+                            <p>Exportar el registro de devoluciones de la semana.</p>
+                        </div>
+                        <div class="export-card-actions">
+                            <button class="btn-export json" onclick="exportarSemanal('devoluciones', 'json')">JSON</button>
+                            <button class="btn-export pdf" onclick="exportarSemanal('devoluciones', 'pdf')">PDF</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    html += '</div>';
     contenedor.innerHTML = html;
+}
+
+/**
+ * Función principal para exportar datos semanales
+ * @param {string} tipo - 'ventas' | 'sesiones' | 'retiros' | 'devoluciones'
+ * @param {string} formato - 'json' | 'pdf'
+ */
+async function exportarSemanal(tipo, formato) {
+    try {
+        Swal.fire({
+            title: 'Preparando exportación...',
+            text: 'Obteniendo datos de la última semana',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        let url = '';
+        let fileNamePrefix = '';
+        switch (tipo) {
+            case 'ventas':
+                url = 'api/ventas.php?todas=1&filtroFecha=7dias';
+                fileNamePrefix = 'ventas_semanales';
+                break;
+            case 'sesiones':
+                url = 'api/caja-sesiones.php?filtroFecha=7dias';
+                fileNamePrefix = 'sesiones_semanales';
+                break;
+            case 'retiros':
+                url = 'api/retiros.php?filtroFecha=7dias';
+                fileNamePrefix = 'retiros_semanales';
+                break;
+            case 'devoluciones':
+                url = 'api/devoluciones.php?todas=1&filtroFecha=7dias';
+                fileNamePrefix = 'devoluciones_semanales';
+                break;
+        }
+
+        const response = await fetch(url);
+        let data = await response.json();
+
+        if (!data || data.length === 0) {
+            Swal.fire('Atención', 'No hay datos disponibles para la última semana en esta categoría.', 'info');
+            return;
+        }
+
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const fileName = `${fileNamePrefix}_${timestamp}`;
+
+        if (formato === 'json') {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", fileName + ".json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        } else {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
+            
+            doc.setFontSize(18);
+            doc.text(`Reporte Semanal: ${tipo.toUpperCase()}`, 14, 22);
+            doc.setFontSize(11);
+            doc.setTextColor(100);
+            doc.text(`Generado el: ${new Date().toLocaleString()}`, 14, 30);
+
+            let columns = [];
+            let rows = [];
+
+            if (tipo === 'ventas') {
+                columns = ["ID", "Fecha", "Total", "Forma Pago", "Documento", "Usuario"];
+                rows = data.map(v => [v.id, v.fecha, v.total + '€', v.forma_pago, v.tipoDocumento, v.usuario_nombre]);
+            } else if (tipo === 'sesiones') {
+                columns = ["ID", "Apertura", "Cierre", "I. Inicial", "I. Final", "Estado", "Usuario"];
+                rows = data.map(s => [s.id, s.fechaApertura, s.fechaCierre || '-', s.importeInicial + '€', s.importeActual + '€', s.estado, s.usuario_nombre]);
+            } else if (tipo === 'retiros') {
+                columns = ["ID", "Fecha", "Importe", "Motivo", "Caja", "Usuario"];
+                rows = data.map(r => [r.id, r.fecha, r.importe + '€', r.motivo, r.idCajaSesion, r.usuario_nombre]);
+            } else if (tipo === 'devoluciones') {
+                columns = ["ID", "Fecha", "Importe Total", "Motivo", "Ticket", "Caja"];
+                rows = data.map(d => [d.id, d.fecha, d.importeTotal + '€', d.motivo, d.idVenta, d.idSesionCaja]);
+            }
+
+            doc.autoTable({
+                startY: 35,
+                head: [columns],
+                body: rows,
+                theme: 'striped',
+                headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+                alternateRowStyles: { fillColor: [245, 245, 245] },
+                margin: { top: 35 }
+            });
+
+            doc.save(fileName + ".pdf");
+        }
+
+        Swal.fire('¡Éxito!', 'Archivo exportado correctamente.', 'success');
+    } catch (error) {
+        console.error('Error en exportación:', error);
+        Swal.fire('Error', 'No se pudo completar la exportación.', 'error');
+    }
 }
 
 /**
@@ -3177,6 +3342,7 @@ function getCajaSesionesTablaHeader(orden = 'fecha_desc') {
                         <th style="text-align: center;">Productos</th>
                         <th style="text-align: center;">Retiros</th>
                         <th style="text-align: center;">Devoluciones</th>
+                        <th style="text-align: center;">Arqueo</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -3229,6 +3395,12 @@ function renderCajaSesionesAdmin(sesiones, isFirstTime = true, orden = 'fecha_de
                     <td style="text-align: center; font-weight: bold;">${totalProductos}</td>
                     <td style="text-align: center; color: #ea580c; font-weight: bold;">-${retiros.toFixed(2)} €</td>
                     <td style="text-align: center; color: #dc2626; font-weight: bold;">-${devoluciones.toFixed(2)} €</td>
+                    <td style="text-align: center; font-weight: bold; color: ${sesion.efectivoContado !== null ? (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) > 0.01 ? '#059669' : (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) < -0.01 ? '#dc2626' : 'inherit')) : 'inherit'}">
+                        ${sesion.efectivoContado !== null ? `
+                            ${(parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual)).toFixed(2).replace('.', ',')} € 
+                            <small>${parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) > 0.01 ? '(Sobrante)' : (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) < -0.01 ? '(Faltante)' : '')}</small>
+                        ` : '—'}
+                    </td>
                 </tr>`;
         });
 
@@ -3263,6 +3435,12 @@ function renderCajaSesionesAdmin(sesiones, isFirstTime = true, orden = 'fecha_de
                         <td style="text-align: center; font-weight: bold;">${totalProductos}</td>
                         <td style="text-align: center; color: #ea580c; font-weight: bold;">-${retiros.toFixed(2)} €</td>
                         <td style="text-align: center; color: #dc2626; font-weight: bold;">-${devoluciones.toFixed(2)} €</td>
+                        <td style="text-align: center; font-weight: bold; color: ${sesion.efectivoContado !== null ? (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) > 0.01 ? '#059669' : (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) < -0.01 ? '#dc2626' : 'inherit')) : 'inherit'}">
+                            ${sesion.efectivoContado !== null ? `
+                                ${(parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual)).toFixed(2).replace('.', ',')} € 
+                                <small>${parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) > 0.01 ? '(Sobrante)' : (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) < -0.01 ? '(Faltante)' : '')}</small>
+                            ` : '—'}
+                        </td>
                     </tr>`;
             });
             tbody.innerHTML = html;

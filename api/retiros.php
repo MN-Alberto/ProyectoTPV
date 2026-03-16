@@ -41,14 +41,21 @@ if ($method === 'GET') {
             exit;
         }
 
-        // Ordenar por fecha
-        $orderBy = 'r.fecha DESC';
-        if ($orden === 'fecha_asc') {
-            $orderBy = 'r.fecha ASC';
-        } elseif ($orden === 'importe_desc') {
-            $orderBy = 'r.importe DESC';
-        } elseif ($orden === 'importe_asc') {
-            $orderBy = 'r.importe ASC';
+        // Filtro por fecha
+        $condiciones = [];
+        $parametros = [];
+        if (isset($_GET['filtroFecha'])) {
+            switch ($_GET['filtroFecha']) {
+                case 'hoy':
+                    $condiciones[] = "DATE(r.fecha) = CURDATE()";
+                    break;
+                case '7dias':
+                    $condiciones[] = "r.fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+                    break;
+                case '30dias':
+                    $condiciones[] = "r.fecha >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+                    break;
+            }
         }
 
         $sql = "
@@ -58,8 +65,13 @@ if ($method === 'GET') {
             FROM retiros r
             LEFT JOIN usuarios u ON r.idUsuario = u.id
             LEFT JOIN caja_sesiones cs ON r.idCajaSesion = cs.id
-            ORDER BY $orderBy
         ";
+
+        if (!empty($condiciones)) {
+            $sql .= " WHERE " . implode(" AND ", $condiciones) . " ";
+        }
+
+        $sql .= " ORDER BY $orderBy ";
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute();

@@ -60,23 +60,44 @@ if ($method === 'GET') {
             $orderBy = 'cs.fechaApertura ASC';
         }
 
+        // Filtro por fecha
+        $condiciones = [];
+        if (isset($_GET['filtroFecha'])) {
+            switch ($_GET['filtroFecha']) {
+                case 'hoy':
+                    $condiciones[] = "DATE(cs.fechaApertura) = CURDATE()";
+                    break;
+                case '7dias':
+                    $condiciones[] = "cs.fechaApertura >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+                    break;
+                case '30dias':
+                    $condiciones[] = "cs.fechaApertura >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+                    break;
+            }
+        }
+
         $sql = "
             SELECT cs.id, cs.idUsuario, cs.fechaApertura, cs.fechaCierre, 
                    cs.importeInicial, cs.importeActual, cs.cambio, cs.estado,
                    u.nombre as usuario_nombre,
                    COALESCE((SELECT SUM(importe) FROM retiros WHERE idCajaSesion = cs.id), 0) as total_retiros,
-                   COALESCE((SELECT SUM(importeTotal) FROM devoluciones WHERE idSesionCaja = cs.id), 0) as total_devoluciones,
+                   COALESCE((SELECT SUM(importeTotal) FROM devoluciones WHERE idSesionCaja = cs.id OR (idSesionCaja IS NULL AND fecha >= cs.fechaApertura AND (cs.fechaCierre IS NULL OR fecha <= cs.fechaCierre))), 0) as total_devoluciones,
                    COALESCE((SELECT SUM(lv.cantidad) FROM ventas v 
                              JOIN lineasVenta lv ON v.id = lv.idVenta 
-                             WHERE v.fecha >= cs.fechaApertura 
-                             AND (cs.fechaCierre IS NULL OR v.fecha <= cs.fechaCierre)), 0) as total_productos,
+                             WHERE v.idSesionCaja = cs.id OR (v.idSesionCaja IS NULL AND v.fecha >= cs.fechaApertura AND (cs.fechaCierre IS NULL OR v.fecha <= cs.fechaCierre))), 0) as total_productos,
                    COALESCE((SELECT COUNT(*) FROM ventas v 
-                             WHERE v.fecha >= cs.fechaApertura 
-                             AND (cs.fechaCierre IS NULL OR v.fecha <= cs.fechaCierre)), 0) as total_ventas
+                             WHERE v.idSesionCaja = cs.id OR (v.idSesionCaja IS NULL AND v.fecha >= cs.fechaApertura AND (cs.fechaCierre IS NULL OR v.fecha <= cs.fechaCierre))), 0) as total_ventas,
+                   (SELECT diferencia FROM arqueos_caja WHERE idCajaSesion = cs.id AND tipoArqueo = 'cierre' ORDER BY fechaArqueo DESC LIMIT 1) as diferencia,
+                   (SELECT efectivoContado FROM arqueos_caja WHERE idCajaSesion = cs.id AND tipoArqueo = 'cierre' ORDER BY fechaArqueo DESC LIMIT 1) as efectivoContado
             FROM caja_sesiones cs
             LEFT JOIN usuarios u ON cs.idUsuario = u.id
-            ORDER BY $orderBy
         ";
+
+        if (!empty($condiciones)) {
+            $sql .= " WHERE " . implode(" AND ", $condiciones) . " ";
+        }
+
+        $sql .= " ORDER BY $orderBy ";
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute();
