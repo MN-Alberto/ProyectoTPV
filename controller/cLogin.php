@@ -1,6 +1,8 @@
 <?php
 /**
- * Controlador de login. Procesa el formulario y redirige según el rol.
+ * Controlador de acceso (Login).
+ * Se encarga de la validación de credenciales, gestión de sesiones de usuario
+ * y registro de auditoría de intentos de acceso.
  * 
  * @author Alberto Méndez
  * @version 1.2 (02/03/2026)
@@ -10,7 +12,14 @@
 require_once(__DIR__ . '/../model/Usuario.php');
 
 /**
- * Función para registrar un log en la base de datos.
+ * Registra un evento de auditoría en la tabla de logs del sistema.
+ * Útil para rastrear inicios de sesión, cierres de sesión e intentos fallidos.
+ * 
+ * @param PDO $pdo Instancia de conexión a la base de datos para realizar la inserción.
+ * @param string $tipo Categoría del log (ej: 'login', 'logout', 'error').
+ * @param string $descripcion Mensaje legible describiendo detalladamente el suceso.
+ * @param mixed|null $detalles Metadatos adicionales (navegador, IP, etc.) en formato JSON.
+ * @return void No retorna valor; los errores se silencian para no interrumpir el flujo del usuario.
  */
 function registrarLog($pdo, $tipo, $descripcion, $detalles = null)
 {
@@ -24,7 +33,7 @@ function registrarLog($pdo, $tipo, $descripcion, $detalles = null)
             ':detalles' => $detalles ? json_encode($detalles) : null
         ]);
     } catch (Exception $e) {
-        // Silenciar errores de logging
+        // Silenciamos los errores de auditoría para priorizar la disponibilidad de la aplicación.
     }
 }
 
@@ -41,18 +50,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['usuario'], $_POST['pa
         // Añadimos un error a la variable para almacenar los errores
         $error = 'Por favor, rellena todos los campos.';
     } else {
-        // Intentamos iniciar sesión
+        // Intento de autenticación mediante el modelo Usuario
         $usuario = Usuario::login($nombre, $password);
 
-        // Si el usuario existe
+        // Si las credenciales son válidas y el usuario es activo
         if ($usuario) {
-            // Guardamos los datos del usuario en la sesión.
+            // Persistimos la identidad del trabajador en la sesión global de PHP
             $_SESSION['idUsuario'] = $usuario->getId();
             $_SESSION['nombreUsuario'] = $usuario->getNombre();
             $_SESSION['rolUsuario'] = $usuario->getRol();
             $_SESSION['permisosUsuario'] = $usuario->getPermisos();
 
-            // Redirigimos según el rol, si es admin a la vista de admin y si es cajero a la de cajero
+            // Determinamos el destino inicial basándonos en los privilegios del perfil
             if ($usuario->getRol() === 'admin') {
                 $_SESSION['paginaEnCurso'] = 'admin';
                 $tipoLog = 'acceso_admin';

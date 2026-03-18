@@ -119,13 +119,13 @@ body.dark-mode {
 
 #formBuscarProducto {
     display: flex;
-    gap: 10px;
-    padding: 16px 20px;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding: 12px 20px;
     background: var(--bg-panel);
     border-bottom: 1px solid var(--border-main);
-    overflow-x: auto;
     flex-shrink: 0;
-    line-height: 40px;
 }
 
 .input-buscarProducto {
@@ -1048,12 +1048,13 @@ body.dark-mode .cajero-opciones-extra {
 .indicador-efectivo {
     background: #f0fdf4;
     border: 1px solid #bbf7d0;
-    padding: 6px 14px;
-    border-radius: 12px;
+    padding: 8px 16px;
+    border-radius: 10px;
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    line-height: 1.2;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
 }
 
 .indicador-efectivo.caja-cerrada {
@@ -1062,11 +1063,12 @@ body.dark-mode .cajero-opciones-extra {
 }
 
 .indicador-efectivo .label {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: #166534;
     text-transform: uppercase;
-    letter-spacing: 0.025em;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
 }
 
 .indicador-efectivo.caja-cerrada .label {
@@ -1074,9 +1076,10 @@ body.dark-mode .cajero-opciones-extra {
 }
 
 .indicador-efectivo .amount {
-    font-size: 1.1rem;
-    font-weight: 700;
+    font-size: 1.25rem;
+    font-weight: 800;
     color: #15803d;
+    font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
 }
 
 .btn-retiro {
@@ -1733,16 +1736,25 @@ body.dark-mode .admin-header h2 {
 }
 
 body.dark-mode .indicador-efectivo {
-    background: #374151;
-    border-color: #4b5563;
+    background: #064e3b;
+    border-color: #065f46;
 }
 
 body.dark-mode .indicador-efectivo .label {
-    color: #d1d5db;
+    color: #4ade80;
 }
 
 body.dark-mode .indicador-efectivo .amount {
-    color: #34d399;
+    color: #f9fafb;
+}
+
+body.dark-mode .indicador-efectivo.caja-cerrada {
+    background: #7f1d1d;
+    border-color: #991b1b;
+}
+
+body.dark-mode .indicador-efectivo.caja-cerrada .label {
+    color: #fca5a5;
 }
 
 body.dark-mode .admin-stat-card {
@@ -2178,4 +2190,61 @@ body.dark-mode #modalClienteHabitual input[type="date"]:focus {
 
 #btnClienteHabitual:hover {
     background: #059669 !important;
+}
+
+/* ============================================================
+   Estilos para el modal de Cierre Temporal
+   ============================================================ */
+
+#modalCierreTemporal .opcion-doc {
+    background: var(--bg-card);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 2px solid var(--border-main);
+}
+
+#modalCierreTemporal .opcion-doc:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    border-color: var(--accent);
+}
+
+#modalCierreTemporal .opcion-doc:first-child:hover {
+    border-color: #2563eb;
+    background: rgba(37, 99, 235, 0.02);
+}
+
+#modalCierreTemporal .opcion-doc:last-child:hover {
+    border-color: #16a34a;
+    background: rgba(22, 163, 74, 0.02);
+}
+
+body.dark-mode #modalCierreTemporal .opcion-doc {
+    background: #374151;
+}
+
+body.dark-mode #modalCierreTemporal .opcion-doc:first-child:hover {
+    background: rgba(37, 99, 235, 0.1);
+}
+
+body.dark-mode #modalCierreTemporal .opcion-doc:last-child:hover {
+    background: rgba(22, 163, 74, 0.1);
+}
+
+#modalCierreTemporal .opcion-titulo {
+    font-size: 1.1rem;
+    margin-bottom: 5px;
+}
+
+#modalCierreTemporal .opcion-desc {
+    line-height: 1.4;
+    font-size: 0.8rem;
+}
+
+#btnCierreTemporal {
+    transition: all 0.2s ease;
+}
+
+#btnCierreTemporal:hover:not(:disabled) {
+    background: #4b5563 !important;
+    transform: translateY(-1px);
 }

@@ -1,6 +1,9 @@
 <?php
 /**
- * API para gestionar los usuarios
+ * API de Gestión de Usuarios y Permisos.
+ * Centraliza las operaciones CRUD para el personal del establecimiento,
+ * incluyendo la asignación de roles, auditoría de cambios y gestión de credenciales.
+ * 
  * @author Alberto Méndez
  * @version 1.0 (03/03/2026)
  */
@@ -18,7 +21,18 @@ $pdo = ConexionDB::getInstancia()->getConexion();
 // Indicamos al navegador que es un tipo JSON
 header('Content-Type: application/json; charset=utf-8');
 
-// Función para registrar logs de usuarios
+/**
+ * Registra eventos de auditoría relacionados con la gestión de usuarios.
+ * Almacena quién realizó la acción, sobre qué usuario y una descripción legible.
+ * 
+ * @param PDO $pdo Instancia de conexión activa a la base de datos.
+ * @param string $tipo Categoría técnica del evento (ej: 'alta_usuario', 'cambio_password').
+ * @param int|null $usuario_id ID del usuario sobre el que se actúa (puede ser nulo en logins fallidos).
+ * @param string $usuario_nombre Nombre o login del usuario afectado.
+ * @param string $descripcion Explicación en lenguaje natural de lo sucedido.
+ * @param mixed|null $detalles Metadatos adicionales (arrays o JSON) para depuración o historial.
+ * @return void
+ */
 function registrarLogUsuario($pdo, $tipo, $usuario_id, $usuario_nombre, $descripcion, $detalles = null)
 {
     try {
@@ -40,6 +54,11 @@ function registrarLogUsuario($pdo, $tipo, $usuario_id, $usuario_nombre, $descrip
 // No necesitamos verificar la sesión aquí.
 
 // ── ELIMINAR USUARIO (DELETE) ────────────────────────────────────────────
+/**
+ * Procesa la eliminación física de un usuario del sistema.
+ * Registra quién autorizó la baja para fines de auditoría.
+ * @param int $_GET['eliminar'] Identificador del usuario a borrar.
+ */
 if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
     // Obtenemos el id del usuario a eliminar
     $id = isset($_GET['eliminar']) ? (int) $_GET['eliminar'] : 0;
@@ -68,6 +87,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
 }
 
 // ── POST (Crear o Actualizar) ─────────────────────────────────────────────
+/**
+ * Lógica dual para la creación de nuevos empleados o edición de perfiles existentes.
+ * Realiza validaciones estrictas de formato de email y persistencia segura de contraseñas.
+ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
     $nombre = trim($_POST['nombre'] ?? '');
@@ -224,6 +247,8 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             'rol' => $usuario->getRol(),
             'fechaAlta' => $usuario->getFechaAlta(),
             'activo' => (int) $usuario->getActivo(),
+            'total_descansos' => $usuario->getTotalDescansos(),
+            'total_turnos' => $usuario->getTotalTurnos(),
             'permisos' => $usuario->getPermisos()
         ]);
     } else {
@@ -252,6 +277,8 @@ foreach ($usuarios as $usr) {
         'rol' => $usr->getRol(),
         'fechaAlta' => $usr->getFechaAlta(),
         'activo' => (int) $usr->getActivo(),
+        'total_descansos' => $usr->getTotalDescansos(),
+        'total_turnos' => $usr->getTotalTurnos(),
         'permisos' => $usr->getPermisos()
     ];
 }

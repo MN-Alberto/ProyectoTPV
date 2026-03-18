@@ -1,6 +1,7 @@
 <?php
 /**
- * Controlador de la vista de administrador.
+ * Controlador de la vista de administración.
+ * Gestiona el panel principal, estadísticas de ventas, alertas de stock y arqueos de caja.
  * 
  * @author Alberto Méndez
  * @version 1.4 (02/03/2026)
@@ -49,30 +50,33 @@ if (isset($_REQUEST['cerrarSesion'])) {
 // Obtenemos la sesión de la caja
 $sesionCaja = Caja::obtenerSesionAbierta();
 
-// Definimos los títulos de las ventas y pedidos
+/** 
+ * Títulos y etiquetas descriptivas para las diferentes secciones de la interfaz.
+ * Se actualizan dinámicamente si los datos mostrados pertenecen a la sesión actual o anterior.
+ */
 $tituloVentas = "Ventas (Sesión Actual)";
 $tituloPedidos = "Ventas realizadas hoy";
 $tituloRetiros = "Retiros (Sesión Actual)";
 $tituloDevoluciones = "Devoluciones (Sesión Actual)";
 
-// Si la caja está abierta
+// Control de estado de la caja para determinar qué datos se muestran en el dashboard
 if ($sesionCaja) {
-    // Obtenemos el resumen de la caja abierta
+    // Caja abierta: recuperar estadísticas en tiempo real del turno en curso
     $resumenCaja = Venta::obtenerResumenCajaAbierta();
 } else {
-    // Obtenemos la última caja cerrada
+    // Caja cerrada: recuperar el último arqueo finalizado para consulta histórica
     $ultimaCaja = Caja::obtenerUltimaSesionCerrada();
     // Si la última caja está cerrada
     if ($ultimaCaja && $ultimaCaja->getFechaCierre()) {
         // Obtenemos el resumen de la caja cerrada
         $resumenCaja = Venta::obtenerResumenCerrada($ultimaCaja->getFechaApertura(), $ultimaCaja->getFechaCierre(), $ultimaCaja->getId());
-        // Actualizamos los títulos
+        // Ajustamos etiquetas para informar al administrador que consulta datos pasados
         $tituloVentas = "Ventas (Sesión Anterior)";
         $tituloPedidos = "Ventas realizadas (Sesión Anterior)";
         $tituloRetiros = "Retiros (Sesión Anterior)";
         $tituloDevoluciones = "Devoluciones (Sesión Anterior)";
     } else {
-        // Array para el resumen de las ventas al hacer caja
+        // Fallback: inicializar valores a cero si el sistema no tiene registros previos
         $resumenCaja = [
             'totalGeneral' => 0,
             'efectivo' => ['cantidad' => 0],
@@ -93,12 +97,16 @@ foreach ($productosTotal as $p) {
         $alertasStock++;
 }
 
-// Array para el dashboard de la vista del admin
+/** 
+ * Agregador de métricas principales para los indicadores del dashboard.
+ * Contiene totales de ventas, pedidos, inventario crítico y saldo en caja.
+ */
 $stats = [
     'ventasHoy' => $resumenCaja['totalGeneral'],
     'pedidosHoy' => $resumenCaja['efectivo']['cantidad'] + $resumenCaja['tarjeta']['cantidad'] + $resumenCaja['bizum']['cantidad'],
     'productos' => count($productosTotal),
-    'alertasStock' => $alertasStock
+    'alertasStock' => $alertasStock,
+    'efectivoCaja' => $sesionCaja ? $sesionCaja->getDatosArqueo()['efectivoEsperado'] : (isset($ultimaCaja) && $ultimaCaja ? $ultimaCaja->getCambio() : 0)
 ];
 
 // Obtener el total de retiros según corresponda

@@ -1,6 +1,9 @@
 <?php
 /**
- * API para gestionar los productos 
+ * API de Gestión de Productos.
+ * Proporciona endpoints para la consulta, filtrado, previsualización de cambios masivos
+ * y persistencia de artículos en el Inventario del TPV.
+ * 
  * @author Alberto Méndez
  * @version 1.3 (03/03/2026)
  */
@@ -18,7 +21,11 @@ require_once(__DIR__ . '/../model/Iva.php');
 header('Content-Type: application/json; charset=utf-8');
 
 try {
-    // PREVISUALIZAR CAMBIO DE IVA
+    /** 
+     * PREVISUALIZAR CAMBIO DE IVA
+     * Calcula cómo afectaría un cambio en el tipo de impuesto a una muestra de productos.
+     * @param int $_GET['previsualizarIVA'] ID del nuevo tipo de IVA.
+     */
     if (isset($_GET['previsualizarIVA'])) {
         $nuevoIdIva = intval($_GET['previsualizarIVA']);
 
@@ -49,7 +56,11 @@ try {
         exit();
     }
 
-    // PREVISUALIZAR AJUSTE DE PRECIOS
+    /** 
+     * PREVISUALIZAR AJUSTE DE PRECIOS
+     * Simula una subida o bajada porcentual de precios base en el catálogo.
+     * @param float $_GET['previsualizarAjuste'] Porcentaje de variación (ej: 10 para +10%).
+     */
     if (isset($_GET['previsualizarAjuste'])) {
         $porcentaje = floatval($_GET['previsualizarAjuste']);
 
@@ -74,7 +85,12 @@ try {
         exit();
     }
 
-    // CAMBIAR IVA A TODOS LOS PRODUCTOS
+    /** 
+     * CAMBIAR IVA A TODOS LOS PRODUCTOS
+     * Aplica de forma masiva un nuevo tipo de IVA a los productos del sistema.
+     * @param int $_GET['cambiarIVA'] ID del nuevo tipo de IVA a establecer.
+     * @param string $_GET['excluidos'] IDs de productos separados por coma que no deben actualizarse.
+     */
     if (isset($_GET['cambiarIVA'])) {
         $nuevoIdIva = intval($_GET['cambiarIVA']);
         $excluidos = [];
@@ -1053,6 +1069,29 @@ try {
                     }
 
                     $detalles = count($cambios) > 0 ? json_encode($cambios, JSON_UNESCAPED_UNICODE) : null;
+
+                    /**
+                     * Registra un evento relacionado con productos en la auditoría del sistema.
+                     * 
+                     * @param PDO $pdo Instancia de conexión a la base de datos.
+                     * @param string $tipo Tipo de operación (ej: 'ajuste_precio', 'actualizacion_stock').
+                     * @param int|null $producto_id Identificador del producto afectado.
+                     * @param string|null $producto_nombre Nombre del producto para referencia rápida.
+                     * @param string $descripcion Breve texto explicativo de la acción.
+                     * @param mixed|null $detalles Información técnica o valores previos en JSON.
+                     * @return void
+                     */
+                    function registrarLogProducto($pdo, $tipo, $producto_id, $producto_nombre, $descripcion, $detalles = null)
+                    {
+                        $stmtLog = $pdo->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES (:tipo, :usuario_id, :usuario_nombre, :descripcion, :detalles)");
+                        $stmtLog->execute([
+                            ':tipo' => $tipo,
+                            ':usuario_id' => $_SESSION['id'] ?? null,
+                            ':usuario_nombre' => $_SESSION['nombre'] ?? 'Admin',
+                            ':descripcion' => $descripcion,
+                            ':detalles' => $detalles
+                        ]);
+                    }
 
                     $stmtLog = $pdoLog->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES ('modificacion_producto', :usuario_id, :usuario_nombre, :descripcion, :detalles)");
                     $stmtLog->execute([

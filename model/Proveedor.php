@@ -12,40 +12,82 @@ require_once(__DIR__ . '/../core/conexionDB.php');
 class Proveedor
 {
 
+    /** 
+     * @var int|null Identificador único del proveedor en la base de datos. 
+     */
     private $id;
+    /** 
+     * @var string|null Nombre comercial o razón social de la empresa proveedora. 
+     */
     private $nombre;
+    /** 
+     * @var string|null Nombre de la persona física encargada del contacto comercial. 
+     */
     private $contacto;
+    /** 
+     * @var string|null Dirección de correo electrónico para comunicaciones y pedidos. 
+     */
     private $email;
+    /** 
+     * @var string|null Dirección física de las instalaciones o sede del proveedor. 
+     */
     private $direccion;
+    /** 
+     * @var bool|int Indica si el proveedor está habilitado para operar (1: activo, 0: inactivo). 
+     */
     private $activo;
 
     // ======================== GETTERS ========================
 
+    /** 
+     * Obtiene el ID del proveedor.
+     * @return int|null 
+     */
     public function getId()
     {
         return $this->id;
     }
 
+    /** 
+     * Obtiene el nombre del proveedor.
+     * @return string|null 
+     */
     public function getNombre()
     {
         return $this->nombre;
     }
 
+    /** 
+     * Obtiene el nombre de contacto.
+     * @return string|null 
+     */
     public function getContacto()
     {
         return $this->contacto;
     }
 
+    /** 
+     * Obtiene el email de contacto.
+     * @return string|null 
+     */
     public function getEmail()
     {
         return $this->email;
     }
 
+    /** 
+     * Obtiene la dirección física.
+     * @return string|null 
+     */
     public function getDireccion()
     {
         return $this->direccion;
     }
 
+    /** 
+     * Indica si el proveedor está activo.
+     * @return bool|int 
+     */
     public function getActivo()
     {
         return $this->activo;
@@ -53,31 +95,55 @@ class Proveedor
 
     // ======================== SETTERS ========================
 
+    /** 
+     * Establece el ID único del proveedor.
+     * @param int $id 
+     */
     public function setId($id)
     {
         $this->id = $id;
     }
 
+    /** 
+     * Define el nombre comercial o razón social.
+     * @param string $nombre 
+     */
     public function setNombre($nombre)
     {
         $this->nombre = $nombre;
     }
 
+    /** 
+     * Establece el nombre de la persona de contacto.
+     * @param string $contacto 
+     */
     public function setContacto($contacto)
     {
         $this->contacto = $contacto;
     }
 
+    /** 
+     * Define el correo electrónico de contacto.
+     * @param string $email 
+     */
     public function setEmail($email)
     {
         $this->email = $email;
     }
 
+    /** 
+     * Establece la dirección física de la empresa.
+     * @param string $direccion 
+     */
     public function setDireccion($direccion)
     {
         $this->direccion = $direccion;
     }
 
+    /** 
+     * Activa o desactiva al proveedor para realizar pedidos.
+     * @param bool|int $activo 
+     */
     public function setActivo($activo)
     {
         $this->activo = $activo;

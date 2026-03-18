@@ -12,6 +12,7 @@ require_once(__DIR__ . '/../model/Categoria.php');
 require_once(__DIR__ . '/../model/Venta.php');
 require_once(__DIR__ . '/../model/LineaVenta.php');
 require_once(__DIR__ . '/../model/Caja.php');
+require_once(__DIR__ . '/../model/Usuario.php');
 require_once(__DIR__ . '/../core/conexionDB.php');
 
 // Verificamos que el usuario está guardado en la sesión, si no lo está redirigimos al login
@@ -23,6 +24,29 @@ if (!isset($_SESSION['idUsuario'])) {
 
 // Si el usuario solicita cerrar sesión destruimos la sesión completamente
 if (isset($_REQUEST['cerrarSesion'])) {
+    /**
+     * Gestión del cierre de turno o pausa técnica.
+     * Si se proporciona un motivo, se registra el evento en la auditoría del empleado
+     * y se actualizan sus contadores de actividad.
+     */
+    if (isset($_REQUEST['motivoCierre'])) {
+        $sesionCaja = Caja::obtenerSesionAbierta();
+        if ($sesionCaja) {
+            $sesionCaja->registrarInterrupcion(
+                $_SESSION['idUsuario'],
+                $_SESSION['nombreUsuario'] ?? 'Desconocido',
+                $_REQUEST['motivoCierre']
+            );
+        }
+
+        // Incrementamos las métricas de rendimiento del empleado basado en su acción
+        if ($_REQUEST['motivoCierre'] === 'pausa') {
+            Usuario::incrementarDescansos($_SESSION['idUsuario']);
+        } elseif ($_REQUEST['motivoCierre'] === 'turno') {
+            Usuario::incrementarTurnos($_SESSION['idUsuario']);
+        }
+    }
+
     // Registrar logout antes de destruir sesión
     try {
         require_once(__DIR__ . '/../config/confDB.php');
@@ -33,7 +57,7 @@ if (isset($_REQUEST['cerrarSesion'])) {
         $stmt->execute([
             ':usuario_id' => $_SESSION['idUsuario'] ?? null,
             ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
-            ':descripcion' => 'Usuario cerró sesión'
+            ':descripcion' => 'Usuario cerró sesión' . (isset($_REQUEST['motivoCierre']) ? ' (Motivo: ' . $_REQUEST['motivoCierre'] . ')' : '')
         ]);
     } catch (Exception $e) {
         // Silenciar errores de logging
@@ -53,6 +77,26 @@ $categorias = Categoria::obtenerTodas();
 
 // Cargar estado de la caja
 $sesionCaja = Caja::obtenerSesionAbierta();
+
+/** 
+ * Recuperación de sesiones interrumpidas.
+ * Si un empleado dejó la caja en espera (pausa para descanso), recuperamos
+ * los metadatos para informar al sistema y mostrar el aviso correspondiente.
+ */
+if ($sesionCaja && $sesionCaja->getInterrupcionTipo()) {
+    // Preparamos los datos para que la vista los use
+    $_SESSION['interrupcionRecuperada'] = [
+        'tipo' => $sesionCaja->getInterrupcionTipo(),
+        'usuarioId' => $sesionCaja->getInterrupcionUsuarioId(),
+        'usuarioNombre' => $sesionCaja->getInterrupcionUsuarioNombre(),
+        'fecha' => $sesionCaja->getInterrupcionFecha()
+    ];
+    // Limpieza de seguridad: solo permitimos una recuperación tras el login
+    $sesionCaja->limpiarInterrupcion();
+} else {
+    // Si no hay interrupción en BD, nos aseguramos de limpiar la sesión para que no persista el modal
+    unset($_SESSION['interrupcionRecuperada']);
+}
 
 // Cargar el cambio de la última sesión cerrada (para recuperar al abrir)
 $ultimaSesionCerrada = Caja::obtenerUltimaSesionCerrada();
@@ -96,6 +140,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $venta->setTipoDocumento($_POST['tipoDocumento'] ?? 'ticket');
             // Indicamos la tarifa aplicada
             $venta->setIdTarifa($_POST['idTarifa'] ?? null);
+
+            /** 
+             * Gestión de la persistencia de la venta.
+             * Se vincula la transacción con el usuario activo y la sesión de caja abierta.
+             */
+            if ($sesionCaja) {
+                $venta->setIdSesionCaja($sesionCaja->getId());
+            }
 
             //Calculamos el total y validamos el stock.
             $total = 0;
@@ -235,10 +287,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                     $stmtCliente = $conexion->prepare(
                         "UPDATE clientes SET 
                             productos_comprados = productos_comprados + ?, 
-                            compras_realizadas = compras_realizadas + 1 
+                            compras_realizadas = compras_realizadas + 1,
+                            puntos = puntos + ?
                         WHERE dni = ? AND activo = 1"
                     );
-                    $stmtCliente->execute([$totalProductos, $clienteNif]);
+                    $puntosGanados = 0;
+                    if ($total >= 20) {
+                        $puntosGanados = floor($total / 20) * 1000;
+                    }
+                    $stmtCliente->execute([$totalProductos, $puntosGanados, $clienteNif]);
+                    
+                    if ($puntosGanados > 0) {
+                        $_SESSION['puntosGanados'] = $puntosGanados;
+                    }
                 } catch (Exception $e) {
                     // Si falla la actualización del cliente, no detenemos la venta
                     error_log("Error al actualizar estadísticas del cliente: " . $e->getMessage());

@@ -1,5 +1,8 @@
 <script src="webroot/js/admin.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <section id="cajero">
     <!-- Panel izquierdo: Navegación de Admin -->
     <div class="cajero-productos admin-sidebar" style="max-width: 300px; border-right: 1px solid #e5e7eb;">
@@ -7,7 +10,7 @@
             <h2 class="admin-view-title">Administración</h2>
         </div>
         <div class="cajero-categorias admin-nav-buttons"
-            style="flex-direction: column; height: 100%; gap: 10px; padding: 20px;">
+            style="flex-direction: column; gap: 10px; padding: 20px;">
             <button class="cat-btn activa" data-seccion="dashboard" style="width: 100%; text-align: left;">
                 <i class="fas fa-chart-line" style="margin-right: 10px;"></i> Dashboard
             </button>
@@ -55,15 +58,48 @@
                     <i class="fas fa-tags" style="margin-right: 10px;"></i> Tarifas Prefijadas
                 </button>
             </div>
+
+            <button class="cat-btn" id="btnInformes" style="width: 100%; text-align: left;">
+                <i class="fas fa-chart-bar" style="margin-right: 10px;"></i> Informes ▾
+            </button>
+            <div id="submenuInformes" style="display: none; padding-left: 20px;">
+                <button class="cat-btn submenu-btn" data-seccion="informe-diario"
+                    style="width: 100%; text-align: left; font-size: 13px;">
+                    <i class="fas fa-calendar-day" style="margin-right: 10px;"></i> Informe Diario
+                </button>
+                <button class="cat-btn submenu-btn" data-seccion="informe-semanal"
+                    style="width: 100%; text-align: left; font-size: 13px;">
+                    <i class="fas fa-calendar-week" style="margin-right: 10px;"></i> Informe Semanal
+                </button>
+                <button class="cat-btn submenu-btn" data-seccion="informe-mensual"
+                    style="width: 100%; text-align: left; font-size: 13px;">
+                    <i class="fas fa-calendar-alt" style="margin-right: 10px;"></i> Informe Mensual
+                </button>
+                <button class="cat-btn submenu-btn" data-seccion="informe-anual"
+                    style="width: 100%; text-align: left; font-size: 13px;">
+                    <i class="fas fa-calendar" style="margin-right: 10px;"></i> Informe Anual
+                </button>
+            </div>
+
             <button class="cat-btn" data-seccion="logs" style="width: 100%; text-align: left;">
                 <i class="fas fa-history" style="margin-right: 10px;"></i> Logs
             </button>
             <button class="cat-btn" data-seccion="historial-precios" style="width: 100%; text-align: left;">
-                <i class="fas fa-history" style="margin-right: 10px;"></i> Historial de Precios
+                <i class="fas fa-chart-area" style="margin-right: 10px;"></i> Historial de Precios
             </button>
-            <button class="cat-btn" data-seccion="configuracion" style="width: 100%; text-align: left;">
-                <i class="fas fa-cog" style="margin-right: 10px;"></i> Configuración
+            <button class="cat-btn" id="btnConfig" style="width: 100%; text-align: left;">
+                <i class="fas fa-cog" style="margin-right: 10px;"></i> Configuración ▾
             </button>
+            <div id="submenuConfig" style="display: none; padding-left: 20px;">
+                <button class="cat-btn submenu-btn" data-seccion="config-tema"
+                    style="width: 100%; text-align: left; font-size: 13px;">
+                    <i class="fas fa-palette" style="margin-right: 10px;"></i> Tema
+                </button>
+                <button class="cat-btn submenu-btn" data-seccion="config-acciones"
+                    style="width: 100%; text-align: left; font-size: 13px;">
+                    <i class="fas fa-cogs" style="margin-right: 10px;"></i> Acciones
+                </button>
+            </div>
         </div>
     </div>
 
@@ -76,6 +112,11 @@
                 <span class="label">Estado del Sistema:</span>
                 <span class="amount" style="color: <?php echo $sesionCaja ? '#059669' : '#dc2626'; ?>;">
                     <?php echo $sesionCaja ? 'Online' : 'Offline (Caja Cerrada)'; ?>
+                </span>
+                <div class="separador"></div>
+                <span class="label"><?php echo $sesionCaja ? 'Efectivo en Caja:' : 'Fondo Siguiente Turno:'; ?></span>
+                <span class="amount">
+                    <?php echo number_format($stats['efectivoCaja'], 2, ',', '.'); ?> €
                 </span>
             </div>
         </div>
@@ -310,6 +351,14 @@
             <div class="ver-prod-fila">
                 <span class="ver-prod-label">Crear Productos</span>
                 <span id="verUsuarioCrearProductos" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Total Descansos</span>
+                <span id="verUsuarioTotalDescansos" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Total Cambios Turno</span>
+                <span id="verUsuarioTotalTurnos" class="ver-prod-valor"></span>
             </div>
         </div>
 
@@ -903,6 +952,79 @@
 </div>
 
 <!-- ##=========================== MODAL: ESTADÍSTICAS DE PRODUCTOS ===========================## -->
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: PROGRAMAR CAMBIOS EN TARIFAS ===========================## -->
+<div class="modal-overlay" id="modalProgramarCambiosTarifas"
+    style="display:none; position: fixed; z-index: 10100; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+    <div class="modal-content" style="max-width: 500px; text-align: left;">
+        <h3 style="margin-bottom: 5px;"><i class="fas fa-clock" style="margin-right: 10px;"></i>Confirmar Programación</h3>
+        <p class="modal-subtitulo" style="margin-bottom: 15px;">
+            Se van a programar <span id="countCambiosProgramar">0</span> cambios de precios.
+        </p>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Fecha y hora de aplicación:</label>
+            <input type="datetime-local" id="fechaProgramadaTarifas" class="input-buscarProducto"
+                style="width: 100%; padding: 12px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-main); border-radius: 8px; font-size: 16px;">
+        </div>
+
+        <div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
+            <i class="fas fa-info-circle" style="color: #3b82f6; margin-right: 8px;"></i>
+            Los precios cambiarán automáticamente en la fecha seleccionada cuando un administrador acceda al sistema.
+        </div>
+
+        <div class="editar-prod-botones">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalProgramarCambiosTarifas')">Cancelar</button>
+            <button class="btn-exito" onclick="ejecutarGuardarProgramacionTarifas()">
+                <i class="fas fa-save"></i> Confirmar y Programar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: VER CAMBIOS DE TARIFAS PROGRAMADOS ===========================## -->
+<div class="modal-overlay" id="modalVerCambiosTarifasProgramados"
+    style="display:none; position: fixed; z-index: 10100; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+    <div class="modal-content" style="max-width: 850px; text-align: left; max-height: 85vh; width: 90%;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0;"><i class="fas fa-history" style="margin-right: 10px;"></i>Historial de Programaciones</h3>
+            <button onclick="cerrarModal('modalVerCambiosTarifasProgramados')" style="background:none; border:none; font-size: 24px; cursor:pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;">
+            Listado de lotes de cambios de precios programados. Los lotes 'Pendientes' pueden ser cancelados.
+        </p>
+
+        <div id="listaBatchesTarifas" style="max-height: 450px; overflow-y: auto; border: 1px solid var(--border-main); border-radius: 8px; background: var(--bg-main);">
+            <!-- La tabla se cargará dinámicamente -->
+        </div>
+
+        <div class="editar-prod-botones" style="margin-top: 20px;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCambiosTarifasProgramados')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: DETALLES DE LOTE DE TARIFAS ===========================## -->
+<div class="modal-overlay" id="modalDetalleBatchTarifas"
+    style="display:none; position: fixed; z-index: 10200; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.4); backdrop-filter: blur(1px);">
+    <div class="modal-content" style="max-width: 700px; text-align: left; max-height: 80vh; width: 95%;">
+        <h3>Detalles del Lote #<span id="detalleBatchId"></span></h3>
+        <p id="detalleBatchMeta" style="margin-bottom: 15px; color: var(--text-secondary); font-size: 14px;"></p>
+
+        <div id="tablaDetalleBatch" style="max-height: 350px; overflow-y: auto; border: 1px solid var(--border-main); border-radius: 8px; margin-bottom: 20px;">
+            <!-- Tabla dinámica -->
+        </div>
+
+        <div style="display: flex; justify-content: flex-end;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalDetalleBatchTarifas')">Regresar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: ESTADÍSTICAS DE PRODUCTOS ===========================## -->
 <div class="modal-overlay" id="modalEstadisticasProductos"
     style="display:none; position: fixed; z-index: 10100; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
     <div class="modal-content" style="max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto;">
@@ -941,7 +1063,9 @@
         'tarifa-ajuste': 'Ajuste de Precios',
         clientes: 'Gestión de Clientes',
         'tarifa-prefijadas': 'Tarifas Prefijadas',
-        'historial-precios': 'Historial de Precios'
+        'historial-precios': 'Historial de Precios',
+        'config-tema': 'Configuración: Tema',
+        'config-acciones': 'Configuración: Acciones'
     };
 
     document.querySelectorAll('.cat-btn[data-seccion]').forEach(btn => {
@@ -952,6 +1076,14 @@
 
             const seccion = btn.dataset.seccion;
             document.getElementById('adminTitulo').textContent = TITULOS[seccion] ?? seccion;
+
+            // Toggle modo configuración para ganar espacio
+            const dashboard = document.querySelector('.admin-dashboard');
+            if (seccion.startsWith('config-') || seccion === 'configuracion') {
+                dashboard.classList.add('admin-mode-config');
+            } else {
+                dashboard.classList.remove('admin-mode-config');
+            }
 
             switch (seccion) {
                 case 'dashboard':
@@ -979,6 +1111,12 @@
                 case 'configuracion':
                     cargarConfiguracion();
                     break;
+                case 'config-tema':
+                    cargarConfiguracion('tema');
+                    break;
+                case 'config-acciones':
+                    cargarConfiguracion('acciones');
+                    break;
                 case 'logs':
                     cargarLogs();
                     break;
@@ -1003,8 +1141,31 @@
                 case 'clientes':
                     cargarClientesAdmin();
                     break;
+                case 'informe-diario':
+                    mostrarSeccionInformes('diario');
+                    break;
+                case 'informe-semanal':
+                    mostrarSeccionInformes('semanal');
+                    break;
+                case 'informe-mensual':
+                    mostrarSeccionInformes('mensual');
+                    break;
+                case 'informe-anual':
+                    mostrarSeccionInformes('anual');
+                    break;
             }
         });
+    });
+
+    // Toggle submenu de Configuración
+    document.getElementById('btnConfig').addEventListener('click', function (e) {
+        e.stopPropagation();
+        var submenu = document.getElementById('submenuConfig');
+        submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
+        
+        // Cerrar otros submenus
+        document.getElementById('submenuTarifas').style.display = 'none';
+        document.getElementById('submenuInformes').style.display = 'none';
     });
 
     // Toggle submenu de Tarifas
@@ -1012,14 +1173,40 @@
         e.stopPropagation();
         var submenu = document.getElementById('submenuTarifas');
         submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
+
+        // Cerrar otros submenus
+        document.getElementById('submenuConfig').style.display = 'none';
+        document.getElementById('submenuInformes').style.display = 'none';
     });
 
-    // Cerrar submenu al hacer click fuera
+    // Toggle submenu de Informes
+    document.getElementById('btnInformes').addEventListener('click', function (e) {
+        e.stopPropagation();
+        var submenu = document.getElementById('submenuInformes');
+        submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
+
+        // Cerrar otros submenus
+        document.getElementById('submenuConfig').style.display = 'none';
+        document.getElementById('submenuTarifas').style.display = 'none';
+    });
+
+    // Cerrar submenus al hacer click fuera
     document.addEventListener('click', function (e) {
-        var submenu = document.getElementById('submenuTarifas');
-        var btn = document.getElementById('btnTarifas');
-        if (!btn.contains(e.target) && !submenu.contains(e.target)) {
-            submenu.style.display = 'none';
+        var subTarifas = document.getElementById('submenuTarifas');
+        var subConfig = document.getElementById('submenuConfig');
+        var subInformes = document.getElementById('submenuInformes');
+        var btnTarifas = document.getElementById('btnTarifas');
+        var btnConfig = document.getElementById('btnConfig');
+        var btnInformes = document.getElementById('btnInformes');
+
+        if (!btnTarifas.contains(e.target) && !subTarifas.contains(e.target)) {
+            subTarifas.style.display = 'none';
+        }
+        if (!btnConfig.contains(e.target) && !subConfig.contains(e.target)) {
+            subConfig.style.display = 'none';
+        }
+        if (!btnInformes.contains(e.target) && !subInformes.contains(e.target)) {
+            subInformes.style.display = 'none';
         }
     });
     document.getElementById('adminContenido').innerHTML = HTML_DASHBOARD;

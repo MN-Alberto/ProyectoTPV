@@ -1,6 +1,8 @@
 <?php
 /**
- * API para gestionar las sesiones de caja.
+ * API de Gestión de Sesiones de Caja y Arqueos.
+ * Permite la administración integral de los turnos de trabajo, incluyendo la apertura,
+ * el seguimiento de movimientos de efectivo y la realización de arqueos de cierre.
  * 
  * @author Alberto Méndez
  * @version 1.0 (04/03/2026)
@@ -21,7 +23,10 @@ if (!isset($_SESSION['rolUsuario']) || $_SESSION['rolUsuario'] !== 'admin') {
 
 $method = $_SERVER['REQUEST_METHOD'];
 
-// GET: Obtener sesiones o datos de arqueo
+/** 
+ * MANEJADOR DE SOLICITUDES GET
+ * Recupera listados de sesiones, filtros históricos o cálculos de arqueo específicos.
+ */
 if ($method === 'GET') {
     // Verificar si es una solicitud de arqueo
     if (isset($_GET['arqueo']) && isset($_GET['idSesion'])) {
@@ -60,23 +65,44 @@ if ($method === 'GET') {
             $orderBy = 'cs.fechaApertura ASC';
         }
 
+        // Filtro por fecha
+        $condiciones = [];
+        if (isset($_GET['filtroFecha'])) {
+            switch ($_GET['filtroFecha']) {
+                case 'hoy':
+                    $condiciones[] = "DATE(cs.fechaApertura) = CURDATE()";
+                    break;
+                case '7dias':
+                    $condiciones[] = "cs.fechaApertura >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+                    break;
+                case '30dias':
+                    $condiciones[] = "cs.fechaApertura >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+                    break;
+            }
+        }
+
         $sql = "
             SELECT cs.id, cs.idUsuario, cs.fechaApertura, cs.fechaCierre, 
                    cs.importeInicial, cs.importeActual, cs.cambio, cs.estado,
                    u.nombre as usuario_nombre,
                    COALESCE((SELECT SUM(importe) FROM retiros WHERE idCajaSesion = cs.id), 0) as total_retiros,
-                   COALESCE((SELECT SUM(importeTotal) FROM devoluciones WHERE idSesionCaja = cs.id), 0) as total_devoluciones,
+                   COALESCE((SELECT SUM(importeTotal) FROM devoluciones WHERE idSesionCaja = cs.id OR (idSesionCaja IS NULL AND fecha >= cs.fechaApertura AND (cs.fechaCierre IS NULL OR fecha <= cs.fechaCierre))), 0) as total_devoluciones,
                    COALESCE((SELECT SUM(lv.cantidad) FROM ventas v 
                              JOIN lineasVenta lv ON v.id = lv.idVenta 
-                             WHERE v.fecha >= cs.fechaApertura 
-                             AND (cs.fechaCierre IS NULL OR v.fecha <= cs.fechaCierre)), 0) as total_productos,
+                             WHERE v.idSesionCaja = cs.id OR (v.idSesionCaja IS NULL AND v.fecha >= cs.fechaApertura AND (cs.fechaCierre IS NULL OR v.fecha <= cs.fechaCierre))), 0) as total_productos,
                    COALESCE((SELECT COUNT(*) FROM ventas v 
-                             WHERE v.fecha >= cs.fechaApertura 
-                             AND (cs.fechaCierre IS NULL OR v.fecha <= cs.fechaCierre)), 0) as total_ventas
+                             WHERE v.idSesionCaja = cs.id OR (v.idSesionCaja IS NULL AND v.fecha >= cs.fechaApertura AND (cs.fechaCierre IS NULL OR v.fecha <= cs.fechaCierre))), 0) as total_ventas,
+                   (SELECT diferencia FROM arqueos_caja WHERE idCajaSesion = cs.id AND tipoArqueo = 'cierre' ORDER BY fechaArqueo DESC LIMIT 1) as diferencia,
+                   (SELECT efectivoContado FROM arqueos_caja WHERE idCajaSesion = cs.id AND tipoArqueo = 'cierre' ORDER BY fechaArqueo DESC LIMIT 1) as efectivoContado
             FROM caja_sesiones cs
             LEFT JOIN usuarios u ON cs.idUsuario = u.id
-            ORDER BY $orderBy
         ";
+
+        if (!empty($condiciones)) {
+            $sql .= " WHERE " . implode(" AND ", $condiciones) . " ";
+        }
+
+        $sql .= " ORDER BY $orderBy ";
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute();
@@ -93,7 +119,10 @@ if ($method === 'GET') {
     exit;
 }
 
-// POST: Registrar arqueo
+/** 
+ * MANEJADOR DE SOLICITUDES POST
+ * Procesa el registro persistente de nuevos arqueos y cierres de sesión.
+ */
 if ($method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
 
@@ -108,6 +137,13 @@ echo json_encode(['ok' => false, 'error' => 'Método no permitido']);
 
 // ======================== FUNCIONES ========================
 
+/**
+ * Recupera el balance teórico de la caja en un momento dado.
+ * Calcula lo que "debería haber" basándose en ventas, retiros y fondo inicial.
+ * 
+ * @param int $idSesion Identificador de la sesión a analizar.
+ * @return void Envía una respuesta JSON con el desglose de importes.
+ */
 function obtenerDatosArqueo($idSesion)
 {
     try {
@@ -134,6 +170,12 @@ function obtenerUltimoArqueo($idSesion)
     }
 }
 
+/**
+ * Procesa y almacena el conteo físico de billetes y monedas realizado por un empleado.
+ * 
+ * @param array $input Datos de la solicitud (idSesion, efectivoContado, detalleConteo, etc.).
+ * @return void Envía confirmación o error en formato JSON.
+ */
 function registrarArqueo($input)
 {
     $idSesion = $input['idSesion'] ?? null;

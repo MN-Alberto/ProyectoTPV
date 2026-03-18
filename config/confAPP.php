@@ -1,7 +1,10 @@
 <?php
 
 /**
- * Configuración de la aplicación
+ * Diccionario de Enrutamiento y Rutas de Archivo.
+ * Define la estructura de mapeo para el controlador frontal,
+ * centralizando la ubicación de scripts y plantillas de vista.
+ * 
  * @author Alberto Méndez
  * @version 1.2 (02/03/2026)
  */

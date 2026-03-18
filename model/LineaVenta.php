@@ -12,58 +12,121 @@ require_once(__DIR__ . '/../core/conexionDB.php');
 class LineaVenta
 {
 
+    /** 
+     * @var int|null Identificador único de la línea de detalle de la venta. 
+     */
     private $id;
+    /** 
+     * @var int|null ID de la venta global a la que pertenece este artículo. 
+     */
     private $idVenta;
+    /** 
+     * @var int|null ID del producto vendido. 
+     */
     private $idProducto;
+    /** 
+     * @var int|null Unidades vendidas del producto. 
+     */
     private $cantidad;
+    /** 
+     * @var float|null Precio unitario final cobrado al cliente. 
+     */
     private $precioUnitario;
+    /** 
+     * @var float|null Precio base original del producto antes de aplicar cualquier descuento. 
+     */
     private $precioOriginal;
+    /** 
+     * @var string|null Nombre de la tarifa específica aplicada (ej: 'Mayorista', 'Normal'). 
+     */
     private $tarifaNombre;
+    /** 
+     * @var int|null Tipo de IVA porcentual que se aplicó en el momento de la venta. 
+     */
     private $iva;
+    /** 
+     * @var float|null Importe total de la línea (cantidad multiplicada por precio unitario). 
+     */
     private $subtotal;
 
     // ======================== GETTERS ========================
 
+    /** 
+     * Obtiene el ID de la línea de venta.
+     * @return int|null 
+     */
     public function getId()
     {
         return $this->id;
     }
 
+    /** 
+     * Obtiene el ID de la venta asociada.
+     * @return int|null 
+     */
     public function getIdVenta()
     {
         return $this->idVenta;
     }
 
+    /** 
+     * Obtiene el ID del producto vendido.
+     * @return int|null 
+     */
     public function getIdProducto()
     {
         return $this->idProducto;
     }
 
+    /** 
+     * Obtiene la cantidad vendida.
+     * @return int|null 
+     */
     public function getCantidad()
     {
         return $this->cantidad;
     }
 
+    /** 
+     * Obtiene el precio unitario final.
+     * @return float|null 
+     */
     public function getPrecioUnitario()
     {
         return $this->precioUnitario;
     }
 
+    /** 
+     * Obtiene el precio original base.
+     * @return float|null 
+     */
     public function getPrecioOriginal()
     {
         return $this->precioOriginal;
     }
 
+    /** 
+     * Obtiene el nombre de la tarifa.
+     * @return string|null 
+     */
     public function getTarifaNombre()
     {
         return $this->tarifaNombre;
     }
 
+    /** 
+     * Obtiene el subtotal acumulado.
+     * @return float|null 
+     */
     public function getSubtotal()
     {
         return $this->subtotal;
     }
 
+    /** 
+     * Obtiene el valor del IVA aplicado.
+     * @return int|null 
+     */
     public function getIva()
     {
         return $this->iva;
@@ -71,46 +134,74 @@ class LineaVenta
 
     // ======================== SETTERS ========================
 
+    /** 
+     * Establece el ID único de la línea de detalle.
+     * @param int $id 
+     */
     public function setId($id)
     {
         $this->id = $id;
     }
-
+    /** 
+     * Vincula esta línea a una venta global.
+     * @param int $idVenta 
+     */
     public function setIdVenta($idVenta)
     {
         $this->idVenta = $idVenta;
     }
-
+    /** 
+     * Establece el producto que se está vendiendo.
+     * @param int $idProducto 
+     */
     public function setIdProducto($idProducto)
     {
         $this->idProducto = $idProducto;
     }
-
+    /** 
+     * Establece el número de unidades vendidas.
+     * @param int $cantidad 
+     */
     public function setCantidad($cantidad)
     {
         $this->cantidad = $cantidad;
     }
-
+    /** 
+     * Establece el precio unitario final (con descuentos aplicados).
+     * @param float $precioUnitario 
+     */
     public function setPrecioUnitario($precioUnitario)
     {
         $this->precioUnitario = $precioUnitario;
     }
-
+    /** 
+     * Establece el precio base original del artículo.
+     * @param float $precioOriginal 
+     */
     public function setPrecioOriginal($precioOriginal)
     {
         $this->precioOriginal = $precioOriginal;
     }
-
+    /** 
+     * Establece el nombre de la tarifa aplicada a esta línea.
+     * @param string|null $tarifaNombre 
+     */
     public function setTarifaNombre($tarifaNombre)
     {
         $this->tarifaNombre = $tarifaNombre;
     }
-
+    /** 
+     * Establece el subtotal de la línea (cantidad * precio).
+     * @param float $subtotal 
+     */
     public function setSubtotal($subtotal)
     {
         $this->subtotal = $subtotal;
     }
-
+    /** 
+     * Establece el tipo de IVA aplicado en esta línea.
+     * @param int $iva 
+     */
     public function setIva($iva)
     {
         $this->iva = $iva;

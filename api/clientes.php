@@ -1,6 +1,9 @@
 <?php
 /**
- * API para gestionar los clientes habituales
+ * API de Gestión de Clientes Fidelizados.
+ * Centraliza las operaciones de registro, consulta de histórico de compras
+ * y validación de identidad para clientes habituales del establecimiento.
+ * 
  * @author Alberto Méndez
  * @version 1.0 (05/03/2026)
  */
@@ -41,7 +44,10 @@ try {
         return $letra === $letraCorrecta;
     }
 
-    // Manejar POST para crear nuevo cliente
+    /** 
+     * MANEJADOR DE SOLICITUDES POST
+     * Procesa el alta de nuevos clientes con validación previa de DNI.
+     */
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dni = strtoupper(trim($_POST['dni'] ?? ''));
         $nombre = $_POST['nombre'] ?? '';
@@ -74,7 +80,8 @@ try {
 
         if ($stmt->execute([$dni, $nombre, $apellidos, $fecha_alta])) {
             echo json_encode(['ok' => true, 'id' => $pdo->lastInsertId()]);
-        } else {
+        }
+        else {
             http_response_code(500);
             echo json_encode(['error' => 'Error al guardar el cliente']);
         }
@@ -117,7 +124,8 @@ try {
 
         if ($stmt->execute([$dni, $nombre, $apellidos, $fecha_alta, $id])) {
             echo json_encode(['ok' => true]);
-        } else {
+        }
+        else {
             http_response_code(500);
             echo json_encode(['error' => 'Error al actualizar el cliente']);
         }
@@ -132,7 +140,8 @@ try {
 
         if ($stmt->execute([$id])) {
             echo json_encode(['ok' => true]);
-        } else {
+        }
+        else {
             http_response_code(500);
             echo json_encode(['error' => 'Error al eliminar el cliente']);
         }
@@ -147,14 +156,18 @@ try {
 
         if ($stmt->execute([$id])) {
             echo json_encode(['ok' => true]);
-        } else {
+        }
+        else {
             http_response_code(500);
             echo json_encode(['error' => 'Error al activar el cliente']);
         }
         exit;
     }
 
-    // Manejar GET para obtener las compras de un cliente por DNI (debe estar ANTES de la verificación por DNI)
+    /**
+     * MANEJADOR DE SOLICITUDES GET (CONSULTA DE COMPRAS)
+     * Recupera el histórico detallado de tickets asociados a un DNI de cliente.
+     */
     if (isset($_GET['compras']) && isset($_GET['dni'])) {
         $dni = $_GET['dni'];
 
@@ -217,7 +230,8 @@ try {
 
         if ($cliente) {
             echo json_encode($cliente);
-        } else {
+        }
+        else {
             http_response_code(404);
             echo json_encode(['error' => 'Cliente no encontrado']);
         }
@@ -232,7 +246,8 @@ try {
 
         if ($cliente) {
             echo json_encode($cliente);
-        } else {
+        }
+        else {
             http_response_code(404);
             echo json_encode(['error' => 'Cliente no encontrado']);
         }
@@ -245,8 +260,96 @@ try {
 
     echo json_encode($clientes);
 
-} catch (Exception $e) {
+}
+catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => $e->getMessage()]);
+}
+
+// =============================================================================
+// END OF MAIN API
+// =============================================================================
+
+// =============================================================================
+// API DE HISTORIAL DE PUNTOS
+// =============================================================================
+
+/**
+ * Obtiene el historial de puntos de un cliente por DNI
+ * GET: ?historial_puntos&dni=12345678A
+ */
+if (isset($_GET['historial_puntos']) && isset($_GET['dni'])) {
+    $cliente_dni = $_GET['dni'];
+
+    $stmt = $pdo->prepare(
+        "SELECT ph.*, u.nombre as usuario_nombre 
+         FROM puntos_historial ph 
+         LEFT JOIN usuarios u ON ph.usuario_id = u.id 
+         WHERE ph.cliente_dni = ? 
+         ORDER BY ph.fecha DESC
+         LIMIT 50"
+    );
+    $stmt->execute([$cliente_dni]);
+    $historial = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    echo json_encode($historial);
+    exit;
+}
+
+/**
+ * Ajusta los puntos de un cliente por DNI (admin)
+ * POST: ?ajustar_puntos
+ * Body: {dni, puntos, observacion}
+ */
+if (isset($_GET['ajustar_puntos']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Verificar que es admin (aquí debería haber validación de sesión)
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    $cliente_dni = trim($input['dni'] ?? '');
+    $puntos = (int)($input['puntos'] ?? 0);
+    $observacion = trim($input['observacion'] ?? '');
+    $usuario_id = (int)($input['usuario_id'] ?? 0);
+
+    if (empty($cliente_dni)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'DNI de cliente inválido']);
+        exit;
+    }
+
+    if ($puntos === 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Los puntos no pueden ser 0']);
+        exit;
+    }
+
+    try {
+        // Iniciar transacción
+        $pdo->beginTransaction();
+
+        // Determinar si son puntos ganados o canjeados según el signo
+        $puntos_ganados = $puntos > 0 ? $puntos : 0;
+        $puntos_canjeados = $puntos < 0 ? abs($puntos) : 0;
+
+        // Actualizar puntos del cliente
+        $stmtUpdate = $pdo->prepare("UPDATE clientes SET puntos = puntos + ? WHERE dni = ?");
+        $stmtUpdate->execute([$puntos, $cliente_dni]);
+
+        // Registrar en historial
+        $stmtHistorial = $pdo->prepare(
+            "INSERT INTO puntos_historial (cliente_dni, puntos_ganados, puntos_canjeados, descuento_euros, usuario_id, observacion, fecha) 
+             VALUES (?, ?, ?, 0, ?, ?, NOW())"
+        );
+        $stmtHistorial->execute([$cliente_dni, $puntos_ganados, $puntos_canjeados, $usuario_id, $observacion]);
+
+        $pdo->commit();
+
+        echo json_encode(['success' => true, 'message' => 'Puntos ajustados correctamente']);
+    }
+    catch (Exception $e) {
+        $pdo->rollBack();
+        http_response_code(500);
+        echo json_encode(['error' => $e->getMessage()]);
+    }
+    exit;
 }
 ?>

@@ -1,12 +1,11 @@
 <?php
 /**
- * API para gestionar los logs del sistema.
- * 
- * GET  → Devuelve los logs con paginación y filtros
- * POST → Crea un nuevo log (solo usuarios autenticados)
+ * Script de Pruebas para la API de Logs.
+ * Proporciona un entorno controlado para verificar la conectividad de la base de datos
+ * y la existencia de las tablas de auditoría sin procesar solicitudes reales.
  * 
  * @author Alberto Méndez
- * @version 1.1
+ * @version 1.1 (2026)
  */
 
 // Error reporting

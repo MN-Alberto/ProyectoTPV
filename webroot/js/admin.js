@@ -1,4 +1,4 @@
-﻿// ======================== RENDER PRODUCTOS (MODO TABLA - ADMIN) ========================
+// ======================== RENDER PRODUCTOS (MODO TABLA - ADMIN) ========================
 // Este módulo contiene todas las funciones relacionadas con la renderización de productos
 // en el panel de administración, incluyendo búsqueda, filtrado, ordenación y visualización.
 
@@ -37,6 +37,10 @@ let tarifaDataPendiente = null;
 
 // Variable global para los tipos de IVA
 let tiposIva = [];
+
+// Variables para la programación de cambios en tarifas
+let modoProgramacionTarifas = false;
+let loteCambiosTarifas = {}; // Objeto para guardar cambios locales: { "prodId-tarifaId": precio }
 
 /**
  * Carga los tipos de IVA desde la API y los guarda en la variable global.
@@ -590,28 +594,112 @@ async function abrirModalEstadisticasProductos() {
             const borderColor = isDark ? '#4b5563' : '#e5e7eb';
 
             contenido.innerHTML = `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px;">
-                    <div style="background: ${cardBg}; padding: 20px; border-radius: 8px; border: 1px solid ${borderColor};">
-                        <h4 style="margin: 0 0 10px 0; color: ${textColor};"><i class="fas fa-trophy" style="color: #fbbf24;"></i> Más vendido (Historia)</h4>
-                        <p style="font-size: 18px; font-weight: bold; color: ${textColor}; margin: 0;">${stats.mas_vendido_historia?.nombre || 'Sin datos'}</p>
-                        <p style="color: #059669; font-weight: bold; margin: 5px 0 0 0;">${stats.mas_vendido_historia?.cantidad || 0} unidades</p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; padding: 24px; animation: fadeIn 0.4s ease-out;">
+                    <!-- Tarjeta 1: Top Historia -->
+                    <div class="stat-card-premium" style="
+                        background: ${isDark ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' : 'white'};
+                        padding: 24px; border-radius: 16px; border: 1px solid ${borderColor};
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 12px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <div style="padding: 10px; border-radius: 12px; background: rgba(251, 191, 36, 0.15);">
+                                <i class="fas fa-trophy" style="color: #d97706; font-size: 20px;"></i>
+                            </div>
+                            <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 600;">Todo el tiempo</span>
+                        </div>
+                        <div>
+                            <h4 style="margin: 0; color: #64748b; font-size: 0.9rem; font-weight: 500;">Producto Estrella</h4>
+                            <p style="font-size: 1.25rem; font-weight: 700; color: ${textColor}; margin: 4px 0 0 0; line-height: 1.2;">
+                                ${stats.mas_vendido_historia?.nombre || 'Sin datos'}
+                            </p>
+                        </div>
+                        <div style="margin-top: auto; display: flex; align-items: baseline; gap: 6px;">
+                            <span style="font-size: 1.5rem; font-weight: 800; color: #059669;">${stats.mas_vendido_historia?.cantidad || 0}</span>
+                            <span style="color: #64748b; font-size: 0.85rem;">unidades vendidas</span>
+                        </div>
                     </div>
-                    <div style="background: ${cardBg}; padding: 20px; border-radius: 8px; border: 1px solid ${borderColor};">
-                        <h4 style="margin: 0 0 10px 0; color: ${textColor};"><i class="fas fa-calendar-alt" style="color: #3b82f6;"></i> Más vendido (Mes)</h4>
-                        <p style="font-size: 18px; font-weight: bold; color: ${textColor}; margin: 0;">${stats.mas_vendido_mes?.nombre || 'Sin datos'}</p>
-                        <p style="color: #059669; font-weight: bold; margin: 5px 0 0 0;">${stats.mas_vendido_mes?.cantidad || 0} unidades</p>
+
+                    <!-- Tarjeta 2: Top Mes -->
+                    <div class="stat-card-premium" style="
+                        background: ${isDark ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' : 'white'};
+                        padding: 24px; border-radius: 16px; border: 1px solid ${borderColor};
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 12px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <div style="padding: 10px; border-radius: 12px; background: rgba(59, 130, 246, 0.15);">
+                                <i class="fas fa-calendar-check" style="color: #2563eb; font-size: 20px;"></i>
+                            </div>
+                            <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 600;">Este Mes</span>
+                        </div>
+                        <div>
+                            <h4 style="margin: 0; color: #64748b; font-size: 0.9rem; font-weight: 500;">Líder Mensual</h4>
+                            <p style="font-size: 1.25rem; font-weight: 700; color: ${textColor}; margin: 4px 0 0 0; line-height: 1.2;">
+                                ${stats.mas_vendido_mes?.nombre || 'Sin datos'}
+                            </p>
+                        </div>
+                        <div style="margin-top: auto; display: flex; align-items: baseline; gap: 6px;">
+                            <span style="font-size: 1.5rem; font-weight: 800; color: #2563eb;">${stats.mas_vendido_mes?.cantidad || 0}</span>
+                            <span style="color: #64748b; font-size: 0.85rem;">u. este mes</span>
+                        </div>
                     </div>
-                    <div style="background: ${cardBg}; padding: 20px; border-radius: 8px; border: 1px solid ${borderColor};">
-                        <h4 style="margin: 0 0 10px 0; color: ${textColor};"><i class="fas fa-calendar-week" style="color: #10b981;"></i> Más vendido (Semana)</h4>
-                        <p style="font-size: 18px; font-weight: bold; color: ${textColor}; margin: 0;">${stats.mas_vendido_semana?.nombre || 'Sin datos'}</p>
-                        <p style="color: #059669; font-weight: bold; margin: 5px 0 0 0;">${stats.mas_vendido_semana?.cantidad || 0} unidades</p>
+
+                    <!-- Tarjeta 3: Top Semana -->
+                    <div class="stat-card-premium" style="
+                        background: ${isDark ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' : 'white'};
+                        padding: 24px; border-radius: 16px; border: 1px solid ${borderColor};
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 12px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <div style="padding: 10px; border-radius: 12px; background: rgba(16, 185, 129, 0.15);">
+                                <i class="fas fa-bolt" style="color: #059669; font-size: 20px;"></i>
+                            </div>
+                            <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 600;">Esta Semana</span>
+                        </div>
+                        <div>
+                            <h4 style="margin: 0; color: #64748b; font-size: 0.9rem; font-weight: 500;">Tendencia Semanal</h4>
+                            <p style="font-size: 1.25rem; font-weight: 700; color: ${textColor}; margin: 4px 0 0 0; line-height: 1.2;">
+                                ${stats.mas_vendido_semana?.nombre || 'Sin datos'}
+                            </p>
+                        </div>
+                        <div style="margin-top: auto; display: flex; align-items: baseline; gap: 6px;">
+                            <span style="font-size: 1.5rem; font-weight: 800; color: #059669;">${stats.mas_vendido_semana?.cantidad || 0}</span>
+                            <span style="color: #64748b; font-size: 0.85rem;">u. esta semana</span>
+                        </div>
                     </div>
-                    <div style="background: ${cardBg}; padding: 20px; border-radius: 8px; border: 1px solid ${borderColor};">
-                        <h4 style="margin: 0 0 10px 0; color: ${textColor};"><i class="fas fa-arrow-down" style="color: #ef4444;"></i> Menos vendido (Mes)</h4>
-                        <p style="font-size: 18px; font-weight: bold; color: ${textColor}; margin: 0;">${stats.menos_vendido_mes?.nombre || 'Sin datos'}</p>
-                        <p style="color: #dc2626; font-weight: bold; margin: 5px 0 0 0;">${stats.menos_vendido_mes?.cantidad || 0} unidades</p>
+
+                    <!-- Tarjeta 4: Menos Vendido -->
+                    <div class="stat-card-premium" style="
+                        background: ${isDark ? 'linear-gradient(135deg, #451a1a 0%, #1a0505 100%)' : '#fff5f5'};
+                        padding: 24px; border-radius: 16px; border: 1px solid ${isDark ? '#7f1d1d' : '#feb2b2'};
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 12px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <div style="padding: 10px; border-radius: 12px; background: rgba(239, 68, 68, 0.15);">
+                                <i class="fas fa-arrow-trend-down" style="color: #dc2626; font-size: 20px;"></i>
+                            </div>
+                            <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: ${isDark ? '#fca5a5' : '#c53030'}; font-weight: 600;">Atención</span>
+                        </div>
+                        <div>
+                            <h4 style="margin: 0; color: ${isDark ? '#fca5a5' : '#c53030'}; font-size: 0.9rem; font-weight: 500;">Menos Vendido (Mes)</h4>
+                            <p style="font-size: 1.25rem; font-weight: 700; color: ${textColor}; margin: 4px 0 0 0; line-height: 1.2;">
+                                ${stats.menos_vendido_mes?.nombre || 'Sin datos'}
+                            </p>
+                        </div>
+                        <div style="margin-top: auto; display: flex; align-items: baseline; gap: 6px;">
+                            <span style="font-size: 1.5rem; font-weight: 800; color: #dc2626;">${stats.menos_vendido_mes?.cantidad || 0}</span>
+                            <span style="color: ${isDark ? '#fca5a5' : '#c53030'}; font-size: 0.85rem;">unidades</span>
+                        </div>
                     </div>
                 </div>
+                <style>
+                    @keyframes fadeIn {
+                        from { opacity: 0; transform: translateY(10px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                    .stat-card-premium {
+                        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                    }
+                    .stat-card-premium:hover {
+                        transform: translateY(-5px);
+                        box-shadow: 0 12px 30px rgba(0,0,0,0.1) !important;
+                    }
+                </style>
             `;
         } else {
             contenido.innerHTML = `<p style="color: #dc2626; text-align: center;">Error: ${data.error || 'Error desconocido'}</p>`;
@@ -1123,6 +1211,8 @@ function verUsuario(id) {
             document.getElementById('verUsuarioCrearProductos').innerHTML = crearProductos
                 ? '<span class="admin-badge badge-activo">Sí</span>'
                 : '<span class="admin-badge badge-inactivo">No</span>';
+            document.getElementById('verUsuarioTotalDescansos').textContent = data.total_descansos || 0;
+            document.getElementById('verUsuarioTotalTurnos').textContent = data.total_turnos || 0;
 
             abrirModal('modalVerUsuario');
         })
@@ -2040,7 +2130,7 @@ function generarSeccionTema(seccion) {
                     <div class="tema-preview-icono" id="preview_header_icon">
                         ${headerIconVal ? headerIconVal : '<span style="color: var(--text-muted);">Vista previa del icono</span>'}
                     </div>
-                    <div class="tema-campo" style="margin-top: 20px;">
+                    <div class="tema-campo" style="margin-top: 15px;">
                         <label class="tema-label">Favicon</label>
                         <input type="file" id="tema_favicon" accept="image/*" onchange="previsualizarFavicon(this)">
                         <p class="tema-ayuda">Sube una imagen para el favicon (16x16, 32x32 o 48x48 píxeles)</p>
@@ -2093,7 +2183,7 @@ function generarSeccionTema(seccion) {
 /**
  * Carga la configuración del tema desde la API y renderiza el editor.
  */
-function cargarConfiguracion() {
+function cargarConfiguracion(subseccion = 'todas') {
     seccionActual = 'configuracion';
     adminTablaHeaderHTML = '';
 
@@ -2105,7 +2195,7 @@ function cargarConfiguracion() {
         .then(config => {
             // Mezclar config de la BD con los defaults
             temaActual = { ...TEMA_DEFAULTS, ...config };
-            renderEditorTema();
+            renderEditorTema(subseccion);
         })
         .catch(err => {
             console.error('Error cargando configuración:', err);
@@ -2608,26 +2698,246 @@ function getTipoLogTexto(tipo) {
 /**
  * Renderiza el editor de tema completo.
  */
-function renderEditorTema() {
+function renderEditorTema(subseccion = 'todas') {
     const contenedor = document.getElementById('adminContenido');
 
-    let html = `
-        <div class="tema-editor">
-            <div class="tema-secciones-grid">
-                ${SECCIONES_TEMA.map(s => generarSeccionTema(s)).join('')}
-            </div>
-            <div class="tema-botones">
-                <button class="btn-modal-cancelar tema-btn-reset" onclick="restaurarTemaDefault()">
-                    <i class="fas fa-undo"></i> Restaurar Predeterminados
-                </button>
-                <button class="btn-exito tema-btn-guardar" onclick="guardarTema()">
-                    <i class="fas fa-save"></i> Guardar Cambios
-                </button>
-            </div>
-        </div>
-    `;
+    let html = '<div class="tema-editor">';
 
+    // SECCIÓN 1: TEMA
+    if (subseccion === 'todas' || subseccion === 'tema') {
+        html += `
+            <div class="config-section">
+                <div class="tema-secciones-grid">
+                    ${SECCIONES_TEMA.map(s => generarSeccionTema(s)).join('')}
+                </div>
+                <div class="tema-botones" style="margin-top: 25px; border-top: 1px solid var(--border-main); padding-top: 20px;">
+                    <button class="btn-modal-cancelar tema-btn-reset" onclick="restaurarTemaDefault()">
+                        <i class="fas fa-undo"></i> Restaurar Predeterminados
+                    </button>
+                    <button class="btn-exito tema-btn-guardar" onclick="guardarTema()">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // SECCIÓN 2: ACCIONES (Exportaciones)
+    if (subseccion === 'todas' || subseccion === 'acciones') {
+        html += `
+            <div class="config-section">
+                <div class="export-grid">
+                    <div class="export-card">
+                        <div class="export-card-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+                        <div class="export-card-info">
+                            <h4>Ventas de la Semana</h4>
+                            <p>Exportar todas las ventas realizadas en los últimos 7 días.</p>
+                        </div>
+                        <div class="export-card-actions">
+                            <button class="btn-export json" onclick="exportarSemanal('ventas', 'json')">JSON</button>
+                            <button class="btn-export pdf" onclick="exportarSemanal('ventas', 'pdf')">PDF</button>
+                            <button class="btn-export excel" style="background:#1e7e34; color:white;" onclick="exportarSemanal('ventas', 'excel')">EXCEL</button>
+                            <button class="btn-export csv" style="background:#5a6268; color:white;" onclick="exportarSemanal('ventas', 'csv')">CSV</button>
+                        </div>
+                    </div>
+                    <div class="export-card">
+                        <div class="export-card-icon"><i class="fas fa-cash-register"></i></div>
+                        <div class="export-card-info">
+                            <h4>Sesiones de Caja</h4>
+                            <p>Exportar el historial de sesiones de caja de la semana.</p>
+                        </div>
+                        <div class="export-card-actions">
+                            <button class="btn-export json" onclick="exportarSemanal('sesiones', 'json')">JSON</button>
+                            <button class="btn-export pdf" onclick="exportarSemanal('sesiones', 'pdf')">PDF</button>
+                            <button class="btn-export excel" style="background:#1e7e34; color:white;" onclick="exportarSemanal('sesiones', 'excel')">EXCEL</button>
+                            <button class="btn-export csv" style="background:#5a6268; color:white;" onclick="exportarSemanal('sesiones', 'csv')">CSV</button>
+                        </div>
+                    </div>
+                    <div class="export-card">
+                        <div class="export-card-icon"><i class="fas fa-money-bill-wave"></i></div>
+                        <div class="export-card-info">
+                            <h4>Retiros de Caja</h4>
+                            <p>Exportar todos los retiros de efectivo de la semana.</p>
+                        </div>
+                        <div class="export-card-actions">
+                            <button class="btn-export json" onclick="exportarSemanal('retiros', 'json')">JSON</button>
+                            <button class="btn-export pdf" onclick="exportarSemanal('retiros', 'pdf')">PDF</button>
+                            <button class="btn-export excel" style="background:#1e7e34; color:white;" onclick="exportarSemanal('retiros', 'excel')">EXCEL</button>
+                            <button class="btn-export csv" style="background:#5a6268; color:white;" onclick="exportarSemanal('retiros', 'csv')">CSV</button>
+                        </div>
+                    </div>
+                    <div class="export-card">
+                        <div class="export-card-icon"><i class="fas fa-undo"></i></div>
+                        <div class="export-card-info">
+                            <h4>Devoluciones</h4>
+                            <p>Exportar el registro de devoluciones de la semana.</p>
+                        </div>
+                        <div class="export-card-actions">
+                            <button class="btn-export json" onclick="exportarSemanal('devoluciones', 'json')">JSON</button>
+                            <button class="btn-export pdf" onclick="exportarSemanal('devoluciones', 'pdf')">PDF</button>
+                            <button class="btn-export excel" style="background:#1e7e34; color:white;" onclick="exportarSemanal('devoluciones', 'excel')">EXCEL</button>
+                            <button class="btn-export csv" style="background:#5a6268; color:white;" onclick="exportarSemanal('devoluciones', 'csv')">CSV</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    html += '</div>';
     contenedor.innerHTML = html;
+}
+
+/**
+ * Función principal para exportar datos semanales
+ * @param {string} tipo - 'ventas' | 'sesiones' | 'retiros' | 'devoluciones'
+ * @param {string} formato - 'json' | 'pdf'
+ */
+async function exportarSemanal(tipo, formato) {
+    try {
+        Swal.fire({
+            title: 'Preparando exportación...',
+            text: 'Obteniendo datos de la última semana',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        let url = '';
+        let fileNamePrefix = '';
+        switch (tipo) {
+            case 'ventas':
+                url = 'api/ventas.php?todas=1&filtroFecha=7dias';
+                fileNamePrefix = 'ventas_semanales';
+                break;
+            case 'sesiones':
+                url = 'api/caja-sesiones.php?filtroFecha=7dias';
+                fileNamePrefix = 'sesiones_semanales';
+                break;
+            case 'retiros':
+                url = 'api/retiros.php?filtroFecha=7dias';
+                fileNamePrefix = 'retiros_semanales';
+                break;
+            case 'devoluciones':
+                url = 'api/devoluciones.php?todas=1&filtroFecha=7dias';
+                fileNamePrefix = 'devoluciones_semanales';
+                break;
+        }
+
+        const response = await fetch(url);
+        let data = await response.json();
+
+        if (!data || data.length === 0) {
+            Swal.fire('Atención', 'No hay datos disponibles para la última semana en esta categoría.', 'info');
+            return;
+        }
+
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const fileName = `${fileNamePrefix}_${timestamp}`;
+
+        if (formato === 'json') {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", fileName + ".json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        } else if (formato === 'csv') {
+            let columns = [];
+            if (tipo === 'ventas') columns = ["ID", "Fecha", "Total", "Forma Pago", "Documento", "Usuario"];
+            else if (tipo === 'sesiones') columns = ["ID", "Apertura", "Cierre", "I. Inicial", "I. Final", "Estado", "Usuario"];
+            else if (tipo === 'retiros') columns = ["ID", "Fecha", "Importe", "Motivo", "Caja", "Usuario"];
+            else if (tipo === 'devoluciones') columns = ["ID", "Fecha", "Importe Total", "Motivo", "Ticket", "Caja"];
+
+            let csvContent = "data:text/csv;charset=utf-8," + columns.join(",") + "\n";
+            data.forEach(item => {
+                let row = [];
+                if (tipo === 'ventas') row = [item.id, item.fecha, item.total, item.forma_pago, item.tipoDocumento, item.usuario_nombre];
+                else if (tipo === 'sesiones') row = [item.id, item.fechaApertura, item.fechaCierre || '-', item.importeInicial, item.importeActual, item.estado, item.usuario_nombre];
+                else if (tipo === 'retiros') row = [item.id, item.fecha, item.importe, item.motivo, item.idCajaSesion, item.usuario_nombre];
+                else if (tipo === 'devoluciones') row = [item.id, item.fecha, item.importeTotal, item.motivo, item.idVenta, item.idSesionCaja];
+                csvContent += row.join(",") + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", fileName + ".csv");
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } else if (formato === 'excel') {
+            let columns = [];
+            if (tipo === 'ventas') columns = ["ID", "Fecha", "Total", "Forma Pago", "Documento", "Usuario"];
+            else if (tipo === 'sesiones') columns = ["ID", "Apertura", "Cierre", "I. Inicial", "I. Final", "Estado", "Usuario"];
+            else if (tipo === 'retiros') columns = ["ID", "Fecha", "Importe", "Motivo", "Caja", "Usuario"];
+            else if (tipo === 'devoluciones') columns = ["ID", "Fecha", "Importe Total", "Motivo", "Ticket", "Caja"];
+
+            let tableHtml = `<table border="1"><thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+            data.forEach(item => {
+                let row = [];
+                if (tipo === 'ventas') row = [item.id, item.fecha, item.total, item.forma_pago, item.tipoDocumento, item.usuario_nombre];
+                else if (tipo === 'sesiones') row = [item.id, item.fechaApertura, item.fechaCierre || '-', item.importeInicial, item.importeActual, item.estado, item.usuario_nombre];
+                else if (tipo === 'retiros') row = [item.id, item.fecha, item.importe, item.motivo, item.idCajaSesion, item.usuario_nombre];
+                else if (tipo === 'devoluciones') row = [item.id, item.fecha, item.importeTotal, item.motivo, item.idVenta, item.idSesionCaja];
+                tableHtml += `<tr>${row.map(r => `<td>${r}</td>`).join('')}</tr>`;
+            });
+            tableHtml += '</tbody></table>';
+
+            const dataType = 'application/vnd.ms-excel';
+            const link = document.createElement("a");
+            link.href = 'data:' + dataType + ', ' + encodeURIComponent(tableHtml);
+            link.download = fileName + '.xls';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } else {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
+
+            doc.setFontSize(18);
+            doc.text(`Reporte Semanal: ${tipo.toUpperCase()}`, 14, 22);
+            doc.setFontSize(11);
+            doc.setTextColor(100);
+            doc.text(`Generado el: ${new Date().toLocaleString()}`, 14, 30);
+
+            let columns = [];
+            let rows = [];
+
+            if (tipo === 'ventas') {
+                columns = ["ID", "Fecha", "Total", "Forma Pago", "Documento", "Usuario"];
+                rows = data.map(v => [v.id, v.fecha, v.total + '€', v.forma_pago, v.tipoDocumento, v.usuario_nombre]);
+            } else if (tipo === 'sesiones') {
+                columns = ["ID", "Apertura", "Cierre", "I. Inicial", "I. Final", "Estado", "Usuario"];
+                rows = data.map(s => [s.id, s.fechaApertura, s.fechaCierre || '-', s.importeInicial + '€', s.importeActual + '€', s.estado, s.usuario_nombre]);
+            } else if (tipo === 'retiros') {
+                columns = ["ID", "Fecha", "Importe", "Motivo", "Caja", "Usuario"];
+                rows = data.map(r => [r.id, r.fecha, r.importe + '€', r.motivo, r.idCajaSesion, r.usuario_nombre]);
+            } else if (tipo === 'devoluciones') {
+                columns = ["ID", "Fecha", "Importe Total", "Motivo", "Ticket", "Caja"];
+                rows = data.map(d => [d.id, d.fecha, d.importeTotal + '€', d.motivo, d.idVenta, d.idSesionCaja]);
+            }
+
+            doc.autoTable({
+                startY: 35,
+                head: [columns],
+                body: rows,
+                theme: 'striped',
+                headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+                alternateRowStyles: { fillColor: [245, 245, 245] },
+                margin: { top: 35 }
+            });
+
+            doc.save(fileName + ".pdf");
+        }
+
+        Swal.fire('¡Éxito!', 'Archivo exportado correctamente.', 'success');
+    } catch (error) {
+        console.error('Error en exportación:', error);
+        Swal.fire('Error', 'No se pudo completar la exportación.', 'error');
+    }
 }
 
 /**
@@ -3172,11 +3482,12 @@ function getCajaSesionesTablaHeader(orden = 'fecha_desc') {
                         <th style="text-align: center;">Apertura</th>
                         <th style="text-align: center;">Cierre</th>
                         <th style="text-align: center;">Importe Inicial</th>
-                        <th style="text-align: center;">Importe Final</th>
+                        <th style="text-align: center;">Efectivo en Caja</th>
                         <th style="text-align: center;">Ventas</th>
                         <th style="text-align: center;">Productos</th>
                         <th style="text-align: center;">Retiros</th>
                         <th style="text-align: center;">Devoluciones</th>
+                        <th style="text-align: center;">Arqueo</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -3229,6 +3540,12 @@ function renderCajaSesionesAdmin(sesiones, isFirstTime = true, orden = 'fecha_de
                     <td style="text-align: center; font-weight: bold;">${totalProductos}</td>
                     <td style="text-align: center; color: #ea580c; font-weight: bold;">-${retiros.toFixed(2)} €</td>
                     <td style="text-align: center; color: #dc2626; font-weight: bold;">-${devoluciones.toFixed(2)} €</td>
+                    <td style="text-align: center; font-weight: bold; color: ${sesion.efectivoContado !== null ? (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) > 0.01 ? '#059669' : (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) < -0.01 ? '#dc2626' : 'inherit')) : 'inherit'}">
+                        ${sesion.efectivoContado !== null ? `
+                            ${(parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual)).toFixed(2).replace('.', ',')} € 
+                            <small>${parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) > 0.01 ? '(Sobrante)' : (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) < -0.01 ? '(Faltante)' : '')}</small>
+                        ` : '—'}
+                    </td>
                 </tr>`;
         });
 
@@ -3263,6 +3580,12 @@ function renderCajaSesionesAdmin(sesiones, isFirstTime = true, orden = 'fecha_de
                         <td style="text-align: center; font-weight: bold;">${totalProductos}</td>
                         <td style="text-align: center; color: #ea580c; font-weight: bold;">-${retiros.toFixed(2)} €</td>
                         <td style="text-align: center; color: #dc2626; font-weight: bold;">-${devoluciones.toFixed(2)} €</td>
+                        <td style="text-align: center; font-weight: bold; color: ${sesion.efectivoContado !== null ? (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) > 0.01 ? '#059669' : (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) < -0.01 ? '#dc2626' : 'inherit')) : 'inherit'}">
+                            ${sesion.efectivoContado !== null ? `
+                                ${(parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual)).toFixed(2).replace('.', ',')} € 
+                                <small>${parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) > 0.01 ? '(Sobrante)' : (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) < -0.01 ? '(Faltante)' : '')}</small>
+                            ` : '—'}
+                        </td>
                     </tr>`;
             });
             tbody.innerHTML = html;
@@ -3468,6 +3791,7 @@ function getClientesTablaHeader(textoBusqueda = '') {
                         <th>Fecha Alta</th>
                         <th>Productos</th>
                         <th>Compras</th>
+                        <th>Puntos</th>
                         <th>Estado</th>
                         <th>Acciones</th>
                     </tr>
@@ -3732,6 +4056,7 @@ function renderClientesAdmin(clientes, esPrimeraVez = true) {
                 data-fecha-alta="${cli.fecha_alta || ''}"
                 data-productos="${cli.productos_comprados || 0}"
                 data-compras="${cli.compras_realizadas || 0}"
+                data-puntos="${cli.puntos || 0}"
                 data-activo="${cli.activo}">
                 <td class="col-id">${cli.id}</td>
                 <td class="col-nombre">${cli.dni}</td>
@@ -3740,6 +4065,7 @@ function renderClientesAdmin(clientes, esPrimeraVez = true) {
                 <td>${cli.fecha_alta || '—'}</td>
                 <td>${cli.productos_comprados || 0}</td>
                 <td>${cli.compras_realizadas || 0}</td>
+                <td style="font-weight: bold; color: #10b981;">${(cli.puntos || 0).toLocaleString('es-ES')}</td>
                 <td>${estadoHtml}</td>
                 <td class="col-acciones">${btnVer} ${btnEditar} ${btnEliminar}</td>
             </tr>`;
@@ -5636,16 +5962,30 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
                     }
 
                     const manualStyle = esManual ? 'border: 1px solid #10b981; background: #ecfdf5; color: #065f46;' : (isDark ? 'border: 1px solid #374151; background: #111827; color: #10b981;' : 'border: 1px solid #d1d5db; background: white; color: #10b981;');
-                    const disabledAttr = tarifasMostrarConIva ? 'disabled' : '';
-                    const disabledStyle = tarifasMostrarConIva ? 'opacity: 0.5; cursor: not-allowed;' : '';
+                    const disabledAttr = (tarifasMostrarConIva && !modoProgramacionTarifas) ? 'disabled' : '';
+                    const disabledStyle = (tarifasMostrarConIva && !modoProgramacionTarifas) ? 'opacity: 0.5; cursor: not-allowed;' : '';
+
+                    // Comprobar si hay un cambio programado en el lote local
+                    const key = `${prod.id}-${idTarifa}`;
+                    let valueToShow = precioFinal;
+                    let customClass = '';
+                    if (loteCambiosTarifas[key] !== undefined) {
+                        valueToShow = parseFloat(loteCambiosTarifas[key]);
+                        if (tarifasMostrarConIva) {
+                            valueToShow = valueToShow * (1 + iva / 100);
+                        }
+                        customClass = 'input-precio-programado';
+                    }
 
                     fila += `
                     <td style="padding: 10px;">
                         <div style="display: flex; align-items: center; gap: 4px;">
                             <input type="number" step="0.01" 
-                                value="${precioFinal.toFixed(2)}" 
+                                value="${valueToShow.toFixed(2)}" 
+                                data-precio-anterior="${precioFinal.toFixed(4)}"
                                 onchange="actualizarPrecioTarifaIndividual(${prod.id}, ${idTarifa}, this, ${iva})"
                                 ${disabledAttr}
+                                class="${customClass}"
                                 style="width: 80px; padding: 4px 6px; border-radius: 4px; font-weight: 600; text-align: right; ${manualStyle} ${disabledStyle}">
                             <span style="font-size: 14px; font-weight: 600; color: #10b981;">€</span>
                             ${esManual ? '<i class="fas fa-hand-paper" title="Precio manual" style="color: #10b981; font-size: 12px;"></i>' : ''}
@@ -5688,25 +6028,41 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
 
             contenedor.innerHTML = `
             <div class="admin-tabla-header">
-                <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: ${textColor};">Tarifas Prefijadas</h2>
-                <p style="color: ${subTextColor}; margin-top: 5px;">Vista de precios según las tarifas aplicadas.</p>
+                <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: ${textColor};">Tarifas Prefijadas ${modoProgramacionTarifas ? '<span style="color: #f59e0b; font-size: 14px; margin-left: 10px;">(MODO PROGRAMACIÓN ACTIVO)</span>' : ''}</h2>
+                <p style="color: ${subTextColor}; margin-top: 5px;">${modoProgramacionTarifas ? 'Planifica los cambios de precios para una fecha futura. Estos no se aplicarán inmediatamente.' : 'Vista de precios según las tarifas aplicadas.'}</p>
             </div>
-            <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
                 <input type="text" 
                     id="buscarProductoTarifa"
                     placeholder="Buscar producto..." 
                     value="${tarifaBusquedaProducto}"
                     oninput="tarifaBusquedaProducto = this.value; filtrarTablaTarifas();"
-                    style="padding: 10px 15px; border: 1px solid ${borderColor}; border-radius: 8px; font-size: 14px; background: ${isDark ? '#374151' : 'white'}; color: ${textColor}; outline: none; transition: border-color 0.2s; min-width: 600px;"
+                    style="padding: 10px 15px; border: 1px solid ${borderColor}; border-radius: 8px; font-size: 14px; background: ${isDark ? '#374151' : 'white'}; color: ${textColor}; outline: none; transition: border-color 0.2s; min-width: 400px;"
                     onfocus="this.style.borderColor = '#6366f1';"
                     onblur="this.style.borderColor = '${borderColor}';">
-                <button onclick="abrirModalTarifas()" style="padding: 10px 20px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: background 0.2s;">
-                    <i class="fas fa-tags" style="margin-right: 8px;"></i> Ver/Editar Tarifas
-                </button>
-                <button onclick="toggleTarifasIva()" style="padding: 10px 20px; background: ${tarifasMostrarConIva ? '#10b981' : (isDark ? '#4b5563' : '#4b5563')}; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: background 0.2s;">
-                    <i class="fas ${tarifasMostrarConIva ? 'fa-file-invoice-dollar' : 'fa-coins'}" style="margin-right: 8px;"></i>
-                    ${tarifasMostrarConIva ? 'Ver Sin IVA' : 'Ver Con IVA'}
-                </button>
+                
+                ${!modoProgramacionTarifas ? `
+                    <button onclick="abrirModalTarifas()" class="admin-top-btn" style="background: #6366f1; color: white;">
+                        <i class="fas fa-tags"></i> Ver/Editar Tarifas
+                    </button>
+                    <button onclick="toggleTarifasIva()" class="admin-top-btn" style="background: ${tarifasMostrarConIva ? '#10b981' : (isDark ? '#4b5563' : '#4b5563')}; color: white;">
+                        <i class="fas ${tarifasMostrarConIva ? 'fa-file-invoice-dollar' : 'fa-coins'}"></i>
+                        ${tarifasMostrarConIva ? 'Ver Sin IVA' : 'Ver Con IVA'}
+                    </button>
+                    <button onclick="alternarModoProgramacionTarifas()" class="admin-top-btn" style="background: #f59e0b; color: white;">
+                        <i class="fas fa-clock"></i> Programar Cambios
+                    </button>
+                    <button onclick="abrirModalVerCambiosTarifasProgramados()" class="admin-top-btn" style="background: #3b82f6; color: white;">
+                        <i class="fas fa-history"></i> Ver Programaciones
+                    </button>
+                ` : `
+                    <button onclick="abrirModalProgramarCambiosTarifas()" class="admin-top-btn" style="background: #10b981; color: white;">
+                        <i class="fas fa-check"></i> Finalizar y Programar (${Object.keys(loteCambiosTarifas).length})
+                    </button>
+                    <button onclick="alternarModoProgramacionTarifas()" class="admin-top-btn" style="background: #ef4444; color: white;">
+                        <i class="fas fa-times"></i> Cancelar Modo Programación
+                    </button>
+                `}
             </div>
             
 
@@ -5727,6 +6083,34 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
                 </div>
             </div>
             <div id="modalesTarifas"></div>
+            
+            <style>
+                .admin-top-btn {
+                    padding: 10px 15px; 
+                    border: none; 
+                    border-radius: 8px; 
+                    cursor: pointer; 
+                    font-weight: 500; 
+                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 14px;
+                }
+                .admin-top-btn:hover {
+                    filter: brightness(0.9);
+                    transform: translateY(-1px);
+                }
+                .input-precio-programado {
+                    border: 2px solid #f59e0b !important;
+                    background: #fffbeb !important;
+                    color: #92400e !important;
+                }
+                .dark-mode .input-precio-programado {
+                    background: #451a03 !important;
+                    color: #fbbf24 !important;
+                }
+            </style>
             
             <!-- Modal de Tarifas -->
             <div id="modalTarifas" class="modal-overlay" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(2px);">
@@ -6008,6 +6392,28 @@ function actualizarPrecioTarifaIndividual(idProducto, idTarifa, input, iva) {
     // Si mostramos con IVA, el valor del input tiene IVA y hay que quitárselo
     if (tarifasMostrarConIva) {
         nuevoPrecio = nuevoPrecio / (1 + iva / 100);
+    }
+
+    // SI ESTAMOS EN MODO PROGRAMACIÓN, GUARDAR EN EL LOTE LOCAL Y NO ENVIAR A API
+    if (modoProgramacionTarifas) {
+        const key = `${idProducto}-${idTarifa}`;
+        // Obtener el precio anterior del atributo data
+        const precioAnterior = parseFloat(input.getAttribute('data-precio-anterior') || input.defaultValue || 0);
+
+        loteCambiosTarifas[key] = {
+            nuevo: nuevoPrecio.toFixed(4),
+            anterior: precioAnterior
+        };
+
+        // Efecto visual de que ha cambiado
+        input.classList.add('input-precio-programado');
+
+        // Actualizar el contador en el botón de finalizar
+        const btnFinalizar = document.querySelector('button[onclick="abrirModalProgramarCambiosTarifas()"]');
+        if (btnFinalizar) {
+            btnFinalizar.innerHTML = `<i class="fas fa-check"></i> Finalizar y Programar (${Object.keys(loteCambiosTarifas).length})`;
+        }
+        return;
     }
 
     const formData = new FormData();
@@ -6855,3 +7261,767 @@ function confirmarEliminarProductoProveedor(idAsociacion, nombreProducto) {
             .catch(err => console.error('Error eliminando asociación:', err));
     }
 }
+
+/**
+ * Muestra la sección de informes en el panel central.
+ * @param {string} periodo - 'diario', 'semanal', 'mensual', 'anual'
+ */
+function mostrarSeccionInformes(periodo = 'diario') {
+    seccionActual = 'informe-' + periodo;
+    const contenedor = document.getElementById('adminContenido');
+
+    // Título descriptivo
+    const titulos = {
+        'diario': 'Informe Diario (Hoy)',
+        'semanal': 'Informe Semanal (Últimos 7 días)',
+        'mensual': 'Informe Mensual (Mes actual)',
+        'anual': 'Informe Anual (Año actual)'
+    };
+
+    document.getElementById('adminTitulo').textContent = titulos[periodo];
+
+    contenedor.innerHTML = `
+        <div class="reports-loading">
+            <i class="fas fa-spinner fa-spin"></i> Generando informes...
+        </div>
+    `;
+
+    fetch('api/informes.php?periodo=' + periodo)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Error del servidor:', data.error);
+                contenedor.innerHTML = `<div class="error-container" style="padding:20px; color:#dc2626; text-align:center">
+                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    <p style="margin-top:10px">Error al generar el informe: ${data.error}</p>
+                    <button class="btn-tpv" onclick="mostrarSeccionInformes('${periodo}')" style="margin-top:10px">Reintentar</button>
+                </div>`;
+                return;
+            }
+            renderizarInformes(data, periodo);
+        })
+        .catch(err => {
+            console.error('Error cargando informes:', err);
+            contenedor.innerHTML = '<p class="sin-productos">Error al generar informes: ' + (err.message || 'Error desconocido') + '</p>';
+        });
+}
+
+/**
+ * Renderiza todos los bloques de informes.
+ */
+function renderizarInformes(data, periodo) {
+    const contenedor = document.getElementById('adminContenido');
+
+    // Guardar datos para exportación
+    window.ultimoInformeData = data;
+    window.ultimoInformePeriodo = periodo;
+
+    // Función para calcular tendencia
+    const calcularTendencia = (actual, anterior) => {
+        if (!anterior || anterior === 0) return null;
+        const diff = ((actual - anterior) / anterior) * 100;
+        const icon = diff >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+        const color = diff >= 0 ? '#059669' : '#dc2626';
+        return `<span style="color:${color}; font-size:0.75rem; font-weight:600; margin-left:8px">
+                    <i class="fas ${icon}"></i> ${Math.abs(diff).toFixed(1)}%
+                </span>`;
+    };
+
+    const vAct = data.ventas.periodoActual;
+    const vAnt = data.ventas.periodoAnterior;
+
+    let html = `
+        <div class="reports-container">
+            <!-- Bloque 1: Resumen de Ventas -->
+            <div class="report-card">
+                <div class="report-card-header">
+                    <i class="fas fa-shopping-cart"></i> Resumen de Ventas
+                </div>
+                <div class="report-card-body">
+                    <div class="report-stat">
+                        <span class="label">Ventas Totales:</span>
+                        <div style="display:flex; align-items:center">
+                            <span class="value">${vAct.bruto.toFixed(2)} €</span>
+                            ${calcularTendencia(vAct.bruto, vAnt.bruto) || ''}
+                        </div>
+                    </div>
+                    <div class="report-stat">
+                        <span class="label">Tickets Emitidos:</span>
+                         <div style="display:flex; align-items:center">
+                            <span class="value">${vAct.tickets}</span>
+                            ${calcularTendencia(vAct.tickets, vAnt.tickets) || ''}
+                        </div>
+                    </div>
+                    <div class="report-stat">
+                        <span class="label">Ticket Medio:</span>
+                        <span class="value">${vAct.ticket_medio.toFixed(2)} €</span>
+                    </div>
+                    <div class="report-divider"></div>
+                    <div class="report-substat">
+                        <span>Efectivo: ${vAct.metodos.efectivo.toFixed(2)} €</span>
+                    </div>
+                    <div class="report-substat">
+                        <span>Tarjeta: ${vAct.metodos.tarjeta.toFixed(2)} €</span>
+                    </div>
+                    <div class="report-substat">
+                        <span>Bizum: ${vAct.metodos.bizum.toFixed(2)} €</span>
+                    </div>
+                    <div class="report-substat">
+                        <span style="color:#dc2626">Descuentos: ${vAct.descuentos.toFixed(2)} €</span>
+                    </div>
+                    <div class="report-substat">
+                        <span style="color:#dc2626">Devoluciones: ${data.devoluciones_detalle.total.toFixed(2)} €</span>
+                    </div>
+                    <div class="report-divider"></div>
+                    <p style="font-size:0.75rem; color:#64748b; margin-bottom:4px">Impuestos:</p>
+                    ${vAct.iva.map(i => `
+                        <div class="report-substat" style="display:flex; justify-content:space-between">
+                            <span>IVA ${i.tipo}%</span>
+                            <span>${i.cuota.toFixed(2)} €</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Bloque 2: Productos más vendidos -->
+            <div class="report-card">
+                <div class="report-card-header">
+                    <i class="fas fa-arrow-trend-up"></i> Top 10 Productos
+                </div>
+                <div class="report-card-body">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Und.</th>
+                                <th>Ingresos</th>
+                                <th>Margen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.productos_ranking.map(p => `
+                                <tr>
+                                    <td>${p.nombre}</td>
+                                    <td style="text-align:center">${p.unidades}</td>
+                                    <td style="text-align:right">${parseFloat(p.ingresos).toFixed(2)} €</td>
+                                    <td style="text-align:right; color:#059669">${p.margen.toFixed(0)}%</td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="4">Sin datos</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Bloque 2.2: Productos menos vendidos -->
+            <div class="report-card">
+                <div class="report-card-header">
+                    <i class="fas fa-arrow-trend-down"></i> Menos Vendidos (Rotación)
+                </div>
+                <div class="report-card-body">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Unidades</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.productos_bottom.map(p => `
+                                <tr>
+                                    <td>${p.nombre}</td>
+                                    <td style="text-align:center">${p.unidades || 0}</td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="2">Sin datos</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Bloque 3: Ventas por Categoría -->
+            <div class="report-card">
+                <div class="report-card-header">
+                    <i class="fas fa-tags"></i> Ventas por Categoría
+                </div>
+                <div class="report-card-body">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Categoría</th>
+                                <th>Ingresos</th>
+                                <th>Margen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.categorias_ranking.map(c => `
+                                <tr>
+                                    <td>${c.categoria}</td>
+                                    <td style="text-align:right">${parseFloat(c.ingresos).toFixed(2)} €</td>
+                                    <td style="text-align:right; color:#059669">${c.margen.toFixed(0)}%</td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="3">Sin datos</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Bloque 3.1: Márgenes y Beneficios General -->
+            <div class="report-card">
+                <div class="report-card-header">
+                    <i class="fas fa-funnel-dollar"></i> Beneficios Generales
+                </div>
+                <div class="report-card-body">
+                    <div class="report-stat">
+                        <span class="label">Ingresos:</span>
+                        <span class="value">${data.margenes.ingresos.toFixed(2)} €</span>
+                    </div>
+                    <div class="report-stat">
+                        <span class="label">Coste Estimado:</span>
+                        <span class="value" style="color:#ea580c">-${data.margenes.coste.toFixed(2)} €</span>
+                    </div>
+                    <div class="report-divider"></div>
+                    <div class="report-stat">
+                        <span class="label">Beneficio Bruto:</span>
+                        <span class="value" style="color:#059669">${data.margenes.beneficio.toFixed(2)} €</span>
+                    </div>
+                    <div class="report-stat">
+                        <span class="label">Margen Global:</span>
+                        <span class="value" style="color:#059669">${data.margenes.porcentaje.toFixed(1)}%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bloque 4: Rendimiento de Empleados -->
+            <div class="report-card">
+                <div class="report-card-header">
+                    <i class="fas fa-users"></i> Rendimiento Empleados
+                </div>
+                <div class="report-card-body">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Camarero</th>
+                                <th>Tickets</th>
+                                <th>Total</th>
+                                <th>T. Medio</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.empleados.map(e => `
+                                <tr>
+                                    <td>${e.nombre}</td>
+                                    <td style="text-align:center">${e.tickets}</td>
+                                    <td style="text-align:right">${parseFloat(e.total).toFixed(2)} €</td>
+                                    <td style="text-align:right">${parseFloat(e.ticket_medio).toFixed(2)} €</td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="4">Sin datos</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Bloque 5: Franjas Horarias -->
+            <div class="report-card">
+                <div class="report-card-header">
+                    <i class="fas fa-clock"></i> Horas Pico y Personal
+                </div>
+                <div class="report-card-body">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Hora</th>
+                                <th>Tickets</th>
+                                <th>Total</th>
+                                <th>Sugerencia</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.franjas.map(f => {
+        const personal = f.tickets > 15 ? '3 pers.' : (f.tickets > 8 ? '2 pers.' : '1 pers.');
+        return `
+                                    <tr>
+                                        <td>${f.hora}:00</td>
+                                        <td style="text-align:center">${f.tickets}</td>
+                                        <td style="text-align:right">${parseFloat(f.total).toFixed(2)} €</td>
+                                        <td style="text-align:center; font-size:0.75rem; color:#64748b">${personal}</td>
+                                    </tr>
+                                `;
+    }).join('') || '<tr><td colspan="4">Sin datos</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Bloque 6: Estado de Caja -->
+            <div class="report-card">
+                <div class="report-card-header">
+                    <i class="fas fa-cash-register"></i> Informe de Caja
+                </div>
+                <div class="report-card-body">
+                    <div class="report-stat">
+                        <span class="label">Fondo Inicial:</span>
+                        <span class="value">${parseFloat(data.caja_resumen.fondo_inicial || 0).toFixed(2)} €</span>
+                    </div>
+                    <div class="report-stat">
+                        <span class="label">Efectivo Final:</span>
+                        <span class="value">${parseFloat(data.caja_resumen.efectivo_final || 0).toFixed(2)} €</span>
+                    </div>
+                     <div class="report-stat">
+                        <span class="label">Retiros:</span>
+                        <span class="value" style="color:#dc2626">-${parseFloat(data.caja_resumen.retiros || 0).toFixed(2)} €</span>
+                    </div>
+                    <div class="report-divider"></div>
+                    <div class="report-stat">
+                        <span class="label">Desajuste (Arqueos):</span>
+                        <span class="value" style="color:${data.caja_resumen.desajuste >= 0 ? '#059669' : '#dc2626'}">
+                            ${(data.caja_resumen.desajuste || 0).toFixed(2)} €
+                        </span>
+                    </div>
+                    <p style="font-size:0.75rem; color:#64748b">Basado en ${data.caja_resumen.num_cierres} cierres registrados.</p>
+                </div>
+            </div>
+
+            <!-- Bloque 7: Devoluciones y Pérdidas -->
+            <div class="report-card">
+                <div class="report-card-header">
+                    <i class="fas fa-undo"></i> Devoluciones y Pérdidas
+                </div>
+                <div class="report-card-body">
+                    <div class="report-stat">
+                        <span class="label">Total Devuelto:</span>
+                        <span class="value" style="color:#dc2626">${data.devoluciones_detalle.total.toFixed(2)} €</span>
+                    </div>
+                    <div class="report-stat">
+                        <span class="label">% sobre Ventas:</span>
+                        <span class="value">${data.devoluciones_detalle.porcentaje_ventas.toFixed(1)}%</span>
+                    </div>
+                    <div class="report-divider"></div>
+                    <p style="font-size:0.75rem; color:#64748b; margin-bottom:8px">Top Productos Devueltos:</p>
+                    <table class="report-table">
+                        <tbody>
+                            ${data.devoluciones_detalle.productos.map(p => `
+                                <tr>
+                                    <td>${p.nombre}</td>
+                                    <td style="text-align:right">${p.veces} dev.</td>
+                                </tr>
+                            `).join('') || '<tr><td>Sin devoluciones</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Bloque 8: Inventario y Stock -->
+            <div class="report-card">
+                <div class="report-card-header">
+                    <i class="fas fa-warehouse"></i> Valor de Stock
+                </div>
+                <div class="report-card-body">
+                    <div class="report-stat">
+                        <span class="label">Valor Venta:</span>
+                        <span class="value">${parseFloat(data.stock.valor_venta || 0).toFixed(2)} €</span>
+                    </div>
+                    <div class="report-stat">
+                        <span class="label">Valor Coste:</span>
+                        <span class="value">${parseFloat(data.stock.valor_coste || 0).toFixed(2)} €</span>
+                    </div>
+                    <div class="report-divider"></div>
+                    <div class="report-stat">
+                        <span class="label">Sin Stock:</span>
+                        <span class="value" style="color:#dc2626">${data.stock.sin_stock} prod.</span>
+                    </div>
+                    <div class="report-stat">
+                        <span class="label">Alertas Stock:</span>
+                        <span class="value" style="color:#ea580c">${data.stock.alertas} prod.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botón Exportar PDF -->
+        <div style="margin-top: 30px; padding: 20px; border-top: 1px solid var(--border-main); display: flex; justify-content: center;">
+            <button class="btn-tpv" onclick="exportarInformePDF('${periodo}')" style="padding: 12px 25px; font-size: 1.1rem; gap: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                <i class="fas fa-file-pdf"></i> Exportar Informe Completo a PDF
+            </button>
+        </div>
+    `;
+
+    contenedor.innerHTML = html;
+}
+
+/**
+ * Genera un PDF profesional con los datos del informe actual.
+ * @param {string} periodo - 'diario' | 'semanal' | 'mensual' | 'anual'
+ */
+function exportarInformePDF(periodo) {
+    const data = window.ultimoInformeData;
+    if (!data) {
+        Swal.fire('Error', 'No hay datos de informe para exportar.', 'error');
+        return;
+    }
+
+    try {
+        Swal.fire({
+            title: 'Generando PDF profesional...',
+            text: 'Preparando tablas y estadísticas',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const titulos = { 'diario': 'DIARIO', 'semanal': 'SEMANAL', 'mensual': 'MENSUAL', 'anual': 'ANUAL' };
+        const colorPrimario = [41, 128, 185]; // Azul profesional
+
+        // --- CABECERA ---
+        doc.setFillColor(...colorPrimario);
+        doc.rect(0, 0, 210, 40, 'F');
+        doc.setTextColor(255);
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`INFORME DE VENTAS - ${titulos[periodo]}`, 14, 20);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Sistema de Gestión TPV - v2.0`, 14, 28);
+        doc.text(`Fecha de generación: ${new Date().toLocaleString()}`, 14, 34);
+
+        let y = 50;
+
+        // --- BLOQUE 1: RESUMEN FINANCIERO (KPIs) ---
+        doc.setTextColor(0);
+        doc.setFontSize(14);
+        doc.text('Resumen Financiero', 14, y);
+        y += 8;
+
+        const v = data.ventas.periodoActual;
+        const kpiData = [
+            ['Concepto', 'Valor'],
+            ['Ingresos Totales (Brutos)', `${parseFloat(v.bruto).toFixed(2)} €`],
+            ['Ventas Netas (Base Imponible)', `${(parseFloat(v.bruto) / 1.21).toFixed(2)} €`],
+            ['IVA Total Estimado', `${v.iva.reduce((acc, curr) => acc + parseFloat(curr.cuota), 0).toFixed(2)} €`],
+            ['Número de Tickets', `${v.tickets}`],
+            ['Ticket Medio', `${parseFloat(v.ticket_medio).toFixed(2)} €`],
+            ['Beneficio Bruto Estimado', `${parseFloat(data.margenes.beneficio).toFixed(2)} €`],
+            ['Margen Global', `${parseFloat(data.margenes.porcentaje).toFixed(1)}%`]
+        ];
+
+        doc.autoTable({
+            startY: y,
+            head: [kpiData[0]],
+            body: kpiData.slice(1),
+            theme: 'grid',
+            headStyles: { fillColor: colorPrimario },
+            styles: { fontSize: 10 },
+            columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+            margin: { left: 14, right: 14 }
+        });
+
+        y = doc.lastAutoTable.finalY + 15;
+
+        // --- BLOQUE 2: TOP 10 PRODUCTOS ---
+        doc.setFontSize(14);
+        doc.text('Ranking: Top 10 Productos más vendidos', 14, y);
+        y += 8;
+
+        doc.autoTable({
+            startY: y,
+            head: [['Producto', 'Unidades', 'Ingresos (€)', 'Margen']],
+            body: data.productos_ranking.map(p => [
+                p.nombre,
+                p.unidades,
+                parseFloat(p.ingresos).toFixed(2),
+                `${parseFloat(p.margen).toFixed(0)}%`
+            ]),
+            styles: { fontSize: 9 },
+            headStyles: { fillColor: [52, 152, 219] },
+            columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'center' } }
+        });
+
+        y = doc.lastAutoTable.finalY + 15;
+
+        // --- BLOQUE 3: VENTAS POR CATEGORÍA ---
+        if (y > 230) { doc.addPage(); y = 20; }
+        doc.setFontSize(14);
+        doc.text('Desglose por Categoría', 14, y);
+        y += 8;
+
+        doc.autoTable({
+            startY: y,
+            head: [['Categoría', 'Ingresos (€)', 'Margen']],
+            body: data.categorias_ranking.map(c => [
+                c.categoria,
+                parseFloat(c.ingresos).toFixed(2),
+                `${parseFloat(c.margen).toFixed(0)}%`
+            ]),
+            styles: { fontSize: 9 },
+            headStyles: { fillColor: [44, 62, 80] },
+            columnStyles: { 1: { halign: 'right' }, 2: { halign: 'center' } }
+        });
+
+        y = doc.lastAutoTable.finalY + 15;
+
+        // --- BLOQUE 4: CAJA Y DEVOLUCIONES ---
+        if (y > 230) { doc.addPage(); y = 20; }
+        doc.setFontSize(14);
+        doc.text('Movimientos de Caja y Devoluciones', 14, y);
+        y += 8;
+
+        const cajaData = [
+            ['Concepto', 'Valor'],
+            ['Efectivo en Caja', `${parseFloat(data.margenes.ingresos).toFixed(2)} €`],
+            ['Retiros Totales', `-${parseFloat(data.caja_resumen.retiros).toFixed(2)} €`],
+            ['Total Devoluciones', `-${parseFloat(data.devoluciones_detalle.total).toFixed(2)} €`],
+            ['Desajuste de Caja', `${parseFloat(data.caja_resumen.desajuste).toFixed(2)} €`]
+        ];
+
+        doc.autoTable({
+            startY: y,
+            head: [cajaData[0]],
+            body: cajaData.slice(1),
+            theme: 'plain',
+            styles: { fontSize: 10 },
+            columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } }
+        });
+
+        // --- PIE DE PÁGINA ---
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text(`Página ${i} de ${totalPages} - Documento Confidencial`, 105, 290, { align: 'center' });
+        }
+
+        doc.save(`Informe_${periodo.toUpperCase()}_${new Date().toISOString().slice(0, 10)}.pdf`);
+        Swal.fire('¡Éxito!', 'El informe PDF ha sido generado y descargado.', 'success');
+
+    } catch (error) {
+        console.error('Error generando PDF:', error);
+        Swal.fire('Error', 'Hubo un fallo al generar el PDF: ' + error.message, 'error');
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+// FUNCIONES PARA PROGRAMACIÓN DE CAMBIOS DE TARIFAS
+// ------------------------------------------------------------------------------------------------
+
+function alternarModoProgramacionTarifas() {
+    if (modoProgramacionTarifas) {
+        if (Object.keys(loteCambiosTarifas).length > 0) {
+            if (!confirm('Tienes cambios pendientes en el lote. Si sales ahora se perderán. ¿Deseas salir?')) {
+                return;
+            }
+        }
+        modoProgramacionTarifas = false;
+        loteCambiosTarifas = {};
+    } else {
+        modoProgramacionTarifas = true;
+        loteCambiosTarifas = {};
+        alert('Modo Programación Activado. Los cambios que realices ahora no se aplicarán inmediatamente, sino que se guardarán en un lote para ser programados.');
+    }
+    mostrarPanelTarifasPrefijadas();
+}
+
+function abrirModalProgramarCambiosTarifas() {
+    const count = Object.keys(loteCambiosTarifas).length;
+    if (count === 0) {
+        alert('No hay cambios en el lote para programar.');
+        return;
+    }
+
+    document.getElementById('countCambiosProgramar').textContent = count;
+
+    // Set default date to tomorrow at current time
+    const now = new Date();
+    now.setDate(now.getDate() + 1);
+    const localDateTime = now.toISOString().slice(0, 16);
+    document.getElementById('fechaProgramadaTarifas').value = localDateTime;
+
+    document.getElementById('modalProgramarCambiosTarifas').style.display = 'flex';
+}
+
+function ejecutarGuardarProgramacionTarifas() {
+    const fecha = document.getElementById('fechaProgramadaTarifas').value;
+    if (!fecha) {
+        alert('Por favor, selecciona una fecha y hora.');
+        return;
+    }
+
+    const cambiosArr = [];
+    for (const key in loteCambiosTarifas) {
+        const [idProducto, idTarifa] = key.split('-');
+        const cambio = loteCambiosTarifas[key];
+        // Support both old format (string) and new format (object)
+        const precioNuevo = typeof cambio === 'object' ? cambio.nuevo : cambio;
+        const precioAnterior = typeof cambio === 'object' ? cambio.anterior : 0;
+
+        cambiosArr.push({
+            idProducto: idProducto,
+            idTarifa: idTarifa,
+            precioNuevo: precioNuevo,
+            precioAnterior: precioAnterior
+        });
+    }
+
+    const formData = new FormData();
+    formData.append('programarCambiosTarifas', '1');
+    formData.append('fecha_programada', fecha);
+    formData.append('cambios', JSON.stringify(cambiosArr));
+
+    fetch('api/tarifas.php', {
+        method: 'POST',
+        body: formData
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                alert('¡Cambios programados correctamente!');
+                cerrarModal('modalProgramarCambiosTarifas');
+                modoProgramacionTarifas = false;
+                loteCambiosTarifas = {};
+                mostrarPanelTarifasPrefijadas();
+            } else {
+                alert('Error al programar: ' + (data.error || 'Desconocido'));
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error de conexión al guardar programación');
+        });
+}
+
+function abrirModalVerCambiosTarifasProgramados() {
+    document.getElementById('modalVerCambiosTarifasProgramados').style.display = 'flex';
+    cargarCambiosTarifasBatches();
+}
+
+function cargarCambiosTarifasBatches() {
+    const container = document.getElementById('listaBatchesTarifas');
+    container.innerHTML = '<div style="padding: 20px; text-align: center;"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>';
+
+    fetch('api/tarifas.php?obtenerCambiosProgramados=1')
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                if (data.batches.length === 0) {
+                    container.innerHTML = '<div style="padding: 30px; text-align: center; color: #6b7280;">No hay programaciones registradas.</div>';
+                    return;
+                }
+
+                let html = `
+            <table style="width:100%; border-collapse: collapse;">
+                <thead style="background: var(--bg-secondary);">
+                    <tr>
+                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-main);">ID</th>
+                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-main);">Fecha Programada</th>
+                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-main);">Productos</th>
+                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-main);">Estado</th>
+                        <th style="padding: 12px; text-align: right; border-bottom: 2px solid var(--border-main);">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+                data.batches.forEach(b => {
+                    const isPendiente = b.estado === 'pendiente';
+                    const statusBadge = isPendiente
+                        ? '<span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Pendiente</span>'
+                        : '<span style="background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Aplicado</span>';
+
+                    const fecha = new Date(b.fecha_programada).toLocaleString();
+
+                    html += `
+                <tr style="border-bottom: 1px solid var(--border-main);">
+                    <td style="padding: 12px;">#${b.id}</td>
+                    <td style="padding: 12px;">${fecha}</td>
+                    <td style="padding: 12px;">${b.total_productos} ítems</td>
+                    <td style="padding: 12px;">${statusBadge}</td>
+                    <td style="padding: 12px; text-align: right; display: flex; justify-content: flex-end; gap: 5px;">
+                        <button onclick="verDetalleBatchTarifas(${b.id})" class="btn-info" style="padding: 5px 10px; font-size: 12px;"><i class="fas fa-eye"></i></button>
+                        ${isPendiente ? `<button onclick="eliminarBatchTarifas(${b.id})" class="btn-danger" style="padding: 5px 10px; font-size: 12px;"><i class="fas fa-trash"></i></button>` : ''}
+                    </td>
+                </tr>`;
+                });
+
+                html += `</tbody></table>`;
+                container.innerHTML = html;
+            }
+        })
+        .catch(err => {
+            console.error('Error al cargar programaciones de tarifas:', err);
+            container.innerHTML = '<div style="padding: 20px; text-align: center; color: red;">Error al cargar las programaciones. Por favor, inténtelo de nuevo o contacte con el administrador.</div>';
+        });
+}
+
+function verDetalleBatchTarifas(id) {
+    document.getElementById('detalleBatchId').textContent = id;
+    const tableDiv = document.getElementById('tablaDetalleBatch');
+    tableDiv.innerHTML = '<div style="padding: 20px; text-align: center;"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>';
+
+    document.getElementById('modalDetalleBatchTarifas').style.display = 'flex';
+
+    fetch(`api/tarifas.php?verDetalleBatch=${id}`)
+        .then(res => res.json())
+        .then(data => {
+            console.log('Response from API:', data);
+            if (data.ok) {
+                if (data.detalles && data.detalles.length > 0) {
+                    let html = `
+                <table style="width:100%; border-collapse: collapse; font-size: 13px;">
+                    <thead style="background: var(--bg-secondary);">
+                        <tr>
+                            <th style="padding: 8px; text-align: left;">Producto</th>
+                            <th style="padding: 8px; text-align: left;">Tarifa</th>
+                            <th style="padding: 8px; text-align: right;">Precio Anterior</th>
+                            <th style="padding: 8px; text-align: right;">Nuevo Precio</th>
+                            <th style="padding: 8px; text-align: right;">Diferencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+                    data.detalles.forEach(d => {
+                        const precioAnterior = parseFloat(d.precio_anterior || 0);
+                        const precioNuevo = parseFloat(d.precio_nuevo);
+                        const diferencia = precioNuevo - precioAnterior;
+                        const diferenciaSigno = diferencia >= 0 ? '+' : '';
+                        const diferenciaColor = diferencia >= 0 ? '#10b981' : '#ef4444';
+
+                        html += `
+                    <tr style="border-bottom: 1px solid var(--border-main);">
+                        <td style="padding: 8px;">${d.producto_nombre}</td>
+                        <td style="padding: 8px;">${d.tarifa_nombre}</td>
+                        <td style="padding: 8px; text-align: right;">${precioAnterior.toFixed(2)} €</td>
+                        <td style="padding: 8px; text-align: right; font-weight: 600;">${precioNuevo.toFixed(2)} €</td>
+                        <td style="padding: 8px; text-align: right; font-weight: 600; color: ${diferenciaColor};">${diferenciaSigno}${diferencia.toFixed(2)} €</td>
+                    </tr>`;
+                    });
+
+                    html += `</tbody></table>`;
+                    tableDiv.innerHTML = html;
+                } else {
+                    tableDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">No hay detalles para esta programación.</div>';
+                }
+            } else {
+                tableDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: red;">Error: ' + (data.error || 'Error desconocido. Ver consola para detalles.') + '</div>';
+            }
+        })
+        .catch(err => {
+            console.error('Error al cargar detalles del batch:', err);
+            tableDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: red;">Error al cargar los detalles. Por favor, inténtelo de nuevo.</div>';
+        });
+}
+
+function eliminarBatchTarifas(id) {
+    if (!confirm('¿Estás seguro de que deseas cancelar esta programación?')) return;
+
+    fetch(`api/tarifas.php?eliminarBatch=${id}`, {
+        method: 'DELETE'
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                cargarCambiosTarifasBatches();
+            } else {
+                alert('Error al eliminar: ' + (data.error || 'Desconocido'));
+            }
+        });
+}
+
