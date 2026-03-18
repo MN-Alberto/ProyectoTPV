@@ -729,6 +729,15 @@
                     style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
                     placeholder="García López" maxlength="150">
             </div>
+
+            <!-- Campo Puntos -->
+            <div>
+                <label for="editarClientePuntos"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Puntos</label>
+                <input type="number" id="editarClientePuntos"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="0" min="0" onchange="this.value = Math.max(0, this.value);">
+            </div>
         </div>
 
         <!-- Botones: Cancelar y Guardar -->

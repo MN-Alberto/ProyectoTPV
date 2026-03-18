@@ -5,7 +5,8 @@
     display: flex;
     flex-direction: column;
     background: var(--bg-main);
-    overflow-y: auto; /* Permitir scroll global si el contenido es grande */
+    overflow-y: auto;
+    /* Permitir scroll global si el contenido es grande */
 }
 
 /* Scroll para el menú lateral */
@@ -29,6 +30,7 @@
     padding: 15px 20px;
     background: var(--bg-panel);
     border-bottom: 1px solid var(--border-main);
+    height: 65px;
 }
 
 .admin-header h2 {
@@ -196,7 +198,7 @@ body.dark-mode .report-card-header {
 
 .report-table td {
     padding: 8px;
-    border-bottom: 1px solid rgba(0,0,0,0.02);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.02);
 }
 
 .reports-loading {
@@ -217,7 +219,8 @@ body.dark-mode .report-card-header {
     border-radius: 12px;
     border: 1px solid var(--border-main);
     padding: 15px;
-    overflow-y: visible; /* Permitir que el scroll sea manejado por el contenedor padre si es necesario */
+    overflow-y: visible;
+    /* Permitir que el scroll sea manejado por el contenedor padre si es necesario */
 }
 
 .admin-tabla .col-acciones {
@@ -390,6 +393,89 @@ body.dark-mode .badge-inactivo {
 
 .admin-tabla-wrapper {
     overflow: hidden;
+}
+
+/* Pagination Styles */
+.admin-paginacion-wrapper {
+    display: flex;
+    justify-content: center;
+    padding: 20px 0;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.admin-paginacion {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.btn-paginacion {
+    padding: 8px 16px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.2s;
+}
+
+.btn-paginacion:hover {
+    background: #2563eb;
+}
+
+.btn-paginacion:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+}
+
+.info-paginacion {
+    font-size: 14px;
+    color: #475569;
+    font-weight: 500;
+}
+
+.input-paginacion {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.input-numero-pagina {
+    width: 50px;
+    padding: 6px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 14px;
+    text-align: center;
+}
+
+.input-numero-pagina:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Quitar flechas del input number en Chrome, Safari, Edge, Opera */
+.input-numero-pagina::-webkit-outer-spin-button,
+.input-numero-pagina::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Quitar flechas del input number en Firefox */
+.input-numero-pagina[type=number] {
+    -moz-appearance: textfield;
+}
+
+/* Quitar scroll cuando hay paginación - para clientes */
+.admin-tabla-wrapper.sin-scroll tbody {
+    max-height: none;
+    overflow: visible;
 }
 
 .admin-tabla {
@@ -1673,11 +1759,13 @@ body.dark-mode .admin-sidebar {
 
 /* Modo Optimizado para Configuración */
 .admin-dashboard.admin-mode-config .admin-stats-grid {
-    display: grid; /* Mantener visible */
+    display: grid;
+    /* Mantener visible */
 }
 
 .admin-dashboard.admin-mode-config .admin-content-panel {
-    min-height: calc(100vh - 350px); /* Ajuste dinámico para evitar scroll interno */
+    min-height: calc(100vh - 350px);
+    /* Ajuste dinámico para evitar scroll interno */
 }
 
 .admin-dashboard.admin-mode-config .admin-view-subtitle {

@@ -1,317 +1,224 @@
 <?php
 /**
- * Modelo para las devoluciones de productos.
+ * Modelo para gestionar las devoluciones de ventas.
+ * Proporciona métodos para insertar, consultar y eliminar devoluciones del sistema.
  * 
  * @author Alberto Méndez
- * @version 1.2 (02/03/2026)
+ * @version 1.0 (03/03/2026)
  */
 
-// Requerimos el fichero de conexión a la base de datos
 require_once(__DIR__ . '/../core/conexionDB.php');
 
-// Definimos la clase Devolucion
 class Devolucion
 {
-    /** 
-     * @var int|null Identificador único del registro de devolución. 
-     */
     private $id;
-    /** 
-     * @var int|null ID del ticket o venta original donde se adquirió el producto. 
-     */
     private $idVenta;
-    /** 
-     * @var int|null ID del usuario responsable de tramitar el reembolso. 
-     */
-    private $idUsuario;
-    /** 
-     * @var int|null ID del producto que se retorna al almacén. 
-     */
     private $idProducto;
-    /** 
-     * @var int|null Número de unidades que el cliente ha devuelto. 
-     */
     private $cantidad;
-    /** 
-     * @var float|null Valor económico total que se reembolsa al cliente. 
-     */
+    private $precioUnitario;
+    private $iva;
     private $importeTotal;
-    /** 
-     * @var int|null Sesión de caja activa donde se contabiliza la salida de efectivo. 
-     */
-    private $idSesionCaja;
-    /** 
-     * @var string|null Fecha y hora exacta del trámite de devolución. 
-     */
-    private $fecha;
-    /** 
-     * @var string|null Instrumento de pago usado para devolver el dinero (ej: 'Efectivo'). 
-     */
+    private $idUsuario;
     private $metodoPago;
+    private $fecha;
+    private $motivo;
 
-    public function __construct($idPost = null, $idUsuario = null, $idProducto = null, $cantidad = null, $importeTotal = null, $idSesionCaja = null, $fecha = null, $metodoPago = 'Efectivo', $idVenta = null)
+    /**
+     * Constructor de la clase Devolucion.
+     */
+    public function __construct(
+        $idVenta = null,
+        $idProducto = null,
+        $cantidad = null,
+        $precioUnitario = null,
+        $iva = null,
+        $importeTotal = null,
+        $idUsuario = null,
+        $metodoPago = null,
+        $motivo = null,
+        $id = null,
+        $fecha = null
+        )
     {
-        $this->id = $idPost;
         $this->idVenta = $idVenta;
-        $this->idUsuario = $idUsuario;
         $this->idProducto = $idProducto;
         $this->cantidad = $cantidad;
+        $this->precioUnitario = $precioUnitario;
+        $this->iva = $iva;
         $this->importeTotal = $importeTotal;
-        $this->idSesionCaja = $idSesionCaja;
-        $this->fecha = $fecha;
+        $this->idUsuario = $idUsuario;
         $this->metodoPago = $metodoPago;
+        $this->motivo = $motivo;
+        $this->id = $id;
+        $this->fecha = $fecha;
     }
 
-    // Getters y Setters
-    /** 
-     * Obtiene el ID de la devolución.
-     * @return int|null 
-     */
+    // Getters
     public function getId()
     {
         return $this->id;
     }
-    /** 
-     * Obtiene el ID de la venta de origen.
-     * @return int|null 
-     */
+
     public function getIdVenta()
     {
         return $this->idVenta;
     }
-    /** 
-     * Establece el ID de la venta original donde se realizó la compra.
-     * @param int|null $idVenta 
-     */
-    public function setIdVenta($idVenta)
-    {
-        $this->idVenta = $idVenta;
-    }
-    /** 
-     * Obtiene el ID del usuario procesador.
-     * @return int|null 
-     */
-    public function getIdUsuario()
-    {
-        return $this->idUsuario;
-    }
-    /** 
-     * Establece el ID del usuario/empleado que gestiona la devolución.
-     * @param int|null $idUsuario 
-     */
-    public function setIdUsuario($idUsuario)
-    {
-        $this->idUsuario = $idUsuario;
-    }
-    /** 
-     * Obtiene el ID del artículo devuelto.
-     * @return int|null 
-     */
+
     public function getIdProducto()
     {
         return $this->idProducto;
     }
-    /** 
-     * Define el producto que se está devolviendo al stock.
-     * @param int|null $idProducto 
-     */
-    public function setIdProducto($idProducto)
-    {
-        $this->idProducto = $idProducto;
-    }
-    /** 
-     * Obtiene el número de unidades devueltas.
-     * @return int|null 
-     */
+
     public function getCantidad()
     {
         return $this->cantidad;
     }
-    /** 
-     * Establece el número de unidades devueltas por el cliente.
-     * @param int|null $cantidad 
-     */
-    public function setCantidad($cantidad)
+
+    public function getPrecioUnitario()
     {
-        $this->cantidad = $cantidad;
+        return $this->precioUnitario;
     }
-    /** 
-     * Obtiene el importe neto reembolsado.
-     * @return float|null 
-     */
+
+    public function getIva()
+    {
+        return $this->iva;
+    }
+
     public function getImporteTotal()
     {
         return $this->importeTotal;
     }
-    /** 
-     * Define el importe total neto que se entrega al cliente.
-     * @param float|null $importeTotal 
-     */
-    public function setImporteTotal($importeTotal)
+
+    public function getIdUsuario()
     {
-        $this->importeTotal = $importeTotal;
+        return $this->idUsuario;
     }
-    /** 
-     * Obtiene la sesión de caja vinculada.
-     * @return int|null 
-     */
-    public function getIdSesionCaja()
-    {
-        return $this->idSesionCaja;
-    }
-    /** 
-     * Establece el ID de la sesión de caja.
-     * @param int|null $idSesionCaja 
-     */
-    public function setIdSesionCaja($idSesionCaja)
-    {
-        $this->idSesionCaja = $idSesionCaja;
-    }
-    /** 
-     * Obtiene la forma de pago del reembolso.
-     * @return string|null 
-     */
+
     public function getMetodoPago()
     {
         return $this->metodoPago;
     }
-    /** 
-     * Establece el método de pago usado.
-     * @param string|null $metodoPago 
-     */
-    public function setMetodoPago($metodoPago)
-    {
-        $this->metodoPago = $metodoPago;
-    }
 
-    /** 
-     * Obtiene la fecha del evento.
-     * @return string|null 
-     */
     public function getFecha()
     {
         return $this->fecha;
     }
-    /** 
-     * Establece la marca de tiempo de la devolución.
-     * @param string|null $fecha 
-     */
-    public function setFecha($fecha)
+
+    public function getMotivo()
     {
-        $this->fecha = $fecha;
+        return $this->motivo;
     }
 
     /**
-     * Inserta una nueva devolución en la base de datos.
+     * Crea una nueva devolución en la base de datos.
+     * @return bool True si la operación fue exitosa, False en caso contrario.
      */
-    public function insertar()
+    public function crear()
     {
-        // Obtenemos la instancia de la conexión
-        $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta
-        $stmt = $conexion->prepare(
-            "INSERT INTO devoluciones (idVenta, idUsuario, idProducto, cantidad, importeTotal, idSesionCaja, fecha, metodoPago) 
-             VALUES (:idVenta, :idUsuario, :idProducto, :cantidad, :importeTotal, :idSesionCaja, :fecha, :metodoPago)"
-        );
-        $stmt->bindParam(':idVenta', $this->idVenta, PDO::PARAM_INT); // Added bindParam for idVenta
-        $stmt->bindParam(':idUsuario', $this->idUsuario, PDO::PARAM_INT);
-        $stmt->bindParam(':idProducto', $this->idProducto, PDO::PARAM_INT);
-        $stmt->bindParam(':cantidad', $this->cantidad, PDO::PARAM_INT);
-        $stmt->bindParam(':importeTotal', $this->importeTotal);
-        $stmt->bindParam(':idSesionCaja', $this->idSesionCaja, PDO::PARAM_INT);
-        $fecha = $this->fecha ?? date('Y-m-d H:i:s');
-        $stmt->bindParam(':fecha', $fecha);
-        $stmt->bindParam(':metodoPago', $this->metodoPago);
-
-        $resultado = $stmt->execute();
-        if ($resultado) {
-            $this->id = $conexion->lastInsertId();
+        try {
+            $conexion = ConexionDB::getInstancia()->getConexion();
+            $sql = "INSERT INTO devoluciones (idVenta, idProducto, cantidad, precioUnitario, iva, importeTotal, idUsuario, metodoPago, motivo, fecha) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            $stmt = $conexion->prepare($sql);
+            return $stmt->execute([
+                $this->idVenta,
+                $this->idProducto,
+                $this->cantidad,
+                $this->precioUnitario,
+                $this->iva,
+                $this->importeTotal,
+                $this->idUsuario,
+                $this->metodoPago,
+                $this->motivo
+            ]);
         }
-        return $resultado;
+        catch (Exception $e) {
+            error_log("Error al crear devolución: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**
-     * Obtiene el total de devoluciones en una sesión de caja específica.
-     * 
-     * @param int $idSesionCaja
-     * @return float
+     * Obtiene una devolución por su ID.
+     * @param int $id ID de la devolución.
+     * @return array|null Datos de la devolución o null si no existe.
      */
-    public static function obtenerTotalPorSesion($idSesionCaja)
+    public static function obtenerPorId($id)
     {
-        // Obtenemos la instancia de la conexión
-        $conexion = ConexionDB::getInstancia()->getConexion();
-        
-        // Obtenemos la fecha de apertura de la sesión para el fallback híbrido
-        $stmtSesion = $conexion->prepare("SELECT fechaApertura, fechaCierre FROM caja_sesiones WHERE id = :id");
-        $stmtSesion->execute([':id' => $idSesionCaja]);
-        $sesion = $stmtSesion->fetch();
-        $fechaApertura = $sesion['fechaApertura'] ?? null;
-        $fechaCierre = $sesion['fechaCierre'] ?? null;
-
-        // Preparamos la consulta con lógica híbrida
-        $stmt = $conexion->prepare("
-            SELECT SUM(importeTotal) as total 
-            FROM devoluciones 
-            WHERE idSesionCaja = :idSesionCaja 
-            OR (idSesionCaja IS NULL AND fecha >= :fechaApertura AND (:fechaCierre IS NULL OR fecha <= :fechaCierre2))
-        ");
-        
-        $stmt->bindParam(':idSesionCaja', $idSesionCaja, PDO::PARAM_INT);
-        $stmt->bindParam(':fechaApertura', $fechaApertura);
-        $stmt->bindParam(':fechaCierre', $fechaCierre);
-        $stmt->bindParam(':fechaCierre2', $fechaCierre);
-        
-        $stmt->execute();
-        $fila = $stmt->fetch();
-        return (float) ($fila['total'] ?? 0);
+        try {
+            $conexion = ConexionDB::getInstancia()->getConexion();
+            $sql = "SELECT d.*, p.nombre as producto_nombre, u.nombre as usuario_nombre 
+                    FROM devoluciones d
+                    LEFT JOIN productos p ON d.idProducto = p.id
+                    LEFT JOIN usuarios u ON d.idUsuario = u.id
+                    WHERE d.id = ?";
+            $stmt = $conexion->prepare($sql);
+            $stmt->execute([$id]);
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+        catch (Exception $e) {
+            error_log("Error al obtener devolución por ID: " . $e->getMessage());
+            return null;
+        }
     }
 
     /**
-     * Obtiene el total de devoluciones por método de pago.
-     * 
-     * @param int $idSesionCaja
-     * @param string $metodo
-     * @return float
+     * Obtiene las devoluciones asociadas a una venta específica.
+     * @param int $idVenta ID de la venta.
+     * @return array Array con las devoluciones de la venta.
      */
-    public static function obtenerTotalPorMetodo($idSesionCaja, $metodo)
+    public static function obtenerPorIdVenta($idVenta)
     {
-        // Obtenemos la instancia de la conexión
-        $conexion = ConexionDB::getInstancia()->getConexion();
-
-        // Obtenemos la fecha de apertura de la sesión para el fallback híbrido
-        $stmtSesion = $conexion->prepare("SELECT fechaApertura, fechaCierre FROM caja_sesiones WHERE id = :id");
-        $stmtSesion->execute([':id' => $idSesionCaja]);
-        $sesion = $stmtSesion->fetch();
-        $fechaApertura = $sesion['fechaApertura'] ?? null;
-        $fechaCierre = $sesion['fechaCierre'] ?? null;
-
-        // Preparamos la consulta con lógica híbrida
-        $stmt = $conexion->prepare("
-            SELECT SUM(importeTotal) as total 
-            FROM devoluciones 
-            WHERE (idSesionCaja = :idSesionCaja OR (idSesionCaja IS NULL AND fecha >= :fechaApertura AND (:fechaCierre IS NULL OR fecha <= :fechaCierre2)))
-            AND metodoPago = :metodo
-        ");
-        
-        $stmt->bindParam(':idSesionCaja', $idSesionCaja, PDO::PARAM_INT);
-        $stmt->bindParam(':fechaApertura', $fechaApertura);
-        $stmt->bindParam(':fechaCierre', $fechaCierre);
-        $stmt->bindParam(':fechaCierre2', $fechaCierre);
-        $stmt->bindParam(':metodo', $metodo);
-        
-        $stmt->execute();
-        $fila = $stmt->fetch();
-        return (float) ($fila['total'] ?? 0);
+        try {
+            $conexion = ConexionDB::getInstancia()->getConexion();
+            $sql = "SELECT d.*, p.nombre as producto_nombre, u.nombre as usuario_nombre 
+                    FROM devoluciones d
+                    LEFT JOIN productos p ON d.idProducto = p.id
+                    LEFT JOIN usuarios u ON d.idUsuario = u.id
+                    WHERE d.idVenta = ?
+                    ORDER BY d.fecha DESC";
+            $stmt = $conexion->prepare($sql);
+            $stmt->execute([$idVenta]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+        catch (Exception $e) {
+            error_log("Error al obtener devoluciones por ID de venta: " . $e->getMessage());
+            return [];
+        }
     }
 
     /**
-     * Obtiene todas las devoluciones con información de producto y usuario.
-     * 
-     * @param string $orden
-     * @param string|null $filtroFecha
-     * @return array
+     * Obtiene la cantidad total devuelta de un producto en una venta específica.
+     * @param int $idVenta ID de la venta.
+     * @param int $idProducto ID del producto.
+     * @return int Cantidad total devuelta.
      */
-    public static function obtenerTodas($orden = 'fecha_desc', $filtroFecha = null)
+    public static function obtenerCantidadDevuelta($idVenta, $idProducto)
+    {
+        try {
+            $conexion = ConexionDB::getInstancia()->getConexion();
+            $sql = "SELECT COALESCE(SUM(cantidad), 0) as cantidad_devuelta 
+                    FROM devoluciones 
+                    WHERE idVenta = ? AND idProducto = ?";
+            $stmt = $conexion->prepare($sql);
+            $stmt->execute([$idVenta, $idProducto]);
+            $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+            return intval($resultado['cantidad_devuelta']);
+        }
+        catch (Exception $e) {
+            error_log("Error al obtener cantidad devuelta: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Obtiene todas las devoluciones con filtros opcionales.
+     * @param string $orden Orden de los resultados (fecha_desc, fecha_asc, importe_desc, importe_asc).
+     * @param string|null $filtroFecha Filtro de fecha (hoy, 7dias, 30dias).
+     * @param string|null $busqueda Búsqueda por número de ticket.
+     * @return array Array con las devoluciones.
+     */
+    public static function obtenerTodas($orden = 'fecha_desc', $filtroFecha = null, $busqueda = null)
     {
         $conexion = ConexionDB::getInstancia()->getConexion();
 
@@ -327,6 +234,14 @@ class Devolucion
                 case '30dias':
                     $condiciones[] = "d.fecha >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
                     break;
+            }
+        }
+
+        // Búsqueda por número de ticket
+        if ($busqueda && $busqueda !== '') {
+            $busquedaInt = intval($busqueda);
+            if ($busquedaInt > 0) {
+                $condiciones[] = "d.idVenta = " . $busquedaInt;
             }
         }
 
@@ -355,6 +270,55 @@ class Devolucion
 
         $stmt = $conexion->query($sql);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Obtiene el total de devoluciones por método de pago para una sesión de caja.
+     * @param int $idSesionCaja ID de la sesión de caja.
+     * @param string $metodoPago Método de pago (Efectivo, Tarjeta, Bizum).
+     * @return float Total de devoluciones.
+     */
+    public static function obtenerTotalPorMetodo($idSesionCaja, $metodoPago)
+    {
+        try {
+            $conexion = ConexionDB::getInstancia()->getConexion();
+            $sql = "SELECT COALESCE(SUM(d.importeTotal), 0) as total 
+                    FROM devoluciones d
+                    INNER JOIN ventas v ON d.idVenta = v.id
+                    WHERE v.idCajaSesion = ? AND d.metodoPago = ?";
+            $stmt = $conexion->prepare($sql);
+            $stmt->execute([$idSesionCaja, $metodoPago]);
+            $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+            return floatval($resultado['total']);
+        }
+        catch (Exception $e) {
+            error_log("Error al obtener total de devoluciones por método: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Obtiene el total de devoluciones para una sesión de caja.
+     * @param int $idSesionCaja ID de la sesión de caja.
+     * @return float Total de devoluciones.
+     */
+    public static function obtenerTotalPorSesion($idSesionCaja)
+    {
+        try {
+            $conexion = ConexionDB::getInstancia()->getConexion();
+            $sql = "SELECT COALESCE(SUM(d.importeTotal), 0) as total 
+                    FROM devoluciones d
+                    INNER JOIN ventas v ON d.idVenta = v.id
+                    WHERE v.idCajaSesion = ?";
+            $stmt = $conexion->prepare($sql);
+            $stmt->execute([$idSesionCaja]);
+            $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+            return floatval($resultado['total']);
+        }
+        catch (Exception $e) {
+            error_log("Error al obtener total de devoluciones por sesión: " . $e->getMessage());
+            return 0;
+        }
     }
 }
 ?>

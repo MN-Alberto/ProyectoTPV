@@ -343,7 +343,7 @@ input[type=number] {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: 73px;
+    height: 65px;
 }
 
 .ticket-header h3 {
@@ -361,6 +361,10 @@ input[type=number] {
     flex: 1;
     overflow-y: auto;
     padding: 15px;
+}
+
+#indicadorClienteDni {
+    margin-top: 8px;
 }
 
 .ticket-vacio {
@@ -384,6 +388,10 @@ input[type=number] {
     font-weight: 600;
     font-size: 0.75rem;
     text-transform: uppercase;
+    position: sticky;
+    top: 0;
+    background: var(--bg-ticket);
+    z-index: 1;
 }
 
 .ticket-tabla tbody td {

@@ -97,10 +97,18 @@ try {
         $nombre = $_PUT['nombre'] ?? '';
         $apellidos = $_PUT['apellidos'] ?? '';
         $fecha_alta = $_PUT['fecha_alta'] ?? '';
+        $puntos = isset($_PUT['puntos']) ? (int)$_PUT['puntos'] : null;
 
         if (empty($id) || empty($dni) || empty($nombre) || empty($apellidos)) {
             http_response_code(400);
             echo json_encode(['error' => 'Todos los campos son obligatorios']);
+            exit;
+        }
+
+        // Validar que los puntos no sean negativos
+        if ($puntos !== null && $puntos < 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Los puntos del cliente no pueden ser negativos']);
             exit;
         }
 
@@ -120,9 +128,16 @@ try {
             exit;
         }
 
-        $stmt = $pdo->prepare("UPDATE clientes SET dni = ?, nombre = ?, apellidos = ?, fecha_alta = ? WHERE id = ?");
+        if ($puntos !== null) {
+            $stmt = $pdo->prepare("UPDATE clientes SET dni = ?, nombre = ?, apellidos = ?, fecha_alta = ?, puntos = ? WHERE id = ?");
+            $success = $stmt->execute([$dni, $nombre, $apellidos, $fecha_alta, $puntos, $id]);
+        }
+        else {
+            $stmt = $pdo->prepare("UPDATE clientes SET dni = ?, nombre = ?, apellidos = ?, fecha_alta = ? WHERE id = ?");
+            $success = $stmt->execute([$dni, $nombre, $apellidos, $fecha_alta, $id]);
+        }
 
-        if ($stmt->execute([$dni, $nombre, $apellidos, $fecha_alta, $id])) {
+        if ($success) {
             echo json_encode(['ok' => true]);
         }
         else {
@@ -220,20 +235,21 @@ try {
         exit;
     }
 
-    // Manejar GET para obtener cliente por DNI (para buscar clientes)
-    if (isset($_GET['dni'])) {
+    // Manejar GET para obtener clientes por DNI (búsqueda parcial)
+    if (isset($_GET['dni']) && !isset($_GET['compras'])) {
         $dni = $_GET['dni'];
 
-        $stmt = $pdo->prepare("SELECT * FROM clientes WHERE dni = ? AND activo = 1");
-        $stmt->execute([$dni]);
-        $cliente = $stmt->fetch(PDO::FETCH_ASSOC);
+        // Usar LIKE para búsqueda parcial
+        $stmt = $pdo->prepare("SELECT * FROM clientes WHERE dni LIKE ? AND activo = 1 ORDER BY dni ASC LIMIT 20");
+        $stmt->execute([$dni . '%']);
+        $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        if ($cliente) {
-            echo json_encode($cliente);
+        if ($clientes && count($clientes) > 0) {
+            echo json_encode($clientes);
         }
         else {
             http_response_code(404);
-            echo json_encode(['error' => 'Cliente no encontrado']);
+            echo json_encode(['error' => 'No se encontraron clientes con ese DNI']);
         }
         exit;
     }

@@ -29,8 +29,1195 @@ let seccionActual = '';
 // Variable para controlar si se muestra el precio con o sin IVA
 let mostrarConIva = false;
 
+// ======================== HELPER: requestIdleCallback ========================
+// Función helper para ejecutar tareas pesadas cuando el navegador está idle
+// Mejora el rendimiento evitando bloquear el hilo principal
+/**
+ * Ejecuta una tarea cuando el navegador está idle
+ * @param {Function} task - Función tarea a ejecutar
+ * @param {Function} onComplete - Callback opcional con el resultado
+ */
+function ejecutarCuandoIdle(task, onComplete) {
+    if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => {
+            const result = task();
+            if (onComplete) onComplete(result);
+        }, { timeout: 2000 });
+    } else {
+        // Fallback para navegadores sin requestIdleCallback
+        setTimeout(() => {
+            const result = task();
+            if (onComplete) onComplete(result);
+        }, 0);
+    }
+}
+
 // Variable para controlar el IVA en la sección de Tarifas Prefijadas
 let tarifasMostrarConIva = false;
+
+// ======================== PAGINACIÓN CLIENTES ========================
+// Variables para paginación de clientes en admin
+let clientesData = []; // Almacena todos los clientes
+let paginaActualClientes = 1;
+const clientesPorPagina = 6;
+
+/**
+ * Genera los controles de paginación para clientes
+ * @param {number} totalPaginas - Total de páginas disponibles
+ * @returns {string} HTML de los controles de paginación
+ */
+function getPaginacionClientesHTML(totalPaginas) {
+    if (totalPaginas <= 1) return '';
+
+    let botones = '';
+
+    // Botón primera página
+    if (paginaActualClientes > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaClientes(1)" title="Primera página">
+            <i class="fas fa-angle-double-left"></i>
+        </button>`;
+    }
+
+    // Botón anterior
+    if (paginaActualClientes > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaClientes(${paginaActualClientes - 1})" title="Página anterior">
+            <i class="fas fa-chevron-left"></i>
+        </button>`;
+    }
+
+    // Input para número de página
+    botones += `<div class="input-paginacion">
+        <input type="number" id="inputPaginaClientes" class="input-numero-pagina" 
+            value="${paginaActualClientes}" min="1" max="${totalPaginas}" 
+            onchange="irAPaginaClientes()" onkeypress="if(event.key === 'Enter') irAPaginaClientes()">
+        <span class="info-paginacion"> de ${totalPaginas}</span>
+    </div>`;
+
+    // Botón siguiente
+    if (paginaActualClientes < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaClientes(${paginaActualClientes + 1})" title="Siguiente página">
+            <i class="fas fa-chevron-right"></i>
+        </button>`;
+    }
+
+    // Botón última página
+    if (paginaActualClientes < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaClientes(${totalPaginas})" title="Última página">
+            <i class="fas fa-angle-double-right"></i>
+        </button>`;
+    }
+
+    return `
+        <div class="admin-paginacion-wrapper">
+            <div class="admin-paginacion">
+                ${botones}
+            </div>
+        </div>`;
+}
+
+/**
+ * Navega a la página especificada en el input
+ */
+function irAPaginaClientes() {
+    const input = document.getElementById('inputPaginaClientes');
+    if (!input) return;
+
+    let pagina = parseInt(input.value);
+    const totalPaginas = Math.ceil(clientesData.length / clientesPorPagina);
+
+    // Validar que sea un número válido
+    if (isNaN(pagina) || pagina < 1) {
+        pagina = 1;
+    } else if (pagina > totalPaginas) {
+        pagina = totalPaginas;
+    }
+
+    cambiarPaginaClientes(pagina);
+}
+
+// ======================== PAGINACIÓN SESIONES CAJA ========================
+// Variables para paginación de sesiones de caja en admin
+let sesionesData = []; // Almacena todas las sesiones
+let paginaActualSesiones = 1;
+const sesionesPorPagina = 6;
+
+/**
+ * Genera los controles de paginación para sesiones de caja
+ * @param {number} totalPaginas - Total de páginas disponibles
+ * @returns {string} HTML de los controles de paginación
+ */
+function getPaginacionSesionesHTML(totalPaginas) {
+    if (totalPaginas <= 1) return '';
+
+    let botones = '';
+
+    // Botón primera página
+    if (paginaActualSesiones > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaSesiones(1)" title="Primera página">
+            <i class="fas fa-angle-double-left"></i>
+        </button>`;
+    }
+
+    // Botón anterior
+    if (paginaActualSesiones > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaSesiones(${paginaActualSesiones - 1})" title="Página anterior">
+            <i class="fas fa-chevron-left"></i>
+        </button>`;
+    }
+
+    // Input para número de página
+    botones += `<div class="input-paginacion">
+        <input type="number" id="inputPaginaSesiones" class="input-numero-pagina" 
+            value="${paginaActualSesiones}" min="1" max="${totalPaginas}" 
+            onchange="irAPaginaSesiones()" onkeypress="if(event.key === 'Enter') irAPaginaSesiones()">
+        <span class="info-paginacion"> de ${totalPaginas}</span>
+    </div>`;
+
+    // Botón siguiente
+    if (paginaActualSesiones < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaSesiones(${paginaActualSesiones + 1})" title="Siguiente página">
+            <i class="fas fa-chevron-right"></i>
+        </button>`;
+    }
+
+    // Botón última página
+    if (paginaActualSesiones < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaSesiones(${totalPaginas})" title="Última página">
+            <i class="fas fa-angle-double-right"></i>
+        </button>`;
+    }
+
+    return `
+        <div class="admin-paginacion-wrapper">
+            <div class="admin-paginacion">
+                ${botones}
+            </div>
+        </div>`;
+}
+
+/**
+ * Cambia la página de sesiones y vuelve a renderizar
+ * @param {number} nuevaPagina - Número de la nueva página
+ */
+function cambiarPaginaSesiones(nuevaPagina) {
+    const totalPaginas = Math.ceil(sesionesData.length / sesionesPorPagina);
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+
+    paginaActualSesiones = nuevaPagina;
+    renderizarSesionesPagina();
+}
+
+/**
+ * Navega a la página especificada en el input
+ */
+function irAPaginaSesiones() {
+    const input = document.getElementById('inputPaginaSesiones');
+    if (!input) return;
+
+    let pagina = parseInt(input.value);
+    const totalPaginas = Math.ceil(sesionesData.length / sesionesPorPagina);
+
+    // Validar que sea un número válido
+    if (isNaN(pagina) || pagina < 1) {
+        pagina = 1;
+    } else if (pagina > totalPaginas) {
+        pagina = totalPaginas;
+    }
+
+    cambiarPaginaSesiones(pagina);
+}
+
+// ======================== PAGINACIÓN PRODUCTOS ========================
+// Variables para paginación de productos en admin
+let productosData = []; // Almacena todos los productos
+let paginaActualProductos = 1;
+const productosPorPagina = 5;
+
+/**
+ * Genera los controles de paginación para productos
+ * @param {number} totalPaginas - Total de páginas disponibles
+ * @returns {string} HTML de los controles de paginación
+ */
+function getPaginacionProductosHTML(totalPaginas) {
+    if (totalPaginas <= 1) return '';
+
+    let botones = '';
+
+    // Botón primera página
+    if (paginaActualProductos > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaProductos(1)" title="Primera página">
+            <i class="fas fa-angle-double-left"></i>
+        </button>`;
+    }
+
+    // Botón anterior
+    if (paginaActualProductos > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaProductos(${paginaActualProductos - 1})" title="Página anterior">
+            <i class="fas fa-chevron-left"></i>
+        </button>`;
+    }
+
+    // Input para número de página
+    botones += `<div class="input-paginacion">
+        <input type="number" id="inputPaginaProductos" class="input-numero-pagina" 
+            value="${paginaActualProductos}" min="1" max="${totalPaginas}" 
+            onchange="irAPaginaProductos()" onkeypress="if(event.key === 'Enter') irAPaginaProductos()">
+        <span class="info-paginacion"> de ${totalPaginas}</span>
+    </div>`;
+
+    // Botón siguiente
+    if (paginaActualProductos < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaProductos(${paginaActualProductos + 1})" title="Siguiente página">
+            <i class="fas fa-chevron-right"></i>
+        </button>`;
+    }
+
+    // Botón última página
+    if (paginaActualProductos < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaProductos(${totalPaginas})" title="Última página">
+            <i class="fas fa-angle-double-right"></i>
+        </button>`;
+    }
+
+    return `
+        <div class="admin-paginacion-wrapper">
+            <div class="admin-paginacion">
+                ${botones}
+            </div>
+        </div>`;
+}
+
+/**
+ * Cambia la página de productos y vuelve a renderizar
+ * @param {number} nuevaPagina - Número de la nueva página
+ */
+function cambiarPaginaProductos(nuevaPagina) {
+    const totalPaginas = Math.ceil(productosData.length / productosPorPagina);
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+
+    paginaActualProductos = nuevaPagina;
+    renderizarProductosPagina();
+}
+
+/**
+ * Navega a la página especificada en el input
+ */
+function irAPaginaProductos() {
+    const input = document.getElementById('inputPaginaProductos');
+    if (!input) return;
+
+    let pagina = parseInt(input.value);
+    const totalPaginas = Math.ceil(productosData.length / productosPorPagina);
+
+    // Validar que sea un número válido
+    if (isNaN(pagina) || pagina < 1) {
+        pagina = 1;
+    } else if (pagina > totalPaginas) {
+        pagina = totalPaginas;
+    }
+
+    cambiarPaginaProductos(pagina);
+}
+
+// ======================== PAGINACIÓN CATEGORÍAS ========================
+// Variables para paginación de categorías en admin
+let categoriasData = []; // Almacena todas las categorías
+let paginaActualCategorias = 1;
+const categoriasPorPagina = 6;
+
+/**
+ * Genera los controles de paginación para categorías
+ * @param {number} totalPaginas - Total de páginas disponibles
+ * @returns {string} HTML de los controles de paginación
+ */
+function getPaginacionCategoriasHTML(totalPaginas) {
+    if (totalPaginas <= 1) return '';
+
+    let botones = '';
+
+    // Botón primera página
+    if (paginaActualCategorias > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaCategorias(1)" title="Primera página">
+            <i class="fas fa-angle-double-left"></i>
+        </button>`;
+    }
+
+    // Botón anterior
+    if (paginaActualCategorias > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaCategorias(${paginaActualCategorias - 1})" title="Página anterior">
+            <i class="fas fa-chevron-left"></i>
+        </button>`;
+    }
+
+    // Input para número de página
+    botones += `<div class="input-paginacion">
+        <input type="number" id="inputPaginaCategorias" class="input-numero-pagina" 
+            value="${paginaActualCategorias}" min="1" max="${totalPaginas}" 
+            onchange="irAPaginaCategorias()" onkeypress="if(event.key === 'Enter') irAPaginaCategorias()">
+        <span class="info-paginacion"> de ${totalPaginas}</span>
+    </div>`;
+
+    // Botón siguiente
+    if (paginaActualCategorias < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaCategorias(${paginaActualCategorias + 1})" title="Siguiente página">
+            <i class="fas fa-chevron-right"></i>
+        </button>`;
+    }
+
+    // Botón última página
+    if (paginaActualCategorias < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaCategorias(${totalPaginas})" title="Última página">
+            <i class="fas fa-angle-double-right"></i>
+        </button>`;
+    }
+
+    return `
+        <div class="admin-paginacion-wrapper">
+            <div class="admin-paginacion">
+                ${botones}
+            </div>
+        </div>`;
+}
+
+/**
+ * Cambia la página de categorías y vuelve a renderizar
+ * @param {number} nuevaPagina - Número de la nueva página
+ */
+function cambiarPaginaCategorias(nuevaPagina) {
+    const totalPaginas = Math.ceil(categoriasData.length / categoriasPorPagina);
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+
+    paginaActualCategorias = nuevaPagina;
+    renderizarCategoriasPagina();
+}
+
+/**
+ * Navega a la página especificada en el input
+ */
+function irAPaginaCategorias() {
+    const input = document.getElementById('inputPaginaCategorias');
+    if (!input) return;
+
+    let pagina = parseInt(input.value);
+    const totalPaginas = Math.ceil(categoriasData.length / categoriasPorPagina);
+
+    // Validar que sea un número válido
+    if (isNaN(pagina) || pagina < 1) {
+        pagina = 1;
+    } else if (pagina > totalPaginas) {
+        pagina = totalPaginas;
+    }
+
+    cambiarPaginaCategorias(pagina);
+}
+
+// ======================== PAGINACIÓN USUARIOS ========================
+// Variables para paginación de usuarios en admin
+let usuariosData = []; // Almacena todos los usuarios
+let paginaActualUsuarios = 1;
+const usuariosPorPagina = 6;
+
+/**
+ * Genera los controles de paginación para usuarios
+ * @param {number} totalPaginas - Total de páginas disponibles
+ * @returns {string} HTML de los controles de paginación
+ */
+function getPaginacionUsuariosHTML(totalPaginas) {
+    if (totalPaginas <= 1) return '';
+
+    let botones = '';
+
+    // Botón primera página
+    if (paginaActualUsuarios > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaUsuarios(1)" title="Primera página">
+            <i class="fas fa-angle-double-left"></i>
+        </button>`;
+    }
+
+    // Botón anterior
+    if (paginaActualUsuarios > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaUsuarios(${paginaActualUsuarios - 1})" title="Página anterior">
+            <i class="fas fa-chevron-left"></i>
+        </button>`;
+    }
+
+    // Input para número de página
+    botones += `<div class="input-paginacion">
+        <input type="number" id="inputPaginaUsuarios" class="input-numero-pagina" 
+            value="${paginaActualUsuarios}" min="1" max="${totalPaginas}" 
+            onchange="irAPaginaUsuarios()" onkeypress="if(event.key === 'Enter') irAPaginaUsuarios()">
+        <span class="info-paginacion"> de ${totalPaginas}</span>
+    </div>`;
+
+    // Botón siguiente
+    if (paginaActualUsuarios < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaUsuarios(${paginaActualUsuarios + 1})" title="Siguiente página">
+            <i class="fas fa-chevron-right"></i>
+        </button>`;
+    }
+
+    // Botón última página
+    if (paginaActualUsuarios < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaUsuarios(${totalPaginas})" title="Última página">
+            <i class="fas fa-angle-double-right"></i>
+        </button>`;
+    }
+
+    return `
+        <div class="admin-paginacion-wrapper">
+            <div class="admin-paginacion">
+                ${botones}
+            </div>
+        </div>`;
+}
+
+/**
+ * Cambia la página de usuarios y vuelve a renderizar
+ * @param {number} nuevaPagina - Número de la nueva página
+ */
+function cambiarPaginaUsuarios(nuevaPagina) {
+    const totalPaginas = Math.ceil(usuariosData.length / usuariosPorPagina);
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+
+    paginaActualUsuarios = nuevaPagina;
+    renderizarUsuariosPagina();
+}
+
+/**
+ * Navega a la página especificada en el input
+ */
+function irAPaginaUsuarios() {
+    const input = document.getElementById('inputPaginaUsuarios');
+    if (!input) return;
+
+    let pagina = parseInt(input.value);
+    const totalPaginas = Math.ceil(usuariosData.length / usuariosPorPagina);
+
+    if (isNaN(pagina) || pagina < 1) {
+        pagina = 1;
+    } else if (pagina > totalPaginas) {
+        pagina = totalPaginas;
+    }
+
+    cambiarPaginaUsuarios(pagina);
+}
+
+// ======================== PAGINACIÓN VENTAS ========================
+// Variables para paginación de ventas en admin
+let ventasData = []; // Almacena todas las ventas
+let paginaActualVentas = 1;
+const ventasPorPagina = 6;
+
+// ======================== PAGINACIÓN RETIROS ========================
+// Variables para paginación de retiros en admin
+let retirosData = []; // Almacena todos los retiros
+let paginaActualRetiros = 1;
+const retirosPorPagina = 6;
+
+/**
+ * Genera los controles de paginación para retiros
+ * @param {number} totalPaginas - Total de páginas disponibles
+ * @returns {string} HTML de los controles de paginación
+ */
+function getPaginacionRetirosHTML(totalPaginas) {
+    if (totalPaginas <= 1) return '';
+
+    let botones = '';
+
+    // Botón primera página
+    if (paginaActualRetiros > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaRetiros(1)" title="Primera página">
+            <i class="fas fa-angle-double-left"></i>
+        </button>`;
+    }
+
+    // Botón anterior
+    if (paginaActualRetiros > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaRetiros(${paginaActualRetiros - 1})" title="Página anterior">
+            <i class="fas fa-chevron-left"></i>
+        </button>`;
+    }
+
+    // Input para número de página
+    botones += `<div class="input-paginacion">
+        <input type="number" id="inputPaginaRetiros" class="input-numero-pagina" 
+            value="${paginaActualRetiros}" min="1" max="${totalPaginas}" 
+            onchange="irAPaginaRetiros()" onkeypress="if(event.key === 'Enter') irAPaginaRetiros()">
+        <span class="info-paginacion"> de ${totalPaginas}</span>
+    </div>`;
+
+    // Botón siguiente
+    if (paginaActualRetiros < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaRetiros(${paginaActualRetiros + 1})" title="Siguiente página">
+            <i class="fas fa-chevron-right"></i>
+        </button>`;
+    }
+
+    // Botón última página
+    if (paginaActualRetiros < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaRetiros(${totalPaginas})" title="Última página">
+            <i class="fas fa-angle-double-right"></i>
+        </button>`;
+    }
+
+    return `
+        <div class="admin-paginacion-wrapper">
+            <div class="admin-paginacion">
+                ${botones}
+            </div>
+        </div>`;
+}
+
+/**
+ * Cambia la página de retiros y vuelve a renderizar
+ * @param {number} nuevaPagina - Número de la nueva página
+ */
+function cambiarPaginaRetiros(nuevaPagina) {
+    const totalPaginas = Math.ceil(retirosData.length / retirosPorPagina);
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+
+    paginaActualRetiros = nuevaPagina;
+    renderizarRetirosPagina();
+}
+
+/**
+ * Navega a la página especificada en el input
+ */
+function irAPaginaRetiros() {
+    const input = document.getElementById('inputPaginaRetiros');
+    if (!input) return;
+
+    let pagina = parseInt(input.value);
+    const totalPaginas = Math.ceil(retirosData.length / retirosPorPagina);
+
+    if (isNaN(pagina) || pagina < 1) {
+        pagina = 1;
+    } else if (pagina > totalPaginas) {
+        pagina = totalPaginas;
+    }
+
+    cambiarPaginaRetiros(pagina);
+}
+
+/**
+ * Genera el HTML de una fila de retiro
+ * @param {Object} retiro - Datos del retiro
+ * @param {number} index - Índice del retiro en la página actual
+ * @returns {string} HTML de la fila
+ */
+function generarFilaRetiro(retiro, index) {
+    const fecha = new Date(retiro.fecha).toLocaleString('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+    const usuario = retiro.usuario_nombre ?
+        retiro.usuario_nombre + ' ' + (retiro.usuario_apellidos || '') : 'Usuario #' + retiro.idUsuario;
+    const motivo = retiro.motivo || 'Sin motivo';
+    const cajaSesion = retiro.caja_fecha_apertura ?
+        new Date(retiro.caja_fecha_apertura).toLocaleDateString('es-ES') : '#' + retiro.idCajaSesion;
+
+    return `
+        <tr>
+            <td>${index + 1}</td>
+            <td>${fecha}</td>
+            <td>${usuario}</td>
+            <td style="color: #dc2626; font-weight: bold;">-${parseFloat(retiro.importe).toFixed(2)} €</td>
+            <td>${motivo}</td>
+            <td>${cajaSesion}</td>
+        </tr>`;
+}
+
+/**
+ * Renderiza la página actual de retiros
+ */
+function renderizarRetirosPagina() {
+    const inicio = (paginaActualRetiros - 1) * retirosPorPagina;
+    const fin = inicio + retirosPorPagina;
+    const retirosPagina = retirosData.slice(inicio, fin);
+    const totalPaginas = Math.ceil(retirosData.length / retirosPorPagina);
+
+    const contenedor = document.getElementById('adminContenido');
+    if (!contenedor) return;
+
+    let filasHtml = '';
+    retirosPagina.forEach((retiro, index) => {
+        filasHtml += generarFilaRetiro(retiro, inicio + index);
+    });
+
+    const tbody = contenedor.querySelector('tbody');
+    if (tbody) {
+        tbody.innerHTML = filasHtml;
+    }
+
+    const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
+    if (paginacionExistente) {
+        paginacionExistente.remove();
+    }
+
+    const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
+    if (wrapperTabla) {
+        wrapperTabla.insertAdjacentHTML('afterend', getPaginacionRetirosHTML(totalPaginas));
+    }
+}
+
+/**
+ * Genera los controles de paginación para ventas
+ * @param {number} totalPaginas - Total de páginas disponibles
+ * @returns {string} HTML de los controles de paginación
+ */
+function getPaginacionVentasHTML(totalPaginas) {
+    if (totalPaginas <= 1) return '';
+
+    let botones = '';
+
+    // Botón primera página
+    if (paginaActualVentas > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaVentas(1)" title="Primera página">
+            <i class="fas fa-angle-double-left"></i>
+        </button>`;
+    }
+
+    // Botón anterior
+    if (paginaActualVentas > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaVentas(${paginaActualVentas - 1})" title="Página anterior">
+            <i class="fas fa-chevron-left"></i>
+        </button>`;
+    }
+
+    // Input para número de página
+    botones += `<div class="input-paginacion">
+        <input type="number" id="inputPaginaVentas" class="input-numero-pagina" 
+            value="${paginaActualVentas}" min="1" max="${totalPaginas}" 
+            onchange="irAPaginaVentas()" onkeypress="if(event.key === 'Enter') irAPaginaVentas()">
+        <span class="info-paginacion"> de ${totalPaginas}</span>
+    </div>`;
+
+    // Botón siguiente
+    if (paginaActualVentas < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaVentas(${paginaActualVentas + 1})" title="Siguiente página">
+            <i class="fas fa-chevron-right"></i>
+        </button>`;
+    }
+
+    // Botón última página
+    if (paginaActualVentas < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaVentas(${totalPaginas})" title="Última página">
+            <i class="fas fa-angle-double-right"></i>
+        </button>`;
+    }
+
+    return `
+        <div class="admin-paginacion-wrapper">
+            <div class="admin-paginacion">
+                ${botones}
+            </div>
+        </div>`;
+}
+
+/**
+ * Cambia la página de ventas y vuelve a renderizar
+ * @param {number} nuevaPagina - Número de la nueva página
+ */
+function cambiarPaginaVentas(nuevaPagina) {
+    const totalPaginas = Math.ceil(ventasData.length / ventasPorPagina);
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+
+    paginaActualVentas = nuevaPagina;
+    renderizarVentasPagina();
+}
+
+/**
+ * Navega a la página especificada en el input
+ */
+function irAPaginaVentas(valor) {
+    let pagina;
+    if (valor !== undefined) {
+        // Called from inline onchange with value
+        pagina = parseInt(valor);
+    } else {
+        // Called from button click, get from input
+        const input = document.getElementById('inputPaginaVentas');
+        if (!input) return;
+        pagina = parseInt(input.value);
+    }
+
+    const totalPaginas = Math.ceil(ventasData.length / ventasPorPagina);
+
+    if (isNaN(pagina) || pagina < 1) {
+        pagina = 1;
+    } else if (pagina > totalPaginas) {
+        pagina = totalPaginas;
+    }
+
+    cambiarPaginaVentas(pagina);
+}
+
+/**
+ * Genera el HTML de una fila de venta
+ * @param {Object} venta - Datos de la venta
+ * @returns {string} HTML de la fila
+ */
+function generarFilaVenta(venta) {
+    const fecha = new Date(venta.fecha).toLocaleString('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+    const total = parseFloat(venta.total).toFixed(2).replace('.', ',');
+    const productos = venta.cantidad_productos || 0;
+
+    // Formatear forma de pago
+    let formaPago = venta.forma_pago || '—';
+    if (formaPago === 'efectivo') formaPago = '💵 Efectivo';
+    else if (formaPago === 'tarjeta') formaPago = '💳 Tarjeta';
+    else if (formaPago === 'bizum') formaPago = '📱 Bizum';
+
+    // Formatear tipo de documento
+    let tipoDocumento = venta.tipoDocumento || 'ticket';
+    if (tipoDocumento === 'ticket') tipoDocumento = '🧾 Ticket';
+    else if (tipoDocumento === 'factura') tipoDocumento = '📄 Factura';
+
+    // Formatear tarifa
+    let tarifaNombre = venta.tarifa_nombre || 'Cliente';
+
+    return `
+        <tr>
+            <td class="col-id">${venta.id}</td>
+            <td class="col-fecha">${fecha}</td>
+            <td class="col-usuario">${venta.usuario_nombre || '—'}</td>
+            <td class="col-productos">${productos}</td>
+            <td class="col-tarifa">${tarifaNombre}</td>
+            <td class="col-documento">${tipoDocumento}</td>
+            <td class="col-pago">${formaPago}</td>
+            <td class="col-total" style="font-weight: 700; color: #059669;">${total} €</td>
+            <td class="col-acciones">
+                <button class="btn-admin-accion btn-ver" onclick="verDetalleVenta(${venta.id})" title="Ver Detalles">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </td>
+        </tr>`;
+}
+
+/**
+ * Renderiza la página actual de ventas
+ */
+function renderizarVentasPagina() {
+    const inicio = (paginaActualVentas - 1) * ventasPorPagina;
+    const fin = inicio + ventasPorPagina;
+    const ventasPagina = ventasData.slice(inicio, fin);
+    const totalPaginas = Math.ceil(ventasData.length / ventasPorPagina);
+
+    const contenedor = document.getElementById('adminContenido');
+    if (!contenedor) return;
+
+    let filasHtml = '';
+    ventasPagina.forEach(venta => {
+        filasHtml += generarFilaVenta(venta);
+    });
+
+    const tbody = contenedor.querySelector('tbody');
+    if (tbody) {
+        tbody.innerHTML = filasHtml;
+    }
+
+    const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
+    if (paginacionExistente) {
+        paginacionExistente.remove();
+    }
+
+    const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
+    if (wrapperTabla) {
+        wrapperTabla.insertAdjacentHTML('afterend', getPaginacionVentasHTML(totalPaginas));
+    }
+}
+
+/**
+ * Genera el HTML de una fila de usuario
+ * @param {Object} usr - Datos del usuario
+ * @returns {string} HTML de la fila
+ */
+function generarFilaUsuario(usr) {
+    const fechaAlta = new Date(usr.fechaAlta).toLocaleDateString('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+
+    const rolBadge = usr.rol === 'admin'
+        ? '<span class="admin-badge" style="background: #dbeafe; color: #1e40af;">Admin</span>'
+        : '<span class="admin-badge" style="background: #f3f4f6; color: #374151;">Empleado</span>';
+
+    const estadoHtml = usr.activo === 1
+        ? '<span class="admin-badge badge-activo">Activo</span>'
+        : '<span class="admin-badge badge-inactivo">Inactivo</span>';
+
+    return `
+        <tr>
+            <td class="col-id">${usr.id}</td>
+            <td class="col-nombre">${usr.nombre}</td>
+            <td class="col-email">${usr.email}</td>
+            <td class="col-rol">${rolBadge}</td>
+            <td class="col-fecha">${fechaAlta}</td>
+            <td class="col-estado">${estadoHtml}</td>
+            <td class="col-acciones">
+                <button class="btn-admin-accion btn-ver" onclick="verUsuario(${usr.id})" title="Ver">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn-admin-accion btn-editar" onclick="editarUsuario(${usr.id})" title="Editar">
+                    <i class="fas fa-pen"></i>
+                </button>
+                ${usr.rol !== 'admin' ? `
+                <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarUsuario(${usr.id}, '${usr.nombre.replace(/'/g, "\\'")}')" title="Eliminar">
+                    <i class="fas fa-trash"></i>
+                </button>` : ''}
+            </td>
+        </tr>`;
+}
+
+/**
+ * Renderiza la página actual de usuarios
+ */
+function renderizarUsuariosPagina() {
+    const inicio = (paginaActualUsuarios - 1) * usuariosPorPagina;
+    const fin = inicio + usuariosPorPagina;
+    const usuariosPagina = usuariosData.slice(inicio, fin);
+    const totalPaginas = Math.ceil(usuariosData.length / usuariosPorPagina);
+
+    const contenedor = document.getElementById('adminContenido');
+    if (!contenedor) return;
+
+    let filasHtml = '';
+    usuariosPagina.forEach(usr => {
+        filasHtml += generarFilaUsuario(usr);
+    });
+
+    const tbody = contenedor.querySelector('tbody');
+    if (tbody) {
+        tbody.innerHTML = filasHtml;
+    }
+
+    const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
+    if (paginacionExistente) {
+        paginacionExistente.remove();
+    }
+
+    const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
+    if (wrapperTabla) {
+        wrapperTabla.insertAdjacentHTML('afterend', getPaginacionUsuariosHTML(totalPaginas));
+    }
+}
+
+/**
+ * Genera el HTML de una fila de categoría
+ * @param {Object} cat - Datos de la categoría
+ * @returns {string} HTML de la fila
+ */
+function generarFilaCategoria(cat) {
+    const fecha = cat.fecha_creacion ? new Date(cat.fecha_creacion).toLocaleDateString('es-ES') : '—';
+    return `<tr>
+        <td>${cat.id}</td>
+        <td>${cat.nombre}</td>
+        <td style="text-align: center;"><span class="admin-badge" style="background: #e0e7ff; color: #3730a3;">${cat.num_productos}</span></td>
+        <td>${fecha}</td>
+        <td class="col-acciones">
+            <button class="btn-admin-accion btn-ver" onclick="verCategoria(${cat.id})" title="Ver">
+                <i class="fas fa-eye"></i>
+            </button>
+            <button class="btn-admin-accion btn-editar" onclick="abrirModalEditarCategoria(${cat.id}, '${cat.nombre}', '${cat.descripcion || ''}')" title="Editar">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarCategoria(${cat.id}, '${cat.nombre}')" title="Eliminar">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    </tr>`;
+}
+
+/**
+ * Renderiza la página actual de categorías
+ */
+function renderizarCategoriasPagina() {
+    const inicio = (paginaActualCategorias - 1) * categoriasPorPagina;
+    const fin = inicio + categoriasPorPagina;
+    const categoriasPagina = categoriasData.slice(inicio, fin);
+    const totalPaginas = Math.ceil(categoriasData.length / categoriasPorPagina);
+
+    const tablaBody = document.getElementById('tablaCategoriasBody');
+    if (!tablaBody) return;
+
+    // Generar filas solo para la página actual
+    let filasHtml = '';
+    categoriasPagina.forEach(cat => {
+        filasHtml += generarFilaCategoria(cat);
+    });
+
+    tablaBody.innerHTML = filasHtml;
+
+    // Actualizar paginación
+    const paginacionExistente = document.querySelector('.admin-paginacion-wrapper');
+    if (paginacionExistente) {
+        paginacionExistente.remove();
+    }
+
+    const wrapperTabla = document.querySelector('.admin-tabla-wrapper');
+    if (wrapperTabla) {
+        wrapperTabla.insertAdjacentHTML('afterend', getPaginacionCategoriasHTML(totalPaginas));
+    }
+}
+
+/**
+ * Genera el HTML de una fila de producto
+ * @param {Object} prod - Datos del producto
+ * @returns {string} HTML de la fila
+ */
+function generarFilaProducto(prod) {
+    // Calcular el precio a mostrar según el estado del toggle
+    let precioMostrado = parseFloat(prod.precio);
+    if (mostrarConIva) {
+        const ivaPorcentaje = (prod.iva !== null && prod.iva !== undefined && prod.iva !== "") ? parseInt(prod.iva) : 21;
+        precioMostrado = precioMostrado * (1 + (ivaPorcentaje / 100));
+    }
+
+    const precioFmt = precioMostrado.toFixed(2).replace('.', ',');
+    const imgSrc = prod.imagen && prod.imagen !== '' ? prod.imagen : 'webroot/img/logo.PNG';
+
+    let stockBadge = '';
+    if (prod.stock <= 0) {
+        stockBadge = 'badge-agotado';
+    } else if (prod.stock <= 3) {
+        stockBadge = 'badge-bajo';
+    } else {
+        stockBadge = 'badge-ok';
+    }
+
+    const estadoHtml = prod.activo == 1
+        ? `<span class="admin-badge badge-activo">Activo</span>`
+        : `<span class="admin-badge badge-inactivo">Inactivo</span>`;
+
+    return `
+        <tr class="${prod.stock <= 0 ? 'fila-agotada' : ''}${prod.activo == 0 ? 'fila-inactiva' : ''}" 
+            data-precio-base="${prod.precio}" 
+            data-iva="${prod.iva}"
+            data-iva-id="${prod.idIva}"
+            data-iva-nombre="${prod.ivaNombre || ''}">
+            <td class="col-id">${prod.id}</td>
+            <td class="col-img">
+                <img src="${imgSrc}" alt="${prod.nombre.replace(/"/g, '&quot;')}" class="admin-tabla-img">
+            </td>
+            <td class="col-nombre">${prod.nombre}</td>
+            <td class="col-categoria">${prod.categoria ?? '—'}</td>
+            <td class="col-precio">${precioFmt} €</td>
+            <td class="col-stock">
+                <span class="admin-badge ${stockBadge}">${prod.stock}</span>
+            </td>
+            <td class="col-estado">${estadoHtml}</td>
+            <td class="col-iva">${prod.iva}% (${prod.ivaNombre || 'General'})</td>
+            <td class="col-acciones" style="${prod.stock <= 0 ? 'opacity: 1;' : ''}${prod.activo == 0 ? 'opacity: 1;' : ''}">
+                <button class="btn-admin-accion btn-ver" onclick="verProducto(${prod.id})" title="Ver">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn-admin-accion btn-editar" onclick="editarProducto(${prod.id})" title="Editar">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarProducto(${prod.id}, '${prod.nombre.replace(/'/g, "\\'")}')" title="Eliminar">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+}
+
+/**
+ * Renderiza la página actual de productos
+ */
+function renderizarProductosPagina() {
+    const inicio = (paginaActualProductos - 1) * productosPorPagina;
+    const fin = inicio + productosPorPagina;
+    const productosPagina = productosData.slice(inicio, fin);
+    const totalPaginas = Math.ceil(productosData.length / productosPorPagina);
+
+    const contenedor = document.getElementById('adminContenido');
+    if (!contenedor) return;
+
+    // Generar filas solo para la página actual
+    let filasHtml = '';
+    productosPagina.forEach(prod => {
+        filasHtml += generarFilaProducto(prod);
+    });
+
+    // Actualizar solo el tbody y añadir paginación
+    const tbody = contenedor.querySelector('tbody');
+    if (tbody) {
+        tbody.innerHTML = filasHtml;
+    }
+
+    // Eliminar paginación existente si la hay
+    const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
+    if (paginacionExistente) {
+        paginacionExistente.remove();
+    }
+
+    // Añadir nueva paginación
+    const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
+    if (wrapperTabla) {
+        wrapperTabla.insertAdjacentHTML('afterend', getPaginacionProductosHTML(totalPaginas));
+    }
+}
+
+/**
+ * Genera el HTML de una fila de sesión
+ * @param {Object} sesion - Datos de la sesión
+ * @param {number} index - Índice en la página actual
+ * @returns {string} HTML de la fila
+ */
+function generarFilaSesion(sesion, index) {
+    const fechaApertura = sesion.fechaApertura ? new Date(sesion.fechaApertura).toLocaleString('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    }) : '-';
+    const fechaCierre = sesion.fechaCierre ? new Date(sesion.fechaCierre).toLocaleString('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    }) : '-';
+    const usuario = sesion.usuario_nombre || 'Usuario #' + sesion.idUsuario;
+    const retiros = parseFloat(sesion.total_retiros || 0);
+    const devoluciones = parseFloat(sesion.total_devoluciones || 0);
+    const totalProductos = parseInt(sesion.total_productos || 0);
+    const totalVentas = parseInt(sesion.total_ventas || 0);
+
+    return `
+        <tr>
+            <td style="text-align: center; width: 40px;">${index + 1}</td>
+            <td style="width: 120px;">${usuario}</td>
+            <td style="text-align: center;">${fechaApertura}</td>
+            <td style="text-align: center;">${fechaCierre}</td>
+            <td style="text-align: center;">${parseFloat(sesion.importeInicial).toFixed(2)} €</td>
+            <td style="text-align: center;">${parseFloat(sesion.importeActual).toFixed(2)} €</td>
+            <td style="text-align: center; font-weight: bold;">${totalVentas}</td>
+            <td style="text-align: center; font-weight: bold;">${totalProductos}</td>
+            <td style="text-align: center; color: #ea580c; font-weight: bold;">-${retiros.toFixed(2)} €</td>
+            <td style="text-align: center; color: #dc2626; font-weight: bold;">-${devoluciones.toFixed(2)} €</td>
+            <td style="text-align: center; font-weight: bold; color: ${sesion.efectivoContado !== null ? (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) > 0.01 ? '#059669' : (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) < -0.01 ? '#dc2626' : 'inherit')) : 'inherit'}">
+                ${sesion.efectivoContado !== null ? `
+                    ${(parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual)).toFixed(2).replace('.', ',')} € 
+                    <small>${parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) > 0.01 ? '(Sobrante)' : (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) < -0.01 ? '(Faltante)' : '')}</small>
+                ` : '—'}
+            </td>
+        </tr>`;
+}
+
+/**
+ * Renderiza la página actual de sesiones
+ */
+function renderizarSesionesPagina() {
+    const inicio = (paginaActualSesiones - 1) * sesionesPorPagina;
+    const fin = inicio + sesionesPorPagina;
+    const sesionesPagina = sesionesData.slice(inicio, fin);
+    const totalPaginas = Math.ceil(sesionesData.length / sesionesPorPagina);
+
+    const contenedor = document.getElementById('adminContenido');
+    if (!contenedor) return;
+
+    // Generar filas solo para la página actual
+    let filasHtml = '';
+    sesionesPagina.forEach((sesion, index) => {
+        filasHtml += generarFilaSesion(sesion, index);
+    });
+
+    // Actualizar solo el tbody y añadir paginación
+    const tbody = contenedor.querySelector('tbody');
+    if (tbody) {
+        tbody.innerHTML = filasHtml;
+    }
+
+    // Eliminar paginación existente si la hay
+    const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
+    if (paginacionExistente) {
+        paginacionExistente.remove();
+    }
+
+    // Añadir nueva paginación
+    const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
+    if (wrapperTabla) {
+        wrapperTabla.insertAdjacentHTML('afterend', getPaginacionSesionesHTML(totalPaginas));
+    }
+}
+
+/**
+ * Cambia la página de clientes y vuelve a renderizar
+ * @param {number} nuevaPagina - Número de la nueva página
+ */
+function cambiarPaginaClientes(nuevaPagina) {
+    const totalPaginas = Math.ceil(clientesData.length / clientesPorPagina);
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+
+    paginaActualClientes = nuevaPagina;
+    renderizarClientesPagina();
+}
+
+/**
+ * Renderiza la página actual de clientes
+ */
+function renderizarClientesPagina() {
+    const inicio = (paginaActualClientes - 1) * clientesPorPagina;
+    const fin = inicio + clientesPorPagina;
+    const clientesPagina = clientesData.slice(inicio, fin);
+    const totalPaginas = Math.ceil(clientesData.length / clientesPorPagina);
+
+    const contenedor = document.getElementById('adminContenido');
+    if (!contenedor) return;
+
+    // Generar filas solo para la página actual
+    let filasHtml = '';
+    clientesPagina.forEach(cli => {
+        const estadoHtml = cli.activo == 1
+            ? '<span class="admin-badge badge-activo">Activo</span>'
+            : '<span class="admin-badge badge-inactivo">Inactivo</span>';
+
+        const btnEliminar = `<button class="btn-admin-accion btn-eliminar" onclick="eliminarCliente(${cli.id})" title="Eliminar">
+                <i class="fas fa-trash"></i>
+               </button>`;
+
+        const btnVer = `<button class="btn-admin-accion btn-ver" onclick="verCliente(${cli.id})" title="Ver">
+                <i class="fas fa-eye"></i>
+               </button>`;
+
+        const btnEditar = `<button class="btn-admin-accion btn-editar" onclick="editarCliente(${cli.id})" title="Editar">
+                <i class="fas fa-pen"></i>
+               </button>`;
+
+        filasHtml += `
+            <tr class="${cli.activo == 0 ? 'fila-inactiva' : ''}"
+                data-nombre="${(cli.nombre || '').replace(/"/g, '&quot;')}"
+                data-apellidos="${(cli.apellidos || '').replace(/"/g, '&quot;')}"
+                data-fecha-alta="${cli.fecha_alta || ''}"
+                data-productos="${cli.productos_comprados || 0}"
+                data-compras="${cli.compras_realizadas || 0}"
+                data-puntos="${cli.puntos || 0}"
+                data-activo="${cli.activo}">
+                <td class="col-id">${cli.id}</td>
+                <td class="col-nombre">${cli.dni}</td>
+                <td>${cli.nombre || '—'}</td>
+                <td>${cli.apellidos || '—'}</td>
+                <td>${cli.fecha_alta || '—'}</td>
+                <td>${cli.productos_comprados || 0}</td>
+                <td>${cli.compras_realizadas || 0}</td>
+                <td style="font-weight: bold; color: #10b981;">${(cli.puntos || 0).toLocaleString('es-ES')}</td>
+                <td>${estadoHtml}</td>
+                <td class="col-acciones">${btnVer} ${btnEditar} ${btnEliminar}</td>
+            </tr>`;
+    });
+
+    // Actualizar solo el tbody y añadir paginación
+    const tbody = contenedor.querySelector('tbody');
+    if (tbody) {
+        tbody.innerHTML = filasHtml;
+    }
+
+    // Eliminar paginación existente si la hay
+    const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
+    if (paginacionExistente) {
+        paginacionExistente.remove();
+    }
+
+    // Añadir nueva paginación
+    const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
+    if (wrapperTabla) {
+        wrapperTabla.insertAdjacentHTML('afterend', getPaginacionClientesHTML(totalPaginas));
+    }
+}
 
 // Variable para almacenar temporalmente los datos de una tarifa que tiene conflictos
 let tarifaDataPendiente = null;
@@ -285,7 +1472,7 @@ function getAdminTablaHeader(textoBusqueda = '', idCategoriaSeleccionada = '', o
                 </button>
             </div>
         </div>
-        <div class="admin-tabla-wrapper">
+        <div class="admin-tabla-wrapper sin-scroll">
             <table class="admin-tabla">
                 <thead>
                     <tr>
@@ -313,6 +1500,14 @@ function getAdminTablaHeader(textoBusqueda = '', idCategoriaSeleccionada = '', o
 function renderProductosAdmin(productos, esPrimeraVez = true, idCategoria = '', orden = '') {
     // Obtener el contenedor principal donde se inyectará la tabla de productos.
     const contenedor = document.getElementById('adminContenido');
+
+    // Guardar todos los productos para paginación
+    productosData = productos;
+
+    // Reset a página 1 cuando se cargan nuevos datos
+    if (esPrimeraVez) {
+        paginaActualProductos = 1;
+    }
 
     // Si no hay productos, mostrar un mensaje informativo.
     if (!productos || productos.length === 0) {
@@ -368,74 +1563,18 @@ function renderProductosAdmin(productos, esPrimeraVez = true, idCategoria = '', 
         });
     }
 
+    // Calcular paginación
+    const totalPaginas = Math.ceil(productos.length / productosPorPagina);
+    const inicio = (paginaActualProductos - 1) * productosPorPagina;
+    const fin = inicio + productosPorPagina;
+    const productosPagina = productos.slice(inicio, fin);
+
     // Usar el header guardado (input fijo)
     let html = adminTablaHeaderHTML;
 
     // Iterar sobre cada producto para generar las filas de la tabla.
-    productos.forEach(prod => {
-        // Calcular el precio a mostrar según el estado del toggle
-        let precioMostrado = parseFloat(prod.precio);
-        if (mostrarConIva) {
-            // Usar check estricto para evitar que el 0 sea tratado como falsy
-            const ivaPorcentaje = (prod.iva !== null && prod.iva !== undefined && prod.iva !== "") ? parseInt(prod.iva) : 21;
-            precioMostrado = precioMostrado * (1 + (ivaPorcentaje / 100));
-        }
-
-        // Formatear el precio con 2 decimales y coma como separador decimal (formato europeo).
-        const precioFmt = precioMostrado.toFixed(2).replace('.', ',');
-
-        // Usar la imagen del producto si existe; de lo contrario, usar el logo por defecto.
-        const imgSrc = prod.imagen && prod.imagen !== '' ? prod.imagen : 'webroot/img/logo.PNG';
-
-        // Determinar la clase CSS del badge de stock según el nivel de inventario.
-        let stockBadge = '';
-        if (prod.stock <= 0) {
-            stockBadge = 'badge-agotado';    // Sin stock: badge rojo "agotado".
-        } else if (prod.stock <= 3) {
-            stockBadge = 'badge-bajo';       // Stock bajo (<=3): badge de advertencia.
-        } else {
-            stockBadge = 'badge-ok';         // Stock suficiente: badge verde.
-        }
-
-        // Determinar el badge de estado (activo/inactivo) según el campo 'activo' del producto.
-        const estadoHtml = prod.activo == 1
-            ? `<span class="admin-badge badge-activo">Activo</span>`
-            : `<span class="admin-badge badge-inactivo">Inactivo</span>`;
-
-        // Generar la fila HTML del producto.
-        // - Las filas de productos agotados reciben la clase 'fila-agotada' (estilo atenuado).
-        // - Las filas de productos inactivos reciben la clase 'fila-inactiva'.
-        // - Cada fila incluye botones de acción: ver, editar y eliminar.
-        html += `
-                    <tr class="${prod.stock <= 0 ? 'fila-agotada' : ''}${prod.activo == 0 ? 'fila-inactiva' : ''}" 
-                        data-precio-base="${prod.precio}" 
-                        data-iva="${prod.iva}"
-                        data-iva-id="${prod.idIva}"
-                        data-iva-nombre="${prod.ivaNombre || ''}">
-                        <td class="col-id">${prod.id}</td>
-                        <td class="col-img">
-                            <img src="${imgSrc}" alt="${prod.nombre.replace(/"/g, '&quot;')}" class="admin-tabla-img">
-                        </td>
-                        <td class="col-nombre">${prod.nombre}</td>
-                        <td class="col-categoria">${prod.categoria ?? '—'}</td>
-                        <td class="col-precio">${precioFmt} €</td>
-                        <td class="col-stock">
-                            <span class="admin-badge ${stockBadge}">${prod.stock}</span>
-                        </td>
-                        <td class="col-estado">${estadoHtml}</td>
-                        <td class="col-iva">${prod.iva}% (${prod.ivaNombre || 'General'})</td>
-                        <td class="col-acciones" style="${prod.stock <= 0 ? 'opacity: 1;' : ''}${prod.activo == 0 ? 'opacity: 1;' : ''}">
-                            <button class="btn-admin-accion btn-ver" onclick="verProducto(${prod.id})" title="Ver">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn-admin-accion btn-editar" onclick="editarProducto(${prod.id})" title="Editar">
-                                <i class="fas fa-pen"></i>
-                            </button>
-                            <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarProducto(${prod.id}, '${prod.nombre.replace(/'/g, "\\'")}')" title="Eliminar">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>`;
+    productosPagina.forEach(prod => {
+        html += generarFilaProducto(prod);
     });
 
     // Cerrar las etiquetas de la tabla y del contenedor wrapper.
@@ -443,6 +1582,9 @@ function renderProductosAdmin(productos, esPrimeraVez = true, idCategoria = '', 
                 </tbody>
             </table>
         </div>`;
+
+    // Añadir controls de paginación
+    html += getPaginacionProductosHTML(totalPaginas);
 
     // Inyectar todo el HTML generado en el contenedor del panel de administración.
     if (esPrimeraVez) {
@@ -452,14 +1594,25 @@ function renderProductosAdmin(productos, esPrimeraVez = true, idCategoria = '', 
         // Búsquedas posteriores: solo actualizar el tbody para mantener el input fijo
         const tbody = contenedor.querySelector('tbody');
         if (tbody) {
-            // Extraer solo el tbody del HTML generado
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
-            const nuevoTbody = tempDiv.querySelector('tbody');
-            tbody.innerHTML = nuevoTbody.innerHTML;
+            // Generar solo las filas de la página actual
+            let filasHtml = '';
+            productosPagina.forEach(prod => {
+                filasHtml += generarFilaProducto(prod);
+            });
+            tbody.innerHTML = filasHtml;
         } else {
             // Si no existe tbody, reemplazar todo
             contenedor.innerHTML = html;
+        }
+
+        // Actualizar paginación
+        const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
+        if (paginacionExistente) {
+            paginacionExistente.remove();
+        }
+        const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
+        if (wrapperTabla) {
+            wrapperTabla.insertAdjacentHTML('afterend', getPaginacionProductosHTML(totalPaginas));
         }
     }
 }
@@ -1030,7 +2183,7 @@ function getUsuariosTablaHeader(textoBusqueda = '') {
                 </button>
             </div>
         </div>
-        <div class="admin-tabla-wrapper">
+        <div class="admin-tabla-wrapper sin-scroll">
             <table class="admin-tabla">
                 <thead>
                     <tr>
@@ -1054,6 +2207,14 @@ function getUsuariosTablaHeader(textoBusqueda = '') {
 function renderUsuariosAdmin(usuarios, esPrimeraVez = true) {
     const contenedor = document.getElementById('adminContenido');
 
+    // Guardar todos los usuarios para paginación
+    usuariosData = usuarios;
+
+    // Reset a página 1 cuando se cargan nuevos datos
+    if (esPrimeraVez) {
+        paginaActualUsuarios = 1;
+    }
+
     // Si no hay usuarios, mostrar mensaje
     if (!usuarios || usuarios.length === 0) {
         if (esPrimeraVez || adminTablaHeaderHTML === '') {
@@ -1073,48 +2234,26 @@ function renderUsuariosAdmin(usuarios, esPrimeraVez = true) {
         adminTablaHeaderHTML = getUsuariosTablaHeader();
     }
 
+    // Calcular paginación
+    const totalPaginas = Math.ceil(usuarios.length / usuariosPorPagina);
+    const inicio = (paginaActualUsuarios - 1) * usuariosPorPagina;
+    const fin = inicio + usuariosPorPagina;
+    const usuariosPagina = usuarios.slice(inicio, fin);
+
     let html = adminTablaHeaderHTML;
 
-    usuarios.forEach(usr => {
-        const fechaAlta = new Date(usr.fechaAlta).toLocaleDateString('es-ES', {
-            day: '2-digit', month: '2-digit', year: 'numeric'
-        });
-
-        const rolBadge = usr.rol === 'admin'
-            ? '<span class="admin-badge" style="background: #dbeafe; color: #1e40af;">Admin</span>'
-            : '<span class="admin-badge" style="background: #f3f4f6; color: #374151;">Empleado</span>';
-
-        const estadoHtml = usr.activo === 1
-            ? '<span class="admin-badge badge-activo">Activo</span>'
-            : '<span class="admin-badge badge-inactivo">Inactivo</span>';
-
-        html += `
-            <tr>
-                <td class="col-id">${usr.id}</td>
-                <td class="col-nombre">${usr.nombre}</td>
-                <td class="col-email">${usr.email}</td>
-                <td class="col-rol">${rolBadge}</td>
-                <td class="col-fecha">${fechaAlta}</td>
-                <td class="col-estado">${estadoHtml}</td>
-                <td class="col-acciones">
-                    <button class="btn-admin-accion btn-ver" onclick="verUsuario(${usr.id})" title="Ver">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button class="btn-admin-accion btn-editar" onclick="editarUsuario(${usr.id})" title="Editar">
-                        <i class="fas fa-pen"></i>
-                    </button>
-                    ${usr.rol !== 'admin' ? `
-                    <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarUsuario(${usr.id}, '${usr.nombre.replace(/'/g, "\\'")}')" title="Eliminar">
-                        <i class="fas fa-trash"></i>
-                    </button>` : ''}
-                </td>
-            </tr>`;
+    // Generar filas solo para la página actual
+    usuariosPagina.forEach(usr => {
+        html += generarFilaUsuario(usr);
     });
 
     html += `
                 </tbody>
             </table>
         </div>`;
+
+    // Añadir controls de paginación
+    html += getPaginacionUsuariosHTML(totalPaginas);
 
     // Si es la primera vez, reemplazar todo el contenido
     if (esPrimeraVez) {
@@ -1123,12 +2262,23 @@ function renderUsuariosAdmin(usuarios, esPrimeraVez = true) {
         // Solo actualizar tbody
         const tbody = contenedor.querySelector('tbody');
         if (tbody) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
-            const nuevoTbody = tempDiv.querySelector('tbody');
-            tbody.innerHTML = nuevoTbody.innerHTML;
+            let filasHtml = '';
+            usuariosPagina.forEach(usr => {
+                filasHtml += generarFilaUsuario(usr);
+            });
+            tbody.innerHTML = filasHtml;
         } else {
             contenedor.innerHTML = html;
+        }
+
+        // Actualizar paginación
+        const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
+        if (paginacionExistente) {
+            paginacionExistente.remove();
+        }
+        const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
+        if (wrapperTabla) {
+            wrapperTabla.insertAdjacentHTML('afterend', getPaginacionUsuariosHTML(totalPaginas));
         }
     }
 }
@@ -1139,6 +2289,9 @@ function renderUsuariosAdmin(usuarios, esPrimeraVez = true) {
 function buscarUsuarios() {
     // Cancelar la búsqueda anterior si el usuario sigue escribiendo
     clearTimeout(debounceTimerUsuarios);
+
+    // Reset pagination when searching
+    paginaActualUsuarios = 1;
 
     // Establecer un nuevo temporizador de 300ms
     debounceTimerUsuarios = setTimeout(() => {
@@ -1420,8 +2573,9 @@ function eliminarUsuario(id) {
  * @param {string} metodoPago - Filtrar por: 'todos', 'efectivo', 'tarjeta', 'bizum'
  * @param {string} tipoDocumento - Filtrar por: 'todos', 'ticket', 'factura'
  * @param {string} orden - Ordenar por: 'fecha_desc', 'fecha_asc', 'importe_desc', 'importe_asc', 'cantidad_desc', 'cantidad_asc', 'id_desc', 'id_asc'
+ * @param {string} busqueda - Buscar por ID de venta
  */
-function cargarVentasAdmin(filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc') {
+function cargarVentasAdmin(filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc', busqueda = '') {
     // Si la sección actual no es ventas, forzamos primera carga
     if (seccionActual !== 'ventas') {
         adminTablaHeaderHTML = '';
@@ -1446,6 +2600,9 @@ function cargarVentasAdmin(filtroFecha = 'todos', metodoPago = 'todos', tipoDocu
     if (orden && orden !== 'fecha_desc') {
         url += '&orden=' + orden;
     }
+    if (busqueda && busqueda.trim() !== '') {
+        url += '&busqueda=' + encodeURIComponent(busqueda.trim());
+    }
 
     fetch(url)
         .then(res => {
@@ -1454,7 +2611,7 @@ function cargarVentasAdmin(filtroFecha = 'todos', metodoPago = 'todos', tipoDocu
             }
             return res.json();
         })
-        .then(data => renderVentasAdmin(data, esPrimeraVez, filtroFecha, metodoPago, tipoDocumento, orden))
+        .then(data => renderVentasAdmin(data, esPrimeraVez, filtroFecha, metodoPago, tipoDocumento, orden, busqueda))
         .catch(err => {
             console.error('Error cargando ventas:', err);
             contenedor.innerHTML = '<p class="sin-productos">Error: ' + err.message + '</p>';
@@ -1464,10 +2621,19 @@ function cargarVentasAdmin(filtroFecha = 'todos', metodoPago = 'todos', tipoDocu
 /**
  * Genera el HTML del header de la tabla de ventas.
  */
-function getVentasTablaHeader(filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc') {
+function getVentasTablaHeader(filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc', busqueda = '') {
     return `
         <div class="admin-tabla-header ventas-header">
             <div class="ventas-filtros">
+                <div class="filtro-group" style="display: flex; align-items: center; gap: 10px;">
+                    <input type="text" id="busquedaVentaId" 
+                        class="filtro-input" 
+                        placeholder="Buscar # venta..." 
+                        value="${busqueda || ''}"
+                        oninput="buscarVentasPorId()"
+                        autocomplete="off"
+                        style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9rem; width: 140px;">
+                </div>
                 <div class="filtro-group">
                     <label for="ventasFiltroFecha">Período:</label>
                     <select id="ventasFiltroFecha" class="filtro-select" onchange="aplicarFiltrosVentas()">
@@ -1512,7 +2678,7 @@ function getVentasTablaHeader(filtroFecha = 'todos', metodoPago = 'todos', tipoD
                 </button>
             </div>
         </div>
-        <div class="admin-tabla-wrapper">
+        <div class="admin-tabla-wrapper sin-scroll">
             <table class="admin-tabla">
                 <thead>
                     <tr>
@@ -1533,12 +2699,12 @@ function getVentasTablaHeader(filtroFecha = 'todos', metodoPago = 'todos', tipoD
 /**
  * Renderiza las ventas en una tabla.
  */
-function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc') {
+function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc', busqueda = '') {
     const contenedor = document.getElementById('adminContenido');
 
     if (!ventas || ventas.length === 0) {
         if (esPrimeraVez || adminTablaHeaderHTML === '') {
-            adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden);
+            adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden, busqueda);
             contenedor.innerHTML = adminTablaHeaderHTML +
                 '<tr><td colspan="9" class="sin-productos">No hay ventas registradas.</td></tr></tbody></table></div>';
         } else {
@@ -1548,69 +2714,96 @@ function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', m
         return;
     }
 
-    if (esPrimeraVez || adminTablaHeaderHTML === '') {
-        adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden);
+    // Always update header when searching
+    if (busqueda !== '') {
+        adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden, busqueda);
+    } else if (esPrimeraVez || adminTablaHeaderHTML === '') {
+        adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden, busqueda);
     }
 
     let html = adminTablaHeaderHTML;
 
-    ventas.forEach(venta => {
-        const fecha = new Date(venta.fecha).toLocaleString('es-ES', {
-            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    // Usar requestIdleCallback para renderizar las filas cuando el navegador esté idle
+    // Esto mejora el rendimiento para ventas con muchos registros
+
+    // Almacenar los datos para paginación
+    ventasData = ventas;
+    paginaActualVentas = 1;
+
+    // Obtener solo los registros de la página actual
+    const ventasPaginados = ventasData.slice(0, ventasPorPagina);
+    const totalPaginas = Math.ceil(ventasData.length / ventasPorPagina);
+
+    // Generar la paginación HTML de forma síncrona (antes del callback)
+    const paginacionHTML = getPaginacionVentasHTML(totalPaginas);
+
+    const generarFilasVentas = () => {
+        let filasHtml = '';
+        ventasPaginados.forEach(venta => {
+            const fecha = new Date(venta.fecha).toLocaleString('es-ES', {
+                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+            const total = parseFloat(venta.total).toFixed(2).replace('.', ',');
+            const productos = venta.cantidad_productos || 0;
+
+            // Formatear forma de pago
+            let formaPago = venta.forma_pago || '—';
+            if (formaPago === 'efectivo') formaPago = '💵 Efectivo';
+            else if (formaPago === 'tarjeta') formaPago = '💳 Tarjeta';
+            else if (formaPago === 'bizum') formaPago = '📱 Bizum';
+
+            // Formatear tipo de documento
+            let tipoDocumento = venta.tipoDocumento || 'ticket';
+            if (tipoDocumento === 'ticket') tipoDocumento = '🧾 Ticket';
+            else if (tipoDocumento === 'factura') tipoDocumento = '📄 Factura';
+
+            // Formatear tarifa
+            let tarifaNombre = venta.tarifa_nombre || 'Cliente';
+
+            filasHtml += `
+                <tr>
+                    <td class="col-id">${venta.id}</td>
+                    <td class="col-fecha">${fecha}</td>
+                    <td class="col-usuario">${venta.usuario_nombre || '—'}</td>
+                    <td class="col-productos">${productos}</td>
+                    <td class="col-tarifa">${tarifaNombre}</td>
+                    <td class="col-documento">${tipoDocumento}</td>
+                    <td class="col-pago">${formaPago}</td>
+                    <td class="col-total" style="font-weight: 700; color: #059669;">${total} €</td>
+                    <td class="col-acciones">
+                        <button class="btn-admin-accion btn-ver" onclick="verDetalleVenta(${venta.id})" title="Ver Detalles">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>`;
         });
-        const total = parseFloat(venta.total).toFixed(2).replace('.', ',');
-        const productos = venta.cantidad_productos || 0;
+        return filasHtml;
+    };
 
-        // Formatear forma de pago
-        let formaPago = venta.forma_pago || '—';
-        if (formaPago === 'efectivo') formaPago = '💵 Efectivo';
-        else if (formaPago === 'tarjeta') formaPago = '💳 Tarjeta';
-        else if (formaPago === 'bizum') formaPago = '📱 Bizum';
-
-        // Formatear tipo de documento
-        let tipoDocumento = venta.tipoDocumento || 'ticket';
-        if (tipoDocumento === 'ticket') tipoDocumento = '🧾 Ticket';
-        else if (tipoDocumento === 'factura') tipoDocumento = '📄 Factura';
-
-        // Formatear tarifa
-        let tarifaNombre = venta.tarifa_nombre || 'Cliente';
+    ejecutarCuandoIdle(generarFilasVentas, (filasHtml) => {
+        html += filasHtml;
 
         html += `
-            <tr>
-                <td class="col-id">${venta.id}</td>
-                <td class="col-fecha">${fecha}</td>
-                <td class="col-usuario">${venta.usuario_nombre || '—'}</td>
-                <td class="col-productos">${productos}</td>
-                <td class="col-tarifa">${tarifaNombre}</td>
-                <td class="col-documento">${tipoDocumento}</td>
-                <td class="col-pago">${formaPago}</td>
-                <td class="col-total" style="font-weight: 700; color: #059669;">${total} €</td>
-                <td class="col-acciones">
-                    <button class="btn-admin-accion btn-ver" onclick="verDetalleVenta(${venta.id})" title="Ver Detalles">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </td>
-            </tr>`;
-    });
+                    </tbody>
+                </table>
+            </div>
+            ${paginacionHTML}`;
 
-    html += `
-                </tbody>
-            </table>
-        </div>`;
-
-    if (esPrimeraVez) {
-        contenedor.innerHTML = html;
-    } else {
-        const tbody = contenedor.querySelector('tbody');
-        if (tbody) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
-            const nuevoTbody = tempDiv.querySelector('tbody');
-            tbody.innerHTML = nuevoTbody.innerHTML;
-        } else {
+        // Always replace entire content when searching by ID
+        if (esPrimeraVez || busqueda !== '') {
             contenedor.innerHTML = html;
+        } else {
+            const tbody = contenedor.querySelector('tbody');
+            if (tbody) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                const nuevoTbody = tempDiv.querySelector('tbody');
+                tbody.innerHTML = nuevoTbody.innerHTML;
+            } else {
+                contenedor.innerHTML = html;
+            }
         }
-    }
+    });
 }
 
 /**
@@ -1621,11 +2814,12 @@ function aplicarFiltrosVentas() {
     const metodoPago = document.getElementById('ventasFiltroMetodo')?.value || 'todos';
     const tipoDocumento = document.getElementById('ventasFiltroDocumento')?.value || 'todos';
     const orden = document.getElementById('ventasOrdenar')?.value || 'fecha_desc';
+    const busqueda = document.getElementById('busquedaVentaId')?.value || '';
 
     // Mantener los filtros seleccionados en la URL
     adminTablaHeaderHTML = '';
 
-    cargarVentasAdmin(filtroFecha, metodoPago, tipoDocumento, orden);
+    cargarVentasAdmin(filtroFecha, metodoPago, tipoDocumento, orden, busqueda);
 }
 
 /**
@@ -3256,8 +4450,10 @@ function aplicarTemaGuardado() {
 
 /**
  * Carga las devoluciones desde la API y las renderiza en una tabla.
+ * @param {string} orden - Orden de las devoluciones (fecha_desc, fecha_asc, importe_desc, importe_asc)
+ * @param {string} busquedaTicket - Número de ticket para buscar (opcional)
  */
-function cargarDevolucionesAdmin(orden = 'fecha_desc') {
+function cargarDevolucionesAdmin(orden = 'fecha_desc', busquedaTicket = '') {
     if (seccionActual !== 'devoluciones') {
         adminTablaHeaderHTML = '';
         seccionActual = 'devoluciones';
@@ -3271,6 +4467,9 @@ function cargarDevolucionesAdmin(orden = 'fecha_desc') {
     if (orden !== 'fecha_desc') {
         url += '&orden=' + orden;
     }
+    if (busquedaTicket && busquedaTicket.trim() !== '') {
+        url += '&busqueda=' + encodeURIComponent(busquedaTicket.trim());
+    }
 
     fetch(url)
         .then(res => {
@@ -3279,11 +4478,34 @@ function cargarDevolucionesAdmin(orden = 'fecha_desc') {
             }
             return res.json();
         })
-        .then(data => renderDevolucionesAdmin(data, isFirstTime, orden))
+        .then(data => {
+            console.log('Datos recibidos:', data);
+            renderDevolucionesAdmin(data, isFirstTime, orden, busquedaTicket);
+        })
         .catch(err => {
             console.error('Error cargando devoluciones:', err);
             contenedor.innerHTML = '<p class="sin-productos">Error: ' + err.message + '</p>';
         });
+}
+
+/** Temporizador para debounce de búsqueda de devoluciones */
+let debounceTimerDevoluciones = null;
+
+/**
+ * Busca devoluciones por ticket con debounce (búsqueda automática).
+ */
+function buscarDevolucionesPorTicket() {
+    clearTimeout(debounceTimerDevoluciones);
+    debounceTimerDevoluciones = setTimeout(() => {
+        const inputBusqueda = document.getElementById('busquedaTicketDevolucion');
+        if (inputBusqueda) {
+            const busqueda = inputBusqueda.value;
+            console.log('Buscando devoluciones por ticket:', busqueda);
+            cargarDevolucionesAdmin('fecha_desc', busqueda);
+        } else {
+            console.log('Input busquedaTicketDevolucion no encontrado');
+        }
+    }, 300); // 300ms debounce
 }
 
 /**
@@ -3336,7 +4558,7 @@ function getRetirosTablaHeader(orden = 'fecha_desc') {
                 </div>
             </div>
         </div>
-        <div class="admin-tabla-wrapper">
+        <div class="admin-tabla-wrapper sin-scroll">
             <table class="admin-tabla">
                 <thead>
                     <tr>
@@ -3369,58 +4591,47 @@ function renderRetirosAdmin(retiros, isFirstTime = true, orden = 'fecha_desc') {
         return;
     }
 
+    // Almacenar los datos para paginación
+    retirosData = retiros;
+    paginaActualRetiros = 1;
+
+    // Calcular paginación
+    const totalPaginas = Math.ceil(retiros.length / retirosPorPagina);
+    const inicio = (paginaActualRetiros - 1) * retirosPorPagina;
+    const fin = inicio + retirosPorPagina;
+    const retirosPagina = retiros.slice(inicio, fin);
+
+    // Generar la paginación HTML
+    const paginacionHTML = getPaginacionRetirosHTML(totalPaginas);
+
     if (isFirstTime || adminTablaHeaderHTML === '') {
         adminTablaHeaderHTML = getRetirosTablaHeader(orden);
         let html = adminTablaHeaderHTML;
 
-        retiros.forEach((retiro, index) => {
-            const fecha = new Date(retiro.fecha).toLocaleString('es-ES', {
-                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-            });
-            const usuario = retiro.usuario_nombre ?
-                retiro.usuario_nombre + ' ' + (retiro.usuario_apellidos || '') : 'Usuario #' + retiro.idUsuario;
-            const motivo = retiro.motivo || 'Sin motivo';
-            const cajaSesion = retiro.caja_fecha_apertura ?
-                new Date(retiro.caja_fecha_apertura).toLocaleDateString('es-ES') : '#' + retiro.idCajaSesion;
-
-            html += `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td>${fecha}</td>
-                    <td>${usuario}</td>
-                    <td style="color: #dc2626; font-weight: bold;">-${parseFloat(retiro.importe).toFixed(2)} €</td>
-                    <td>${motivo}</td>
-                    <td>${cajaSesion}</td>
-                </tr>`;
+        retirosPagina.forEach((retiro, index) => {
+            html += generarFilaRetiro(retiro, index);
         });
 
-        html += '</tbody></table></div>';
+        html += '</tbody></table></div>' + paginacionHTML;
         contenedor.innerHTML = html;
     } else {
         const tbody = contenedor.querySelector('tbody');
         if (tbody) {
             let html = '';
-            retiros.forEach((retiro, index) => {
-                const fecha = new Date(retiro.fecha).toLocaleString('es-ES', {
-                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                });
-                const usuario = retiro.usuario_nombre ?
-                    retiro.usuario_nombre + ' ' + (retiro.usuario_apellidos || '') : 'Usuario #' + retiro.idUsuario;
-                const motivo = retiro.motivo || 'Sin motivo';
-                const cajaSesion = retiro.caja_fecha_apertura ?
-                    new Date(retiro.caja_fecha_apertura).toLocaleDateString('es-ES') : '#' + retiro.idCajaSesion;
-
-                html += `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td>${fecha}</td>
-                        <td>${usuario}</td>
-                        <td style="color: #dc2626; font-weight: bold;">-${parseFloat(retiro.importe).toFixed(2)} €</td>
-                        <td>${motivo}</td>
-                        <td>${cajaSesion}</td>
-                    </tr>`;
+            retirosPagina.forEach((retiro, index) => {
+                html += generarFilaRetiro(retiro, index);
             });
             tbody.innerHTML = html;
+        }
+
+        // Actualizar paginación
+        const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
+        if (paginacionExistente) {
+            paginacionExistente.remove();
+        }
+        const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
+        if (wrapperTabla) {
+            wrapperTabla.insertAdjacentHTML('afterend', paginacionHTML);
         }
     }
 }
@@ -3473,7 +4684,7 @@ function getCajaSesionesTablaHeader(orden = 'fecha_desc') {
                 </div>
             </div>
         </div>
-        <div class="admin-tabla-wrapper">
+        <div class="admin-tabla-wrapper sin-scroll">
             <table class="admin-tabla">
                 <thead>
                     <tr>
@@ -3494,10 +4705,18 @@ function getCajaSesionesTablaHeader(orden = 'fecha_desc') {
 }
 
 /**
- * Renderiza las sesiones de caja en la tabla.
+ * Renderiza las sesiones de caja en la tabla con paginación.
  */
 function renderCajaSesionesAdmin(sesiones, isFirstTime = true, orden = 'fecha_desc') {
     const contenedor = document.getElementById('adminContenido');
+
+    // Guardar todas las sesiones para paginación
+    sesionesData = sesiones;
+
+    // Reset a página 1 cuando se cargan nuevos datos
+    if (isFirstTime) {
+        paginaActualSesiones = 1;
+    }
 
     if (!sesiones || sesiones.length === 0) {
         if (isFirstTime || adminTablaHeaderHTML === '') {
@@ -3511,84 +4730,47 @@ function renderCajaSesionesAdmin(sesiones, isFirstTime = true, orden = 'fecha_de
         return;
     }
 
+    // Calcular paginación
+    const totalPaginas = Math.ceil(sesiones.length / sesionesPorPagina);
+    const inicio = (paginaActualSesiones - 1) * sesionesPorPagina;
+    const fin = inicio + sesionesPorPagina;
+    const sesionesPagina = sesiones.slice(inicio, fin);
+
     if (isFirstTime || adminTablaHeaderHTML === '') {
         adminTablaHeaderHTML = getCajaSesionesTablaHeader(orden);
         let html = adminTablaHeaderHTML;
 
-        sesiones.forEach((sesion, index) => {
-            const fechaApertura = sesion.fechaApertura ? new Date(sesion.fechaApertura).toLocaleString('es-ES', {
-                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-            }) : '-';
-            const fechaCierre = sesion.fechaCierre ? new Date(sesion.fechaCierre).toLocaleString('es-ES', {
-                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-            }) : '-';
-            const usuario = sesion.usuario_nombre || 'Usuario #' + sesion.idUsuario;
-            const retiros = parseFloat(sesion.total_retiros || 0);
-            const devoluciones = parseFloat(sesion.total_devoluciones || 0);
-            const totalProductos = parseInt(sesion.total_productos || 0);
-            const totalVentas = parseInt(sesion.total_ventas || 0);
-
-            html += `
-                <tr>
-                    <td style="text-align: center; width: 40px;">${index + 1}</td>
-                    <td style="width: 120px;">${usuario}</td>
-                    <td style="text-align: center;">${fechaApertura}</td>
-                    <td style="text-align: center;">${fechaCierre}</td>
-                    <td style="text-align: center;">${parseFloat(sesion.importeInicial).toFixed(2)} €</td>
-                    <td style="text-align: center;">${parseFloat(sesion.importeActual).toFixed(2)} €</td>
-                    <td style="text-align: center; font-weight: bold;">${totalVentas}</td>
-                    <td style="text-align: center; font-weight: bold;">${totalProductos}</td>
-                    <td style="text-align: center; color: #ea580c; font-weight: bold;">-${retiros.toFixed(2)} €</td>
-                    <td style="text-align: center; color: #dc2626; font-weight: bold;">-${devoluciones.toFixed(2)} €</td>
-                    <td style="text-align: center; font-weight: bold; color: ${sesion.efectivoContado !== null ? (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) > 0.01 ? '#059669' : (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) < -0.01 ? '#dc2626' : 'inherit')) : 'inherit'}">
-                        ${sesion.efectivoContado !== null ? `
-                            ${(parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual)).toFixed(2).replace('.', ',')} € 
-                            <small>${parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) > 0.01 ? '(Sobrante)' : (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) < -0.01 ? '(Faltante)' : '')}</small>
-                        ` : '—'}
-                    </td>
-                </tr>`;
+        // Generar filas solo para la página actual
+        sesionesPagina.forEach((sesion, index) => {
+            html += generarFilaSesion(sesion, index);
         });
 
         html += '</tbody></table></div>';
+
+        // Añadir controls de paginación
+        html += getPaginacionSesionesHTML(totalPaginas);
+
         contenedor.innerHTML = html;
     } else {
+        // Generar filas solo para la página actual
+        let html = '';
+        sesionesPagina.forEach((sesion, index) => {
+            html += generarFilaSesion(sesion, index);
+        });
+
         const tbody = contenedor.querySelector('tbody');
         if (tbody) {
-            let html = '';
-            sesiones.forEach((sesion, index) => {
-                const fechaApertura = sesion.fechaApertura ? new Date(sesion.fechaApertura).toLocaleString('es-ES', {
-                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                }) : '-';
-                const fechaCierre = sesion.fechaCierre ? new Date(sesion.fechaCierre).toLocaleString('es-ES', {
-                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                }) : '-';
-                const usuario = sesion.usuario_nombre || 'Usuario #' + sesion.idUsuario;
-                const retiros = parseFloat(sesion.total_retiros || 0);
-                const devoluciones = parseFloat(sesion.total_devoluciones || 0);
-                const totalProductos = parseInt(sesion.total_productos || 0);
-                const totalVentas = parseInt(sesion.total_ventas || 0);
-
-                html += `
-                    <tr>
-                        <td style="text-align: center; width: 40px;">${index + 1}</td>
-                        <td style="width: 120px;">${usuario}</td>
-                        <td style="text-align: center;">${fechaApertura}</td>
-                        <td style="text-align: center;">${fechaCierre}</td>
-                        <td style="text-align: center;">${parseFloat(sesion.importeInicial).toFixed(2)} €</td>
-                        <td style="text-align: center;">${parseFloat(sesion.importeActual).toFixed(2)} €</td>
-                        <td style="text-align: center; font-weight: bold;">${totalVentas}</td>
-                        <td style="text-align: center; font-weight: bold;">${totalProductos}</td>
-                        <td style="text-align: center; color: #ea580c; font-weight: bold;">-${retiros.toFixed(2)} €</td>
-                        <td style="text-align: center; color: #dc2626; font-weight: bold;">-${devoluciones.toFixed(2)} €</td>
-                        <td style="text-align: center; font-weight: bold; color: ${sesion.efectivoContado !== null ? (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) > 0.01 ? '#059669' : (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) < -0.01 ? '#dc2626' : 'inherit')) : 'inherit'}">
-                            ${sesion.efectivoContado !== null ? `
-                                ${(parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual)).toFixed(2).replace('.', ',')} € 
-                                <small>${parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) > 0.01 ? '(Sobrante)' : (parseFloat(sesion.efectivoContado) - parseFloat(sesion.importeActual) < -0.01 ? '(Faltante)' : '')}</small>
-                            ` : '—'}
-                        </td>
-                    </tr>`;
-            });
             tbody.innerHTML = html;
+        }
+
+        // Actualizar paginación
+        const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
+        if (paginacionExistente) {
+            paginacionExistente.remove();
+        }
+        const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
+        if (wrapperTabla) {
+            wrapperTabla.insertAdjacentHTML('afterend', getPaginacionSesionesHTML(totalPaginas));
         }
     }
 }
@@ -3596,13 +4778,22 @@ function renderCajaSesionesAdmin(sesiones, isFirstTime = true, orden = 'fecha_de
 /**
  * Genera el HTML del header de la tabla de devoluciones.
  */
-function getDevolucionesTablaHeader(orden = 'fecha_desc') {
+function getDevolucionesTablaHeader(orden = 'fecha_desc', busquedaTicket = '') {
     return `
         <div class="admin-tabla-header devoluciones-header">
             <div class="ventas-filtros">
+                <div class="filtro-group" style="display: flex; align-items: center; gap: 10px;">
+                    <input type="text" id="busquedaTicketDevolucion" 
+                        class="filtro-input" 
+                        placeholder="Buscar por ticket..." 
+                        value="${busquedaTicket || ''}"
+                        oninput="buscarDevolucionesPorTicket()"
+                        autocomplete="off"
+                        style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9rem; width: 180px;">
+                </div>
                 <div class="filtro-group">
                     <label for="devolucionesOrdenar">Ordenar por:</label>
-                    <select id="devolucionesOrdenar" class="filtro-select" onchange="cargarDevolucionesAdmin(this.value)">
+                    <select id="devolucionesOrdenar" class="filtro-select" onchange="cargarDevolucionesAdmin(this.value, document.getElementById('busquedaTicketDevolucion').value)">
                         <option value="fecha_desc" ${orden === 'fecha_desc' ? 'selected' : ''}>Más recientes</option>
                         <option value="fecha_asc" ${orden === 'fecha_asc' ? 'selected' : ''}>Más antiguos</option>
                         <option value="importe_desc" ${orden === 'importe_desc' ? 'selected' : ''}>Mayor importe</option>
@@ -3632,12 +4823,12 @@ function getDevolucionesTablaHeader(orden = 'fecha_desc') {
 /**
  * Renderiza las devoluciones en la tabla.
  */
-function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fecha_desc') {
+function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fecha_desc', busquedaTicket = '') {
     const contenedor = document.getElementById('adminContenido');
 
     if (!devoluciones || devoluciones.length === 0) {
         if (isFirstTime || adminTablaHeaderHTML === '') {
-            adminTablaHeaderHTML = getDevolucionesTablaHeader(orden);
+            adminTablaHeaderHTML = getDevolucionesTablaHeader(orden, busquedaTicket);
             contenedor.innerHTML = adminTablaHeaderHTML +
                 '<tr><td colspan="8" class="sin-productos">No hay devoluciones registradas.</td></tr></tbody></table></div>';
         } else {
@@ -3648,50 +4839,63 @@ function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fech
     }
 
     if (isFirstTime || adminTablaHeaderHTML === '') {
-        adminTablaHeaderHTML = getDevolucionesTablaHeader(orden);
+        adminTablaHeaderHTML = getDevolucionesTablaHeader(orden, busquedaTicket);
+    } else if (busquedaTicket !== '') {
+        // Always update header with search value when searching
+        adminTablaHeaderHTML = getDevolucionesTablaHeader(orden, busquedaTicket);
     }
 
     let html = adminTablaHeaderHTML;
 
-    devoluciones.forEach(dev => {
-        const fecha = new Date(dev.fecha).toLocaleString('es-ES', {
-            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    // Usar requestIdleCallback para renderizar las filas cuando el navegador esté idle
+    const generarFilasDevoluciones = () => {
+        let filasHtml = '';
+        devoluciones.forEach(dev => {
+            const fecha = new Date(dev.fecha).toLocaleString('es-ES', {
+                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+            const total = parseFloat(dev.importeTotal).toFixed(2).replace('.', ',');
+
+            filasHtml += `
+                <tr>
+                    <td class="col-id">${dev.id}</td>
+                    <td class="col-ticket" style="font-weight: 600; color: #1e40af;">#${dev.idVenta || '—'}</td>
+                    <td class="col-fecha">${fecha}</td>
+                    <td class="col-usuario">${dev.usuario_nombre || '—'}</td>
+                    <td class="col-producto">${dev.producto_nombre || '—'}</td>
+                    <td class="col-cantidad">${dev.cantidad}</td>
+                    <td class="col-total" style="font-weight: 700; color: #dc2626;">-${total} €</td>
+                    <td class="col-pago">${dev.metodoPago}</td>
+                    <td class="col-acciones">
+                        <button class="btn-admin-accion btn-ver" onclick="verDetalleDevolucion(${dev.id})" title="Ver Detalles">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>`;
         });
-        const total = parseFloat(dev.importeTotal).toFixed(2).replace('.', ',');
+        return filasHtml;
+    };
 
-        html += `
-            <tr>
-                <td class="col-id">${dev.id}</td>
-                <td class="col-ticket" style="font-weight: 600; color: #1e40af;">#${dev.idVenta || '—'}</td>
-                <td class="col-fecha">${fecha}</td>
-                <td class="col-usuario">${dev.usuario_nombre || '—'}</td>
-                <td class="col-producto">${dev.producto_nombre || '—'}</td>
-                <td class="col-cantidad">${dev.cantidad}</td>
-                <td class="col-total" style="font-weight: 700; color: #dc2626;">-${total} €</td>
-                <td class="col-pago">${dev.metodoPago}</td>
-                <td class="col-acciones">
-                    <button class="btn-admin-accion btn-ver" onclick="verDetalleDevolucion(${dev.id})" title="Ver Detalles">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </td>
-            </tr>`;
-    });
+    ejecutarCuandoIdle(generarFilasDevoluciones, (filasHtml) => {
+        html += filasHtml;
 
-    html += `</tbody></table></div>`;
+        html += `</tbody></table></div>`;
 
-    if (isFirstTime) {
-        contenedor.innerHTML = html;
-    } else {
-        const tbody = contenedor.querySelector('tbody');
-        if (tbody) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
-            const newTbody = tempDiv.querySelector('tbody');
-            tbody.innerHTML = newTbody.innerHTML;
-        } else {
+        // Always replace entire content when searching by ticket
+        if (isFirstTime || busquedaTicket !== '') {
             contenedor.innerHTML = html;
+        } else {
+            const tbody = contenedor.querySelector('tbody');
+            if (tbody) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                const newTbody = tempDiv.querySelector('tbody');
+                tbody.innerHTML = newTbody.innerHTML;
+            } else {
+                contenedor.innerHTML = html;
+            }
         }
-    }
+    });
 }
 
 /**
@@ -3760,6 +4964,27 @@ let debounceTimerProveedores = null;
 /** Temporizador para debounce de búsqueda de clientes */
 let debounceTimerClientes = null;
 
+/** Temporizador para debounce de búsqueda de ventas */
+let debounceTimerVentas = null;
+
+/**
+ * Busca ventas por ID con debounce.
+ */
+function buscarVentasPorId() {
+    clearTimeout(debounceTimerVentas);
+    debounceTimerVentas = setTimeout(() => {
+        const inputBusqueda = document.getElementById('busquedaVentaId');
+        if (inputBusqueda) {
+            const busqueda = inputBusqueda.value;
+            const filtroFecha = document.getElementById('ventasFiltroFecha')?.value || 'todos';
+            const metodoPago = document.getElementById('ventasFiltroMetodo')?.value || 'todos';
+            const tipoDocumento = document.getElementById('ventasFiltroDocumento')?.value || 'todos';
+            const orden = document.getElementById('ventasOrdenar')?.value || 'fecha_desc';
+            cargarVentasAdmin(filtroFecha, metodoPago, tipoDocumento, orden, busqueda);
+        }
+    }, 300); // 300ms debounce
+}
+
 /**
  * Genera el HTML del header de la tabla de clientes con buscador.
  * @param {string} textoBusqueda
@@ -3780,7 +5005,7 @@ function getClientesTablaHeader(textoBusqueda = '') {
                 </button>
             </div>
         </div>
-        <div class="admin-tabla-wrapper">
+        <div class="admin-tabla-wrapper sin-scroll">
             <table class="admin-tabla">
                 <thead>
                     <tr>
@@ -3895,55 +5120,64 @@ function renderProveedoresAdmin(proveedores, esPrimeraVez = true) {
 
     let html = adminTablaHeaderHTML;
 
-    proveedores.forEach(prov => {
-        const estadoHtml = prov.activo === 1
-            ? '<span class="admin-badge badge-activo">Activo</span>'
-            : '<span class="admin-badge badge-inactivo">Inactivo</span>';
+    // Usar requestIdleCallback para renderizar las filas cuando el navegador esté idle
+    const generarFilasProveedores = () => {
+        let filasHtml = '';
+        proveedores.forEach(prov => {
+            const estadoHtml = prov.activo === 1
+                ? '<span class="admin-badge badge-activo">Activo</span>'
+                : '<span class="admin-badge badge-inactivo">Inactivo</span>';
+
+            filasHtml += `
+                <tr class="${prov.activo == 0 ? 'fila-inactiva' : ''}"
+                    data-contacto="${(prov.contacto || '').replace(/"/g, '&quot;')}"
+                    data-email="${(prov.email || '').replace(/"/g, '&quot;')}"
+                    data-direccion="${(prov.direccion || '').replace(/"/g, '&quot;')}"
+                    data-activo="${prov.activo}">
+                    <td class="col-id">${prov.id}</td>
+                    <td class="col-nombre">${prov.nombre}</td>
+                    <td>${prov.contacto || '—'}</td>
+                    <td>${prov.email || '—'}</td>
+                    <td>${prov.direccion || '—'}</td>
+                    <td class="col-estado">${estadoHtml}</td>
+                    <td class="col-acciones">
+                        <button class="btn-admin-accion btn-ver" onclick="verProveedor(${prov.id})" title="Ver">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-admin-accion btn-editar" onclick="editarProveedor(${prov.id})" title="Editar">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarProveedor(${prov.id}, '${prov.nombre.replace(/'/g, "\\'")}')" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>`;
+        });
+        return filasHtml;
+    };
+
+    ejecutarCuandoIdle(generarFilasProveedores, (filasHtml) => {
+        html += filasHtml;
 
         html += `
-            <tr class="${prov.activo == 0 ? 'fila-inactiva' : ''}"
-                data-contacto="${(prov.contacto || '').replace(/"/g, '&quot;')}"
-                data-email="${(prov.email || '').replace(/"/g, '&quot;')}"
-                data-direccion="${(prov.direccion || '').replace(/"/g, '&quot;')}"
-                data-activo="${prov.activo}">
-                <td class="col-id">${prov.id}</td>
-                <td class="col-nombre">${prov.nombre}</td>
-                <td>${prov.contacto || '—'}</td>
-                <td>${prov.email || '—'}</td>
-                <td>${prov.direccion || '—'}</td>
-                <td class="col-estado">${estadoHtml}</td>
-                <td class="col-acciones">
-                    <button class="btn-admin-accion btn-ver" onclick="verProveedor(${prov.id})" title="Ver">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button class="btn-admin-accion btn-editar" onclick="editarProveedor(${prov.id})" title="Editar">
-                        <i class="fas fa-pen"></i>
-                    </button>
-                    <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarProveedor(${prov.id}, '${prov.nombre.replace(/'/g, "\\'")}')" title="Eliminar">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>`;
-    });
+                    </tbody>
+                </table>
+            </div>`;
 
-    html += `
-                </tbody>
-            </table>
-        </div>`;
-
-    if (esPrimeraVez) {
-        contenedor.innerHTML = html;
-    } else {
-        const tbody = contenedor.querySelector('tbody');
-        if (tbody) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
-            const nuevoTbody = tempDiv.querySelector('tbody');
-            tbody.innerHTML = nuevoTbody.innerHTML;
-        } else {
+        if (esPrimeraVez) {
             contenedor.innerHTML = html;
+        } else {
+            const tbody = contenedor.querySelector('tbody');
+            if (tbody) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                const nuevoTbody = tempDiv.querySelector('tbody');
+                tbody.innerHTML = nuevoTbody.innerHTML;
+            } else {
+                contenedor.innerHTML = html;
+            }
         }
-    }
+    });
 }
 
 /**
@@ -3998,7 +5232,15 @@ function cargarClientesAdmin(textoBusqueda = '') {
             }
             return res.json();
         })
-        .then(data => renderClientesAdmin(data, esPrimeraVez))
+        .then(data => {
+            // La API puede devolver un array o un objeto individual
+            // Normalizar a array para renderClientesAdmin
+            let clientes = data;
+            if (!Array.isArray(data)) {
+                clientes = [data];
+            }
+            renderClientesAdmin(clientes, esPrimeraVez);
+        })
         .catch(err => {
             console.error('Error cargando clientes:', err);
             document.getElementById('adminContenido').innerHTML =
@@ -4007,12 +5249,20 @@ function cargarClientesAdmin(textoBusqueda = '') {
 }
 
 /**
- * Renderiza un array de clientes en formato tabla.
+ * Renderiza un array de clientes en formato tabla con paginación.
  * @param {Array} clientes
  * @param {boolean} esPrimeraVez
  */
 function renderClientesAdmin(clientes, esPrimeraVez = true) {
     const contenedor = document.getElementById('adminContenido');
+
+    // Guardar todos los clientes para paginación
+    clientesData = clientes;
+
+    // Reset a página 1 cuando se cargan nuevos datos
+    if (esPrimeraVez) {
+        paginaActualClientes = 1;
+    }
 
     if (!clientes || clientes.length === 0) {
         if (esPrimeraVez || adminTablaHeaderHTML === '') {
@@ -4030,9 +5280,17 @@ function renderClientesAdmin(clientes, esPrimeraVez = true) {
         adminTablaHeaderHTML = getClientesTablaHeader();
     }
 
+    // Calcular paginación
+    const totalPaginas = Math.ceil(clientes.length / clientesPorPagina);
+    const inicio = (paginaActualClientes - 1) * clientesPorPagina;
+    const fin = inicio + clientesPorPagina;
+    const clientesPagina = clientes.slice(inicio, fin);
+
     let html = adminTablaHeaderHTML;
 
-    clientes.forEach(cli => {
+    // Generar filas solo para la página actual
+    let filasHtml = '';
+    clientesPagina.forEach(cli => {
         const estadoHtml = cli.activo == 1
             ? '<span class="admin-badge badge-activo">Activo</span>'
             : '<span class="admin-badge badge-inactivo">Inactivo</span>';
@@ -4049,7 +5307,7 @@ function renderClientesAdmin(clientes, esPrimeraVez = true) {
                 <i class="fas fa-pen"></i>
                </button>`;
 
-        html += `
+        filasHtml += `
             <tr class="${cli.activo == 0 ? 'fila-inactiva' : ''}"
                 data-nombre="${(cli.nombre || '').replace(/"/g, '&quot;')}"
                 data-apellidos="${(cli.apellidos || '').replace(/"/g, '&quot;')}"
@@ -4071,14 +5329,27 @@ function renderClientesAdmin(clientes, esPrimeraVez = true) {
             </tr>`;
     });
 
+    html += filasHtml;
     html += '</tbody></table></div>';
+
+    // Añadir controls de paginación
+    html += getPaginacionClientesHTML(totalPaginas);
 
     if (esPrimeraVez) {
         contenedor.innerHTML = html;
     } else {
         const tbody = contenedor.querySelector('tbody');
         if (tbody) {
-            tbody.innerHTML = html.replace(adminTablaHeaderHTML, '').replace('</tbody></table></div>', '');
+            tbody.innerHTML = filasHtml;
+        }
+        // Actualizar paginación
+        const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
+        if (paginacionExistente) {
+            paginacionExistente.remove();
+        }
+        const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
+        if (wrapperTabla) {
+            wrapperTabla.insertAdjacentHTML('afterend', getPaginacionClientesHTML(totalPaginas));
         }
     }
 }
@@ -4568,11 +5839,15 @@ function editarCliente(id) {
     const nombre = celdas[2].textContent.trim();
     const apellidos = celdas[3].textContent.trim();
 
+    // Obtener los puntos desde el atributo data-puntos de la fila
+    const puntos = fila.dataset.puntos || 0;
+
     // Rellenar el formulario del modal de edición
     document.getElementById('editarClienteId').value = id;
     document.getElementById('editarClienteDni').value = dni;
     document.getElementById('editarClienteNombre').value = nombre === '—' ? '' : nombre;
     document.getElementById('editarClienteApellidos').value = apellidos === '—' ? '' : apellidos;
+    document.getElementById('editarClientePuntos').value = puntos;
 
     // Mostrar el modal
     const modal = document.getElementById('modalEditarCliente');
@@ -4592,10 +5867,17 @@ async function guardarClienteEditado() {
     const dni = document.getElementById('editarClienteDni').value.trim();
     const nombre = document.getElementById('editarClienteNombre').value.trim();
     const apellidos = document.getElementById('editarClienteApellidos').value.trim();
+    const puntos = document.getElementById('editarClientePuntos').value.trim();
 
     // Validar campos obligatorios
     if (!dni || !nombre || !apellidos) {
         alert('Por favor, complete todos los campos obligatorios (DNI, Nombre, Apellidos)');
+        return;
+    }
+
+    // Validar que los puntos no sean negativos
+    if (puntos !== '' && parseInt(puntos) < 0) {
+        alert('Los puntos del cliente no pueden ser negativos');
         return;
     }
 
@@ -4609,7 +5891,7 @@ async function guardarClienteEditado() {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: `id=${encodeURIComponent(id)}&dni=${encodeURIComponent(dni)}&nombre=${encodeURIComponent(nombre)}&apellidos=${encodeURIComponent(apellidos)}&fecha_alta=${encodeURIComponent(fecha_alta)}`
+            body: `id=${encodeURIComponent(id)}&dni=${encodeURIComponent(dni)}&nombre=${encodeURIComponent(nombre)}&apellidos=${encodeURIComponent(apellidos)}&fecha_alta=${encodeURIComponent(fecha_alta)}&puntos=${encodeURIComponent(puntos)}`
         });
 
         const data = await response.json();
@@ -4900,6 +6182,7 @@ function mostrarPanelCategorias(textoBusqueda = '') {
     if (seccionActual !== 'categorias') {
         adminTablaHeaderHTML = '';
         seccionActual = 'categorias';
+        paginaActualCategorias = 1; // Reset pagination when entering section
     }
 
     // Solo generar header si no existe
@@ -4935,13 +6218,26 @@ function mostrarPanelCategorias(textoBusqueda = '') {
                 filteredData = data.filter(cat => cat.nombre.toLowerCase().includes(search));
             }
 
+            // Guardar datos para paginación
+            categoriasData = filteredData;
+
+            // Reset a página 1 cuando cambia la búsqueda
+            if (textoBusqueda !== undefined) {
+                paginaActualCategorias = 1;
+            }
+
+            const totalPaginas = Math.ceil(filteredData.length / categoriasPorPagina);
+            const inicio = (paginaActualCategorias - 1) * categoriasPorPagina;
+            const fin = inicio + categoriasPorPagina;
+            const categoriasPagina = filteredData.slice(inicio, fin);
+
             if (filteredData.length === 0) {
                 contenedor.innerHTML = adminTablaHeaderHTML + '<p class="sin-productos">No hay categorías.</p>';
                 return;
             }
 
             let html = adminTablaHeaderHTML;
-            html += `<div class="admin-tabla-wrapper">
+            html += `<div class="admin-tabla-wrapper sin-scroll">
                 <table class="admin-tabla">
                     <thead>
                         <tr>
@@ -4954,28 +6250,15 @@ function mostrarPanelCategorias(textoBusqueda = '') {
                     </thead>
                     <tbody id="tablaCategoriasBody">`;
 
-            filteredData.forEach(cat => {
-                const fecha = cat.fecha_creacion ? new Date(cat.fecha_creacion).toLocaleDateString('es-ES') : '—';
-                html += `<tr>
-                    <td>${cat.id}</td>
-                    <td>${cat.nombre}</td>
-                    <td style="text-align: center;"><span class="admin-badge" style="background: #e0e7ff; color: #3730a3;">${cat.num_productos}</span></td>
-                    <td>${fecha}</td>
-                    <td class="col-acciones">
-                        <button class="btn-admin-accion btn-ver" onclick="verCategoria(${cat.id})" title="Ver">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="btn-admin-accion btn-editar" onclick="abrirModalEditarCategoria(${cat.id}, '${cat.nombre}', '${cat.descripcion || ''}')" title="Editar">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarCategoria(${cat.id}, '${cat.nombre}')" title="Eliminar">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>`;
+            categoriasPagina.forEach(cat => {
+                html += generarFilaCategoria(cat);
             });
 
             html += '</tbody></table></div>';
+
+            // Añadir paginación
+            html += getPaginacionCategoriasHTML(totalPaginas);
+
             contenedor.innerHTML = html;
         })
         .catch(err => {
@@ -4992,6 +6275,9 @@ function buscarCategorias() {
 
         const textoBusqueda = input.value;
 
+        // Reset pagination when searching
+        paginaActualCategorias = 1;
+
         // Solo buscar, sin regenerar el header (como en productos)
         fetch('api/categorias.php')
             .then(res => res.json())
@@ -5004,31 +6290,42 @@ function buscarCategorias() {
                     filteredData = data.filter(cat => cat.nombre.toLowerCase().includes(search));
                 }
 
+                // Guardar datos para paginación
+                categoriasData = filteredData;
+
+                const totalPaginas = Math.ceil(filteredData.length / categoriasPorPagina);
+                const inicio = (paginaActualCategorias - 1) * categoriasPorPagina;
+                const fin = inicio + categoriasPorPagina;
+                const categoriasPagina = filteredData.slice(inicio, fin);
+
                 const tablaBody = document.getElementById('tablaCategoriasBody');
                 if (!tablaBody) return;
 
                 if (filteredData.length === 0) {
                     tablaBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #6b7280;">No hay categorías.</td></tr>';
+                    // Eliminar paginación si no hay datos
+                    const paginacionExistente = document.querySelector('.admin-paginacion-wrapper');
+                    if (paginacionExistente) paginacionExistente.remove();
                     return;
                 }
 
                 let html = '';
-                filteredData.forEach(cat => {
-                    const fecha = cat.fecha_creacion ? new Date(cat.fecha_creacion).toLocaleDateString('es-ES') : '—';
-                    html += `<tr style="border-bottom: 1px solid #e5e7eb;">
-                        <td style="padding: 12px;">${cat.id}</td>
-                        <td style="padding: 12px; font-weight: 500;">${cat.nombre}</td>
-                        <td style="padding: 12px; text-align: center;"><span class="admin-badge" style="background: #e0e7ff; color: #3730a3;">${cat.num_productos}</span></td>
-                        <td style="padding: 12px;">${fecha}</td>
-                        <td style="padding: 12px; text-align: center;">
-                            <button onclick="verCategoria(${cat.id})" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
-                                <i class="fas fa-eye"></i> Ver
-                            </button>
-                        </td>
-                    </tr>`;
+                categoriasPagina.forEach(cat => {
+                    html += generarFilaCategoria(cat);
                 });
 
                 tablaBody.innerHTML = html;
+
+                // Actualizar paginación
+                const paginacionExistente = document.querySelector('.admin-paginacion-wrapper');
+                if (paginacionExistente) {
+                    paginacionExistente.remove();
+                }
+
+                const wrapperTabla = document.querySelector('.admin-tabla-wrapper');
+                if (wrapperTabla) {
+                    wrapperTabla.insertAdjacentHTML('afterend', getPaginacionCategoriasHTML(totalPaginas));
+                }
             })
             .catch(err => console.error('Error:', err));
     }, 300);
