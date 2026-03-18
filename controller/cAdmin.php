@@ -34,8 +34,9 @@ if (isset($_REQUEST['cerrarSesion'])) {
             ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
             ':descripcion' => 'Usuario cerró sesión'
         ]);
-    } catch (Exception $e) {
-        // Silenciar errores de logging
+    }
+    catch (Exception $e) {
+    // Silenciar errores de logging
     }
 
     // Limpiar todas las variables de sesión
@@ -63,7 +64,8 @@ $tituloDevoluciones = "Devoluciones (Sesión Actual)";
 if ($sesionCaja) {
     // Caja abierta: recuperar estadísticas en tiempo real del turno en curso
     $resumenCaja = Venta::obtenerResumenCajaAbierta();
-} else {
+}
+else {
     // Caja cerrada: recuperar el último arqueo finalizado para consulta histórica
     $ultimaCaja = Caja::obtenerUltimaSesionCerrada();
     // Si la última caja está cerrada
@@ -75,7 +77,8 @@ if ($sesionCaja) {
         $tituloPedidos = "Ventas realizadas (Sesión Anterior)";
         $tituloRetiros = "Retiros (Sesión Anterior)";
         $tituloDevoluciones = "Devoluciones (Sesión Anterior)";
-    } else {
+    }
+    else {
         // Fallback: inicializar valores a cero si el sistema no tiene registros previos
         $resumenCaja = [
             'totalGeneral' => 0,
@@ -113,10 +116,12 @@ $stats = [
 if ($sesionCaja) {
     // Caja abierta: obtener retiros de la sesión actual
     $stats['retirosHoy'] = $sesionCaja->getTotalRetiros();
-} elseif (isset($ultimaCaja) && $ultimaCaja) {
+}
+elseif (isset($ultimaCaja) && $ultimaCaja) {
     // Caja cerrada: obtener retiros de la última sesión
     $stats['retirosHoy'] = $ultimaCaja->getTotalRetiros();
-} else {
+}
+else {
     $stats['retirosHoy'] = 0;
 }
 
@@ -124,10 +129,12 @@ if ($sesionCaja) {
 if ($sesionCaja) {
     // Caja abierta: obtener devoluciones de la sesión actual
     $stats['devolucionesHoy'] = Devolucion::obtenerTotalPorSesion($sesionCaja->getId());
-} elseif (isset($ultimaCaja) && $ultimaCaja) {
+}
+elseif (isset($ultimaCaja) && $ultimaCaja) {
     // Caja cerrada: obtener devoluciones de la última sesión
     $stats['devolucionesHoy'] = Devolucion::obtenerTotalPorSesion($ultimaCaja->getId());
-} else {
+}
+else {
     $stats['devolucionesHoy'] = 0;
 }
 

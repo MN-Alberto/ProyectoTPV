@@ -288,7 +288,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                         "UPDATE clientes SET 
                             productos_comprados = productos_comprados + ?, 
                             compras_realizadas = compras_realizadas + 1,
-                            puntos = puntos + ?
+                            puntos = puntos - ? + ?
                         WHERE dni = ? AND activo = 1"
                     );
                     $puntosGanados = 0;
@@ -306,6 +306,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 }
             }
 
+            
             // Insertamos las líneas de venta y actualizamos el stock
             $lineasVenta = [];
             // Recorremos los productos del carrito
