@@ -13,131 +13,284 @@ require_once(__DIR__ . '/../core/conexionDB.php');
 class Venta
 {
 
+    /** 
+     * @var int|null Identificador único de la venta. 
+     */
     private $id;
+    /** 
+     * @var int|null ID del usuario (cajero/admin) que procesó la venta. 
+     */
     private $idUsuario;
+    /** 
+     * @var string|null Fecha y hora en la que se cerró la transacción. 
+     */
     private $fecha;
+    /** 
+     * @var float|null Importe total de la operación (incluyendo impuestos y descuentos). 
+     */
     private $total;
+    /** 
+     * @var string|null Modalidad de pago utilizada (ej: 'efectivo', 'tarjeta', 'bizum'). 
+     */
     private $metodoPago; // 'efectivo', 'tarjeta', 'bizum'
+    /** 
+     * @var string|null Situación administrativa de la venta (ej: 'completada', 'anulada'). 
+     */
     private $estado; // 'completada', 'anulada'
+    /** 
+     * @var string|null Categoría legal del comprobante emitido (ej: 'ticket', 'factura'). 
+     */
     private $tipoDocumento; // 'ticket', 'factura'
+    /** 
+     * @var bool|int Estado de la transacción (1 si la venta está finalizada y cerrada). 
+     */
     private $cerrada; // 0 o 1
+    /** 
+     * @var float|null Cantidad de dinero físico entregada por el cliente. 
+     */
     private $importeEntregado;
+    /** 
+     * @var float|null Diferencia monetaria devuelta al cliente tras el pago en efectivo. 
+     */
     private $cambioDevuelto;
+    /** 
+     * @var int|null ID de la tarifa global aplicada a toda la venta. 
+     */
     private $idTarifa; // ID de la tarifa prefijada aplicada
+    /** 
+     * @var string|null Documento Nacional de Identidad del cliente registrado. 
+     */
     private $clienteDni; // DNI del cliente asociado a la venta
+    /** 
+     * @var int|null Referencia a la sesión de caja en la que se integró esta venta. 
+     */
     private $idSesionCaja; // ID de la sesión de caja en la que se realizó la venta
 
     // Campos de descuento
+    /** 
+     * @var string|null Tipo de bonificación general aplicada (ej: 'porcentaje', 'fijo'). 
+     */
     private $descuentoTipo;
+    /** 
+     * @var float|null Valor numérico de la reducción aplicada al total. 
+     */
     private $descuentoValor;
+    /** 
+     * @var string|null Código de campaña o cupón utilizado para el descuento general. 
+     */
     private $descuentoCupon;
+    /** 
+     * @var string|null Tipo de ajuste automático por tarifa aplicada. 
+     */
     private $descuentoTarifaTipo;
+    /** 
+     * @var float|null Valor del ajuste por tarifa. 
+     */
     private $descuentoTarifaValor;
+    /** 
+     * @var string|null Identificador promocional de la tarifa. 
+     */
     private $descuentoTarifaCupon;
+    /** 
+     * @var string|null Tipo de rebaja introducida manualmente por el cajero. 
+     */
     private $descuentoManualTipo;
+    /** 
+     * @var float|null Valor de la rebaja manual. 
+     */
     private $descuentoManualValor;
+    /** 
+     * @var string|null Justificación o código del descuento manual. 
+     */
     private $descuentoManualCupon;
 
     // ======================== GETTERS ========================
 
+    /** 
+     * Obtiene el ID de la venta.
+     * @return int|null 
+     */
     public function getId()
     {
         return $this->id;
     }
 
+    /** 
+     * Obtiene el ID del usuario que procesó la transacción.
+     * @return int|null 
+     */
     public function getIdUsuario()
     {
         return $this->idUsuario;
     }
 
+    /** 
+     * Obtiene la fecha y hora de la venta.
+     * @return string|null 
+     */
     public function getFecha()
     {
         return $this->fecha;
     }
 
+    /** 
+     * Obtiene el importe total acumulado.
+     * @return float|null 
+     */
     public function getTotal()
     {
         return $this->total;
     }
 
+    /** 
+     * Obtiene el método de pago empleado.
+     * @return string|null 
+     */
     public function getMetodoPago()
     {
         return $this->metodoPago;
     }
 
+    /** 
+     * Obtiene el estado actual de la venta.
+     * @return string|null 
+     */
     public function getEstado()
     {
         return $this->estado;
     }
 
+    /** 
+     * Obtiene la naturaleza del comprobante legal.
+     * @return string|null 
+     */
     public function getTipoDocumento()
     {
         return $this->tipoDocumento;
     }
 
+    /** 
+     * Comprueba si la venta está bloqueada y cerrada.
+     * @return bool|int 
+     */
     public function getCerrada()
     {
         return $this->cerrada;
     }
 
     // ======================== SETTERS ========================
-
+    /** 
+     * Establece el ID único de la venta.
+     * @param int $id 
+     */
     public function setId($id)
     {
         $this->id = $id;
     }
-
+    /** 
+     * Establece el ID del usuario que realizó la venta.
+     * @param int $idUsuario 
+     */
     public function setIdUsuario($idUsuario)
     {
         $this->idUsuario = $idUsuario;
     }
-
+    /** 
+     * Establece la fecha y hora de la transacción.
+     * @param string $fecha Formato Y-m-d H:i:s
+     */
     public function setFecha($fecha)
     {
         $this->fecha = $fecha;
     }
-
+    /** 
+     * Establece el importe total de la venta.
+     * @param float $total 
+     */
     public function setTotal($total)
     {
         $this->total = $total;
     }
-
+    /** 
+     * Define el método de pago utilizado.
+     * @param string $metodoPago 'efectivo', 'tarjeta' o 'bizum'.
+     */
     public function setMetodoPago($metodoPago)
     {
         $this->metodoPago = $metodoPago;
     }
-
+    /** 
+     * Establece el estado administrativo de la venta.
+     * @param string $estado 'completada' o 'anulada'.
+     */
     public function setEstado($estado)
     {
         $this->estado = $estado;
     }
-
+    /** 
+     * Define si el comprobante es un ticket o una factura legal.
+     * @param string $tipoDocumento 'ticket' o 'factura'.
+     */
     public function setTipoDocumento($tipoDocumento)
     {
         $this->tipoDocumento = $tipoDocumento;
     }
-
+    /** 
+     * Define si la venta ha sido cerrada definitivamente.
+     * @param bool|int $cerrada 1 para cerrada, 0 para abierta.
+     */
     public function setCerrada($cerrada)
     {
         $this->cerrada = $cerrada;
+    }
+    /** 
+     * Establece la cantidad de efectivo entregada por el cliente.
+     * @param float $importeEntregado 
+     */
+    public function setImporteEntregado($importeEntregado)
+    {
+        $this->importeEntregado = $importeEntregado;
+    }
+    /** 
+     * Establece el cambio monetario devuelto al cliente.
+     * @param float $cambioDevuelto 
+     */
+    public function setCambioDevuelto($cambioDevuelto)
+    {
+        $this->cambioDevuelto = $cambioDevuelto;
+    }
+    /** 
+     * Asocia una tarifa específica a toda la transacción.
+     * @param int $idTarifa 
+     */
+    public function setIdTarifa($idTarifa)
+    {
+        $this->idTarifa = $idTarifa;
+    }
+    /** 
+     * Asocia un cliente a la venta mediante su DNI.
+     * @param string|null $clienteDni 
+     */
+    public function setClienteDni($clienteDni)
+    {
+        $this->clienteDni = $clienteDni;
+    }
+    /** 
+     * Vincula la venta a una sesión de caja activa.
+     * @param int|null $idSesionCaja 
+     */
+    public function setIdSesionCaja($idSesionCaja)
+    {
+        $this->idSesionCaja = $idSesionCaja;
     }
 
     public function getImporteEntregado()
     {
         return $this->importeEntregado;
     }
-    public function setImporteEntregado($importeEntregado)
-    {
-        $this->importeEntregado = $importeEntregado;
-    }
-
     public function getCambioDevuelto()
     {
         return $this->cambioDevuelto;
-    }
-    public function setCambioDevuelto($cambioDevuelto)
-    {
-        $this->cambioDevuelto = $cambioDevuelto;
     }
 
     public function getIdTarifa()
@@ -145,28 +298,14 @@ class Venta
         return $this->idTarifa;
     }
 
-    public function setIdTarifa($idTarifa)
-    {
-        $this->idTarifa = $idTarifa;
-    }
-
     public function getClienteDni()
     {
         return $this->clienteDni;
-    }
-    public function setClienteDni($clienteDni)
-    {
-        $this->clienteDni = $clienteDni;
     }
 
     public function getIdSesionCaja()
     {
         return $this->idSesionCaja;
-    }
-
-    public function setIdSesionCaja($idSesionCaja)
-    {
-        $this->idSesionCaja = $idSesionCaja;
     }
 
     // Getters y Setters de descuentos
@@ -289,9 +428,10 @@ class Venta
     // ======================== MÉTODOS CRUD ========================
 
     /**
-     * Busca una venta por su ID.
-     * @param int $id
-     * @return Venta|null
+     * Recupera un registro de venta (ticket o factura) utilizando su ID único.
+     * 
+     * @param int $id El identificador de la venta.
+     * @return Venta|null El objeto Venta si existe, null si no se encuentra.
      */
     public static function buscarPorId($id)
     {
@@ -314,8 +454,9 @@ class Venta
     }
 
     /**
-     * Obtiene todas las ventas.
-     * @return array
+     * Obtiene el listado histórico de todas las ventas registradas, ordenadas por fecha descendente.
+     * 
+     * @return array Colección de objetos Venta.
      */
     public static function obtenerTodas()
     {
@@ -335,9 +476,10 @@ class Venta
     }
 
     /**
-     * Obtiene las ventas de un usuario concreto.
-     * @param int $idUsuario
-     * @return array
+     * Filtra las ventas realizadas por un empleado específico.
+     * 
+     * @param int $idUsuario ID del cajero o administrador.
+     * @return array Listado de ventas procesadas por dicho usuario.
      */
     public static function obtenerPorUsuario($idUsuario)
     {
@@ -363,10 +505,11 @@ class Venta
     }
 
     /**
-     * Obtiene las ventas entre dos fechas.
-     * @param string $fechaInicio
-     * @param string $fechaFin
-     * @return array
+     * Recupera el conjunto de ventas realizadas en un rango temporal determinado.
+     * 
+     * @param string $fechaInicio Fecha de inicio (Y-m-d).
+     * @param string $fechaFin Fecha de fin (Y-m-d).
+     * @return array Ventas dentro del intervalo.
      */
     public static function obtenerPorFechas($fechaInicio, $fechaFin)
     {
@@ -393,8 +536,10 @@ class Venta
     }
 
     /**
-     * Inserta una nueva venta en la base de datos.
-     * @return bool
+     * Registra una nueva venta persistiendo los datos en la tabla correspondiente (tickets o facturas).
+     * Implementa una transacción SQL para asegurar que se genere un ID único compartido.
+     * 
+     * @return bool True si la venta se guardó correctamente.
      */
     public function insertar()
     {

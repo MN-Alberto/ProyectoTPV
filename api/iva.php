@@ -1,6 +1,9 @@
 <?php
 /**
- * API para gestionar los tipos de IVA
+ * API de Gestión de Tipos de IVA.
+ * Permite la configuración dinámica de los tipos impositivos aplicables a los productos,
+ * facilitando la actualización de porcentajes y nombres de impuestos.
+ * 
  * @author Alberto Méndez
  * @version 1.0 (11/03/2026)
  */
@@ -16,7 +19,10 @@ require_once(__DIR__ . '/../model/Iva.php');
 header('Content-Type: application/json; charset=utf-8');
 
 try {
-    // ── ELIMINAR TIPO DE IVA (DELETE) ──
+    /** 
+     * MANEJADOR DE ELIMINACIÓN (DELETE)
+     * Borra un tipo de IVA si no tiene dependencias activas con productos.
+     */
     if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
         $id = isset($_GET['eliminar']) ? (int) $_GET['eliminar'] : 0;
 
@@ -35,7 +41,10 @@ try {
         exit();
     }
 
-    // ── POST (crear o actualizar) ──
+    /** 
+     * MANEJADOR DE PERSISTENCIA (POST)
+     * Procesa tanto el alta de nuevos tipos como la edición de los existentes.
+     */
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int) ($_POST['id'] ?? 0);
         $nombre = trim($_POST['nombre'] ?? '');

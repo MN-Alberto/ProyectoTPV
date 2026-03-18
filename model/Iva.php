@@ -13,22 +13,43 @@ require_once(__DIR__ . '/../core/conexionDB.php');
 class Iva
 {
 
+    /** 
+     * @var int|null Identificador único del tipo de IVA. 
+     */
     private $id;
+    /** 
+     * @var string|null Nombre común del impuesto (ej: 'General', 'Reducido', 'Superreducido'). 
+     */
     private $nombre;
+    /** 
+     * @var float|null Valor numérico porcentual del impuesto (ej: 21.0, 10.0, 4.0). 
+     */
     private $porcentaje;
 
     // ======================== GETTERS ========================
 
+    /** 
+     * Obtiene el ID del tipo de IVA.
+     * @return int|null 
+     */
     public function getId()
     {
         return $this->id;
     }
 
+    /** 
+     * Obtiene el nombre descriptivo del tipo de IVA.
+     * @return string|null 
+     */
     public function getNombre()
     {
         return $this->nombre;
     }
 
+    /** 
+     * Obtiene el valor porcentual del IVA.
+     * @return float|null 
+     */
     public function getPorcentaje()
     {
         return $this->porcentaje;
@@ -36,16 +57,28 @@ class Iva
 
     // ======================== SETTERS ========================
 
+    /** 
+     * Establece el ID único del tipo de IVA.
+     * @param int $id 
+     */
     public function setId($id)
     {
         $this->id = $id;
     }
 
+    /** 
+     * Define el nombre descriptivo del impuesto (ej: 'General').
+     * @param string $nombre 
+     */
     public function setNombre($nombre)
     {
         $this->nombre = $nombre;
     }
 
+    /** 
+     * Establece el valor porcentual (ej: 21.0).
+     * @param float $porcentaje 
+     */
     public function setPorcentaje($porcentaje)
     {
         $this->porcentaje = $porcentaje;
@@ -54,8 +87,9 @@ class Iva
     // ======================== MÉTODOS CRUD ========================
 
     /**
-     * Obtiene todos los tipos de IVA.
-     * @return array
+     * Recupera el listado completo de tipos de IVA registrados, ordenados por valor descendente.
+     * 
+     * @return array Colección de objetos Iva.
      */
     public static function obtenerTodos()
     {
@@ -69,9 +103,10 @@ class Iva
     }
 
     /**
-     * Busca un tipo de IVA por su ID.
-     * @param int $id
-     * @return Iva|null
+     * Busca la configuración de un IVA específico por su identificador primario.
+     * 
+     * @param int $id ID del registro.
+     * @return Iva|null Objeto Iva o null si no se encuentra.
      */
     public static function buscarPorId($id)
     {
@@ -87,8 +122,9 @@ class Iva
     }
 
     /**
-     * Inserta un nuevo tipo de IVA en la base de datos.
-     * @return bool
+     * Inserta un nuevo gravamen de IVA en el sistema.
+     * 
+     * @return bool True si la inserción fue exitosa.
      */
     public function insertar()
     {

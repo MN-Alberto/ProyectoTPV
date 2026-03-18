@@ -286,9 +286,11 @@ class Producto
     }
 
     /**
-     * Busca productos por nombre (búsqueda parcial).
-     * @param string $nombre
-     * @return array
+     * Realiza una búsqueda de productos activos filtrando por coincidencia parcial en el nombre.
+     * Esta función es intensivamente utilizada por el buscador predictivo de la interfaz de ventas.
+     * 
+     * @param string $nombre Parte del nombre a buscar (ej: 'ratón').
+     * @return array Listado de objetos Producto encontrados.
      */
     public static function buscarPorNombre($nombre)
     {
@@ -319,10 +321,12 @@ class Producto
     }
 
     /**
-     * Busca productos por nombre y categoría (búsqueda completa).
-     * @param string $nombre
-     * @param string $categoria
-     * @return array
+     * Búsqueda avanzada que combina filtro por nombre y categoría específica.
+     * Esencial para la navegación por secciones en la pantalla del TPV.
+     * 
+     * @param string $nombre Subcadena para el nombre del artículo.
+     * @param string $categoria Identificador o nombre de la categoría.
+     * @return array Colección de productos que cumplen ambos criterios.
      */
     public static function buscarPorNombreYCategoria($nombre, $categoria)
     {
@@ -355,8 +359,10 @@ class Producto
     }
 
     /**
-     * Inserta un nuevo producto en la base de datos.
-     * @return bool
+     * Registra un nuevo producto en la base de datos persistente.
+     * Tras la inserción exitosa, el objeto se actualiza con el ID generado por la BD.
+     * 
+     * @return bool True si la operación fue exitosa.
      */
     public function insertar()
     {
@@ -385,9 +391,10 @@ class Producto
     }
 
     /**
-     * Actualiza los datos del producto en la base de datos.
-     * También actualiza automáticamente el precio de la tarifa "Cliente".
-     * @return bool
+     * Actualiza los datos de un producto existente en el sistema.
+     * Gestiona automáticamente la sincronización de precios entre diferentes tablas de tarifas.
+     * 
+     * @return bool Resultado de la ejecución de la consulta UPDATE.
      */
     public function actualizar()
     {

@@ -1,6 +1,8 @@
 <?php
 /**
- * API para gestionar las devoluciones.
+ * API de Gestión de Devoluciones y Abonos.
+ * Proporciona acceso al historial de devoluciones procesadas, permitiendo
+ * la auditoría de abonos y la consulta de mercancía retornada al inventario.
  * 
  * @author Alberto Méndez
  * @version 1.0 (03/03/2026)
@@ -21,6 +23,10 @@ if (!isset($_SESSION['rolUsuario']) || $_SESSION['rolUsuario'] !== 'admin') {
 
 $method = $_SERVER['REQUEST_METHOD'];
 
+/** 
+ * MANEJADOR DE CONSULTAS (GET)
+ * Permite listar todas las devoluciones con filtros dinámicos.
+ */
 if ($method === 'GET') {
     if (isset($_GET['todas'])) {
         $orden = $_GET['orden'] ?? 'fecha_desc';

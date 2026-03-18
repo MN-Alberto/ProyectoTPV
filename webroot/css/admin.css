@@ -8,6 +8,20 @@
     overflow-y: auto; /* Permitir scroll global si el contenido es grande */
 }
 
+/* Scroll para el menú lateral */
+.admin-sidebar {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.admin-nav-buttons {
+    flex: 1;
+    overflow-y: auto !important;
+    scrollbar-width: thin;
+}
+
+
 .admin-header {
     display: flex;
     justify-content: space-between;
@@ -20,6 +34,54 @@
 .admin-header h2 {
     font-size: 1.25rem;
     color: #1a1a2e;
+}
+
+/* Indicador de efectivo y estado en cabecera */
+.indicador-efectivo {
+    display: flex;
+    align-items: center;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    gap: 12px;
+}
+
+.indicador-efectivo .label {
+    font-weight: 600;
+    color: #166534;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+}
+
+.indicador-efectivo .amount {
+    font-weight: 700;
+    color: #15803d;
+    font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
+}
+
+.indicador-efectivo .separador {
+    width: 1px;
+    height: 16px;
+    background: #bbf7d0;
+}
+
+body.dark-mode .indicador-efectivo {
+    background: #064e3b;
+    border-color: #065f46;
+}
+
+body.dark-mode .indicador-efectivo .label {
+    color: #34d399;
+}
+
+body.dark-mode .indicador-efectivo .amount {
+    color: #6ee7b7;
+}
+
+body.dark-mode .indicador-efectivo .separador {
+    background: #065f46;
 }
 
 .admin-stats-grid {
@@ -50,6 +112,102 @@
     font-size: 1.5rem;
     font-weight: 700;
     color: rgb(104, 233, 72);
+}
+
+/* ── Informes ── */
+.reports-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.report-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-main);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.report-card-header {
+    background: #f8fafc;
+    padding: 12px 15px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    border-bottom: 1px solid var(--border-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #334155;
+}
+
+body.dark-mode .report-card-header {
+    background: #1e293b;
+    color: #f1f5f9;
+}
+
+.report-card-body {
+    padding: 15px;
+}
+
+.report-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.report-stat .label {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.report-stat .value {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-main);
+}
+
+.report-divider {
+    height: 1px;
+    background: var(--border-main);
+    margin: 10px 0;
+}
+
+.report-substat {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-bottom: 4px;
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.report-table th {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 1px solid var(--border-main);
+    color: #64748b;
+}
+
+.report-table td {
+    padding: 8px;
+    border-bottom: 1px solid rgba(0,0,0,0.02);
+}
+
+.reports-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
+    color: #64748b;
+    font-size: 1.1rem;
+    gap: 15px;
 }
 
 .admin-content-panel {

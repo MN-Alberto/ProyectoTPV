@@ -1,6 +1,8 @@
 <?php
 /**
- * API para gestionar los retiros de caja.
+ * API de Gestión de Retiros de Efectivo.
+ * Proporciona acceso administrativo al historial de extracciones de caja,
+ * permitiendo auditar los motivos e importes retirados durante la jornada.
  * 
  * @author Alberto Méndez
  * @version 1.0 (04/03/2026)
@@ -20,14 +22,25 @@ if (!isset($_SESSION['rolUsuario']) || $_SESSION['rolUsuario'] !== 'admin') {
 
 $method = $_SERVER['REQUEST_METHOD'];
 
+/** 
+ * MANEJADOR DE CONSULTAS (GET)
+ * Recupera el listado de retiros aplicando filtros de tiempo y ordenación.
+ */
 if ($method === 'GET') {
     $orden = $_GET['orden'] ?? 'fecha_desc';
 
     // Validar orden
-    $ordenesValidos = ['fecha_desc', 'fecha_asc', 'importe_desc', 'importe_asc'];
-    if (!in_array($orden, $ordenesValidos)) {
+    $ordenesValidos = [
+        'fecha_desc' => 'r.fecha DESC',
+        'fecha_asc' => 'r.fecha ASC',
+        'importe_desc' => 'r.importe DESC',
+        'importe_asc' => 'r.importe ASC'
+    ];
+
+    if (!isset($ordenesValidos[$orden])) {
         $orden = 'fecha_desc';
     }
+    $orderBy = $ordenesValidos[$orden];
 
     try {
         $pdo = new PDO(RUTA, USUARIO, PASS);
@@ -50,10 +63,10 @@ if ($method === 'GET') {
                     $condiciones[] = "DATE(r.fecha) = CURDATE()";
                     break;
                 case '7dias':
-                    $condiciones[] = "r.fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+                    $condiciones[] = "DATE(r.fecha) >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
                     break;
                 case '30dias':
-                    $condiciones[] = "r.fecha >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+                    $condiciones[] = "DATE(r.fecha) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
                     break;
             }
         }
@@ -77,7 +90,12 @@ if ($method === 'GET') {
         $stmt->execute();
         $retiros = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        echo json_encode($retiros);
+        if (isset($_GET['debug'])) {
+            $totalEnTabla = $pdo->query("SELECT COUNT(*) FROM retiros")->fetchColumn();
+            echo json_encode(['retiros' => $retiros, 'debug' => ['total_tabla' => $totalEnTabla, 'filtros' => $condiciones]]);
+        } else {
+            echo json_encode($retiros);
+        }
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['ok' => false, 'error' => 'Error al obtener retiros: ' . $e->getMessage()]);

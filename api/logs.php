@@ -1,12 +1,11 @@
 <?php
 /**
- * API para gestionar los logs del sistema.
- * 
- * GET  → Devuelve los logs con paginación y filtros
- * POST → Crea un nuevo log (solo usuarios autenticados)
+ * API de Auditoría de Eventos (Logs).
+ * Proporciona herramientas para la consulta, filtrado persistente y depuración
+ * de los registros de actividad del sistema (inicios de sesión, ventas, errores).
  * 
  * @author Alberto Méndez
- * @version 1.3
+ * @version 1.3 (04/03/2026)
  */
 
 // Error reporting
@@ -28,7 +27,10 @@ try {
     exit;
 }
 
-// ======================== GET: Obtener logs ========================
+/** 
+ * MANEJADOR DE CONSULTAS (GET)
+ * Permite la extracción de registros aplicando filtros de tipo, fecha y paginación masiva.
+ */
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {
         // Verificar si la tabla existe
@@ -129,7 +131,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     exit;
 }
 
-// ======================== POST: Limpiar logs ========================
+/** 
+ * ACCIÓN ESPECIAL: Limpiar Logs (POST con flag 'limpiar')
+ * Realiza un truncado físico de la tabla de auditoría para liberar espacio.
+ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['accion']) && $_GET['accion'] === 'limpiar') {
     try {
         // Capturar info del usuario antes de truncate

@@ -13,28 +13,56 @@ require_once(__DIR__ . '/../core/conexionDB.php');
 // Definimos la clase Categoria
 class Categoria
 {
+    /** 
+     * @var int|null Identificador único de la categoría de producto. 
+     */
     private $id;
+    /** 
+     * @var string|null Nombre descriptivo de la categoría (ej: 'Bebidas', 'Alimentos'). 
+     */
     private $nombre;
+    /** 
+     * @var string|null Breve explicación sobre los productos que engloba esta categoría. 
+     */
     private $descripcion;
+    /** 
+     * @var string|null Fecha y hora en la que se registró la categoría en el sistema. 
+     */
     private $fecha_creacion;
 
     // ======================== GETTERS ========================
 
+    /** 
+     * Obtiene el ID de la categoría.
+     * @return int|null 
+     */
     public function getId()
     {
         return $this->id;
     }
 
+    /** 
+     * Obtiene el nombre de la categoría.
+     * @return string|null 
+     */
     public function getNombre()
     {
         return $this->nombre;
     }
 
+    /** 
+     * Obtiene la descripción detallada de la categoría.
+     * @return string|null 
+     */
     public function getDescripcion()
     {
         return $this->descripcion;
     }
 
+    /** 
+     * Obtiene la fecha de creación del registro.
+     * @return string|null 
+     */
     public function getFechaCreacion()
     {
         return $this->fecha_creacion;
@@ -42,21 +70,37 @@ class Categoria
 
     // ======================== SETTERS ========================
 
+    /** 
+     * Establece el identificador único de la categoría.
+     * @param int $id 
+     */
     public function setId($id)
     {
         $this->id = $id;
     }
 
+    /** 
+     * Define el nombre público de la categoría.
+     * @param string $nombre 
+     */
     public function setNombre($nombre)
     {
         $this->nombre = $nombre;
     }
 
+    /** 
+     * Establece la descripción detallada de los productos incluidos.
+     * @param string $descripcion 
+     */
     public function setDescripcion($descripcion)
     {
         $this->descripcion = $descripcion;
     }
 
+    /** 
+     * Define el momento de creación del registro en el sistema.
+     * @param string $fecha_creacion 
+     */
     public function setFechaCreacion($fecha_creacion)
     {
         $this->fecha_creacion = $fecha_creacion;

@@ -13,122 +13,256 @@ require_once(__DIR__ . '/../core/conexionDB.php');
 class Caja
 {
     // Propiedades de la clase
+    /** 
+     * @var int|null Identificador único de la sesión de caja. 
+     */
     private $id;
+    /** 
+     * @var int|null ID del usuario encargado que realizó la apertura de la caja. 
+     */
     private $idUsuario;
+    /** 
+     * @var string|null Momento exacto (fecha y hora) en que se abrió la sesión de caja. 
+     */
     private $fechaApertura;
+    /** 
+     * @var string|null Momento exacto (fecha y hora) en que se cerró la sesión de caja. 
+     */
     private $fechaCierre;
+    /** 
+     * @var float|null Cantidad de dinero en efectivo con la que se inició el turno. 
+     */
     private $importeInicial;
+    /** 
+     * @var float|null Cantidad actual de dinero en efectivo acumulado en el cajón durante la sesión. 
+     */
     private $importeActual;
+    /** 
+     * @var float|null Cantidad de dinero destinada a servir como fondo de cambio para el siguiente turno. 
+     */
     private $cambio; // Cambio guardado para el siguiente turno
+    /** 
+     * @var string|null Estado actual de la sesión (ej: 'abierta' cuando está en uso, 'cerrada' al finalizar el turno). 
+     */
     private $estado; // 'abierta', 'cerrada'
+    /** 
+     * @var string|null Motivo por el cual se interrumpió la sesión (ej: 'pausa' para descansos, 'turno' para cambio de empleado). 
+     */
     private $interrupcionTipo; // 'pausa', 'turno'
+    /** 
+     * @var int|null ID del usuario que se encontraba operando la caja en el momento de la interrupción. 
+     */
     private $interrupcionUsuarioId;
+    /** 
+     * @var string|null Nombre del usuario responsable en el momento de la interrupción del servicio. 
+     */
     private $interrupcionUsuarioNombre;
+    /** 
+     * @var string|null Fecha y hora en la que se registró la última interrupción de la sesión. 
+     */
     private $interrupcionFecha;
 
     // ======================== GETTERS ========================
+    /** 
+     * Obtiene el ID de la sesión de caja.
+     * @return int|null 
+     */
     public function getId()
     {
         return $this->id;
     }
+    /** 
+     * Obtiene el ID del usuario que abrió la caja.
+     * @return int|null 
+     */
     public function getIdUsuario()
     {
         return $this->idUsuario;
     }
+    /** 
+     * Obtiene la fecha y hora de apertura.
+     * @return string|null 
+     */
     public function getFechaApertura()
     {
         return $this->fechaApertura;
     }
+    /** 
+     * Obtiene la fecha y hora de cierre.
+     * @return string|null 
+     */
     public function getFechaCierre()
     {
         return $this->fechaCierre;
     }
+    /** 
+     * Obtiene el importe con el que se inició la sesión.
+     * @return float|null 
+     */
     public function getImporteInicial()
     {
         return $this->importeInicial;
     }
+    /** 
+     * Obtiene el importe actual acumulado en efectivo.
+     * @return float|null 
+     */
     public function getImporteActual()
     {
         return $this->importeActual;
     }
+    /** 
+     * Obtiene la cantidad reservada para el fondo de cambio.
+     * @return float|null 
+     */
     public function getCambio()
     {
         return $this->cambio;
     }
+    /** 
+     * Obtiene el estado actual de la caja.
+     * @return string|null 
+     */
     public function getEstado()
     {
         return $this->estado;
     }
+    /** 
+     * Obtiene el tipo de interrupción registrada.
+     * @return string|null 
+     */
     public function getInterrupcionTipo()
     {
         return $this->interrupcionTipo;
     }
+    /** 
+     * Obtiene el ID del usuario en el momento del parón.
+     * @return int|null 
+     */
     public function getInterrupcionUsuarioId()
     {
         return $this->interrupcionUsuarioId;
     }
+    /** 
+     * Obtiene el nombre del usuario responsable del parón.
+     * @return string|null 
+     */
     public function getInterrupcionUsuarioNombre()
     {
         return $this->interrupcionUsuarioNombre;
     }
+    /** 
+     * Obtiene la fecha de la última interrupción.
+     * @return string|null 
+     */
     public function getInterrupcionFecha()
     {
         return $this->interrupcionFecha;
     }
 
     // ======================== SETTERS ========================
+    /** 
+     * Establece el ID único de la sesión de caja.
+     * @param int $id 
+     */
     public function setId($id)
     {
         $this->id = $id;
     }
+    /** 
+     * Establece el ID del usuario que inicia la sesión.
+     * @param int $idUsuario 
+     */
     public function setIdUsuario($idUsuario)
     {
         $this->idUsuario = $idUsuario;
     }
+    /** 
+     * Define el momento de apertura de la caja.
+     * @param string $fechaApertura Formato Y-m-d H:i:s
+     */
     public function setFechaApertura($fechaApertura)
     {
         $this->fechaApertura = $fechaApertura;
     }
+    /** 
+     * Define el momento de cierre de la caja.
+     * @param string $fechaCierre Formato Y-m-d H:i:s
+     */
     public function setFechaCierre($fechaCierre)
     {
         $this->fechaCierre = $fechaCierre;
     }
+    /** 
+     * Establece el importe en efectivo al abrir el turno.
+     * @param float $importeInicial 
+     */
     public function setImporteInicial($importeInicial)
     {
         $this->importeInicial = $importeInicial;
     }
+    /** 
+     * Establece el importe acumulado actual en el cajón.
+     * @param float $importeActual 
+     */
     public function setImporteActual($importeActual)
     {
         $this->importeActual = $importeActual;
     }
+    /** 
+     * Define la cantidad reservada para el fondo de cambio.
+     * @param float $cambio 
+     */
     public function setCambio($cambio)
     {
         $this->cambio = $cambio;
     }
+    /** 
+     * Establece el estado operativo de la sesión.
+     * @param string $estado 'abierta' o 'cerrada'.
+     */
     public function setEstado($estado)
     {
         $this->estado = $estado;
     }
+    /** 
+     * Define el motivo de un parón temporal en el servicio.
+     * @param string $tipo 'pausa' o 'turno'.
+     */
     public function setInterrupcionTipo($tipo)
     {
         $this->interrupcionTipo = $tipo;
     }
+    /** 
+     * Establece el ID del usuario que deja la caja en espera.
+     * @param int $id 
+     */
     public function setInterrupcionUsuarioId($id)
     {
         $this->interrupcionUsuarioId = $id;
     }
+    /** 
+     * Establece el nombre del empleado que causa la interrupción.
+     * @param string $nombre 
+     */
     public function setInterrupcionUsuarioNombre($nombre)
     {
         $this->interrupcionUsuarioNombre = $nombre;
     }
+    /** 
+     * Define el momento exacto de la interrupción del turno.
+     * @param string $fecha Formato Y-m-d H:i:s
+     */
     public function setInterrupcionFecha($fecha)
     {
         $this->interrupcionFecha = $fecha;
     }
 
     /**
-     * Busca la sesión de caja actualmente abierta.
-     * @return Caja|null
+     * Recupera la sesión de caja que se encuentra en estado 'abierta' en este momento.
+     * Solo debería existir una sesión abierta simultáneamente en el sistema.
+     * 
+     * @return Caja|null Objeto Caja activo o null si no hay turno iniciado.
      */
     public static function obtenerSesionAbierta()
     {
@@ -147,8 +281,10 @@ class Caja
     }
 
     /**
-     * Busca la última sesión de caja cerrada.
-     * @return Caja|null
+     * Localiza el último registro de una caja que fue finalizada con éxito.
+     * Útil para recuperar el fondo de cambio del turno anterior.
+     * 
+     * @return Caja|null Datos de la sesión cerrada más reciente.
      */
     public static function obtenerUltimaSesionCerrada()
     {
@@ -167,11 +303,12 @@ class Caja
     }
 
     /**
-     * Abre una nueva sesión de caja.
-     * @param int $idUsuario
-     * @param float $importeInicial
-     * @param float $cambioOptional Cambio recovery from previous session (opcional)
-     * @return Caja|bool
+     * Inicia un nuevo turno o jornada de caja registrando el fondo inicial disponible.
+     * 
+     * @param int $idUsuario Empleado responsable de la apertura.
+     * @param float $importeInicial Dinero físico aportado al cajón.
+     * @param float $cambioOptional Fondo de maniobra recuperado (opcional).
+     * @return Caja|bool Objeto de la nueva sesión si se abre con éxito, false en caso contrario.
      */
     public static function abrir($idUsuario, $importeInicial, $cambioOptional = 0)
     {
@@ -205,9 +342,11 @@ class Caja
     }
 
     /**
-     * Actualiza el importe actual de la caja.
-     * @param float $variacion Importe a sumar (recibido - cambio)
-     * @return bool
+     * Incrementa o decrementa el saldo de efectivo en el cajón de forma inmediata.
+     * Se usa habitualmente al procesar una venta o una devolución.
+     * 
+     * @param float $variacion Cantidad neta a sumar (positiva) o restar (negativa).
+     * @return bool Éxito de la operación en BD.
      */
     public function actualizarEfectivo($variacion)
     {
@@ -224,9 +363,10 @@ class Caja
     }
 
     /**
-     * Cierra la sesión de caja actual.
-     * @param float $cambioOptional Cambio a guardar para el siguiente turno (opcional)
-     * @return bool
+     * Finaliza la sesión de caja actual, registrando la hora de cierre y el arqueo final.
+     * 
+     * @param float $cambioOptional Importe que se deja en el cajón para el turno siguiente (opcional).
+     * @return bool True si el cierre se registró correctamente.
      */
     public function cerrar($cambioOptional = null)
     {
@@ -248,11 +388,12 @@ class Caja
     }
 
     /**
-     * Registra un retiro de dinero de la caja.
-     * @param float $importe Importe a retirar
-     * @param int $idUsuario ID del usuario que realiza el retiro
-     * @param string|null $motivo Motivo del retiro (opcional)
-     * @return bool
+     * Documenta una salida de efectivo de la caja (ej: pago a proveedores o gastos menores).
+     * 
+     * @param float $importe Cantidad extraída.
+     * @param int $idUsuario Empleado que autoriza el movimiento.
+     * @param string|null $motivo Justificación breve de la extracción.
+     * @return bool Confirmación del registro.
      */
     public function registrarRetiro($importe, $idUsuario, $motivo = null)
     {

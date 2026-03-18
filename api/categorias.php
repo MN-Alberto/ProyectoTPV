@@ -1,6 +1,9 @@
 <?php
 /**
- * API para gestionar las categorías
+ * API de Clasificación de Productos (Categorías).
+ * Proporciona endpoints para organizar el catálogo en diferentes grupos lógicos,
+ * permitiendo la gestión administrativa de etiquetas y descripciones de categoría.
+ * 
  * @author Alberto Méndez
  * @version 1.1 (05/03/2026)
  */
@@ -17,7 +20,10 @@ session_start();
 header('Content-Type: application/json; charset=utf-8');
 
 try {
-    // Manejar POST para editar categoría (debe verificarse primero)
+    /** 
+     * MANEJADOR DE EDICIÓN (POST con flag 'editar')
+     * Actualiza la información de una categoría existente.
+     */
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar'])) {
         $id = $_POST['editar'];
         $nombre = $_POST['nombre'] ?? '';
@@ -64,7 +70,10 @@ try {
         exit();
     }
 
-    // Manejar POST para crear nueva categoría
+    /** 
+     * MANEJADOR DE ALTA (POST)
+     * Registra una nueva agrupación de productos en el sistema.
+     */
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $nombre = $_POST['nombre'] ?? '';
         $descripcion = $_POST['descripcion'] ?? '';

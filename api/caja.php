@@ -1,7 +1,11 @@
 <?php
 /**
- * api/caja.php
- * Endpoint para gestionar acciones rápidas de caja vía AJAX.
+ * API de Acciones Rápidas de Caja.
+ * Permite realizar operaciones administrativas ligeras sobre la sesión activa,
+ * como la gestión de notificaciones de interrupción de turno.
+ * 
+ * @author Alberto Méndez
+ * @version 1.1 (04/03/2026)
  */
 session_start();
 require_once(__DIR__ . '/../model/Caja.php');
@@ -15,6 +19,10 @@ if (!isset($_SESSION['idUsuario'])) {
 
 $accion = $_REQUEST['accion'] ?? '';
 
+/**
+ * ACCIÓN: Limpiar Interrupción.
+ * Desactiva el aviso de "sesión recuperada" tras un descanso o pausa del cajero.
+ */
 if ($accion === 'limpiarInterrupcion') {
     $sesionCaja = Caja::obtenerSesionAbierta();
     if ($sesionCaja) {

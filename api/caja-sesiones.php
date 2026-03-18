@@ -1,6 +1,8 @@
 <?php
 /**
- * API para gestionar las sesiones de caja.
+ * API de Gestión de Sesiones de Caja y Arqueos.
+ * Permite la administración integral de los turnos de trabajo, incluyendo la apertura,
+ * el seguimiento de movimientos de efectivo y la realización de arqueos de cierre.
  * 
  * @author Alberto Méndez
  * @version 1.0 (04/03/2026)
@@ -21,7 +23,10 @@ if (!isset($_SESSION['rolUsuario']) || $_SESSION['rolUsuario'] !== 'admin') {
 
 $method = $_SERVER['REQUEST_METHOD'];
 
-// GET: Obtener sesiones o datos de arqueo
+/** 
+ * MANEJADOR DE SOLICITUDES GET
+ * Recupera listados de sesiones, filtros históricos o cálculos de arqueo específicos.
+ */
 if ($method === 'GET') {
     // Verificar si es una solicitud de arqueo
     if (isset($_GET['arqueo']) && isset($_GET['idSesion'])) {
@@ -114,7 +119,10 @@ if ($method === 'GET') {
     exit;
 }
 
-// POST: Registrar arqueo
+/** 
+ * MANEJADOR DE SOLICITUDES POST
+ * Procesa el registro persistente de nuevos arqueos y cierres de sesión.
+ */
 if ($method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
 
@@ -129,6 +137,13 @@ echo json_encode(['ok' => false, 'error' => 'Método no permitido']);
 
 // ======================== FUNCIONES ========================
 
+/**
+ * Recupera el balance teórico de la caja en un momento dado.
+ * Calcula lo que "debería haber" basándose en ventas, retiros y fondo inicial.
+ * 
+ * @param int $idSesion Identificador de la sesión a analizar.
+ * @return void Envía una respuesta JSON con el desglose de importes.
+ */
 function obtenerDatosArqueo($idSesion)
 {
     try {
@@ -155,6 +170,12 @@ function obtenerUltimoArqueo($idSesion)
     }
 }
 
+/**
+ * Procesa y almacena el conteo físico de billetes y monedas realizado por un empleado.
+ * 
+ * @param array $input Datos de la solicitud (idSesion, efectivoContado, detalleConteo, etc.).
+ * @return void Envía confirmación o error en formato JSON.
+ */
 function registrarArqueo($input)
 {
     $idSesion = $input['idSesion'] ?? null;

@@ -1,6 +1,9 @@
 <?php
 /**
- * API para gestionar las ventas 
+ * API de Gestión de Ventas e Históricos.
+ * Proporciona acceso a las estadísticas de rendimiento, consulta de tickets,
+ * detalles de transacciones pasadas y herramientas de depuración de registros.
+ * 
  * @author Alberto Méndez
  * @version 1.2 (02/03/2026)
  */
@@ -13,7 +16,10 @@ require_once(__DIR__ . '/../model/Venta.php');
 // Establecemos el tipo de contenido de la respuesta, en este caso JSON
 header('Content-Type: application/json; charset=utf-8');
 
-// Endpoint para obtener estadísticas de productos
+/**
+ * ENDPOINT: Estadísticas de productos.
+ * Genera un resumen de los artículos más y menos vendidos en diferentes intervalos temporales.
+ */
 if (isset($_GET['accion']) && $_GET['accion'] === 'estadisticas_productos') {
     try {
         $conexion = ConexionDB::getInstancia()->getConexion();
@@ -82,7 +88,10 @@ if (isset($_GET['accion']) && $_GET['accion'] === 'estadisticas_productos') {
     }
 }
 
-// Si se solicita el historial de ventas de la sesión de caja actual
+/**
+ * ENDPOINT: Historial de la sesión actual.
+ * Recupera todas las ventas procesadas desde que se abrió la caja en curso.
+ */
 if (isset($_GET['historialCaja'])) {
     try {
         $conexion = ConexionDB::getInstancia()->getConexion();
@@ -121,7 +130,11 @@ if (isset($_GET['historialCaja'])) {
     exit();
 }
 
-// Si se solicita los detalles de una venta específica
+/**
+ * ENDPOINT: Detalle de una venta.
+ * Devuelve la información completa de una transacción, incluyendo sus líneas de detalle y descuentos.
+ * @param int $_GET['detalleVenta'] Identificador de la venta.
+ */
 if (isset($_GET['detalleVenta'])) {
     try {
         $idVenta = (int) $_GET['detalleVenta'];

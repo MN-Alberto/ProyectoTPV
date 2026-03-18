@@ -1,10 +1,8 @@
 <?php
 /**
- * TPV Bazar - API de Envío de Ticket/Factura por Correo Electrónico
- * 
- * Este script procesa una petición POST con los datos de una venta (ID, fecha, productos, totales, cliente),
- * construye un documento HTML con formato profesional (Ticket o Factura) y lo envía al correo
- * electrónico proporcionado utilizando la librería PHPMailer y el servidor SMTP de Gmail.
+ * Servicio API de Notificaciones Electrónicas.
+ * Se encarga de la generación de documentos (Tickets/Facturas) en formato HTML
+ * y su despacho vía SMTP hacia el correo electrónico del cliente final.
  * 
  * @author Alberto Méndez
  * @version 1.2 (02/03/2026)
@@ -65,10 +63,9 @@ if (!isset($datos['email']) || !filter_var($datos['email'], FILTER_VALIDATE_EMAI
     exit();
 }
 
-/**
- * ────────────────────────────────────────────────────────────────────────────
- * 4. EXTRACCIÓN Y LIMPIEZA DE DATOS DE LA VENTA
- * ────────────────────────────────────────────────────────────────────────────
+/** 
+ * PROCESAMIENTO DE DATOS DE VENTA
+ * Extracción y sanitización de los metadatos de la transacción para su renderizado.
  */
 $email = $datos['email'];
 $tipoDocumento = $datos['tipoDocumento'] ?? 'ticket'; // Defecto: ticket

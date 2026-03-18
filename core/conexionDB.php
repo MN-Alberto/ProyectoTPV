@@ -1,7 +1,9 @@
 <?php
 
 /**
- * Clase para gestionar la conexión a la base de datos mediante PDO.
+ * Componente Núcleo de Persistencia (Conexión DB).
+ * Implementa el patrón Singleton para garantizar una única instancia de PDO,
+ * optimizando el uso de recursos y centralizando la configuración de codificación.
  * 
  * @author Alberto Méndez
  * @version 1.2 (02/03/2026)

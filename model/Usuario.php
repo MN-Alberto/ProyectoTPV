@@ -13,64 +13,134 @@ require_once(__DIR__ . '/../core/conexionDB.php');
 class Usuario
 {
 
+    /** 
+     * @var int|null Identificador único autoincremental del usuario. 
+     */
     private $id;
+    /** 
+     * @var string|null Nombre completo o alias del empleado. 
+     */
     private $nombre;
+    /** 
+     * @var string|null Correo electrónico que sirve como identificador de inicio de sesión. 
+     */
     private $email;
+    /** 
+     * @var string|null Hash de la contraseña del usuario (cifrada con BCRYPT). 
+     */
     private $password;
+    /** 
+     * @var string|null Rol del sistema que determina los permisos generales ('admin' o 'empleado'). 
+     */
     private $rol; // 'admin' o 'empleado'
+    /** 
+     * @var string|null Fecha y hora en la que el usuario fue registrado en el sistema. 
+     */
     private $fechaAlta;
+    /** 
+     * @var bool|int Estado de cuenta (1 si el usuario puede entrar al sistema, 0 si está baneado/desactivado). 
+     */
     private $activo;
+    /** 
+     * @var int|null Contador acumulado de pausas o descansos registrados por el empleado. 
+     */
     private $totalDescansos;
+    /** 
+     * @var int|null Contador acumulado de turnos de caja completados. 
+     */
     private $totalTurnos;
+    /** 
+     * @var string|null Cadena con permisos específicos separados por comas (ej: 'crear_productos,editar_precios'). 
+     */
     private $permisos;
 
     // ======================== GETTERS ========================
 
+    /** 
+     * Obtiene el identificador numérico del usuario.
+     * @return int|null 
+     */
     public function getId()
     {
         return $this->id;
     }
 
+    /** 
+     * Obtiene el nombre completo o alias del usuario.
+     * @return string|null 
+     */
     public function getNombre()
     {
         return $this->nombre;
     }
 
+    /** 
+     * Obtiene la dirección de correo electrónico del usuario.
+     * @return string|null 
+     */
     public function getEmail()
     {
         return $this->email;
     }
 
+    /** 
+     * Obtiene el hash de la contraseña almacenada.
+     * @return string|null 
+     */
     public function getPassword()
     {
         return $this->password;
     }
 
+    /** 
+     * Obtiene el rol asignado al usuario (admin/empleado).
+     * @return string|null 
+     */
     public function getRol()
     {
         return $this->rol;
     }
 
+    /** 
+     * Obtiene la fecha y hora de registro del usuario.
+     * @return string|null 
+     */
     public function getFechaAlta()
     {
         return $this->fechaAlta;
     }
 
+    /** 
+     * Comprueba si el usuario se encuentra actualmente activo.
+     * @return bool|int 
+     */
     public function getActivo()
     {
         return $this->activo;
     }
 
+    /** 
+     * Obtiene el número total de descansos realizados.
+     * @return int|null 
+     */
     public function getTotalDescansos()
     {
         return $this->totalDescansos;
     }
 
+    /** 
+     * Obtiene el número total de turnos de caja finalizados.
+     * @return int|null 
+     */
     public function getTotalTurnos()
     {
         return $this->totalTurnos;
     }
 
+    /** 
+     * Obtiene la cadena que contiene los permisos específicos del usuario.
+     * @return string|null 
+     */
     public function getPermisos()
     {
         return $this->permisos;
@@ -78,60 +148,101 @@ class Usuario
 
     // ======================== SETTERS ========================
 
+    /** 
+     * Cambia el ID del usuario (usar con precaución).
+     * @param int $id El nuevo identificador.
+     */
     public function setId($id)
     {
         $this->id = $id;
     }
 
+    /** 
+     * Define el nombre completo o alias del empleado.
+     * @param string $nombre El nombre a mostrar en el sistema.
+     */
     public function setNombre($nombre)
     {
         $this->nombre = $nombre;
     }
 
+    /** 
+     * Establece el correo electrónico para el inicio de sesión.
+     * @param string $email Dirección de correo válida.
+     */
     public function setEmail($email)
     {
         $this->email = $email;
     }
 
+    /** 
+     * Almacena el hash de la contraseña (debe estar ya cifrada).
+     * @param string $password El hash de la contraseña.
+     */
     public function setPassword($password)
     {
         $this->password = $password;
     }
 
+    /** 
+     * Asigna un rol al usuario para determinar sus capacidades básicas.
+     * @param string $rol Debe ser 'admin' o 'empleado'.
+     */
     public function setRol($rol)
     {
         $this->rol = $rol;
     }
 
+    /** 
+     * Define la fecha de registro inicial en el sistema.
+     * @param string $fechaAlta Formato Y-m-d H:i:s.
+     */
     public function setFechaAlta($fechaAlta)
     {
         $this->fechaAlta = $fechaAlta;
     }
 
+    /** 
+     * Activa o desactiva la cuenta de usuario.
+     * @param bool|int $activo 1 para activo, 0 para inactivo.
+     */
     public function setActivo($activo)
     {
         $this->activo = $activo;
     }
 
+    /** 
+     * Establece el contador total de descansos realizados.
+     * @param int $totalDescansos Número entero de descansos.
+     */
     public function setTotalDescansos($totalDescansos)
     {
         $this->totalDescansos = $totalDescansos;
     }
 
+    /** 
+     * Establece el número total de turnos de caja completados.
+     * @param int $totalTurnos Cifra total de turnos.
+     */
     public function setTotalTurnos($totalTurnos)
     {
         $this->totalTurnos = $totalTurnos;
     }
 
+    /** 
+     * Asigna la lista de permisos específicos del usuario.
+     * @param string|null $permisos Cadena separada por comas de los permisos.
+     */
     public function setPermisos($permisos)
     {
         $this->permisos = $permisos;
     }
 
     /**
-     * Verifica si el usuario tiene un permiso específico.
-     * @param string $permiso El permiso a verificar (ej: 'crear_productos')
-     * @return bool
+     * Comprueba si el usuario actual posee un permiso determinado en su lista.
+     * 
+     * @param string $permiso El nombre técnico del permiso (ej: 'registrar_venta').
+     * @return bool True si lo tiene concedido, false en caso contrario.
      */
     public function tienePermiso($permiso)
     {

@@ -1,12 +1,11 @@
 <?php
 /**
- * API para gestionar la configuración del tema visual.
- * 
- * GET  → Devuelve todas las configuraciones como JSON { clave: valor, ... }
- * POST → Recibe JSON con pares { clave: valor } y los guarda (solo admin)
+ * API de Personalización de Interfaz (Tematización).
+ * Permite gestionar la apariencia visual del TPV de forma dinámica,
+ * almacenando y recuperando tokens de diseño (colores, fuentes e iconos).
  * 
  * @author Alberto Méndez
- * @version 1.0
+ * @version 1.0 (2026)
  */
 
 session_start();
@@ -23,7 +22,10 @@ try {
     exit;
 }
 
-// ======================== GET: Obtener configuración ========================
+/** 
+ * MANEJADOR DE CONSULTAS (GET)
+ * Devuelve el mapa completo de variables de diseño para ser inyectadas en el CSS/JS.
+ */
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {
         $stmt = $pdo->query("SELECT clave, valor FROM configuracion_tema");
@@ -39,7 +41,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     exit;
 }
 
-// ======================== POST: Guardar configuración ========================
+/** 
+ * MANEJADOR DE ACTUALIZACIÓN (POST)
+ * Sobrescribe los valores de diseño en la base de datos tras validar permisos de administrador.
+ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Solo admin puede guardar
     if (!isset($_SESSION['rolUsuario']) || $_SESSION['rolUsuario'] !== 'admin') {

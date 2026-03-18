@@ -42,11 +42,13 @@
                     <span class="label">Efectivo en caja:</span>
                     <span class="amount"><?php echo number_format($sesionCaja->getImporteActual(), 2, ',', '.'); ?> €</span>
                 </div>
-            <?php else: ?>
+            <?php
+else: ?>
                 <div class="indicador-efectivo caja-cerrada">
                     <span class="label">Caja Cerrada</span>
                 </div>
-            <?php endif; ?>
+            <?php
+endif; ?>
         </div>
 
         <!-- ==================== FILTROS DE CATEGORÍA ==================== -->
@@ -63,7 +65,8 @@
                     onclick="seleccionarCategoria(this, <?php echo $cat->getId(); ?>)">
                     <?php echo htmlspecialchars($cat->getNombre()); ?>
                 </button>
-            <?php endforeach; ?>
+            <?php
+endforeach; ?>
         </div>
 
         <!-- ==================== BARRA DE OPCIONES EXTRA ==================== -->
@@ -186,30 +189,31 @@
             <?php if (empty($productos)): ?>
                 <!-- Mensaje cuando no hay productos disponibles -->
                 <p class="sin-productos">No hay productos disponibles.</p>
-            <?php else: ?>
+            <?php
+else: ?>
                 <!-- Bucle PHP: genera una tarjeta por cada producto -->
                 <?php foreach ($productos as $prod): ?>
                     <?php
-                    // 1. Encontrar la tarifa 'Cliente' (por defecto)
-                    $tarifaClienteId = null;
-                    foreach ($tarifas as $t) {
-                        if ($t['nombre'] === 'Cliente') {
-                            $tarifaClienteId = $t['id'];
-                            break;
-                        }
-                    }
+        // 1. Encontrar la tarifa 'Cliente' (por defecto)
+        $tarifaClienteId = null;
+        foreach ($tarifas as $t) {
+            if ($t['nombre'] === 'Cliente') {
+                $tarifaClienteId = $t['id'];
+                break;
+            }
+        }
 
-                    // 2. Comprobar si hay precio para esa tarifa (ya sea manual o calculado)
-                    $preciosManuales = $prod->getPreciosTarifas();
-                    $precioBaseEfectivo = $prod->getPrecio();
-                    if ($tarifaClienteId && isset($preciosManuales[$tarifaClienteId])) {
-                        $precioBaseEfectivo = $preciosManuales[$tarifaClienteId]['precio'];
-                    }
+        // 2. Comprobar si hay precio para esa tarifa (ya sea manual o calculado)
+        $preciosManuales = $prod->getPreciosTarifas();
+        $precioBaseEfectivo = $prod->getPrecio();
+        if ($tarifaClienteId && isset($preciosManuales[$tarifaClienteId])) {
+            $precioBaseEfectivo = $preciosManuales[$tarifaClienteId]['precio'];
+        }
 
-                    // 3. Calcular PVP inicial
-                    $precioPVP = $precioBaseEfectivo * (1 + ($prod->getIvaPorcentaje() / 100));
-                    $precioPVP_fmt = number_format($precioPVP, 2, '.', '');
-                    ?>
+        // 3. Calcular PVP inicial
+        $precioPVP = $precioBaseEfectivo * (1 + ($prod->getIvaPorcentaje() / 100));
+        $precioPVP_fmt = number_format($precioPVP, 2, '.', '');
+?>
                     <!-- Tarjeta de producto con atributos data-* para el carrito JS -->
                     <!-- data-id: ID del producto -->
                     <!-- data-nombre: nombre del producto (escapado con htmlspecialchars) -->
@@ -223,8 +227,8 @@
                         data-iva="<?php echo $prod->getIvaPorcentaje(); ?>"
                         data-precios-tarifas='<?php echo htmlspecialchars(json_encode($prod->getPreciosTarifas()), ENT_QUOTES, 'UTF-8'); ?>'
                         data-stock="<?php echo $prod->getStock(); ?>" onclick="agregarAlCarrito(this)" style="<?php if ($prod->getStock() <= 0) {
-                               echo 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);';
-                           } ?>">
+            echo 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);';
+        }?>">
 
                         <!-- Nombre del producto -->
                         <div class="producto-nombre">
@@ -234,9 +238,9 @@
                         <!-- Imagen del producto (usa logo.PNG como fallback si no tiene imagen) -->
                         <div class="producto-imagen">
                             <?php
-                            $imgSrc = !empty($prod->getImagen()) ? $prod->getImagen() : 'webroot/img/logo.PNG';
-                            echo '<img src="' . htmlspecialchars($imgSrc) . '" alt="' . htmlspecialchars($prod->getNombre()) . '">';
-                            ?>
+        $imgSrc = !empty($prod->getImagen()) ? $prod->getImagen() : 'webroot/img/logo.PNG';
+        echo '<img src="' . htmlspecialchars($imgSrc) . '" alt="' . htmlspecialchars($prod->getNombre()) . '">';
+?>
                         </div>
 
                         <!-- Precio y stock del producto -->
@@ -251,19 +255,22 @@
                                 <?php foreach ($tarifas as $tarifa): ?>
                                     <option value="<?php echo $tarifa['descuento_porcentaje']; ?>"
                                         data-requiere-cliente="<?php echo $tarifa['requiere_cliente']; ?>"
-                                        data-tarifa-id="<?php echo $tarifa['id']; ?>" <?php echo ($tarifa['nombre'] === 'Cliente') ? 'selected' : ''; ?>>
+                                        data-tarifa-id="<?php echo $tarifa['id']; ?>" <?php echo($tarifa['nombre'] === 'Cliente') ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($tarifa['nombre']); ?>
                                     </option>
-                                <?php endforeach; ?>
+                                <?php
+        endforeach; ?>
                             </select>
 
                             <span class="producto-stock" <?php if ($prod->getStock() <= 0) {
-                                echo 'style="color: red; text-decoration: underline;"';
-                            } ?>>Stock: <?php echo $prod->getStock(); ?></span>
+            echo 'style="color: red; text-decoration: underline;"';
+        }?>>Stock: <?php echo $prod->getStock(); ?></span>
                         </div>
                     </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
+                <?php
+    endforeach; ?>
+            <?php
+endif; ?>
         </div>
     </div>
 
@@ -326,12 +333,18 @@
         <!-- ==================== ACCIONES DEL TICKET ==================== -->
         <!-- Selector de método de pago, aviso de límite de efectivo y botones de acción -->
         <div class="ticket-acciones">
-            <!-- Fila 1: Botones de descuento, vaciar, posponer y recuperar -->
+            <!-- Fila 1: Botones de descuento, puntos, vaciar, posponer y recuperar -->
             <div class="ticket-acciones-fila">
                 <!-- Botón DESCUENTO: abre el modal para aplicar descuento porcentual o por cupón -->
                 <button class="btn-descuento" id="btnDescuento" onclick="aplicarDescuento()" disabled
                     title="Aplicar descuento">
                     🏷️
+                </button>
+
+                <!-- Botón PUNTOS: abre el modal para consultar y canjear puntos -->
+                <button class="btn-descuento" id="btnPuntos" onclick="abrirModalPuntosCliente()"
+                    title="Consultar/Canjear puntos" style="background: #10b981;">
+                    ⭐
                 </button>
 
                 <!-- Botón VACIAR: elimina todos los productos del carrito -->
@@ -363,14 +376,14 @@
 
                 <!-- Selector de tarifa: ahora gestionado por producto, mantenemos el ID occulto para compatibilidad JS -->
                 <?php
-                $idTarifaCliente = 1;
-                foreach ($tarifas as $t) {
-                    if ($t['nombre'] === 'Cliente') {
-                        $idTarifaCliente = $t['id'];
-                        break;
-                    }
-                }
-                ?>
+$idTarifaCliente = 1;
+foreach ($tarifas as $t) {
+    if ($t['nombre'] === 'Cliente') {
+        $idTarifaCliente = $t['id'];
+        break;
+    }
+}
+?>
                 <input type="hidden" id="tarifaVenta" value="<?php echo $idTarifaCliente; ?>">
 
                 <!-- Aviso legal: no se permite pago en efectivo superior a 1.000€ -->
@@ -420,6 +433,9 @@
         <input type="hidden" name="descuentoManualCupon" id="inputDescuentoManualCupon">
         <input type="hidden" name="descuentoManualValor" id="inputDescuentoManualValor">
         <input type="hidden" name="descuentoManualTipo" id="inputDescuentoManualTipo">
+        <!-- Campos de puntos canjeados -->
+        <input type="hidden" name="puntosCanjeadosDni" id="inputPuntosCanjeadosDni">
+        <input type="hidden" name="puntosCanjeadosCantidad" id="inputPuntosCanjeadosCantidad">
     </form>
 </section>
 
@@ -690,9 +706,93 @@
     </div>
 </div>
 
+<!-- ##=========================== MODAL: PUNTOS (venta > 20€) ===========================## -->
+<!-- Modal que aparece cuando el total de la venta es >= 20€ y no se ha especificado cliente -->
+<div class="modal-overlay" id="modalPuntos" style="display:none;">
+    <div class="modal-content" style="max-width: 400px; text-align: left;">
+        <h3 style="margin-bottom: 5px;">¡Gana puntos!</h3>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;">Esta compra es elegible para acumular puntos de fidelidad.</p>
+        
+        <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: center;">
+            <span style="font-size: 1.2rem; color: #166534;">El cliente podría ganar </span>
+            <span id="puntosPosibles" style="font-size: 1.5rem; font-weight: bold; color: #15803d;">0</span>
+            <span style="font-size: 1.2rem; color: #166534;"> puntos</span>
+        </div>
+
+        <p style="color: #6b7280; font-size: 0.9rem; margin-bottom: 20px;">
+            ¿Desea introducir el DNI del cliente para registrar la compra y acumular puntos? Los puntos se pueden canjear en futuras compras.
+        </p>
+
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-modal-cancelar" onclick="confirmarSinPuntos()" style="flex: 1;">
+                Ahora no
+            </button>
+            <button class="btn-exito" onclick="confirmarConPuntos()" style="flex: 1;">
+                Introducir DNI
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: PUNTOS CLIENTE (consultar/canjear) ===========================## -->
+<!-- Modal para consultar los puntos de un cliente y canjearlos por descuento -->
+<div class="modal-overlay" id="modalPuntosCliente" style="display:none;">
+    <div class="modal-content" style="max-width: 450px; text-align: left;">
+        <h3 style="margin-bottom: 5px;">Puntos del Cliente</h3>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;">Consulta los puntos y canjéalos por descuento</p>
+        
+        <!-- Buscar cliente por DNI -->
+        <div id="puntosClienteBusqueda">
+            <div>
+                <label for="dniPuntosCliente" style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">DNI del Cliente <span style="color: #ef4444;">*</span></label>
+                <input type="text" id="dniPuntosCliente" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" placeholder="12345678A" maxlength="20" onkeypress="if(event.key==='Enter') buscarPuntosCliente()">
+            </div>
+            <div id="mensajePuntosCliente" style="margin-top: 15px; padding: 10px; border-radius: 6px; display: none;"></div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalPuntosCliente')" style="flex: 1;">
+                    Cerrar
+                </button>
+                <button class="btn-exito" onclick="buscarPuntosCliente()" style="flex: 1;">
+                    Buscar
+                </button>
+            </div>
+        </div>
+        
+        <!-- Mostrar puntos del cliente (se muestra después de buscar) -->
+        <div id="puntosClienteInfo" style="display: none;">
+            <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 20px; margin-bottom: 20px; text-align: center;">
+                <p style="color: #6b7280; margin-bottom: 5px;">Puntos disponibles</p>
+                <span id="puntosDisponiblesCliente" style="font-size: 2.5rem; font-weight: bold; color: #15803d;">0</span>
+                <p style="color: #6b7280; margin-top: 5px;">1€ = 10 puntos | 1.000 puntos = 5€</p>
+            </div>
+            
+            <!-- Información de puntos que se pueden usar y ganar -->
+            <div id="infoPointsPanel" style="background: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 15px; margin-bottom: 15px; font-size: 0.9rem;">
+                <p id="puntosQueSePuedenUsar" style="color: #1e40af; margin-bottom: 5px;"></p>
+                <p id="puntosQueSeGanaran" style="color: #059669; margin-bottom: 0;"></p>
+            </div>
+            
+            <div>
+                <label for="puntosACanjeer" style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Puntos a canjear (múltiplos de 1000)</label>
+                <input type="number" id="puntosACanjeer" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" placeholder="0" min="0" step="1000" oninput="calcularDescuentoPuntos()">
+                <p id="descuentoPuntosPreview" style="color: #10b981; font-weight: 600; margin-top: 10px;"></p>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalPuntosCliente'); document.getElementById('puntosClienteBusqueda').style.display='block'; document.getElementById('puntosClienteInfo').style.display='none';" style="flex: 1;">
+                    Cerrar
+                </button>
+                <button class="btn-exito" id="btnAplicarDescuentoPuntos" onclick="aplicarDescuentoPuntos()" style="flex: 1;">
+                    Aplicar Descuento
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ##=========================== MODAL: BUSCAR CLIENTE REGISTRADO ===========================## -->
 <!-- Modal para buscar un cliente registrado por DNI y aplicar descuento según tarifa -->
-<div class="modal-overlay" id="modalBuscarClienteRegistrado" style="display:none;">
+<div class="modal-overlay" id="modalBuscarClienteRegistrado" style="display:none;" data-modo="">
     <div class="modal-content" style="max-width: 400px; text-align: left;">
         <h3 style="margin-bottom: 5px;">Cliente Registrado</h3>
         <p class="modal-subtitulo" style="margin-bottom: 20px;">Introduce el DNI del cliente</p>
@@ -736,10 +836,30 @@
 
             <!-- Detalle de la venta: tipo de documento, número y total -->
             <p class="exito-detalle">
-                <?php echo ($_SESSION['ultimaVentaTipo'] === 'factura') ? 'Factura' : 'Ticket'; ?>
+                <?php echo($_SESSION['ultimaVentaTipo'] === 'factura') ? 'Factura' : 'Ticket'; ?>
                 #<?php echo $_SESSION['ultimaVentaId']; ?> — Total:
                 <?php echo number_format($_SESSION['ultimaVentaTotal'], 2, ',', '.'); ?> €
             </p>
+
+            <!-- Puntos ganados (si el cliente estaba registrado y ganó puntos) -->
+            <?php if (isset($_SESSION['puntosGanados']) && $_SESSION['puntosGanados'] > 0): ?>
+                <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center;">
+                    <span style="font-size: 1.1rem; color: #166534;">El cliente ha ganado </span>
+                    <span style="font-size: 1.4rem; font-weight: bold; color: #15803d;"><?php echo number_format($_SESSION['puntosGanados'], 0, ',', '.'); ?> puntos</span>
+                    <br><small style="color: #166534;">(1€ = 10 puntos)</small>
+                </div>
+            <?php
+    endif; ?>
+
+            <!-- Puntos canjeados (si el cliente usó puntos para descuento) -->
+            <?php if (isset($_SESSION['ultimaVentaPuntosCanjeados']) && $_SESSION['ultimaVentaPuntosCanjeados'] > 0): ?>
+                <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center;">
+                    <span style="font-size: 1.1rem; color: #92400e;">El cliente ha canjeado </span>
+                    <span style="font-size: 1.4rem; font-weight: bold; color: #b45309;"><?php echo number_format($_SESSION['ultimaVentaPuntosCanjeados'], 0, ',', '.'); ?> puntos</span>
+                    <span style="font-size: 1rem; color: #92400e;"> (<?php echo number_format(floor($_SESSION['ultimaVentaPuntosCanjeados'] / 1000) * 5, 2, ',', '.'); ?>€ de descuento)</span>
+                </div>
+            <?php
+    endif; ?>
 
             <!-- Botones de acción post-venta -->
             <div class="exito-acciones">
@@ -831,8 +951,12 @@
     unset($_SESSION['ultimaVentaDescuentoManualTipo']);
     unset($_SESSION['ultimaVentaDescuentoManualValor']);
     unset($_SESSION['ultimaVentaDescuentoManualCupon']);
+    unset($_SESSION['puntosGanados']);
+    unset($_SESSION['ultimaVentaPuntosGanados']);
+    unset($_SESSION['ultimaVentaPuntosCanjeados']);
 ?>
-<?php endif; ?>
+<?php
+endif; ?>
 
 <!-- ##=========================== MODAL: ABRIR CAJA ===========================## -->
 <!-- Modal para iniciar una nueva sesión de caja introduciendo el fondo de caja inicial -->
@@ -875,17 +999,19 @@
                             <span>✨ Introducir nuevo cambio</span>
                         </label>
                     </div>
-                <?php else: ?>
+                <?php
+else: ?>
                     <input type="radio" name="opcionCambio" value="nuevo" checked style="display:none;">
-                <?php endif; ?>
+                <?php
+endif; ?>
 
                 <!-- Input para el importe inicial (fondo de caja) -->
                 <div class="form-group-premium" id="divImporteInicial"
-                    style="<?php echo ($cambioAnterior > 0) ? 'opacity: 0.5;' : ''; ?>">
+                    style="<?php echo($cambioAnterior > 0) ? 'opacity: 0.5;' : ''; ?>">
                     <label for="importeInicial">Fondo de caja inicial (€)</label>
                     <div class="input-cupon">
                         <input type="number" name="importeInicial" id="importeInicial" step="0.01" min="0"
-                            placeholder="0,00" <?php echo ($cambioAnterior > 0) ? '' : 'required'; ?>
+                            placeholder="0,00" <?php echo($cambioAnterior > 0) ? '' : 'required'; ?>
                             style="text-align: center; padding-right: 15px;">
                     </div>
                 </div>
@@ -1128,7 +1254,8 @@
                             €</span></p>
                 </div>
                 <?php unset($_SESSION['devolucionDetalles']); ?>
-            <?php endif; ?>
+            <?php
+    endif; ?>
             <div style="text-align: center; margin-top: 15px;">
                 <button onclick="document.getElementById('devolucionExito').remove()"
                     style="background: #dc2626; color: white; padding: 10px 30px; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; width: 100%;">Aceptar</button>
@@ -1139,7 +1266,8 @@
     // Limpiar la sesión después de mostrar
     unset($_SESSION['devolucionExito']);
 ?>
-<?php endif; ?>
+<?php
+endif; ?>
 
 <!-- ##=========================== MODAL: CIERRE TEMPORAL ===========================## -->
 <!-- Modal para elegir entre pausa (descanso) o cambio de turno (cierre sesión caja) -->
@@ -1275,7 +1403,8 @@
         </div>
     </div>
     <?php unset($_SESSION['retiroExito']); ?>
-<?php endif; ?>
+<?php
+endif; ?>
 
 <!-- ##=========================== MODAL: RETIRO ERROR ===========================## -->
 <!-- Se muestra automáticamente cuando $_SESSION['retiroError'] está definida -->
@@ -1301,7 +1430,8 @@
         </div>
     </div>
     <?php unset($_SESSION['retiroError']); ?>
-<?php endif; ?>
+<?php
+endif; ?>
 
 <!-- ##=========================== MODAL: ERROR ===========================## -->
 <!-- Se muestra automáticamente cuando $_SESSION['ventaError'] está definida -->
@@ -1326,7 +1456,8 @@
         </div>
     </div>
     <?php unset($_SESSION['ventaError']); ?>
-<?php endif; ?>
+<?php
+endif; ?>
 
 <!-- ##=========================== MODAL: PREVISUALIZACIÓN DE CIERRE DE CAJA ===========================## -->
 <!-- Se muestra cuando el cajero pulsa "Hacer Caja" y se genera la previsualización -->
@@ -1362,7 +1493,8 @@
                                 style="width: 50px; padding: 4px; text-align: center; border: 1px solid var(--border-main); border-radius: 4px; font-size: 0.8rem; background: var(--bg-input); color: var(--text-main);"
                                 onchange="calcularArqueo()" oninput="calcularArqueo()">
                         </div>
-                    <?php endforeach; ?>
+                    <?php
+    endforeach; ?>
                 </div>
             </div>
 
@@ -1378,7 +1510,8 @@
                                 style="width: 50px; padding: 4px; text-align: center; border: 1px solid var(--border-main); border-radius: 4px; font-size: 0.8rem; background: var(--bg-input); color: var(--text-main);"
                                 onchange="calcularArqueo()" oninput="calcularArqueo()">
                         </div>
-                    <?php endforeach; ?>
+                    <?php
+    endforeach; ?>
                 </div>
             </div>
 
@@ -1446,12 +1579,14 @@
                             <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev:
                                 -<?php echo number_format($_SESSION['resumenCaja']['efectivo']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
-                        <?php endif; ?>
+                        <?php
+    endif; ?>
                         <?php if (isset($_SESSION['resumenCaja']['totalRetiros']) && $_SESSION['resumenCaja']['totalRetiros'] > 0): ?>
                             <br><span style="font-size: 0.75rem; color: #ea580c;">(Retiros:
                                 -<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'], 2, ',', '.'); ?>
                                 €)</span>
-                        <?php endif; ?>
+                        <?php
+    endif; ?>
                     </div>
                 </div>
 
@@ -1467,7 +1602,8 @@
                             <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev:
                                 -<?php echo number_format($_SESSION['resumenCaja']['tarjeta']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
-                        <?php endif; ?>
+                        <?php
+    endif; ?>
                     </div>
                 </div>
 
@@ -1483,7 +1619,8 @@
                             <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev:
                                 -<?php echo number_format($_SESSION['resumenCaja']['bizum']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
-                        <?php endif; ?>
+                        <?php
+    endif; ?>
                     </div>
                 </div>
 
@@ -1581,7 +1718,8 @@
     // ya que se necesita si el usuario confirma el cierre e imprime
     unset($_SESSION['cajaPrevisualizacion']);
 ?>
-<?php endif; ?>
+<?php
+endif; ?>
 
 <!-- ##=========================== MODAL: CONFIRMACIÓN DE CIERRE DE CAJA ===========================## -->
 <!-- Se muestra después de confirmar el cierre de caja -->
@@ -1624,14 +1762,16 @@
                                 -<?php echo number_format($_SESSION['resumenCaja']['efectivo']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
                         </p>
-                    <?php endif; ?>
+                    <?php
+    endif; ?>
                     <?php if (isset($_SESSION['resumenCaja']['totalRetiros']) && $_SESSION['resumenCaja']['totalRetiros'] > 0): ?>
                         <p style="margin: 0px 0 5px 0; display:flex; justify-content:flex-end; font-size: 0.8rem;">
                             <span>(Retiros:
                                 -<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'], 2, ',', '.'); ?>
                                 €)</span>
                         </p>
-                    <?php endif; ?>
+                    <?php
+    endif; ?>
 
                     <!-- Tarjeta -->
                     <p style="margin: 5px 0; display:flex; justify-content:space-between;">
@@ -1645,7 +1785,8 @@
                                 -<?php echo number_format($_SESSION['resumenCaja']['tarjeta']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
                         </p>
-                    <?php endif; ?>
+                    <?php
+    endif; ?>
 
                     <!-- Bizum -->
                     <p style="margin: 5px 0; display:flex; justify-content:space-between;">
@@ -1658,7 +1799,8 @@
                                 -<?php echo number_format($_SESSION['resumenCaja']['bizum']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
                         </p>
-                    <?php endif; ?>
+                    <?php
+    endif; ?>
                 </div>
 
                 <!-- Total general de ventas para impresión -->
@@ -1742,11 +1884,12 @@
     }
 </script>
 <?php
-        // Limpiar las variables de sesión del cierre de caja
-        unset($_SESSION['cajaConfirmacion']);
-        unset($_SESSION['resumenCaja']);
+    // Limpiar las variables de sesión del cierre de caja
+    unset($_SESSION['cajaConfirmacion']);
+    unset($_SESSION['resumenCaja']);
 ?>
-<?php endif; ?>
+<?php
+endif; ?>
 
 <!-- ##=========================== MODALES DE BIENVENIDA (RECUPERACIÓN DE SESIÓN) ===========================## -->
 
@@ -1846,7 +1989,8 @@
                 
                 document.getElementById('modalNuevoTurno').style.display = 'flex';
             }
-        <?php endif; ?>
+        <?php
+endif; ?>
     });
 </script>
 <?php unset($_SESSION['interrupcionRecuperada']); ?>
@@ -2481,6 +2625,7 @@
     function vaciarCarrito() {
         carrito = [];
         descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+        puntosCanjeados = null; // Resetear puntos canjeados al vaciar el carrito
         // Resetear también el select de tarifa a Cliente
         const tarifaCliente = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
         if (tarifaCliente) {
@@ -2489,6 +2634,11 @@
             document.getElementById('tarifaVenta').value = tarifasPrefijadas[0].id;
         }
         actualizarTicket();
+    }
+
+    // Función global para resetear puntos canjeados después de una venta exitosa
+    function resetearPuntosCanjeados() {
+        puntosCanjeados = null;
     }
 
     /**
@@ -2695,6 +2845,9 @@
             totalEl.textContent = '0,00 €';
             btnCobrar.disabled = true;
             btnDescuento.disabled = true;
+            // Si se vacía el carrito, resetear los puntos canjeados también
+            puntosCanjeados = null;
+            descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
             document.getElementById('btnPosponer').disabled = true;
             return;
         }
@@ -3031,6 +3184,7 @@
      * mostrarModalTipoDocumento()
      * Muestra el modal para elegir entre Ticket o Factura.
      * Valida que haya productos en el carrito y que la caja esté abierta.
+     * Si el total es >= 20€ y no hay cliente, pregunta por los puntos primero.
      */
     function mostrarModalTipoDocumento() {
         if (carrito.length === 0) return;
@@ -3038,6 +3192,16 @@
         // Verificar que la caja esté abierta antes de permitir ventas
         if (!cajaAbierta) {
             alert('No se pueden realizar ventas si la caja no está abierta. Por favor, realiza la Apertura de Caja.');
+            return;
+        }
+
+        // Verificar si el total es mayor a 20€ y no hay cliente registrado para preguntar por puntos
+        const total = obtenerTotalCalculado();
+        const clienteNif = document.getElementById('clienteNif').value.trim();
+        
+        if (total >= 20 && !clienteNif) {
+            // Mostrar modal de puntos antes del tipo de documento
+            mostrarModalPuntos();
             return;
         }
 
@@ -3111,9 +3275,55 @@
             }
         }
 
-        // Cerrar modal y proceder con la venta
+        // Cerrar modal de datos del cliente y proceder con la venta
         cerrarModal('modalDatosCliente');
         confirmarVenta(tipoDocumentoActual, nif, nombre, direccion, observaciones);
+    }
+
+    /**
+     * mostrarModalPuntos()
+     * Muestra el modal para preguntar si el cliente quiere registrar su DNI para acumular puntos.
+     * Ahora simplemente salta directamente al modal de tipo de documento.
+     */
+    function mostrarModalPuntos() {
+        // Saltar el modal de puntos y mostrar directamente el tipo de documento
+        document.getElementById('modalTipoDoc').style.display = 'flex';
+    }
+
+    /**
+     * confirmarConPuntos()
+     * El cliente decide registrar su DNI para obtener puntos.
+     */
+    function confirmarConPuntos() {
+        cerrarModal('modalPuntos');
+        // Abrir modal para buscar cliente registrado
+        abrirModalBuscarClienteRegistradoParaPuntos();
+    }
+
+    /**
+     * confirmarSinPuntos()
+     * El cliente decide no registrar su DNI para puntos.
+     * Se cierra el modal y se muestra el tipo de comprobante.
+     */
+    function confirmarSinPuntos() {
+        cerrarModal('modalPuntos');
+        // Mostrar modal de tipo de documento (ticket/factura)
+        document.getElementById('modalTipoDoc').style.display = 'flex';
+    }
+
+    /**
+     * abrirModalBuscarClienteRegistradoParaPuntos()
+     * Abre el modal de búsqueda de cliente para acumular puntos.
+     */
+    function abrirModalBuscarClienteRegistradoParaPuntos() {
+        document.getElementById('dniBusquedaCliente').value = '';
+        document.getElementById('mensajeResultadoBusqueda').style.display = 'none';
+        // Cambiamos el título para indicar que es para puntos
+        document.querySelector('#modalBuscarClienteRegistrado h3').textContent = 'Cliente para Puntos';
+        document.querySelector('#modalBuscarClienteRegistrado .modal-subtitulo').textContent = 'Introduce el DNI del cliente para acumular ' + document.getElementById('puntosPosibles').textContent + ' puntos';
+        // Cambiamos el comportamiento del botón buscar
+        document.getElementById('modalBuscarClienteRegistrado').dataset.modo = 'puntos';
+        document.getElementById('modalBuscarClienteRegistrado').style.display = 'flex';
     }
 
     /**
@@ -3170,11 +3380,24 @@
         document.getElementById('inputDescuentoManualValor').value = descuento.valor;
         document.getElementById('inputDescuentoManualCupon').value = descuento.cupon;
 
+        // Guardar puntos canjeados si existen
+        if (puntosCanjeados && puntosCanjeados.dni && puntosCanjeados.puntos > 0) {
+            document.getElementById('inputPuntosCanjeadosDni').value = puntosCanjeados.dni;
+            document.getElementById('inputPuntosCanjeadosCantidad').value = puntosCanjeados.puntos;
+        } else {
+            document.getElementById('inputPuntosCanjeadosDni').value = '';
+            document.getElementById('inputPuntosCanjeadosCantidad').value = 0;
+        }
+
         // Tarifa seleccionada
         document.getElementById('inputIdTarifa').value = document.getElementById('tarifaVenta').value;
 
         // Enviar el formulario al servidor
         document.getElementById('formVenta').submit();
+        
+        // Resetear puntos canjeados después de enviar (para la próxima venta)
+        puntosCanjeados = null;
+        descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
     }
 
     /**
@@ -4219,12 +4442,210 @@
         document.getElementById('dniBusquedaCliente').focus();
     }
 
+    // Variable para almacenar los puntos canjeados en la venta actual
+    let puntosCanjeados = null;
+
+    /**
+     * Abre el modal para consultar y canjear puntos del cliente
+     */
+    function abrirModalPuntosCliente() {
+        document.getElementById('dniPuntosCliente').value = '';
+        document.getElementById('mensajePuntosCliente').style.display = 'none';
+        document.getElementById('puntosClienteBusqueda').style.display = 'block';
+        document.getElementById('puntosClienteInfo').style.display = 'none';
+        
+        // Habilitar o deshabilitar el botón de canjear según si hay productos en el carrito
+        const btnCanjear = document.getElementById('btnAplicarDescuentoPuntos');
+        if (carrito.length === 0) {
+            btnCanjear.disabled = true;
+            btnCanjear.title = 'Añade productos al carrito para canjear puntos';
+            btnCanjear.style.opacity = '0.5';
+            btnCanjear.style.cursor = 'not-allowed';
+        } else {
+            btnCanjear.disabled = false;
+            btnCanjear.title = 'Aplicar descuento de puntos';
+            btnCanjear.style.opacity = '1';
+            btnCanjear.style.cursor = 'pointer';
+        }
+        
+        document.getElementById('modalPuntosCliente').style.display = 'flex';
+        document.getElementById('dniPuntosCliente').focus();
+    }
+
+    /**
+     * Busca los puntos de un cliente por DNI
+     */
+    async function buscarPuntosCliente() {
+        const dni = document.getElementById('dniPuntosCliente').value.trim();
+        const mensajeDiv = document.getElementById('mensajePuntosCliente');
+        
+        if (!dni) {
+            mensajeDiv.textContent = 'Por favor, introduce un DNI';
+            mensajeDiv.className = 'mensaje-error';
+            mensajeDiv.style.display = 'block';
+            return;
+        }
+
+        try {
+            const response = await fetch('api/clientes.php?dni=' + encodeURIComponent(dni));
+            
+            if (!response.ok) {
+                mensajeDiv.textContent = 'No se encuentra ningún cliente con ese DNI';
+                mensajeDiv.className = 'mensaje-error';
+                mensajeDiv.style.display = 'block';
+                return;
+            }
+            
+            const cliente = await response.json();
+            
+            if (cliente && cliente.activo == 1) {
+                // Mostrar los puntos del cliente
+                const puntosDisponibles = cliente.puntos || 0;
+                document.getElementById('puntosDisponiblesCliente').textContent = puntosDisponibles.toLocaleString('es-ES');
+                document.getElementById('puntosClienteBusqueda').style.display = 'none';
+                document.getElementById('puntosClienteInfo').style.display = 'block';
+                document.getElementById('puntosACanjeer').value = '';
+                document.getElementById('puntosACanjeer').max = puntosDisponibles;
+                document.getElementById('descuentoPuntosPreview').textContent = '';
+                
+                // Calcular y mostrar información de puntos
+                const totalTicket = obtenerTotalCalculado();
+                const infoPanel = document.getElementById('infoPointsPanel');
+                const puntosUsarMsg = document.getElementById('puntosQueSePuedenUsar');
+                const puntosGanadosMsg = document.getElementById('puntosQueSeGanaran');
+                
+                if (totalTicket > 0) {
+                    const puntosQueSeGanaran = Math.round(totalTicket * 10);
+                    const maxDescuento = totalTicket * 0.30;
+                    const maxPuntosCanjeables = Math.floor(maxDescuento / 5) * 1000;
+                    const puntosParaSiguienteDescuento = Math.max(0, 1000 - (puntosDisponibles % 1000));
+                    
+                    // Mensajes informativos
+                    let mensajeUsar = '';
+                    if (puntosDisponibles >= 1000) {
+                        const puedenUsarse = Math.min(puntosDisponibles, maxPuntosCanjeables);
+                        const descuentoMax = Math.floor(puedenUsarse / 1000) * 5;
+                        mensajeUsar = `Puedes usar hasta ${puedenUsarse.toLocaleString('es-ES')} puntos = ${descuentoMax.toFixed(2)}€ de descuento (30% máximo del ticket)`;
+                    } else {
+                        mensajeUsar = `Te faltan ${puntosParaSiguienteDescuento.toLocaleString('es-ES')} puntos para tu próximo descuento`;
+                    }
+                    
+                    puntosUsarMsg.textContent = mensajeUsar;
+                    puntosGanadosMsg.textContent = `Con esta compra ganarás ${puntosQueSeGanaran.toLocaleString('es-ES')} puntos (1€ = 10 puntos)`;
+                    infoPanel.style.display = 'block';
+                } else {
+                    infoPanel.style.display = 'none';
+                }
+            } else {
+                mensajeDiv.textContent = 'El cliente está inactivo o no existe';
+                mensajeDiv.className = 'mensaje-error';
+                mensajeDiv.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error al buscar cliente:', error);
+            mensajeDiv.textContent = 'Error al buscar el cliente';
+            mensajeDiv.className = 'mensaje-error';
+            mensajeDiv.style.display = 'block';
+        }
+    }
+
+    /**
+     * Calcula el descuento basado en los puntos a canjear
+     */
+    function calcularDescuentoPuntos() {
+        const puntos = parseInt(document.getElementById('puntosACanjeer').value) || 0;
+        const descuento = Math.floor(puntos / 1000) * 5;
+        const preview = document.getElementById('descuentoPuntosPreview');
+        
+        if (puntos > 0 && puntos >= 1000) {
+            preview.textContent = `Descuento: ${descuento.toFixed(2)}€ (${puntos.toLocaleString('es-ES')} puntos)`;
+        } else if (puntos > 0 && puntos < 1000) {
+            preview.textContent = 'Mínimo 1000 puntos para canjear';
+            preview.style.color = '#ef4444';
+        } else {
+            preview.textContent = '';
+        }
+    }
+
+    /**
+     * Aplica el descuento de puntos a la venta actual
+     */
+    function aplicarDescuentoPuntos() {
+        const puntosInput = parseInt(document.getElementById('puntosACanjeer').value) || 0;
+        const puntosRedondeados = Math.floor(puntosInput / 1000) * 1000; // Redondear a múltiplos de 1000
+        const dni = document.getElementById('dniPuntosCliente').value.trim();
+        const puntosDisponibles = parseInt(document.getElementById('puntosDisponiblesCliente').textContent.replace(/\./g, '')) || 0;
+        
+        if (!dni) {
+            alert('Error: No se ha especificado el DNI del cliente');
+            return;
+        }
+        
+        if (puntosRedondeados < 1000) {
+            alert('Mínimo 1000 puntos para canjear');
+            return;
+        }
+        
+        // Validar que no canjee más puntos de los que tiene
+        if (puntosRedondeados > puntosDisponibles) {
+            alert(`No puedes canjear más puntos de los que tienes. Tienes ${puntosDisponibles.toLocaleString('es-ES')} puntos.`);
+            return;
+        }
+        
+        // Calcular el total actual del ticket
+        const totalTicket = obtenerTotalCalculado();
+        const maxDescuento = totalTicket * 0.30; // Máximo 30%
+        const maxPuntos = Math.floor(maxDescuento / 5) * 1000;
+        
+        // Limitar los puntos al máximo permitido
+        let puntosFinales = puntosRedondeados;
+        if (puntosRedondeados > maxPuntos) {
+            alert(`Has superado el máximo permitido (30% del ticket = ${maxDescuento.toFixed(2)}€). Se usarán ${maxPuntos.toLocaleString('es-ES')} puntos.`);
+            puntosFinales = maxPuntos;
+        }
+        
+        const descuentoEuros = Math.floor(puntosFinales / 1000) * 5;
+        
+        // Verificar que el total no sea 0
+        if (totalTicket - descuentoEuros <= 0) {
+            alert('El descuento no puede hacer el ticket 0. Reduce los puntos a canjear.');
+            return;
+        }
+        
+        // Aplicar descuento como descuento manual
+        descuento.tipo = 'fijo';
+        descuento.valor = descuentoEuros;
+        descuento.cupon = 'PUNTOS_' + puntosFinales;
+        
+        // Calcular puntos que se ganarán
+        const puntosGanados = Math.round((totalTicket - descuentoEuros) * 10);
+        
+        actualizarTicket();
+        
+        // Cerrar modal
+        cerrarModal('modalPuntosCliente');
+        document.getElementById('puntosClienteBusqueda').style.display = 'block';
+        document.getElementById('puntosClienteInfo').style.display = 'none';
+        
+        // Guardar los puntos canjeados para procesarlos al confirmar la venta
+        puntosCanjeados = {
+            dni: dni,
+            puntos: puntosFinales
+        };
+        
+        alert(`Descuento de ${descuentoEuros.toFixed(2)}€ aplicado (${puntosFinales.toLocaleString('es-ES')} puntos canjeados)\n` +
+              `Con esta compra ganarás ${puntosGanados.toLocaleString('es-ES')} puntos`);
+    }
+
     /**
      * Busca un cliente por DNI y aplica el descuento configurado en la tarifa
+     * También puede ser usado para registrar un cliente para acumular puntos
      */
     async function buscarClienteRegistrado() {
         const dni = document.getElementById('dniBusquedaCliente').value.trim();
         const mensajeDiv = document.getElementById('mensajeResultadoBusqueda');
+        const modal = document.getElementById('modalBuscarClienteRegistrado');
+        const esModoPuntos = modal.dataset.modo === 'puntos';
 
         // Determinar qué tarifa estamos validando
         let tarifaActual = null;
@@ -4249,6 +4670,15 @@
 
             if (!response.ok) {
                 // Cliente no encontrado (404)
+                if (esModoPuntos) {
+                    // En modo puntos, permitimos continuar sin cliente registrado
+                    mensajeDiv.textContent = 'Cliente no encontrado. ¿Deseas continuar sin registrar puntos?';
+                    mensajeDiv.className = 'mensaje-error';
+                    mensajeDiv.style.display = 'block';
+                    // Añadir botón para continuar sin cliente
+                    mensajeDiv.innerHTML += '<br><button class="btn-modal-cancelar" onclick="confirmarSinPuntos()" style="margin-top:10px; width:100%;">Continuar sin puntos</button>';
+                    return;
+                }
                 mensajeDiv.textContent = 'No se encuentra ningún cliente con ese DNI';
                 mensajeDiv.className = 'mensaje-error';
                 mensajeDiv.style.display = 'block';
@@ -4270,6 +4700,17 @@
                 document.getElementById('clienteNombre').value = cliente.nombre + ' ' + cliente.apellidos;
                 document.getElementById('clienteDireccion').value = '';
                 document.getElementById('clienteObservaciones').value = '';
+
+                // Si estamos en modo puntos, mostrar mensaje de éxito y proceder con el tipo de documento
+                if (esModoPuntos) {
+                    // Cerrar el modal directamente y mostrar tipo de documento
+                    cerrarModal('modalBuscarClienteRegistrado');
+                    // Cerrar también el modal de cliente (Datos del Cliente) si está abierto
+                    cerrarModal('modalDatosCliente');
+                    // Mostrar modal de tipo de documento (ticket/factura)
+                    document.getElementById('modalTipoDoc').style.display = 'flex';
+                    return;
+                }
 
                 // El descuento ya no es global, se aplica al añadir el producto al carrito abajo
                 const nombreTarifa = tarifaActual ? tarifaActual.nombre : 'Cliente Registrado';
@@ -4320,6 +4761,18 @@
      * Sobrescribimos el cierre del modal para manejar la reversión de tarifa si se cancela
      */
     function cerrarModalBuscarClienteRegistrado() {
+        const modal = document.getElementById('modalBuscarClienteRegistrado');
+        
+        // Si estaba en modo puntos y se cancela, continuar sin puntos
+        if (modal.dataset.modo === 'puntos') {
+            modal.dataset.modo = '';
+            // Restaurar títulos
+            document.querySelector('#modalBuscarClienteRegistrado h3').textContent = 'Cliente Registrado';
+            document.querySelector('#modalBuscarClienteRegistrado .modal-subtitulo').textContent = 'Introduce el DNI del cliente';
+            confirmarSinPuntos();
+            return;
+        }
+        
         if (productoPendienteTarifa) {
             revertirTarifaCard(productoPendienteTarifa.card.dataset.id);
             productoPendienteTarifa = null;

@@ -24,7 +24,11 @@ if (!isset($_SESSION['idUsuario'])) {
 
 // Si el usuario solicita cerrar sesión destruimos la sesión completamente
 if (isset($_REQUEST['cerrarSesion'])) {
-    // Si se especificó un motivo (pausa o turno), lo registramos en la caja abierta
+    /**
+     * Gestión del cierre de turno o pausa técnica.
+     * Si se proporciona un motivo, se registra el evento en la auditoría del empleado
+     * y se actualizan sus contadores de actividad.
+     */
     if (isset($_REQUEST['motivoCierre'])) {
         $sesionCaja = Caja::obtenerSesionAbierta();
         if ($sesionCaja) {
@@ -35,7 +39,7 @@ if (isset($_REQUEST['cerrarSesion'])) {
             );
         }
 
-        // Incrementar contadores de usuario
+        // Incrementamos las métricas de rendimiento del empleado basado en su acción
         if ($_REQUEST['motivoCierre'] === 'pausa') {
             Usuario::incrementarDescansos($_SESSION['idUsuario']);
         } elseif ($_REQUEST['motivoCierre'] === 'turno') {
@@ -74,7 +78,11 @@ $categorias = Categoria::obtenerTodas();
 // Cargar estado de la caja
 $sesionCaja = Caja::obtenerSesionAbierta();
 
-// Comprobar si hay una interrupción previa para mostrar el modal de bienvenida
+/** 
+ * Recuperación de sesiones interrumpidas.
+ * Si un empleado dejó la caja en espera (pausa para descanso), recuperamos
+ * los metadatos para informar al sistema y mostrar el aviso correspondiente.
+ */
 if ($sesionCaja && $sesionCaja->getInterrupcionTipo()) {
     // Preparamos los datos para que la vista los use
     $_SESSION['interrupcionRecuperada'] = [
@@ -83,7 +91,7 @@ if ($sesionCaja && $sesionCaja->getInterrupcionTipo()) {
         'usuarioNombre' => $sesionCaja->getInterrupcionUsuarioNombre(),
         'fecha' => $sesionCaja->getInterrupcionFecha()
     ];
-    // Limpiar en BD de inmediato para que sea de un solo uso (evita que reaparezca en cada carga/venta)
+    // Limpieza de seguridad: solo permitimos una recuperación tras el login
     $sesionCaja->limpiarInterrupcion();
 } else {
     // Si no hay interrupción en BD, nos aseguramos de limpiar la sesión para que no persista el modal
@@ -133,7 +141,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             // Indicamos la tarifa aplicada
             $venta->setIdTarifa($_POST['idTarifa'] ?? null);
 
-            // Relacionar con la sesión de caja abierta si existe
+            /** 
+             * Gestión de la persistencia de la venta.
+             * Se vincula la transacción con el usuario activo y la sesión de caja abierta.
+             */
             if ($sesionCaja) {
                 $venta->setIdSesionCaja($sesionCaja->getId());
             }
@@ -276,10 +287,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                     $stmtCliente = $conexion->prepare(
                         "UPDATE clientes SET 
                             productos_comprados = productos_comprados + ?, 
-                            compras_realizadas = compras_realizadas + 1 
+                            compras_realizadas = compras_realizadas + 1,
+                            puntos = puntos + ?
                         WHERE dni = ? AND activo = 1"
                     );
-                    $stmtCliente->execute([$totalProductos, $clienteNif]);
+                    $puntosGanados = 0;
+                    if ($total >= 20) {
+                        $puntosGanados = floor($total / 20) * 1000;
+                    }
+                    $stmtCliente->execute([$totalProductos, $puntosGanados, $clienteNif]);
+                    
+                    if ($puntosGanados > 0) {
+                        $_SESSION['puntosGanados'] = $puntosGanados;
+                    }
                 } catch (Exception $e) {
                     // Si falla la actualización del cliente, no detenemos la venta
                     error_log("Error al actualizar estadísticas del cliente: " . $e->getMessage());

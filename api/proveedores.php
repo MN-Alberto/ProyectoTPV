@@ -1,10 +1,8 @@
 <?php
 /**
- * API REST para la gestión de proveedores.
- * 
- * GET  → Listar todos o buscar por nombre (?buscar=texto)
- * POST → Crear o actualizar proveedor
- * DELETE → Eliminar proveedor (?eliminar=id)
+ * API REST de Suministros (Proveedores).
+ * Gestiona el directorio de contactos comerciales y los recargos de equivalencia
+ * aplicables a los productos suministrados por cada entidad.
  * 
  * @author Alberto Méndez
  * @version 1.0 (04/03/2026)
@@ -24,7 +22,10 @@ if (!isset($_SESSION['rolUsuario']) || $_SESSION['rolUsuario'] !== 'admin') {
 require_once(__DIR__ . '/../config/confDB.php');
 require_once(__DIR__ . '/../model/Proveedor.php');
 
-// ======================== GET ========================
+/** 
+ * MANEJADOR DE CONSULTAS (GET)
+ * Permite listar proveedores o consultar productos específicos de un suministrador.
+ */
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     // Si se piden los productos de un proveedor (asociados)
@@ -97,7 +98,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
     exit();
 }
 
-// ======================== POST (Crear / Actualizar) ========================
+/** 
+ * MANEJADOR DE PERSISTENCIA (POST)
+ * Proprocesa tanto el alta/modificación de perfiles como la vinculación de artículos.
+ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = $_POST['accion'] ?? '';
 
