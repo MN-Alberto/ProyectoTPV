@@ -36,7 +36,7 @@ if (isset($_GET['accion']) && $_GET['accion'] === 'estadisticas_productos') {
             LIMIT 1
         ");
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $estadisticas['mas_vendido_historia'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
+        $estadisticas['mas_vendido_historia'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int)$result['cantidad']] : null;
 
         // 2. Producto más vendido del mes actual
         $stmt = $conexion->query("
@@ -50,7 +50,7 @@ if (isset($_GET['accion']) && $_GET['accion'] === 'estadisticas_productos') {
             LIMIT 1
         ");
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $estadisticas['mas_vendido_mes'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
+        $estadisticas['mas_vendido_mes'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int)$result['cantidad']] : null;
 
         // 3. Producto más vendido de la semana actual (desde el lunes)
         $stmt = $conexion->query("
@@ -64,7 +64,7 @@ if (isset($_GET['accion']) && $_GET['accion'] === 'estadisticas_productos') {
             LIMIT 1
         ");
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $estadisticas['mas_vendido_semana'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
+        $estadisticas['mas_vendido_semana'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int)$result['cantidad']] : null;
 
         // 4. Producto menos vendido del mes actual
         $stmt = $conexion->query("
@@ -78,11 +78,12 @@ if (isset($_GET['accion']) && $_GET['accion'] === 'estadisticas_productos') {
             LIMIT 1
         ");
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $estadisticas['menos_vendido_mes'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
+        $estadisticas['menos_vendido_mes'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int)$result['cantidad']] : null;
 
         echo json_encode(['success' => true, 'estadisticas' => $estadisticas]);
         exit();
-    } catch (Exception $e) {
+    }
+    catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         exit();
     }
@@ -123,7 +124,8 @@ if (isset($_GET['historialCaja'])) {
         $ventas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         echo json_encode($ventas);
-    } catch (Exception $e) {
+    }
+    catch (Exception $e) {
         http_response_code(500);
         echo json_encode(['error' => $e->getMessage()]);
     }
@@ -137,7 +139,7 @@ if (isset($_GET['historialCaja'])) {
  */
 if (isset($_GET['detalleVenta'])) {
     try {
-        $idVenta = (int) $_GET['detalleVenta'];
+        $idVenta = (int)$_GET['detalleVenta'];
         $conexion = ConexionDB::getInstancia()->getConexion();
 
         // Obtener datos de la venta
@@ -198,7 +200,8 @@ if (isset($_GET['detalleVenta'])) {
             'descuentos' => $descuentosVenta
         ]);
         exit();
-    } catch (Exception $e) {
+    }
+    catch (Exception $e) {
         http_response_code(500);
         echo json_encode(['error' => $e->getMessage()]);
         exit();
@@ -209,7 +212,7 @@ if (isset($_GET['detalleVenta'])) {
 if (isset($_GET['checkVentaDevolucion'])) {
     try {
         require_once(__DIR__ . '/../model/LineaVenta.php');
-        $idVenta = (int) $_GET['checkVentaDevolucion'];
+        $idVenta = (int)$_GET['checkVentaDevolucion'];
 
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Obtener datos básicos de la venta
@@ -230,7 +233,8 @@ if (isset($_GET['checkVentaDevolucion'])) {
             'lineas' => $lineas
         ]);
         exit();
-    } catch (Exception $e) {
+    }
+    catch (Exception $e) {
         http_response_code(500);
         echo json_encode(['error' => $e->getMessage()]);
         exit();
@@ -266,7 +270,8 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
             $conexion->commit();
 
             echo json_encode(['success' => true, 'message' => 'Todas las ventas han sido eliminadas']);
-        } catch (Exception $e) {
+        }
+        catch (Exception $e) {
             $conexion->rollBack();
             http_response_code(500);
             echo json_encode(['error' => 'Error al eliminar ventas: ' . $e->getMessage()]);
@@ -294,6 +299,15 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
             $parametros[] = $_GET['tipoDocumento'];
         }
 
+        // Filtro por búsqueda (ID de venta)
+        if (isset($_GET['busqueda']) && $_GET['busqueda'] !== '') {
+            $busquedaInt = intval($_GET['busqueda']);
+            if ($busquedaInt > 0) {
+                $condiciones[] = "v.id = ?";
+                $parametros[] = $busquedaInt;
+            }
+        }
+
         // Filtro por fecha
         if (isset($_GET['filtroFecha'])) {
             $filtro = $_GET['filtroFecha'];
@@ -310,7 +324,7 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
                 case '30dias':
                     $condiciones[] = "v.fecha >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
                     break;
-                // 'todos' no añade condición
+            // 'todos' no añade condición
             }
         }
 
@@ -365,7 +379,8 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
         $ventas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         echo json_encode($ventas);
-    } catch (Exception $e) {
+    }
+    catch (Exception $e) {
         http_response_code(500);
         echo json_encode(['error' => $e->getMessage()]);
     }

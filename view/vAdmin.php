@@ -150,6 +150,11 @@
                     style="color: #dc2626;">-<?php echo number_format($stats['devolucionesHoy'] ?? 0, 2, ',', '.'); ?>
                     €</span>
             </div>
+            <div class="admin-stat-card">
+                <span class="admin-stat-label">Horas trabajadas (Semana)</span>
+                <span class="admin-stat-value"
+                    style="color: #059669;"><?php echo number_format($stats['horasTrabajadasSemana'] ?? 0, 1, ',', '.'); ?> h</span>
+            </div>
         </div>
 
         <div class="admin-content-panel">
@@ -728,6 +733,15 @@
                 <input type="text" id="editarClienteApellidos"
                     style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
                     placeholder="García López" maxlength="150">
+            </div>
+
+            <!-- Campo Puntos -->
+            <div>
+                <label for="editarClientePuntos"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Puntos</label>
+                <input type="number" id="editarClientePuntos"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="0" min="0" onchange="this.value = Math.max(0, this.value);">
             </div>
         </div>
 

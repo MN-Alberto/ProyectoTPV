@@ -316,6 +316,13 @@ endif; ?>
             </span>
         </div>
 
+        <!-- Indicador de cliente identificado (DNI) - se muestra al acumular puntos o aplicar descuento -->
+        <div id="indicadorClienteDni" style="display: none; background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #3b82f6; border-radius: 8px; padding: 8px 14px; margin: 0 10px 8px 10px; align-items: center; gap: 8px; font-size: 0.85rem;">
+            <span style="font-size: 1.1rem;">👤</span>
+            <span style="color: #1e40af; font-weight: 600;">Cliente:</span>
+            <span id="indicadorClienteDniValor" style="color: #1e3a8a; font-weight: 700; letter-spacing: 0.5px;"></span>
+        </div>
+
         <!-- Contenedor de las líneas del ticket (se rellena dinámicamente con JS) -->
         <div class="ticket-lineas" id="ticketLineas">
             <p class="ticket-vacio">Añade productos para realizar la venta</p>
@@ -436,6 +443,7 @@ foreach ($tarifas as $t) {
         <!-- Campos de puntos canjeados -->
         <input type="hidden" name="puntosCanjeadosDni" id="inputPuntosCanjeadosDni">
         <input type="hidden" name="puntosCanjeadosCantidad" id="inputPuntosCanjeadosCantidad">
+        <input type="hidden" name="clienteIdentificadoPuntos" id="inputClienteIdentificadoPuntos" value="false">
     </form>
 </section>
 
@@ -779,8 +787,11 @@ foreach ($tarifas as $t) {
             </div>
             
             <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn-modal-cancelar" onclick="cerrarModal('modalPuntosCliente'); document.getElementById('puntosClienteBusqueda').style.display='block'; document.getElementById('puntosClienteInfo').style.display='none';" style="flex: 1;">
-                    Cerrar
+                <button class="btn-modal-cancelar" onclick="cerrarYLimpiarClientePuntos()" style="flex: 1;">
+                    Cancelar
+                </button>
+                <button class="btn-exito" onclick="acumularPuntosSolamente()" style="flex: 1; background: #3b82f6;">
+                    Acumular Puntos
                 </button>
                 <button class="btn-exito" id="btnAplicarDescuentoPuntos" onclick="aplicarDescuentoPuntos()" style="flex: 1;">
                     Aplicar Descuento
@@ -824,7 +835,10 @@ foreach ($tarifas as $t) {
 <!-- Se muestra automáticamente cuando $_SESSION['ventaExito'] es true -->
 <!-- Contiene: resumen de la venta, botones para imprimir y enviar por correo -->
 <?php if (isset($_SESSION['ventaExito']) && $_SESSION['ventaExito']): ?>
-    <div class="modal-overlay" id="ventaExito">
+    <?php
+    $styleVentaExito = (isset($_SESSION['mostrarModalPuntosPostVenta']) && $_SESSION['mostrarModalPuntosPostVenta']) ? 'display: none;' : '';
+?>
+    <div class="modal-overlay" id="ventaExito" style="<?php echo $styleVentaExito; ?>">
         <div class="modal-content modal-exito">
             <!-- Icono de check/éxito animado -->
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
@@ -927,7 +941,8 @@ foreach ($tarifas as $t) {
             descuentoTarifaCupon: '<?php echo $_SESSION['ultimaVentaDescuentoTarifaCupon'] ?? ''; ?>',           // Código de cupón de tarifa (CLIENTE_REGISTRADO, MAYORISTA_NIVEL1, MAYORISTA_NIVEL2)
             descuentoManualTipo: '<?php echo $_SESSION['ultimaVentaDescuentoManualTipo'] ?? 'ninguno'; ?>',      // Tipo de descuento manual
             descuentoManualValor: <?php echo $_SESSION['ultimaVentaDescuentoManualValor'] ?? 0; ?>,            // Valor del descuento manual
-            descuentoManualCupon: '<?php echo $_SESSION['ultimaVentaDescuentoManualCupon'] ?? ''; ?>'           // Código de cupón manual
+            descuentoManualCupon: '<?php echo $_SESSION['ultimaVentaDescuentoManualCupon'] ?? ''; ?>',           // Código de cupón manual
+            puntosGanados: <?php echo $_SESSION['postVentaPuntosGanados'] ?? 0; ?>                             // Puntos ganados en la compra
         };
     </script>
 
@@ -1456,6 +1471,55 @@ endif; ?>
         </div>
     </div>
     <?php unset($_SESSION['ventaError']); ?>
+<?php
+endif; ?>
+
+<!-- ##=========================== MODAL: PUNTOS POST VENTA ===========================## -->
+<!-- Se muestra automáticamente cuando $_SESSION['mostrarModalPuntosPostVenta'] está definida -->
+<?php if (isset($_SESSION['mostrarModalPuntosPostVenta']) && $_SESSION['mostrarModalPuntosPostVenta']): ?>
+    <div class="modal-overlay" id="puntosPostVentaExito" style="display: flex !important; z-index: 99999;">
+        <div class="modal-content modal-exito" style="max-width: 450px;">
+            <!-- Icono de regalo -->
+            <div style="text-align: center; margin-bottom: 15px;">
+                <div style="background: var(--bg-accent-success); width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--accent-success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 12 20 22 4 22 4 12"></polyline>
+                        <rect x="2" y="7" width="20" height="5"></rect>
+                        <line x1="12" y1="22" x2="12" y2="7"></line>
+                        <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path>
+                        <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path>
+                    </svg>
+                </div>
+            </div>
+            <h3 style="text-align: center; margin: 10px 0; font-size: 1.4rem; color: var(--text-header);">¡Puntos Acumulados!</h3>
+            <p style="text-align: center; margin: 10px 0; color: var(--text-muted);">El cliente ha ganado y/o usado puntos en esta compra.</p>
+            
+            <div style="background: var(--bg-main); border: 1px solid var(--border-main); border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center;">
+                <p style="margin: 5px 0; font-size: 1rem; color: var(--text-main);"><strong>Puntos ganados ahora:</strong> <span style="color: var(--accent-success); font-size: 1.2rem;">+<?php echo number_format($_SESSION['postVentaPuntosGanados'] ?? 0, 0, ',', '.'); ?></span></p>
+                <p style="margin: 10px 0 5px 0; font-size: 1rem; color: var(--text-main);"><strong>Total acumulado disponible:</strong> <span style="font-weight: bold; font-size: 1.5rem; color: var(--accent);"><?php echo number_format($_SESSION['puntosActualesAcumulados'] ?? 0, 0, ',', '.'); ?></span></p>
+            </div>
+            
+            <div style="text-align: center; margin-top: 15px;">
+                <button onclick="cerrarPuntosPostVenta()" style="background: var(--accent-success); color: white; padding: 10px 30px; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; width: 100%; font-weight: 600;">Aceptar</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    function cerrarPuntosPostVenta() {
+        document.getElementById('puntosPostVentaExito').remove();
+        const modalVenta = document.getElementById('ventaExito');
+        if (modalVenta) {
+            modalVenta.style.display = 'flex';
+        }
+    }
+    </script>
+    
+    <?php
+    unset($_SESSION['mostrarModalPuntosPostVenta']);
+    unset($_SESSION['postVentaPuntosGanados']);
+    unset($_SESSION['puntosActualesAcumulados']);
+?>
 <?php
 endif; ?>
 
@@ -2626,6 +2690,17 @@ endif; ?>
         carrito = [];
         descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
         puntosCanjeados = null; // Resetear puntos canjeados al vaciar el carrito
+        
+        // Resetear la asociación del cliente identificado
+        clienteIdentificadoEnModalPuntos = false;
+        const inputNif = document.getElementById('clienteNif');
+        if (inputNif) inputNif.value = '';
+        const inputNombre = document.getElementById('clienteNombre');
+        if (inputNombre) inputNombre.value = '';
+        
+        // Ocultar el indicador de DNI del ticket
+        ocultarDniEnTicket();
+        
         // Resetear también el select de tarifa a Cliente
         const tarifaCliente = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
         if (tarifaCliente) {
@@ -2644,7 +2719,7 @@ endif; ?>
     /**
      * posponerVenta()
      * Guarda la venta actual en sessionStorage para recuperarla después.
-     * Guarda: carrito, descuento, y fecha/hora de la posposición.
+     * Guarda: carrito, descuento, tarifa, cliente DNI, puntos canjeados y puntos ganados.
      */
     function posponerVenta() {
         if (carrito.length === 0) {
@@ -2652,19 +2727,49 @@ endif; ?>
             return;
         }
 
+        // Obtener DNI del cliente
+        const clienteDniInput = document.getElementById('clienteNif');
+        const clienteDni = clienteDniInput ? clienteDniInput.value.trim() : '';
+
+        // Calcular puntos que se ganarán con la compra actual
+        let puntosGanados = 0;
+        if (clienteDni !== '') {
+            const totalTicket = obtenerTotalCalculado();
+            puntosGanados = Math.round(totalTicket * 10);
+        }
+
+        // Obtener puntos canjeados si existen
+        const puntosCanjeadosData = (typeof puntosCanjeados !== 'undefined' && puntosCanjeados) 
+            ? { dni: puntosCanjeados.dni, puntos: puntosCanjeados.puntos }
+            : null;
+
         const ventaPospuesta = {
             carrito: carrito,
             descuento: descuento,
             tarifa: document.getElementById('tarifaVenta').value,
+            clienteDni: clienteDni,
+            puntosCanjeados: puntosCanjeadosData,
+            puntosGanados: puntosGanados,
             fecha: new Date().toLocaleString('es-ES')
         };
 
         // Guardar en sessionStorage
         sessionStorage.setItem('ventaPospuesta', JSON.stringify(ventaPospuesta));
 
-        // Vaciar el carrito
+        // Vaciar el carrito y resetear datos del cliente
         carrito = [];
         descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+        puntosCanjeados = null;
+        
+        // Limpiar datos del cliente para que no se mezclen con otras ventas
+        const clienteNifInput = document.getElementById('clienteNif');
+        if (clienteNifInput) clienteNifInput.value = '';
+        const clienteNombreInput = document.getElementById('clienteNombre');
+        if (clienteNombreInput) clienteNombreInput.value = '';
+        // Ocultar indicador de cliente
+        const indicador = document.getElementById('indicadorClienteDni');
+        if (indicador) indicador.style.display = 'none';
+        
         const tarifaCliente2 = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
         if (tarifaCliente2) {
             document.getElementById('tarifaVenta').value = tarifaCliente2.id;
@@ -2727,6 +2832,24 @@ endif; ?>
                 } else if (tarifasPrefijadas.length > 0) {
                     document.getElementById('tarifaVenta').value = tarifasPrefijadas[0].id;
                 }
+            }
+
+            // Restaurar DNI del cliente si existe
+            if (ventaPospuesta.clienteDni) {
+                const clienteNifInput = document.getElementById('clienteNif');
+                if (clienteNifInput) {
+                    clienteNifInput.value = ventaPospuesta.clienteDni;
+                    // Mostrar indicador de cliente
+                    mostrarDniEnTicket(ventaPospuesta.clienteDni);
+                }
+            }
+
+            // Restaurar puntos canjeados si existen
+            if (ventaPospuesta.puntosCanjeados && ventaPospuesta.puntosCanjeados.dni && ventaPospuesta.puntosCanjeados.puntos > 0) {
+                puntosCanjeados = {
+                    dni: ventaPospuesta.puntosCanjeados.dni,
+                    puntos: ventaPospuesta.puntosCanjeados.puntos
+                };
             }
         }
 
@@ -2981,8 +3104,20 @@ endif; ?>
             <div class="resumen-fila-mini" style="font-weight: bold; border-top: 1px solid #e5e7eb; padding-top: 8px;">
                 <span>Total Final (IVA incl.):</span>
                 <span>${totalPVPFinal.toFixed(2).replace('.', ',')} €</span>
-            </div>
-        </div>`;
+            </div>`;
+
+        // Añadir puntos previstos a ganar si el cliente está identificado
+        const nifActual = document.getElementById('clienteNif') ? document.getElementById('clienteNif').value.trim() : '';
+        if (nifActual !== '' && totalPVPFinal > 0) {
+            const puntosAGanar = Math.round(totalPVPFinal * 10);
+            htmlDesglose += `
+            <div class="resumen-fila-mini" style="color: #059669; font-weight: 600; font-size: 0.85rem; padding-top: 4px;">
+                <span>Puntos previstos a ganar:</span>
+                <span>+${puntosAGanar.toLocaleString('es-ES')} pts</span>
+            </div>`;
+        }
+
+        htmlDesglose += `</div>`;
 
         // Actualizar el DOM
         document.getElementById('ticketDesglose').innerHTML = htmlDesglose;
@@ -3381,12 +3516,17 @@ endif; ?>
         document.getElementById('inputDescuentoManualCupon').value = descuento.cupon;
 
         // Guardar puntos canjeados si existen
-        if (puntosCanjeados && puntosCanjeados.dni && puntosCanjeados.puntos > 0) {
+        if (typeof puntosCanjeados !== 'undefined' && puntosCanjeados && puntosCanjeados.dni && puntosCanjeados.puntos > 0) {
             document.getElementById('inputPuntosCanjeadosDni').value = puntosCanjeados.dni;
             document.getElementById('inputPuntosCanjeadosCantidad').value = puntosCanjeados.puntos;
         } else {
             document.getElementById('inputPuntosCanjeadosDni').value = '';
             document.getElementById('inputPuntosCanjeadosCantidad').value = 0;
+        }
+
+        // Estado del cliente identificado en modal puntos
+        if (typeof clienteIdentificadoEnModalPuntos !== 'undefined') {
+            document.getElementById('inputClienteIdentificadoPuntos').value = clienteIdentificadoEnModalPuntos ? 'true' : 'false';
         }
 
         // Tarifa seleccionada
@@ -3396,7 +3536,8 @@ endif; ?>
         document.getElementById('formVenta').submit();
         
         // Resetear puntos canjeados después de enviar (para la próxima venta)
-        puntosCanjeados = null;
+        if (typeof puntosCanjeados !== 'undefined') puntosCanjeados = null;
+        if (typeof clienteIdentificadoEnModalPuntos !== 'undefined') clienteIdentificadoEnModalPuntos = false;
         descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
     }
 
@@ -3605,7 +3746,18 @@ endif; ?>
             <tr style="border-top: 1px solid #000;">
                 <td style="font-size: 1.2rem; padding-top:10px;"><strong>TOTAL:</strong></td>
                 <td style="font-size: 1.2rem; font-weight: bold; text-align:right; padding-top:10px;">${totalVentaPVP.toFixed(2).replace('.', ',')} €</td>
-            </tr>
+            </tr>`;
+
+        // Mostrar puntos ganados si corresponde
+        if (ultimaVenta.puntosGanados && ultimaVenta.puntosGanados > 0) {
+            totalesHtml += `
+            <tr style="border-top: 1px dashed #ccc;">
+                <td style="font-size: 0.9rem; padding-top:10px; color: #059669;"><strong>Puntos a ganar:</strong></td>
+                <td style="font-size: 0.9rem; font-weight: bold; text-align:right; padding-top:10px; color: #059669;">+${ultimaVenta.puntosGanados.toLocaleString('es-ES')} pts</td>
+            </tr>`;
+        }
+
+        totalesHtml += `
             </table>
             ${importeDescuentoTarifa > 0.01 ? '<div style="font-size: 0.75rem; color: #666; margin-top: 5px;">* Los ahorros por tarifa ya están aplicados en el precio de cada artículo.</div>' : ''}
         `;
@@ -4444,6 +4596,7 @@ endif; ?>
 
     // Variable para almacenar los puntos canjeados en la venta actual
     let puntosCanjeados = null;
+    let clienteIdentificadoEnModalPuntos = false;
 
     /**
      * Abre el modal para consultar y canjear puntos del cliente
@@ -4473,6 +4626,68 @@ endif; ?>
     }
 
     /**
+     * Cancela la selección del cliente y cierra el modal
+     */
+    /**
+     * Muestra el DNI del cliente identificado en la zona del ticket
+     */
+    function mostrarDniEnTicket(dni) {
+        const indicador = document.getElementById('indicadorClienteDni');
+        const valor = document.getElementById('indicadorClienteDniValor');
+        if (indicador && valor && dni) {
+            valor.textContent = dni.toUpperCase();
+            indicador.style.display = 'flex';
+        }
+    }
+
+    /**
+     * Oculta el indicador de DNI del cliente en la zona del ticket
+     */
+    function ocultarDniEnTicket() {
+        const indicador = document.getElementById('indicadorClienteDni');
+        const valor = document.getElementById('indicadorClienteDniValor');
+        if (indicador) indicador.style.display = 'none';
+        if (valor) valor.textContent = '';
+    }
+
+    function cerrarYLimpiarClientePuntos() {
+        clienteIdentificadoEnModalPuntos = false;
+        document.getElementById('clienteNif').value = '';
+        document.getElementById('clienteNombre').value = '';
+        puntosCanjeados = null;
+        
+        // Limpiar el DNI del input del modal de puntos
+        document.getElementById('dniPuntosCliente').value = '';
+        
+        // Resetear el flag de cliente identificado para que no se regalen puntos
+        document.getElementById('inputClienteIdentificadoPuntos').value = 'false';
+        
+        // Ocultar el indicador de DNI del ticket
+        ocultarDniEnTicket();
+        
+        cerrarModal('modalPuntosCliente'); 
+        document.getElementById('puntosClienteBusqueda').style.display='block'; 
+        document.getElementById('puntosClienteInfo').style.display='none';
+        actualizarTicket();
+    }
+    
+    /**
+     * Solo acumula puntos sin aplicar descuento, y cierra el modal
+     */
+    function acumularPuntosSolamente() {
+        puntosCanjeados = null; 
+        
+        // Mostrar el DNI del cliente identificado en el ticket
+        const dniCliente = document.getElementById('dniPuntosCliente').value.trim();
+        mostrarDniEnTicket(dniCliente);
+        
+        cerrarModal('modalPuntosCliente'); 
+        document.getElementById('puntosClienteBusqueda').style.display='block'; 
+        document.getElementById('puntosClienteInfo').style.display='none';
+        actualizarTicket();
+    }
+
+    /**
      * Busca los puntos de un cliente por DNI
      */
     async function buscarPuntosCliente() {
@@ -4496,9 +4711,19 @@ endif; ?>
                 return;
             }
             
-            const cliente = await response.json();
-            
+            const data = await response.json();
+            // La API devuelve un array de clientes (búsqueda parcial con LIKE)
+            const cliente = Array.isArray(data) ? data[0] : data;
             if (cliente && cliente.activo == 1) {
+                // Registrar que identificamos al cliente exitosamente en este modal
+                clienteIdentificadoEnModalPuntos = true;
+                
+                // IMPORTANTE: Poblamos los campos del cliente para que la venta se asocie a este cliente principal
+                document.getElementById('clienteNif').value = cliente.dni;
+                document.getElementById('clienteNombre').value = cliente.nombre + ' ' + cliente.apellidos;
+                document.getElementById('clienteDireccion').value = '';
+                document.getElementById('clienteObservaciones').value = '';
+
                 // Mostrar los puntos del cliente
                 const puntosDisponibles = cliente.puntos || 0;
                 document.getElementById('puntosDisponiblesCliente').textContent = puntosDisponibles.toLocaleString('es-ES');
@@ -4523,9 +4748,10 @@ endif; ?>
                     // Mensajes informativos
                     let mensajeUsar = '';
                     if (puntosDisponibles >= 1000) {
-                        const puedenUsarse = Math.min(puntosDisponibles, maxPuntosCanjeables);
+                        const puedenUsarse = Math.floor(Math.min(puntosDisponibles, maxPuntosCanjeables) / 1000) * 1000;
                         const descuentoMax = Math.floor(puedenUsarse / 1000) * 5;
                         mensajeUsar = `Puedes usar hasta ${puedenUsarse.toLocaleString('es-ES')} puntos = ${descuentoMax.toFixed(2)}€ de descuento (30% máximo del ticket)`;
+                        document.getElementById('puntosACanjeer').max = puedenUsarse;
                     } else {
                         mensajeUsar = `Te faltan ${puntosParaSiguienteDescuento.toLocaleString('es-ES')} puntos para tu próximo descuento`;
                     }
@@ -4553,17 +4779,40 @@ endif; ?>
      * Calcula el descuento basado en los puntos a canjear
      */
     function calcularDescuentoPuntos() {
-        const puntos = parseInt(document.getElementById('puntosACanjeer').value) || 0;
-        const descuento = Math.floor(puntos / 1000) * 5;
+        const inputPuntos = document.getElementById('puntosACanjeer');
+        let puntos = parseInt(inputPuntos.value) || 0;
         const preview = document.getElementById('descuentoPuntosPreview');
+        const puntosGanadosMsg = document.getElementById('puntosQueSeGanaran');
+        const totalTicket = obtenerTotalCalculado();
         
-        if (puntos > 0 && puntos >= 1000) {
+        let nuevoTotal = totalTicket;
+        
+        // Solo forzar múltiplos de 1000 al aplicar, no mientras escribe
+        // Guardamos el valor original sin redondear para no molestar al usuario mientras escribe
+        const esMultiploDeMil = puntos % 1000 === 0;
+        
+        const descuento = Math.floor(puntos / 1000) * 5;
+        
+        if (puntos >= 1000) {
             preview.textContent = `Descuento: ${descuento.toFixed(2)}€ (${puntos.toLocaleString('es-ES')} puntos)`;
+            preview.style.color = '';
+            nuevoTotal = Math.max(0, totalTicket - descuento);
         } else if (puntos > 0 && puntos < 1000) {
-            preview.textContent = 'Mínimo 1000 puntos para canjear';
+            preview.textContent = 'Mínimo 1000 puntos para canjear (múltiplos de 1000)';
+            preview.style.color = '#ef4444';
+        } else if (puntos > 0 && !esMultiploDeMil) {
+            // Si wrote un valor que no es múltiplo de 1000, mostrar mensaje pero no modificar el input
+            preview.textContent = 'Los puntos deben ser múltiplos de 1000';
             preview.style.color = '#ef4444';
         } else {
             preview.textContent = '';
+            preview.style.color = '';
+        }
+
+        // Actualizar dinámicamente los puntos que se ganarán basados en el nuevo total
+        if (puntosGanadosMsg) {
+            const puntosQueSeGanaran = Math.round(nuevoTotal * 10);
+            puntosGanadosMsg.textContent = `Con esta compra ganarás ${puntosQueSeGanaran.toLocaleString('es-ES')} puntos (1€ = 10 puntos)`;
         }
     }
 
@@ -4621,6 +4870,9 @@ endif; ?>
         const puntosGanados = Math.round((totalTicket - descuentoEuros) * 10);
         
         actualizarTicket();
+        
+        // Mostrar el DNI del cliente identificado en el ticket
+        mostrarDniEnTicket(dni);
         
         // Cerrar modal
         cerrarModal('modalPuntosCliente');
@@ -4692,7 +4944,8 @@ endif; ?>
                 return;
             }
 
-            const cliente = await response.json();
+            const data = await response.json();
+            const cliente = Array.isArray(data) ? data[0] : data;
 
             if (cliente && cliente.activo == 1) {
                 // Poblamos los campos del cliente para que se guarden con la venta

@@ -97,10 +97,18 @@ try {
         $nombre = $_PUT['nombre'] ?? '';
         $apellidos = $_PUT['apellidos'] ?? '';
         $fecha_alta = $_PUT['fecha_alta'] ?? '';
+        $puntos = isset($_PUT['puntos']) ? (int)$_PUT['puntos'] : null;
 
         if (empty($id) || empty($dni) || empty($nombre) || empty($apellidos)) {
             http_response_code(400);
             echo json_encode(['error' => 'Todos los campos son obligatorios']);
+            exit;
+        }
+
+        // Validar que los puntos no sean negativos
+        if ($puntos !== null && $puntos < 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Los puntos del cliente no pueden ser negativos']);
             exit;
         }
 
@@ -120,9 +128,16 @@ try {
             exit;
         }
 
-        $stmt = $pdo->prepare("UPDATE clientes SET dni = ?, nombre = ?, apellidos = ?, fecha_alta = ? WHERE id = ?");
+        if ($puntos !== null) {
+            $stmt = $pdo->prepare("UPDATE clientes SET dni = ?, nombre = ?, apellidos = ?, fecha_alta = ?, puntos = ? WHERE id = ?");
+            $success = $stmt->execute([$dni, $nombre, $apellidos, $fecha_alta, $puntos, $id]);
+        }
+        else {
+            $stmt = $pdo->prepare("UPDATE clientes SET dni = ?, nombre = ?, apellidos = ?, fecha_alta = ? WHERE id = ?");
+            $success = $stmt->execute([$dni, $nombre, $apellidos, $fecha_alta, $id]);
+        }
 
-        if ($stmt->execute([$dni, $nombre, $apellidos, $fecha_alta, $id])) {
+        if ($success) {
             echo json_encode(['ok' => true]);
         }
         else {
@@ -220,27 +235,60 @@ try {
         exit;
     }
 
-    // Manejar GET para obtener cliente por DNI (para buscar clientes)
-    if (isset($_GET['dni'])) {
+    // Manejar GET para obtener clientes por DNI (búsqueda parcial)
+    if (isset($_GET['dni']) && !isset($_GET['compras'])) {
         $dni = $_GET['dni'];
 
-        $stmt = $pdo->prepare("SELECT * FROM clientes WHERE dni = ? AND activo = 1");
-        $stmt->execute([$dni]);
-        $cliente = $stmt->fetch(PDO::FETCH_ASSOC);
+        // Dar más tiempo para búsquedas sobre datasets grandes
+        set_time_limit(60);
 
-        if ($cliente) {
-            echo json_encode($cliente);
+        // Si se pide paginación server-side (admin), devolver con metadatos
+        if (isset($_GET['pagina'])) {
+            $pagina = max(1, intval($_GET['pagina']));
+            $porPagina = min(50, max(1, intval($_GET['porPagina'] ?? 6)));
+            $offset = ($pagina - 1) * $porPagina;
+
+            // Count total — WHERE en orden del índice (activo, dni)
+            $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM clientes WHERE dni LIKE ?");
+            $stmtCount->execute([$dni . '%']);
+            $total = (int)$stmtCount->fetchColumn();
+
+            // Fetch página — solo columnas necesarias, WHERE en orden del índice
+            $stmt = $pdo->prepare("SELECT id, dni, nombre, apellidos, fecha_alta, productos_comprados, compras_realizadas, puntos, activo FROM clientes WHERE dni LIKE ? ORDER BY dni ASC LIMIT ? OFFSET ?");
+            $stmt->bindValue(1, $dni . '%', PDO::PARAM_STR);
+            $stmt->bindValue(2, $porPagina, PDO::PARAM_INT);
+            $stmt->bindValue(3, $offset, PDO::PARAM_INT);
+            $stmt->execute();
+            $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            echo json_encode([
+                'clientes' => $clientes,
+                'total' => $total,
+                'pagina' => $pagina,
+                'porPagina' => $porPagina,
+                'totalPaginas' => $total > 0 ? (int)ceil($total / $porPagina) : 1
+            ]);
+            exit;
+        }
+
+        // Búsqueda simple sin paginación (compatibilidad cajero)
+        $stmt = $pdo->prepare("SELECT id, dni, nombre, apellidos, fecha_alta, productos_comprados, compras_realizadas, puntos, activo FROM clientes WHERE dni LIKE ? ORDER BY dni ASC LIMIT 20");
+        $stmt->execute([$dni . '%']);
+        $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if ($clientes && count($clientes) > 0) {
+            echo json_encode($clientes);
         }
         else {
             http_response_code(404);
-            echo json_encode(['error' => 'Cliente no encontrado']);
+            echo json_encode(['error' => 'No se encontraron clientes con ese DNI']);
         }
         exit;
     }
 
     // Verificar si se pide un cliente específico
     if (isset($_GET['id'])) {
-        $stmt = $pdo->prepare("SELECT * FROM clientes WHERE id = ? AND activo = 1");
+        $stmt = $pdo->prepare("SELECT * FROM clientes WHERE id = ?");
         $stmt->execute([$_GET['id']]);
         $cliente = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -254,11 +302,45 @@ try {
         exit;
     }
 
-    // Obtener todos los clientes activos
-    $stmt = $pdo->query("SELECT * FROM clientes WHERE activo = 1 ORDER BY fecha_creacion DESC");
+    // Obtener clientes activos con paginación server-side
+    $pagina = max(1, intval($_GET['pagina'] ?? 1));
+    $porPagina = min(50, max(1, intval($_GET['porPagina'] ?? 6)));
+    $offset = ($pagina - 1) * $porPagina;
+
+    // Dar más tiempo para listados sobre datasets grandes
+    set_time_limit(60);
+
+    // Count total de clientes activos (para paginación)
+    $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM clientes WHERE activo = 1");
+    $stmtCount->execute();
+    $total = (int)$stmtCount->fetchColumn();
+
+    // Count total de TODOS los clientes (incluyendo inactivos)
+    $stmtCountAll = $pdo->prepare("SELECT COUNT(*) FROM clientes");
+    $stmtCountAll->execute();
+    $totalTodos = (int)$stmtCountAll->fetchColumn();
+
+    // Count de clientes inactivos
+    $stmtCountInactivos = $pdo->prepare("SELECT COUNT(*) FROM clientes WHERE activo = 0");
+    $stmtCountInactivos->execute();
+    $totalInactivos = (int)$stmtCountInactivos->fetchColumn();
+
+    // Fetch página — solo columnas necesarias
+    $stmt = $pdo->prepare("SELECT id, dni, nombre, apellidos, fecha_alta, productos_comprados, compras_realizadas, puntos, activo FROM clientes WHERE activo = 1 ORDER BY id DESC LIMIT ? OFFSET ?");
+    $stmt->bindValue(1, $porPagina, PDO::PARAM_INT);
+    $stmt->bindValue(2, $offset, PDO::PARAM_INT);
+    $stmt->execute();
     $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    echo json_encode($clientes);
+    echo json_encode([
+        'clientes' => $clientes,
+        'total' => $total,
+        'totalTodos' => $totalTodos,
+        'totalInactivos' => $totalInactivos,
+        'pagina' => $pagina,
+        'porPagina' => $porPagina,
+        'totalPaginas' => $total > 0 ? (int)ceil($total / $porPagina) : 1
+    ]);
 
 }
 catch (Exception $e) {

@@ -283,6 +283,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                     foreach ($carrito as $item) {
                         $totalProductos += $item['cantidad'];
                     }
+
+                    // Puntos a restar (canjeados)
+                    $puntosCanjeados = isset($_POST['puntosCanjeadosCantidad']) ? (int) $_POST['puntosCanjeadosCantidad'] : 0;
+                    $puntosGanados = 0;
+                    if ($total > 0) {
+                        $puntosGanados = round($total * 10);
+                    }
+
                     // Actualizar productos comprados y ventas realizadas del cliente
                     $stmtCliente = $conexion->prepare(
                         "UPDATE clientes SET 
@@ -291,13 +299,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                             puntos = puntos - ? + ?
                         WHERE dni = ? AND activo = 1"
                     );
-                    $puntosGanados = 0;
-                    if ($total >= 20) {
-                        $puntosGanados = floor($total / 20) * 1000;
-                    }
-                    $stmtCliente->execute([$totalProductos, $puntosGanados, $clienteNif]);
                     
-                    if ($puntosGanados > 0) {
+                    $stmtCliente->execute([$totalProductos, $puntosCanjeados, $puntosGanados, $clienteNif]);
+                    
+                    // Comprobar si fue identificado en el modal de puntos antes de la venta
+                    $clienteIdentificadoPuntos = isset($_POST['clienteIdentificadoPuntos']) && $_POST['clienteIdentificadoPuntos'] === 'true';
+
+                    if ($clienteIdentificadoPuntos) {
+                        $_SESSION['mostrarModalPuntosPostVenta'] = true;
+                        $_SESSION['postVentaPuntosGanados'] = $puntosGanados;
+                        
+                        // Consultar los puntos actuales del cliente para mostrarlos en el modal
+                        $stmtPuntosActuales = $conexion->prepare("SELECT puntos FROM clientes WHERE dni = ? AND activo = 1 LIMIT 1");
+                        $stmtPuntosActuales->execute([$clienteNif]);
+                        $resultadoPuntos = $stmtPuntosActuales->fetch(PDO::FETCH_ASSOC);
+                        $_SESSION['puntosActualesAcumulados'] = $resultadoPuntos ? $resultadoPuntos['puntos'] : 0;
+                    } else if ($puntosGanados > 0) {
+                        // Se ganó puntos, pero no se identificó explícitamente desde el modal, así que no se muestra el pop-up post venta,
+                        // pero los mantenemos por si hiciera falta.
                         $_SESSION['puntosGanados'] = $puntosGanados;
                     }
                 } catch (Exception $e) {
