@@ -56,10 +56,40 @@ function ejecutarCuandoIdle(task, onComplete) {
 let tarifasMostrarConIva = false;
 
 // ======================== PAGINACIÓN CLIENTES ========================
-// Variables para paginación de clientes en admin
-let clientesData = []; // Almacena todos los clientes
+// Variables para paginación server-side de clientes en admin
 let paginaActualClientes = 1;
+let totalPaginasClientes = 1;
+let totalClientes = 0;
+let busquedaClienteActual = '';
 const clientesPorPagina = 6;
+
+/**
+ * Ajusta el ancho del input de paginación basándose en su contenido
+ * @param {HTMLInputElement} input - El input a ajustar
+ */
+function ajustarAnchoInput(input) {
+    if (!input) return;
+    const tempSpan = document.createElement('span');
+    tempSpan.style.visibility = 'hidden';
+    tempSpan.style.position = 'absolute';
+    tempSpan.style.font = window.getComputedStyle(input).font;
+    tempSpan.style.padding = '0 5px';
+    tempSpan.textContent = input.value || '0';
+    document.body.appendChild(tempSpan);
+    const width = tempSpan.offsetWidth + 15;
+    document.body.removeChild(tempSpan);
+    input.style.width = width + 'px';
+}
+
+/**
+ * Ajusta todos los inputs de paginación después de un cambio de página
+ */
+function ajustarTodosInputsPaginacion() {
+    setTimeout(() => {
+        const inputs = document.querySelectorAll('.input-numero-pagina');
+        inputs.forEach(input => ajustarAnchoInput(input));
+    }, 50);
+}
 
 /**
  * Genera los controles de paginación para clientes
@@ -89,7 +119,7 @@ function getPaginacionClientesHTML(totalPaginas) {
     botones += `<div class="input-paginacion">
         <input type="number" id="inputPaginaClientes" class="input-numero-pagina" 
             value="${paginaActualClientes}" min="1" max="${totalPaginas}" 
-            onchange="irAPaginaClientes()" onkeypress="if(event.key === 'Enter') irAPaginaClientes()">
+            onfocus="ajustarAnchoInput(this)" oninput="ajustarAnchoInput(this)" onblur="ajustarAnchoInput(this)" onchange="irAPaginaClientes()" onkeypress="if(event.key === 'Enter') irAPaginaClientes()">
         <span class="info-paginacion"> de ${totalPaginas}</span>
     </div>`;
 
@@ -123,13 +153,12 @@ function irAPaginaClientes() {
     if (!input) return;
 
     let pagina = parseInt(input.value);
-    const totalPaginas = Math.ceil(clientesData.length / clientesPorPagina);
 
     // Validar que sea un número válido
     if (isNaN(pagina) || pagina < 1) {
         pagina = 1;
-    } else if (pagina > totalPaginas) {
-        pagina = totalPaginas;
+    } else if (pagina > totalPaginasClientes) {
+        pagina = totalPaginasClientes;
     }
 
     cambiarPaginaClientes(pagina);
@@ -169,7 +198,7 @@ function getPaginacionSesionesHTML(totalPaginas) {
     botones += `<div class="input-paginacion">
         <input type="number" id="inputPaginaSesiones" class="input-numero-pagina" 
             value="${paginaActualSesiones}" min="1" max="${totalPaginas}" 
-            onchange="irAPaginaSesiones()" onkeypress="if(event.key === 'Enter') irAPaginaSesiones()">
+            onfocus="ajustarAnchoInput(this)" oninput="ajustarAnchoInput(this)" onblur="ajustarAnchoInput(this)" onchange="irAPaginaSesiones()" onkeypress="if(event.key === 'Enter') irAPaginaSesiones()">
         <span class="info-paginacion"> de ${totalPaginas}</span>
     </div>`;
 
@@ -261,7 +290,7 @@ function getPaginacionProductosHTML(totalPaginas) {
     botones += `<div class="input-paginacion">
         <input type="number" id="inputPaginaProductos" class="input-numero-pagina" 
             value="${paginaActualProductos}" min="1" max="${totalPaginas}" 
-            onchange="irAPaginaProductos()" onkeypress="if(event.key === 'Enter') irAPaginaProductos()">
+            onfocus="ajustarAnchoInput(this)" oninput="ajustarAnchoInput(this)" onblur="ajustarAnchoInput(this)" onchange="irAPaginaProductos()" onkeypress="if(event.key === 'Enter') irAPaginaProductos()">
         <span class="info-paginacion"> de ${totalPaginas}</span>
     </div>`;
 
@@ -353,7 +382,7 @@ function getPaginacionCategoriasHTML(totalPaginas) {
     botones += `<div class="input-paginacion">
         <input type="number" id="inputPaginaCategorias" class="input-numero-pagina" 
             value="${paginaActualCategorias}" min="1" max="${totalPaginas}" 
-            onchange="irAPaginaCategorias()" onkeypress="if(event.key === 'Enter') irAPaginaCategorias()">
+            onfocus="ajustarAnchoInput(this)" oninput="ajustarAnchoInput(this)" onblur="ajustarAnchoInput(this)" onchange="irAPaginaCategorias()" onkeypress="if(event.key === 'Enter') irAPaginaCategorias()">
         <span class="info-paginacion"> de ${totalPaginas}</span>
     </div>`;
 
@@ -445,7 +474,7 @@ function getPaginacionUsuariosHTML(totalPaginas) {
     botones += `<div class="input-paginacion">
         <input type="number" id="inputPaginaUsuarios" class="input-numero-pagina" 
             value="${paginaActualUsuarios}" min="1" max="${totalPaginas}" 
-            onchange="irAPaginaUsuarios()" onkeypress="if(event.key === 'Enter') irAPaginaUsuarios()">
+            onfocus="ajustarAnchoInput(this)" oninput="ajustarAnchoInput(this)" onblur="ajustarAnchoInput(this)" onchange="irAPaginaUsuarios()" onkeypress="if(event.key === 'Enter') irAPaginaUsuarios()">
         <span class="info-paginacion"> de ${totalPaginas}</span>
     </div>`;
 
@@ -542,7 +571,7 @@ function getPaginacionRetirosHTML(totalPaginas) {
     botones += `<div class="input-paginacion">
         <input type="number" id="inputPaginaRetiros" class="input-numero-pagina" 
             value="${paginaActualRetiros}" min="1" max="${totalPaginas}" 
-            onchange="irAPaginaRetiros()" onkeypress="if(event.key === 'Enter') irAPaginaRetiros()">
+            onfocus="ajustarAnchoInput(this)" oninput="ajustarAnchoInput(this)" onblur="ajustarAnchoInput(this)" onchange="irAPaginaRetiros()" onkeypress="if(event.key === 'Enter') irAPaginaRetiros()">
         <span class="info-paginacion"> de ${totalPaginas}</span>
     </div>`;
 
@@ -657,6 +686,9 @@ function renderizarRetirosPagina() {
     if (wrapperTabla) {
         wrapperTabla.insertAdjacentHTML('afterend', getPaginacionRetirosHTML(totalPaginas));
     }
+
+    // Ajustar ancho de inputs de paginación
+    ajustarTodosInputsPaginacion();
 }
 
 /**
@@ -687,7 +719,7 @@ function getPaginacionVentasHTML(totalPaginas) {
     botones += `<div class="input-paginacion">
         <input type="number" id="inputPaginaVentas" class="input-numero-pagina" 
             value="${paginaActualVentas}" min="1" max="${totalPaginas}" 
-            onchange="irAPaginaVentas()" onkeypress="if(event.key === 'Enter') irAPaginaVentas()">
+            onfocus="ajustarAnchoInput(this)" oninput="ajustarAnchoInput(this)" onblur="ajustarAnchoInput(this)" onchange="irAPaginaVentas()" onkeypress="if(event.key === 'Enter') irAPaginaVentas()">
         <span class="info-paginacion"> de ${totalPaginas}</span>
     </div>`;
 
@@ -826,6 +858,9 @@ function renderizarVentasPagina() {
     if (wrapperTabla) {
         wrapperTabla.insertAdjacentHTML('afterend', getPaginacionVentasHTML(totalPaginas));
     }
+
+    // Ajustar ancho de inputs de paginación
+    ajustarTodosInputsPaginacion();
 }
 
 /**
@@ -900,6 +935,9 @@ function renderizarUsuariosPagina() {
     if (wrapperTabla) {
         wrapperTabla.insertAdjacentHTML('afterend', getPaginacionUsuariosHTML(totalPaginas));
     }
+
+    // Ajustar ancho de inputs de paginación
+    ajustarTodosInputsPaginacion();
 }
 
 /**
@@ -958,6 +996,9 @@ function renderizarCategoriasPagina() {
     if (wrapperTabla) {
         wrapperTabla.insertAdjacentHTML('afterend', getPaginacionCategoriasHTML(totalPaginas));
     }
+
+    // Ajustar ancho de inputs de paginación
+    ajustarTodosInputsPaginacion();
 }
 
 /**
@@ -1056,6 +1097,9 @@ function renderizarProductosPagina() {
     if (wrapperTabla) {
         wrapperTabla.insertAdjacentHTML('afterend', getPaginacionProductosHTML(totalPaginas));
     }
+
+    // Ajustar ancho de inputs de paginación
+    ajustarTodosInputsPaginacion();
 }
 
 /**
@@ -1085,6 +1129,7 @@ function generarFilaSesion(sesion, index) {
             <td style="text-align: center;">${fechaCierre}</td>
             <td style="text-align: center;">${parseFloat(sesion.importeInicial).toFixed(2)} €</td>
             <td style="text-align: center;">${parseFloat(sesion.importeActual).toFixed(2)} €</td>
+            <td style="text-align: center; color: #0284c7; font-weight: bold;">${parseFloat(sesion.cambio || 0).toFixed(2)} €</td>
             <td style="text-align: center; font-weight: bold;">${totalVentas}</td>
             <td style="text-align: center; font-weight: bold;">${totalProductos}</td>
             <td style="text-align: center; color: #ea580c; font-weight: bold;">-${retiros.toFixed(2)} €</td>
@@ -1133,90 +1178,19 @@ function renderizarSesionesPagina() {
     if (wrapperTabla) {
         wrapperTabla.insertAdjacentHTML('afterend', getPaginacionSesionesHTML(totalPaginas));
     }
+
+    // Ajustar ancho de inputs de paginación
+    ajustarTodosInputsPaginacion();
 }
 
 /**
- * Cambia la página de clientes y vuelve a renderizar
+ * Cambia la página de clientes y vuelve a renderizar (server-side)
  * @param {number} nuevaPagina - Número de la nueva página
  */
 function cambiarPaginaClientes(nuevaPagina) {
-    const totalPaginas = Math.ceil(clientesData.length / clientesPorPagina);
-    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
-
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginasClientes) return;
     paginaActualClientes = nuevaPagina;
-    renderizarClientesPagina();
-}
-
-/**
- * Renderiza la página actual de clientes
- */
-function renderizarClientesPagina() {
-    const inicio = (paginaActualClientes - 1) * clientesPorPagina;
-    const fin = inicio + clientesPorPagina;
-    const clientesPagina = clientesData.slice(inicio, fin);
-    const totalPaginas = Math.ceil(clientesData.length / clientesPorPagina);
-
-    const contenedor = document.getElementById('adminContenido');
-    if (!contenedor) return;
-
-    // Generar filas solo para la página actual
-    let filasHtml = '';
-    clientesPagina.forEach(cli => {
-        const estadoHtml = cli.activo == 1
-            ? '<span class="admin-badge badge-activo">Activo</span>'
-            : '<span class="admin-badge badge-inactivo">Inactivo</span>';
-
-        const btnEliminar = `<button class="btn-admin-accion btn-eliminar" onclick="eliminarCliente(${cli.id})" title="Eliminar">
-                <i class="fas fa-trash"></i>
-               </button>`;
-
-        const btnVer = `<button class="btn-admin-accion btn-ver" onclick="verCliente(${cli.id})" title="Ver">
-                <i class="fas fa-eye"></i>
-               </button>`;
-
-        const btnEditar = `<button class="btn-admin-accion btn-editar" onclick="editarCliente(${cli.id})" title="Editar">
-                <i class="fas fa-pen"></i>
-               </button>`;
-
-        filasHtml += `
-            <tr class="${cli.activo == 0 ? 'fila-inactiva' : ''}"
-                data-nombre="${(cli.nombre || '').replace(/"/g, '&quot;')}"
-                data-apellidos="${(cli.apellidos || '').replace(/"/g, '&quot;')}"
-                data-fecha-alta="${cli.fecha_alta || ''}"
-                data-productos="${cli.productos_comprados || 0}"
-                data-compras="${cli.compras_realizadas || 0}"
-                data-puntos="${cli.puntos || 0}"
-                data-activo="${cli.activo}">
-                <td class="col-id">${cli.id}</td>
-                <td class="col-nombre">${cli.dni}</td>
-                <td>${cli.nombre || '—'}</td>
-                <td>${cli.apellidos || '—'}</td>
-                <td>${cli.fecha_alta || '—'}</td>
-                <td>${cli.productos_comprados || 0}</td>
-                <td>${cli.compras_realizadas || 0}</td>
-                <td style="font-weight: bold; color: #10b981;">${(cli.puntos || 0).toLocaleString('es-ES')}</td>
-                <td>${estadoHtml}</td>
-                <td class="col-acciones">${btnVer} ${btnEditar} ${btnEliminar}</td>
-            </tr>`;
-    });
-
-    // Actualizar solo el tbody y añadir paginación
-    const tbody = contenedor.querySelector('tbody');
-    if (tbody) {
-        tbody.innerHTML = filasHtml;
-    }
-
-    // Eliminar paginación existente si la hay
-    const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
-    if (paginacionExistente) {
-        paginacionExistente.remove();
-    }
-
-    // Añadir nueva paginación
-    const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
-    if (wrapperTabla) {
-        wrapperTabla.insertAdjacentHTML('afterend', getPaginacionClientesHTML(totalPaginas));
-    }
+    cargarClientesAdmin(busquedaClienteActual, false);
 }
 
 // Variable para almacenar temporalmente los datos de una tarifa que tiene conflictos
@@ -4453,17 +4427,26 @@ function aplicarTemaGuardado() {
  * @param {string} orden - Orden de las devoluciones (fecha_desc, fecha_asc, importe_desc, importe_asc)
  * @param {string} busquedaTicket - Número de ticket para buscar (opcional)
  */
-function cargarDevolucionesAdmin(orden = 'fecha_desc', busquedaTicket = '') {
+// Variables para paginación de devoluciones
+let paginaActualDevoluciones = 1;
+const devolucionesPorPagina = 6;
+let totalPaginasDevoluciones = 1;
+
+function cargarDevolucionesAdmin(orden = 'fecha_desc', busquedaTicket = '', resetPagina = true) {
     if (seccionActual !== 'devoluciones') {
         adminTablaHeaderHTML = '';
         seccionActual = 'devoluciones';
+    }
+
+    if (resetPagina) {
+        paginaActualDevoluciones = 1;
     }
 
     const contenedor = document.getElementById('adminContenido');
     const tableExisting = contenedor.querySelector('.admin-tabla');
     const isFirstTime = !tableExisting || adminTablaHeaderHTML === '';
 
-    let url = 'api/devoluciones.php?todas=1';
+    let url = 'api/devoluciones.php?todas=1&pagina=' + paginaActualDevoluciones + '&porPagina=' + devolucionesPorPagina;
     if (orden !== 'fecha_desc') {
         url += '&orden=' + orden;
     }
@@ -4480,12 +4463,96 @@ function cargarDevolucionesAdmin(orden = 'fecha_desc', busquedaTicket = '') {
         })
         .then(data => {
             console.log('Datos recibidos:', data);
-            renderDevolucionesAdmin(data, isFirstTime, orden, busquedaTicket);
+            totalPaginasDevoluciones = data.totalPaginas || 1;
+            renderDevolucionesAdmin(data.devoluciones, isFirstTime, orden, busquedaTicket, data.total);
         })
         .catch(err => {
             console.error('Error cargando devoluciones:', err);
             contenedor.innerHTML = '<p class="sin-productos">Error: ' + err.message + '</p>';
         });
+}
+
+/**
+ * Cambia la página de devoluciones
+ * @param {number} nuevaPagina - Número de la nueva página
+ */
+function cambiarPaginaDevoluciones(nuevaPagina) {
+    const orden = document.getElementById('devolucionesOrdenar')?.value || 'fecha_desc';
+    const busqueda = document.getElementById('busquedaTicketDevolucion')?.value || '';
+
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginasDevoluciones) return;
+    paginaActualDevoluciones = nuevaPagina;
+    cargarDevolucionesAdmin(orden, busqueda, false);
+}
+
+/**
+ * Genera los controles de paginación para devoluciones
+ * @param {number} totalPaginas - Total de páginas disponibles
+ * @returns {string} HTML de los controles de paginación
+ */
+function getPaginacionDevolucionesHTML(totalPaginas) {
+    if (totalPaginas <= 1) return '';
+
+    let botones = '';
+
+    // Botón primera página
+    if (paginaActualDevoluciones > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaDevoluciones(1)" title="Primera página">
+            <i class="fas fa-angle-double-left"></i>
+        </button>`;
+    }
+
+    // Botón anterior
+    if (paginaActualDevoluciones > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaDevoluciones(${paginaActualDevoluciones - 1})" title="Página anterior">
+            <i class="fas fa-chevron-left"></i>
+        </button>`;
+    }
+
+    // Input para número de página
+    botones += `<div class="input-paginacion">
+        <input type="number" id="inputPaginaDevoluciones" class="input-numero-pagina" 
+            value="${paginaActualDevoluciones}" min="1" max="${totalPaginas}" 
+            onfocus="ajustarAnchoInput(this)" oninput="ajustarAnchoInput(this)" onblur="ajustarAnchoInput(this)" onchange="irAPaginaDevoluciones()" onkeypress="if(event.key === 'Enter') irAPaginaDevoluciones()">
+        <span class="info-paginacion"> de ${totalPaginas}</span>
+    </div>`;
+
+    // Botón siguiente
+    if (paginaActualDevoluciones < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaDevoluciones(${paginaActualDevoluciones + 1})" title="Siguiente página">
+            <i class="fas fa-chevron-right"></i>
+        </button>`;
+    }
+
+    // Botón última página
+    if (paginaActualDevoluciones < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaDevoluciones(${totalPaginas})" title="Última página">
+            <i class="fas fa-angle-double-right"></i>
+        </button>`;
+    }
+
+    return `
+        <div class="admin-paginacion-wrapper">
+            <div class="admin-paginacion">
+                ${botones}
+            </div>
+        </div>`;
+}
+
+function irAPaginaDevoluciones() {
+    const input = document.getElementById('inputPaginaDevoluciones');
+    if (!input) return;
+
+    let pagina = parseInt(input.value);
+    const totalPaginas = totalPaginasDevoluciones;
+
+    if (isNaN(pagina) || pagina < 1) {
+        pagina = 1;
+    } else if (pagina > totalPaginas) {
+        pagina = totalPaginas;
+    }
+
+    cambiarPaginaDevoluciones(pagina);
 }
 
 /** Temporizador para debounce de búsqueda de devoluciones */
@@ -4688,17 +4755,18 @@ function getCajaSesionesTablaHeader(orden = 'fecha_desc') {
             <table class="admin-tabla">
                 <thead>
                     <tr>
-                        <th style="width: 40px; text-align: center;">#</th>
-                        <th style="width: 120px;">Usuario</th>
-                        <th style="text-align: center;">Apertura</th>
-                        <th style="text-align: center;">Cierre</th>
-                        <th style="text-align: center;">Importe Inicial</th>
-                        <th style="text-align: center;">Efectivo en Caja</th>
-                        <th style="text-align: center;">Ventas</th>
-                        <th style="text-align: center;">Productos</th>
-                        <th style="text-align: center;">Retiros</th>
-                        <th style="text-align: center;">Devoluciones</th>
-                        <th style="text-align: center;">Arqueo</th>
+                        <th style="width: 3%; text-align: center;">#</th>
+                        <th style="width: 10%;">Usuario</th>
+                        <th style="width: 10%; text-align: center;">Apertura</th>
+                        <th style="width: 12%; text-align: center;">Cierre</th>
+                        <th style="width: 7%; text-align: center;">Importe</th>
+                        <th style="width: 7%; text-align: center;">Efectivo</th>
+                        <th style="width: 7%; text-align: center;">Cambio</th>
+                        <th style="width: 7%; text-align: center;">Ventas</th>
+                        <th style="width: 9%; text-align: center;">Productos</th>
+                        <th style="width: 8%; text-align: center;">Retiros</th>
+                        <th style="width: 10%; text-align: center;">Devoluciones</th>
+                        <th style="width: 10%; text-align: center;">Arqueo</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -4722,10 +4790,10 @@ function renderCajaSesionesAdmin(sesiones, isFirstTime = true, orden = 'fecha_de
         if (isFirstTime || adminTablaHeaderHTML === '') {
             adminTablaHeaderHTML = getCajaSesionesTablaHeader(orden);
             contenedor.innerHTML = adminTablaHeaderHTML +
-                '<tr><td colspan="10" class="sin-productos">No hay sesiones de caja registradas.</td></tr></tbody></table></div>';
+                '<tr><td colspan="12" class="sin-productos">No hay sesiones de caja registradas.</td></tr></tbody></table></div>';
         } else {
             const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="sin-productos">No hay sesiones de caja registradas.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="12" class="sin-productos">No hay sesiones de caja registradas.</td></tr>';
         }
         return;
     }
@@ -4823,7 +4891,7 @@ function getDevolucionesTablaHeader(orden = 'fecha_desc', busquedaTicket = '') {
 /**
  * Renderiza las devoluciones en la tabla.
  */
-function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fecha_desc', busquedaTicket = '') {
+function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fecha_desc', busquedaTicket = '', total = 0) {
     const contenedor = document.getElementById('adminContenido');
 
     if (!devoluciones || devoluciones.length === 0) {
@@ -4835,6 +4903,9 @@ function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fech
             const tbody = contenedor.querySelector('tbody');
             if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="sin-productos">No hay devoluciones registradas.</td></tr>';
         }
+        // Eliminar paginación si existe
+        const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
+        if (paginacionExistente) paginacionExistente.remove();
         return;
     }
 
@@ -4881,6 +4952,9 @@ function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fech
 
         html += `</tbody></table></div>`;
 
+        // Añadir paginación
+        html += getPaginacionDevolucionesHTML(totalPaginasDevoluciones);
+
         // Always replace entire content when searching by ticket
         if (isFirstTime || busquedaTicket !== '') {
             contenedor.innerHTML = html;
@@ -4891,10 +4965,22 @@ function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fech
                 tempDiv.innerHTML = html;
                 const newTbody = tempDiv.querySelector('tbody');
                 tbody.innerHTML = newTbody.innerHTML;
+
+                // Actualizar paginación
+                const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
+                if (paginacionExistente) paginacionExistente.remove();
+
+                const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
+                if (wrapperTabla) {
+                    wrapperTabla.insertAdjacentHTML('afterend', getPaginacionDevolucionesHTML(totalPaginasDevoluciones));
+                }
             } else {
                 contenedor.innerHTML = html;
             }
         }
+
+        // Ajustar inputs de paginación
+        ajustarTodosInputsPaginacion();
     });
 }
 
@@ -4988,9 +5074,23 @@ function buscarVentasPorId() {
 /**
  * Genera el HTML del header de la tabla de clientes con buscador.
  * @param {string} textoBusqueda
+ * @param {number} totalClientes
+ * @param {number} totalInactivos
  * @returns {string}
  */
-function getClientesTablaHeader(textoBusqueda = '') {
+function getClientesTablaHeader(textoBusqueda = '', totalClientes = 0, totalInactivos = 0) {
+    const totalActivos = totalClientes - totalInactivos;
+    const hayBusqueda = textoBusqueda && textoBusqueda.trim() !== '';
+
+    let contadorHTML;
+    if (hayBusqueda) {
+        // Durante búsqueda, mostrar solo el total de resultados
+        contadorHTML = `${totalClientes.toLocaleString('es-ES')} Resultado${totalClientes !== 1 ? 's' : ''}`;
+    } else {
+        // Sin búsqueda, mostrar desglose completo
+        contadorHTML = `${totalClientes.toLocaleString('es-ES')} Total | ${totalActivos.toLocaleString('es-ES')} Activo${totalActivos !== 1 ? 's' : ''} | ${totalInactivos.toLocaleString('es-ES')} Inactivo${totalInactivos !== 1 ? 's' : ''}`;
+    }
+
     return `
         <div class="admin-tabla-header">
             <div style="display: flex; gap: 10px; width: 100%; align-items: center; flex-wrap: wrap;">
@@ -5003,6 +5103,9 @@ function getClientesTablaHeader(textoBusqueda = '') {
                 <button class="btn-admin-accion btn-nuevo" onclick="nuevoCliente()">
                     <i class="fas fa-plus"></i> Nuevo Cliente
                 </button>
+                <span id="totalClientesAviso" class="total-clientes-aviso">
+                    ${contadorHTML}
+                </span>
             </div>
         </div>
         <div class="admin-tabla-wrapper sin-scroll">
@@ -5211,7 +5314,7 @@ function buscarProveedores() {
  * @param {string} textoBusqueda
  * @returns {Promise}
  */
-function cargarClientesAdmin(textoBusqueda = '') {
+function cargarClientesAdmin(textoBusqueda = '', resetPagina = true) {
     const contenedor = document.getElementById('adminContenido');
     const tablaExistente = contenedor.querySelector('.admin-tabla');
 
@@ -5222,8 +5325,27 @@ function cargarClientesAdmin(textoBusqueda = '') {
 
     const esPrimeraVez = !tablaExistente || adminTablaHeaderHTML === '';
 
+    // Resetear a página 1 cuando cambia la búsqueda o es la primera carga
+    if (resetPagina) {
+        paginaActualClientes = 1;
+    }
+
+    // Guardar búsqueda actual para cambios de página
+    busquedaClienteActual = textoBusqueda;
+
+    // Construir parámetros con paginación server-side
     const params = new URLSearchParams();
     if (textoBusqueda) params.append('dni', textoBusqueda);
+    params.append('pagina', paginaActualClientes);
+    params.append('porPagina', clientesPorPagina);
+
+    // Mostrar indicador de carga en el tbody si ya existe tabla
+    if (!esPrimeraVez) {
+        const tbody = contenedor.querySelector('tbody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="10" class="sin-productos" style="text-align:center;"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>';
+        }
+    }
 
     return fetch('api/clientes.php?' + params.toString())
         .then(res => {
@@ -5233,13 +5355,8 @@ function cargarClientesAdmin(textoBusqueda = '') {
             return res.json();
         })
         .then(data => {
-            // La API puede devolver un array o un objeto individual
-            // Normalizar a array para renderClientesAdmin
-            let clientes = data;
-            if (!Array.isArray(data)) {
-                clientes = [data];
-            }
-            renderClientesAdmin(clientes, esPrimeraVez);
+            // La API devuelve { clientes, total, pagina, porPagina, totalPaginas }
+            renderClientesAdmin(data, esPrimeraVez);
         })
         .catch(err => {
             console.error('Error cargando clientes:', err);
@@ -5249,48 +5366,68 @@ function cargarClientesAdmin(textoBusqueda = '') {
 }
 
 /**
- * Renderiza un array de clientes en formato tabla con paginación.
- * @param {Array} clientes
+ * Renderiza la respuesta paginada de clientes en formato tabla.
+ * @param {Object} respuesta - { clientes, total, pagina, porPagina, totalPaginas }
  * @param {boolean} esPrimeraVez
  */
-function renderClientesAdmin(clientes, esPrimeraVez = true) {
+function renderClientesAdmin(respuesta, esPrimeraVez = true) {
     const contenedor = document.getElementById('adminContenido');
 
-    // Guardar todos los clientes para paginación
-    clientesData = clientes;
-
-    // Reset a página 1 cuando se cargan nuevos datos
-    if (esPrimeraVez) {
-        paginaActualClientes = 1;
-    }
+    // Extraer datos de la respuesta paginada del servidor
+    const clientes = respuesta.clientes || [];
+    totalPaginasClientes = respuesta.totalPaginas || 1;
+    totalClientes = respuesta.total || 0;
+    const totalTodosClientes = respuesta.totalTodos || respuesta.total || 0;
+    const totalInactivos = respuesta.totalInactivos || 0;
+    paginaActualClientes = respuesta.pagina || 1;
 
     if (!clientes || clientes.length === 0) {
         if (esPrimeraVez || adminTablaHeaderHTML === '') {
-            adminTablaHeaderHTML = getClientesTablaHeader();
+            adminTablaHeaderHTML = getClientesTablaHeader(busquedaClienteActual, totalTodosClientes, totalInactivos);
             contenedor.innerHTML = adminTablaHeaderHTML +
-                '<tr><td colspan="9" class="sin-productos">No hay clientes disponibles.</td></tr></tbody></table></div>';
+                '<tr><td colspan="10" class="sin-productos">No hay clientes disponibles.</td></tr></tbody></table></div>';
         } else {
             const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="sin-productos">No hay clientes disponibles.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="sin-productos">No hay clientes disponibles.</td></tr>';
         }
+        // Actualizar contador
+        const contador = document.getElementById('totalClientesAviso');
+        if (contador) {
+            const hayBusqueda = busquedaClienteActual && busquedaClienteActual.trim() !== '';
+            const activos = totalTodosClientes - totalInactivos;
+            if (hayBusqueda) {
+                contador.textContent = `${totalTodosClientes.toLocaleString('es-ES')} Resultado${totalTodosClientes !== 1 ? 's' : ''}`;
+            } else {
+                contador.innerHTML = `${totalTodosClientes.toLocaleString('es-ES')} Total | ${activos.toLocaleString('es-ES')} Activo${activos !== 1 ? 's' : ''} | ${totalInactivos.toLocaleString('es-ES')} Inactivo${totalInactivos !== 1 ? 's' : ''}`;
+            }
+        }
+        // Eliminar paginación si existe
+        const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
+        if (paginacionExistente) paginacionExistente.remove();
         return;
     }
 
     if (esPrimeraVez || adminTablaHeaderHTML === '') {
-        adminTablaHeaderHTML = getClientesTablaHeader();
+        adminTablaHeaderHTML = getClientesTablaHeader(busquedaClienteActual, totalTodosClientes, totalInactivos);
+    } else {
+        // Actualizar solo el contador si ya existe el header
+        const contador = document.getElementById('totalClientesAviso');
+        if (contador) {
+            const hayBusqueda = busquedaClienteActual && busquedaClienteActual.trim() !== '';
+            const activos = totalTodosClientes - totalInactivos;
+            if (hayBusqueda) {
+                contador.textContent = `${totalTodosClientes.toLocaleString('es-ES')} Resultado${totalTodosClientes !== 1 ? 's' : ''}`;
+            } else {
+                contador.innerHTML = `${totalTodosClientes.toLocaleString('es-ES')} Total | ${activos.toLocaleString('es-ES')} Activo${activos !== 1 ? 's' : ''} | ${totalInactivos.toLocaleString('es-ES')} Inactivo${totalInactivos !== 1 ? 's' : ''}`;
+            }
+        }
     }
-
-    // Calcular paginación
-    const totalPaginas = Math.ceil(clientes.length / clientesPorPagina);
-    const inicio = (paginaActualClientes - 1) * clientesPorPagina;
-    const fin = inicio + clientesPorPagina;
-    const clientesPagina = clientes.slice(inicio, fin);
 
     let html = adminTablaHeaderHTML;
 
-    // Generar filas solo para la página actual
+    // Generar filas (el servidor ya devuelve solo la página actual)
     let filasHtml = '';
-    clientesPagina.forEach(cli => {
+    clientes.forEach(cli => {
         const estadoHtml = cli.activo == 1
             ? '<span class="admin-badge badge-activo">Activo</span>'
             : '<span class="admin-badge badge-inactivo">Inactivo</span>';
@@ -5332,8 +5469,8 @@ function renderClientesAdmin(clientes, esPrimeraVez = true) {
     html += filasHtml;
     html += '</tbody></table></div>';
 
-    // Añadir controls de paginación
-    html += getPaginacionClientesHTML(totalPaginas);
+    // Añadir controles de paginación (usa totalPaginas del servidor)
+    html += getPaginacionClientesHTML(totalPaginasClientes);
 
     if (esPrimeraVez) {
         contenedor.innerHTML = html;
@@ -5349,34 +5486,23 @@ function renderClientesAdmin(clientes, esPrimeraVez = true) {
         }
         const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
         if (wrapperTabla) {
-            wrapperTabla.insertAdjacentHTML('afterend', getPaginacionClientesHTML(totalPaginas));
+            wrapperTabla.insertAdjacentHTML('afterend', getPaginacionClientesHTML(totalPaginasClientes));
         }
+
+        // Ajustar ancho de inputs de paginación
+        ajustarTodosInputsPaginacion();
     }
 }
 
 /**
- * Busca clientes por DNI con debounce.
+ * Busca clientes por DNI con debounce y paginación server-side.
  */
 function buscarClientes() {
     clearTimeout(debounceTimerClientes);
     debounceTimerClientes = setTimeout(() => {
         const texto = document.getElementById('inputBuscarCliente').value;
-        const params = new URLSearchParams();
-        if (texto) params.append('dni', texto);
-
-        fetch('api/clientes.php?' + params.toString())
-            .then(res => {
-                if (!res.ok) {
-                    return res.json().then(err => { throw new Error(err.error || 'Error al buscar'); });
-                }
-                return res.json();
-            })
-            .then(data => renderClientesAdmin(data, false))
-            .catch(err => {
-                console.error('Error buscando clientes:', err);
-                document.getElementById('adminContenido').innerHTML =
-                    '<p class="sin-productos">Error: ' + err.message + '</p>';
-            });
+        // Resetear a página 1 en cada nueva búsqueda
+        cargarClientesAdmin(texto, true);
     }, 300);
 }
 
@@ -5842,6 +5968,13 @@ function editarCliente(id) {
     // Obtener los puntos desde el atributo data-puntos de la fila
     const puntos = fila.dataset.puntos || 0;
 
+    // Guardar valores originales en data attributes del formulario
+    const formulario = document.getElementById('modalEditarCliente');
+    formulario.dataset.originalDni = dni;
+    formulario.dataset.originalNombre = nombre;
+    formulario.dataset.originalApellidos = apellidos;
+    formulario.dataset.originalPuntos = puntos;
+
     // Rellenar el formulario del modal de edición
     document.getElementById('editarClienteId').value = id;
     document.getElementById('editarClienteDni').value = dni;
@@ -5864,14 +5997,28 @@ async function guardarClienteEditado() {
     const celdas = fila.querySelectorAll('td');
     const fecha_alta = celdas[4].textContent.trim();
 
-    const dni = document.getElementById('editarClienteDni').value.trim();
-    const nombre = document.getElementById('editarClienteNombre').value.trim();
-    const apellidos = document.getElementById('editarClienteApellidos').value.trim();
-    const puntos = document.getElementById('editarClientePuntos').value.trim();
+    // Obtener valores originales
+    const formulario = document.getElementById('modalEditarCliente');
+    const originalDni = formulario.dataset.originalDni || '';
+    const originalNombre = formulario.dataset.originalNombre || '';
+    const originalApellidos = formulario.dataset.originalApellidos || '';
+    const originalPuntos = formulario.dataset.originalPuntos || '0';
 
-    // Validar campos obligatorios
-    if (!dni || !nombre || !apellidos) {
-        alert('Por favor, complete todos los campos obligatorios (DNI, Nombre, Apellidos)');
+    // Obtener valores del formulario (si están vacíos, usar originales)
+    let dni = document.getElementById('editarClienteDni').value.trim();
+    let nombre = document.getElementById('editarClienteNombre').value.trim();
+    let apellidos = document.getElementById('editarClienteApellidos').value.trim();
+    let puntos = document.getElementById('editarClientePuntos').value.trim();
+
+    // Si el campo está vacío, mantener el valor original
+    if (!dni) dni = originalDni;
+    if (!nombre) nombre = originalNombre;
+    if (!apellidos) apellidos = originalApellidos;
+    if (puntos === '') puntos = originalPuntos;
+
+    // Validar que al menos el DNI tenga valor
+    if (!dni) {
+        alert('El DNI es obligatorio');
         return;
     }
 
@@ -7368,7 +7515,7 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
                     <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: ${textColor};">Precios por Producto</h2>
                     <p style="color: ${subTextColor}; margin-top: 5px;">${descripcionDescuentos} ${tarifasMostrarConIva ? '(Precios con IVA incluido)' : '(Precios base sin IVA)'}</p>
                 </div>
-                <div style="overflow-x: auto; max-height: 300px; overflow-y: auto; border: 1px solid ${borderColor}; border-radius: 8px;">
+                <div style="overflow-x: auto; max-height: 200px; overflow-y: auto; border: 1px solid ${borderColor}; border-radius: 8px;">
                     <table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 8px; background: ${cardBg};" class="tabla-precios-producto">
                         <thead class="tabla-precios-head">
                             <tr>
@@ -7877,7 +8024,7 @@ function mostrarPanelHistorialPrecios() {
                 </div>
             </div>
 
-            <div id="tablaHistorialPreciosContainer" style="display: none;">
+            <div id="tablaHistorialPreciosContainer" style="display: none; max-height: 420px; overflow-y: auto;">
                 <table style="width: 100%; border-collapse: collapse; margin-top: 20px; border: 1px solid ${borderColor}; background: ${bgColor};">
                     <thead>
                         <tr style="background: ${tableHeaderBg};">
@@ -9321,4 +9468,5 @@ function eliminarBatchTarifas(id) {
             }
         });
 }
+
 

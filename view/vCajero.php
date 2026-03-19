@@ -4944,7 +4944,8 @@ endif; ?>
                 return;
             }
 
-            const cliente = await response.json();
+            const data = await response.json();
+            const cliente = Array.isArray(data) ? data[0] : data;
 
             if (cliente && cliente.activo == 1) {
                 // Poblamos los campos del cliente para que se guarden con la venta

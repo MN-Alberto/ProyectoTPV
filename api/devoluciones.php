@@ -32,8 +32,10 @@ if ($method === 'GET') {
         $orden = $_GET['orden'] ?? 'fecha_desc';
         $filtroFecha = $_GET['filtroFecha'] ?? null;
         $busqueda = $_GET['busqueda'] ?? null;
+        $pagina = isset($_GET['pagina']) ? max(1, intval($_GET['pagina'])) : 1;
+        $porPagina = isset($_GET['porPagina']) ? min(50, max(1, intval($_GET['porPagina']))) : 10;
         try {
-            $devoluciones = Devolucion::obtenerTodas($orden, $filtroFecha, $busqueda);
+            $devoluciones = Devolucion::obtenerTodas($orden, $filtroFecha, $busqueda, $pagina, $porPagina);
             echo json_encode($devoluciones);
         }
         catch (Exception $e) {

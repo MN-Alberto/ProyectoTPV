@@ -218,7 +218,7 @@ class Devolucion
      * @param string|null $busqueda Búsqueda por número de ticket.
      * @return array Array con las devoluciones.
      */
-    public static function obtenerTodas($orden = 'fecha_desc', $filtroFecha = null, $busqueda = null)
+    public static function obtenerTodas($orden = 'fecha_desc', $filtroFecha = null, $busqueda = null, $pagina = 1, $porPagina = 10)
     {
         $conexion = ConexionDB::getInstancia()->getConexion();
 
@@ -245,6 +245,15 @@ class Devolucion
             }
         }
 
+        // Contar total de resultados
+        $sqlCount = "SELECT COUNT(*) FROM devoluciones d";
+        if (!empty($condiciones)) {
+            $sqlCount .= " WHERE " . implode(" AND ", $condiciones);
+        }
+        $stmtCount = $conexion->prepare($sqlCount);
+        $stmtCount->execute();
+        $total = (int)$stmtCount->fetchColumn();
+
         $sql = "SELECT d.*, p.nombre as producto_nombre, u.nombre as usuario_nombre 
                 FROM devoluciones d
                 LEFT JOIN productos p ON d.idProducto = p.id
@@ -268,8 +277,21 @@ class Devolucion
                 $sql .= " ORDER BY d.fecha DESC";
         }
 
-        $stmt = $conexion->query($sql);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Agregar paginación
+        $offset = ($pagina - 1) * $porPagina;
+        $sql .= " LIMIT $porPagina OFFSET $offset";
+
+        $stmt = $conexion->prepare($sql);
+        $stmt->execute();
+        $devoluciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return [
+            'devoluciones' => $devoluciones,
+            'total' => $total,
+            'pagina' => $pagina,
+            'porPagina' => $porPagina,
+            'totalPaginas' => $total > 0 ? (int)ceil($total / $porPagina) : 1
+        ];
     }
 
     /**

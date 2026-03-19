@@ -150,6 +150,11 @@
                     style="color: #dc2626;">-<?php echo number_format($stats['devolucionesHoy'] ?? 0, 2, ',', '.'); ?>
                     €</span>
             </div>
+            <div class="admin-stat-card">
+                <span class="admin-stat-label">Horas trabajadas (Semana)</span>
+                <span class="admin-stat-value"
+                    style="color: #059669;"><?php echo number_format($stats['horasTrabajadasSemana'] ?? 0, 1, ',', '.'); ?> h</span>
+            </div>
         </div>
 
         <div class="admin-content-panel">

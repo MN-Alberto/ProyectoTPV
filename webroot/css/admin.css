@@ -220,7 +220,23 @@ body.dark-mode .report-card-header {
     border: 1px solid var(--border-main);
     padding: 15px;
     overflow-y: visible;
-    /* Permitir que el scroll sea manejado por el contenedor padre si es necesario */
+    display: flex;
+    flex-direction: column;
+    min-height: 500px;
+}
+
+.contenido-admin {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+#adminContenido {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
 }
 
 .admin-tabla .col-acciones {
@@ -243,6 +259,7 @@ body.dark-mode .report-card-header {
 .admin-tabla-wrapper {
     overflow-x: auto;
     max-height: 43vh;
+    min-height: 200px;
     border-radius: 10px;
     border: 1px solid #e5e7eb;
 }
@@ -401,7 +418,44 @@ body.dark-mode .badge-inactivo {
     justify-content: center;
     padding: 20px 0;
     width: 100%;
-    margin-top: 10px;
+    margin-top: auto;
+    position: sticky;
+    bottom: 0;
+    background: #ffffff;
+    z-index: 10;
+    flex-shrink: 0;
+}
+
+body.dark-mode .admin-paginacion-wrapper {
+    background: #1f2937;
+}
+
+body.dark-mode #adminContenido {
+    background: #1f2937;
+}
+
+body.dark-mode .info-paginacion {
+    color: #9ca3af;
+}
+
+body.dark-mode .btn-paginacion {
+    background: #374151;
+    color: #e5e7eb;
+}
+
+body.dark-mode .btn-paginacion:hover {
+    background: #4b5563;
+}
+
+body.dark-mode .btn-paginacion:disabled {
+    background: #4b5563;
+    color: #9ca3af;
+}
+
+body.dark-mode .input-numero-pagina {
+    background: #374151;
+    color: #e5e7eb;
+    border-color: #4b5563;
 }
 
 .admin-paginacion {
@@ -446,12 +500,14 @@ body.dark-mode .badge-inactivo {
 }
 
 .input-numero-pagina {
-    width: 50px;
+    width: 40px;
+    min-width: 40px;
     padding: 6px 8px;
     border: 1px solid #d1d5db;
     border-radius: 4px;
     font-size: 14px;
     text-align: center;
+    transition: width 0.2s ease;
 }
 
 .input-numero-pagina:focus {
@@ -470,6 +526,8 @@ body.dark-mode .badge-inactivo {
 /* Quitar flechas del input number en Firefox */
 .input-numero-pagina[type=number] {
     -moz-appearance: textfield;
+    -webkit-appearance: textfield;
+    appearance: textfield;
 }
 
 /* Quitar scroll cuando hay paginación - para clientes */
@@ -491,18 +549,7 @@ body.dark-mode .badge-inactivo {
     z-index: 10;
 }
 
-.admin-tabla tbody {
-    display: block;
-    overflow-y: auto;
-    max-height: 35vh;
-}
 
-.admin-tabla thead tr,
-.admin-tabla tbody tr {
-    display: table;
-    width: 100%;
-    table-layout: fixed;
-}
 
 .btn-admin-accion {
     transition: all 0.15s ease-in-out;
@@ -2270,6 +2317,8 @@ body.dark-mode .logs-filtro-item input {
 
 .logs-tabla-container {
     overflow-x: auto;
+    overflow-y: auto;
+    max-height: 420px;
     border-radius: 8px;
     border: 1px solid #e5e7eb;
 }
@@ -2441,7 +2490,15 @@ body.dark-mode .logs-categoria {
     align-items: center;
     gap: 15px;
     padding: 15px;
-    margin-top: 15px;
+    margin-top: auto;
+    position: sticky;
+    bottom: 0;
+    background: #ffffff;
+    z-index: 10;
+}
+
+body.dark-mode .logs-paginacion {
+    background: #1f2937;
 }
 
 .logs-paginacion button {
@@ -2482,5 +2539,21 @@ body.dark-mode .logs-paginacion button:hover:not(:disabled) {
 }
 
 body.dark-mode .logs-paginacion span {
+    color: #9ca3af;
+}
+
+/* Estilo para el contador de clientes */
+.total-clientes-aviso {
+    font-size: 14px;
+    color: #6b7280;
+    font-weight: 500;
+    margin-left: 10px;
+    padding: 4px 10px;
+    background: #f3f4f6;
+    border-radius: 4px;
+}
+
+body.dark-mode .total-clientes-aviso {
+    background: #374151;
     color: #9ca3af;
 }

@@ -20,11 +20,13 @@ if (!isset($_SESSION['rolUsuario']) || $_SESSION['rolUsuario'] !== 'admin') {
     exit();
 }
 
+// Incluimos la configuración de la base de datos
+require_once(__DIR__ . '/../config/confDB.php');
+
 // Si el usuario solicita cerrar sesión
 if (isset($_REQUEST['cerrarSesion'])) {
     // Registrar logout antes de destruir sesión
     try {
-        require_once(__DIR__ . '/../config/confDB.php');
         $pdo = new PDO(RUTA, USUARIO, PASS);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
@@ -137,6 +139,22 @@ elseif (isset($ultimaCaja) && $ultimaCaja) {
 else {
     $stats['devolucionesHoy'] = 0;
 }
+
+// Obtener las horas trabajadas en la semana actual
+$inicioSemana = date('Y-m-d 00:00:00', strtotime('monday this week'));
+$pdo = new PDO(RUTA, USUARIO, PASS);
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$stmt = $pdo->prepare("SELECT fechaApertura, fechaCierre FROM caja_sesiones WHERE fechaApertura >= :inicioSemana");
+$stmt->execute([':inicioSemana' => $inicioSemana]);
+$totalHoras = 0.0;
+while ($fila = $stmt->fetch(PDO::FETCH_ASSOC)) {
+    $fechaApertura = new DateTime($fila['fechaApertura']);
+    $fechaCierre = $fila['fechaCierre'] ? new DateTime($fila['fechaCierre']) : new DateTime();
+    $diferencia = $fechaCierre->getTimestamp() - $fechaApertura->getTimestamp();
+    $horas = $diferencia / 3600;
+    $totalHoras += $horas;
+}
+$stats['horasTrabajadasSemana'] = $totalHoras;
 
 // Llamamos a la vista
 require_once $view['Layout'];
