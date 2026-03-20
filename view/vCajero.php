@@ -351,7 +351,7 @@ endif; ?>
                 <!-- Botón PUNTOS: abre el modal para consultar y canjear puntos -->
                 <button class="btn-descuento" id="btnPuntos" onclick="abrirModalPuntosCliente()"
                     title="Consultar/Canjear puntos" style="background: #10b981;">
-                    ⭐
+                    👤
                 </button>
 
                 <!-- Botón VACIAR: elimina todos los productos del carrito -->
