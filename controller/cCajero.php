@@ -600,6 +600,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 $devolucion->setIdUsuario($_SESSION['idUsuario']);
                 $devolucion->setIdProducto($idProducto);
                 $devolucion->setCantidad($cantidadSolicitada);
+                // Pasar el precio unitario base y el IVA de la línea original
+                $devolucion->setPrecioUnitario($lineaOriginal['precioUnitario']);
+                $devolucion->setIva($lineaOriginal['iva']);
                 // Redondear importe a 2 decimales
                 $devolucion->setImporteTotal(round((float) $item['importe'], 2));
                 $devolucion->setIdVenta($idVenta);

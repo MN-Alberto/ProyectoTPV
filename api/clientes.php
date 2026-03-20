@@ -307,23 +307,18 @@ try {
     $porPagina = min(50, max(1, intval($_GET['porPagina'] ?? 6)));
     $offset = ($pagina - 1) * $porPagina;
 
-    // Dar más tiempo para listados sobre datasets grandes
-    set_time_limit(60);
-
-    // Count total de clientes activos (para paginación)
-    $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM clientes WHERE activo = 1");
-    $stmtCount->execute();
-    $total = (int)$stmtCount->fetchColumn();
-
-    // Count total de TODOS los clientes (incluyendo inactivos)
-    $stmtCountAll = $pdo->prepare("SELECT COUNT(*) FROM clientes");
-    $stmtCountAll->execute();
-    $totalTodos = (int)$stmtCountAll->fetchColumn();
-
-    // Count de clientes inactivos
-    $stmtCountInactivos = $pdo->prepare("SELECT COUNT(*) FROM clientes WHERE activo = 0");
-    $stmtCountInactivos->execute();
-    $totalInactivos = (int)$stmtCountInactivos->fetchColumn();
+    // Optimizado: Una sola consulta para obtener todos los conteos
+    $stmtCount = $pdo->query("
+        SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN activo = 1 THEN 1 ELSE 0 END) as activos,
+            SUM(CASE WHEN activo = 0 THEN 1 ELSE 0 END) as inactivos
+        FROM clientes
+    ");
+    $result = $stmtCount->fetch(PDO::FETCH_ASSOC);
+    $totalTodos = (int)$result['total'];
+    $total = (int)$result['activos'];
+    $totalInactivos = (int)$result['inactivos'];
 
     // Fetch página — solo columnas necesarias
     $stmt = $pdo->prepare("SELECT id, dni, nombre, apellidos, fecha_alta, productos_comprados, compras_realizadas, puntos, activo FROM clientes WHERE activo = 1 ORDER BY id DESC LIMIT ? OFFSET ?");

@@ -23,6 +23,8 @@ class Devolucion
     private $fecha;
     private $motivo;
 
+    private $idSesionCaja;
+
     /**
      * Constructor de la clase Devolucion.
      */
@@ -37,7 +39,8 @@ class Devolucion
         $metodoPago = null,
         $motivo = null,
         $id = null,
-        $fecha = null
+        $fecha = null,
+        $idSesionCaja = null
         )
     {
         $this->idVenta = $idVenta;
@@ -51,6 +54,68 @@ class Devolucion
         $this->motivo = $motivo;
         $this->id = $id;
         $this->fecha = $fecha;
+        $this->idSesionCaja = $idSesionCaja;
+    }
+
+    // Setters
+    public function setId($id)
+    {
+        $this->id = $id;
+    }
+
+    public function setIdVenta($idVenta)
+    {
+        $this->idVenta = $idVenta;
+    }
+
+    public function setIdProducto($idProducto)
+    {
+        $this->idProducto = $idProducto;
+    }
+
+    public function setCantidad($cantidad)
+    {
+        $this->cantidad = $cantidad;
+    }
+
+    public function setPrecioUnitario($precioUnitario)
+    {
+        $this->precioUnitario = $precioUnitario;
+    }
+
+    public function setIva($iva)
+    {
+        $this->iva = $iva;
+    }
+
+    public function setImporteTotal($importeTotal)
+    {
+        $this->importeTotal = $importeTotal;
+    }
+
+    public function setIdUsuario($idUsuario)
+    {
+        $this->idUsuario = $idUsuario;
+    }
+
+    public function setMetodoPago($metodoPago)
+    {
+        $this->metodoPago = $metodoPago;
+    }
+
+    public function setFecha($fecha)
+    {
+        $this->fecha = $fecha;
+    }
+
+    public function setMotivo($motivo)
+    {
+        $this->motivo = $motivo;
+    }
+
+    public function setIdSesionCaja($idSesionCaja)
+    {
+        $this->idSesionCaja = $idSesionCaja;
     }
 
     // Getters
@@ -113,12 +178,14 @@ class Devolucion
      * Crea una nueva devolución en la base de datos.
      * @return bool True si la operación fue exitosa, False en caso contrario.
      */
-    public function crear()
+    public function insertar()
     {
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
-            $sql = "INSERT INTO devoluciones (idVenta, idProducto, cantidad, precioUnitario, iva, importeTotal, idUsuario, metodoPago, motivo, fecha) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            
+            // Inserción completa con todos los campos (Requiere script scriptDB/fix_devoluciones_columns.sql)
+            $sql = "INSERT INTO devoluciones (idVenta, idProducto, cantidad, precioUnitario, iva, importeTotal, idUsuario, metodoPago, motivo, idSesionCaja, fecha) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
             $stmt = $conexion->prepare($sql);
             return $stmt->execute([
                 $this->idVenta,
@@ -129,11 +196,13 @@ class Devolucion
                 $this->importeTotal,
                 $this->idUsuario,
                 $this->metodoPago,
-                $this->motivo
+                $this->motivo,
+                $this->idSesionCaja
             ]);
         }
         catch (Exception $e) {
-            error_log("Error al crear devolución: " . $e->getMessage());
+            file_put_contents(__DIR__ . '/../tmp/devolucion_error.txt', "Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+            error_log("Error al insertar devolución: " . $e->getMessage());
             return false;
         }
     }

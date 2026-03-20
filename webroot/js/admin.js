@@ -10,11 +10,19 @@ let tarifaBusquedaProducto = '';
 // Función para filtrar la tabla de tarifas por nombre de producto
 function filtrarTablaTarifas() {
     const termino = tarifaBusquedaProducto.toLowerCase();
-    const filas = document.querySelectorAll('#tablaPreciosProductos tr');
-    filas.forEach(fila => {
-        const texto = fila.textContent.toLowerCase();
-        fila.style.display = texto.includes(termino) ? '' : 'none';
-    });
+    paginaActualTarifas = 1;
+
+    if (termino) {
+        // Filtrar productos que coincidan con el término
+        todosLosProductosTarifas = productosOriginalesTarifas.filter(prod =>
+            prod.nombre.toLowerCase().includes(termino)
+        );
+    } else {
+        // Restaurar todos los productos
+        todosLosProductosTarifas = [...productosOriginalesTarifas];
+    }
+
+    actualizarTablaTarifas();
 }
 
 // Variable global para guardar el header HTML (con el input de búsqueda fijo)
@@ -442,8 +450,10 @@ function irAPaginaCategorias() {
 
 // ======================== PAGINACIÓN USUARIOS ========================
 // Variables para paginación de usuarios en admin
-let usuariosData = []; // Almacena todos los usuarios
+let usuariosData = []; // Almacena los usuarios de la página actual
+let totalUsuariosData = 0; // Total de usuarios (para información)
 let paginaActualUsuarios = 1;
+let totalPaginasUsuarios = 1;
 const usuariosPorPagina = 6;
 
 /**
@@ -501,15 +511,14 @@ function getPaginacionUsuariosHTML(totalPaginas) {
 }
 
 /**
- * Cambia la página de usuarios y vuelve a renderizar
+ * Cambia la página de usuarios y vuelve a cargar desde el servidor
  * @param {number} nuevaPagina - Número de la nueva página
  */
 function cambiarPaginaUsuarios(nuevaPagina) {
-    const totalPaginas = Math.ceil(usuariosData.length / usuariosPorPagina);
-    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
-
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginasUsuarios) return;
     paginaActualUsuarios = nuevaPagina;
-    renderizarUsuariosPagina();
+    // Recargar usuarios con la nueva página
+    cargarUsuariosAdmin(busquedaUsuarioActual, false);
 }
 
 /**
@@ -520,14 +529,14 @@ function irAPaginaUsuarios() {
     if (!input) return;
 
     let pagina = parseInt(input.value);
-    const totalPaginas = Math.ceil(usuariosData.length / usuariosPorPagina);
 
     if (isNaN(pagina) || pagina < 1) {
         pagina = 1;
-    } else if (pagina > totalPaginas) {
-        pagina = totalPaginas;
+    } else if (pagina > totalPaginasUsuarios) {
+        pagina = totalPaginasUsuarios;
     }
 
+    paginaActualUsuarios = pagina;
     cambiarPaginaUsuarios(pagina);
 }
 
@@ -626,6 +635,81 @@ function irAPaginaRetiros() {
     }
 
     cambiarPaginaRetiros(pagina);
+}
+
+// ======================== PAGINACIÓN TARIFAS ========================
+
+/**
+ * Genera los controles de paginación para tarifas prefijadas
+ * @param {number} totalPaginas - Total de páginas disponibles
+ * @returns {string} HTML de los controles de paginación
+ */
+function getPaginacionTarifasHTML(totalPaginas) {
+    if (totalPaginas <= 1) return '';
+
+    let botones = '';
+
+    // Botón primera página
+    if (paginaActualTarifas > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaTarifas(1)" title="Primera página">
+            <i class="fas fa-angle-double-left"></i>
+        </button>`;
+    }
+
+    // Botón anterior
+    if (paginaActualTarifas > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaTarifas(${paginaActualTarifas - 1})" title="Página anterior">
+            <i class="fas fa-chevron-left"></i>
+        </button>`;
+    }
+
+    // Input para número de página
+    botones += `<div class="input-paginacion">
+        <input type="number" id="inputPaginaTarifas" class="input-numero-pagina" 
+            value="${paginaActualTarifas}" min="1" max="${totalPaginas}" 
+            onfocus="ajustarAnchoInput(this)" oninput="ajustarAnchoInput(this)" onblur="ajustarAnchoInput(this)" onchange="irAPaginaTarifas()" onkeypress="if(event.key === 'Enter') irAPaginaTarifas()">
+        <span class="info-paginacion"> de ${totalPaginas}</span>
+    </div>`;
+
+    // Botón siguiente
+    if (paginaActualTarifas < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaTarifas(${paginaActualTarifas + 1})" title="Siguiente página">
+            <i class="fas fa-chevron-right"></i>
+        </button>`;
+    }
+
+    // Botón última página
+    if (paginaActualTarifas < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaTarifas(${totalPaginas})" title="Última página">
+            <i class="fas fa-angle-double-right"></i>
+        </button>`;
+    }
+
+    return `
+        <div class="admin-paginacion-wrapper">
+            <div class="admin-paginacion">
+                ${botones}
+            </div>
+        </div>`;
+}
+
+/**
+ * Navega a la página especificada en el input de tarifas
+ */
+function irAPaginaTarifas() {
+    const input = document.getElementById('inputPaginaTarifas');
+    if (!input) return;
+
+    let pagina = parseInt(input.value);
+    const totalPaginas = Math.ceil(todosLosProductosTarifas.length / productosPorPaginaTarifas);
+
+    if (isNaN(pagina) || pagina < 1) {
+        pagina = 1;
+    } else if (pagina > totalPaginas) {
+        pagina = totalPaginas;
+    }
+
+    cambiarPaginaTarifas(pagina);
 }
 
 /**
@@ -1202,6 +1286,12 @@ let tiposIva = [];
 // Variables para la programación de cambios en tarifas
 let modoProgramacionTarifas = false;
 let loteCambiosTarifas = {}; // Objeto para guardar cambios locales: { "prodId-tarifaId": precio }
+
+// Variables para paginación de tarifas
+let paginaActualTarifas = 1;
+const productosPorPaginaTarifas = 6;
+let todosLosProductosTarifas = []; // Guardar todos los productos para paginación
+let productosOriginalesTarifas = []; // Guardar referencia original para búsquedas
 
 /**
  * Carga los tipos de IVA desde la API y los guarda en la variable global.
@@ -2110,10 +2200,13 @@ function actualizarContadorProductos() {
 
 // ======================== GESTIÓN DE USUARIOS ========================
 
+// Variables para paginación server-side de usuarios
+let busquedaUsuarioActual = '';
+
 /**
- * Carga los usuarios desde la API y los renderiza en la tabla del panel de administración.
+ * Carga los usuarios desde la API con paginación server-side.
  */
-function cargarUsuariosAdmin() {
+function cargarUsuariosAdmin(textoBusqueda = '', resetPagina = true) {
     const contenedor = document.getElementById('adminContenido');
     const tablaExistente = contenedor.querySelector('.admin-tabla');
 
@@ -2124,14 +2217,40 @@ function cargarUsuariosAdmin() {
 
     const esPrimeraVez = !tablaExistente || adminTablaHeaderHTML === '';
 
-    return fetch('api/usuarios.php')
+    // Resetear a página 1 cuando cambia la búsqueda o es la primera carga
+    if (resetPagina) {
+        paginaActualUsuarios = 1;
+    }
+
+    // Guardar búsqueda actual para cambios de página
+    busquedaUsuarioActual = textoBusqueda;
+
+    // Construir parámetros con paginación server-side
+    const params = new URLSearchParams();
+    if (textoBusqueda) params.append('buscar', textoBusqueda);
+    params.append('pagina', paginaActualUsuarios);
+    params.append('porPagina', usuariosPorPagina);
+
+    // Mostrar indicador de carga
+    if (esPrimeraVez) {
+        // Primera carga: mostrar indicador de carga en todo el contenedor
+        contenedor.innerHTML = '<div style="text-align:center;padding:60px 20px;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--color-primary);"></i><p style="margin-top:15px;color:var(--text-secondary);">Cargando usuarios...</p></div>';
+    } else {
+        // Carga posterior: mostrar indicador en el tbody
+        const tbody = contenedor.querySelector('tbody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="7" class="sin-productos" style="text-align:center;"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>';
+        }
+    }
+
+    return fetch('api/usuarios.php?' + params.toString())
         .then(res => {
             if (!res.ok) {
                 return res.json().then(err => { throw new Error(err.error || 'Error al cargar usuarios'); });
             }
             return res.json();
         })
-        .then(data => renderUsuariosAdmin(data, esPrimeraVez))
+        .then(data => renderUsuariosAdmin(data, esPrimeraVez, textoBusqueda))
         .catch(err => {
             console.error('Error cargando usuarios:', err);
             document.getElementById('adminContenido').innerHTML =
@@ -2142,7 +2261,8 @@ function cargarUsuariosAdmin() {
 /**
  * Genera el HTML del header de la tabla de usuarios.
  */
-function getUsuariosTablaHeader(textoBusqueda = '') {
+function getUsuariosTablaHeader(textoBusqueda = '', totalUsuarios = 0) {
+    const contadorHTML = `${totalUsuarios.toLocaleString('es-ES')} Usuario${totalUsuarios !== 1 ? 's' : ''}`;
     return `
         <div class="admin-tabla-header">
             <div style="display: flex; gap: 10px; width: 100%; align-items: center; flex-wrap: wrap;">
@@ -2155,6 +2275,9 @@ function getUsuariosTablaHeader(textoBusqueda = '') {
                 <button class="btn-admin-accion btn-nuevo" onclick="prepararNuevoUsuario()">
                     <i class="fas fa-plus"></i> Nuevo Usuario
                 </button>
+                <span id="totalUsuariosAviso" class="total-clientes-aviso">
+                    ${contadorHTML}
+                </span>
             </div>
         </div>
         <div class="admin-tabla-wrapper sin-scroll">
@@ -2174,25 +2297,28 @@ function getUsuariosTablaHeader(textoBusqueda = '') {
 }
 
 /**
- * Renderiza un array de usuarios en formato tabla.
- * @param {Array} usuarios - Array de objetos usuario.
+ * Renderiza la respuesta paginada de usuarios en formato tabla.
+ * @param {Object} respuesta - Respuesta paginada del servidor {usuarios, total, pagina, porPagina, totalPaginas}
  * @param {boolean} esPrimeraVez - Indica si es la primera vez que se renderiza.
+ * @param {string} busquedaActual - Texto de búsqueda actual
  */
-function renderUsuariosAdmin(usuarios, esPrimeraVez = true) {
+function renderUsuariosAdmin(respuesta, esPrimeraVez = true, busquedaActual = '') {
     const contenedor = document.getElementById('adminContenido');
 
-    // Guardar todos los usuarios para paginación
-    usuariosData = usuarios;
+    // Extraer datos de la respuesta paginada del servidor
+    const usuarios = respuesta.usuarios || [];
+    totalPaginasUsuarios = respuesta.totalPaginas || 1;
+    totalUsuariosData = respuesta.total || 0;
+    paginaActualUsuarios = respuesta.pagina || 1;
+    const totalPaginas = totalPaginasUsuarios;
 
-    // Reset a página 1 cuando se cargan nuevos datos
-    if (esPrimeraVez) {
-        paginaActualUsuarios = 1;
-    }
+    // Guardar datos para uso interno
+    usuariosData = usuarios;
 
     // Si no hay usuarios, mostrar mensaje
     if (!usuarios || usuarios.length === 0) {
         if (esPrimeraVez || adminTablaHeaderHTML === '') {
-            adminTablaHeaderHTML = getUsuariosTablaHeader();
+            adminTablaHeaderHTML = getUsuariosTablaHeader('', totalUsuariosData);
             contenedor.innerHTML = adminTablaHeaderHTML +
                 '<tr><td colspan="7" class="sin-productos">No hay usuarios disponibles.</td></tr></tbody></table></div>';
         } else {
@@ -2205,19 +2331,13 @@ function renderUsuariosAdmin(usuarios, esPrimeraVez = true) {
 
     // Si es la primera vez o header vacío, generar header completo
     if (esPrimeraVez || adminTablaHeaderHTML === '') {
-        adminTablaHeaderHTML = getUsuariosTablaHeader();
+        adminTablaHeaderHTML = getUsuariosTablaHeader(busquedaActual, totalUsuariosData);
     }
-
-    // Calcular paginación
-    const totalPaginas = Math.ceil(usuarios.length / usuariosPorPagina);
-    const inicio = (paginaActualUsuarios - 1) * usuariosPorPagina;
-    const fin = inicio + usuariosPorPagina;
-    const usuariosPagina = usuarios.slice(inicio, fin);
 
     let html = adminTablaHeaderHTML;
 
-    // Generar filas solo para la página actual
-    usuariosPagina.forEach(usr => {
+    // Los usuarios ya vienen paginados del servidor
+    usuarios.forEach(usr => {
         html += generarFilaUsuario(usr);
     });
 
@@ -2232,33 +2352,42 @@ function renderUsuariosAdmin(usuarios, esPrimeraVez = true) {
     // Si es la primera vez, reemplazar todo el contenido
     if (esPrimeraVez) {
         contenedor.innerHTML = html;
+        // Ajustar ancho de inputs de paginación
+        ajustarTodosInputsPaginacion();
     } else {
         // Solo actualizar tbody
         const tbody = contenedor.querySelector('tbody');
         if (tbody) {
             let filasHtml = '';
-            usuariosPagina.forEach(usr => {
+            usuarios.forEach(usr => {
                 filasHtml += generarFilaUsuario(usr);
             });
             tbody.innerHTML = filasHtml;
-        } else {
-            contenedor.innerHTML = html;
         }
 
-        // Actualizar paginación
-        const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
-        if (paginacionExistente) {
-            paginacionExistente.remove();
-        }
-        const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
-        if (wrapperTabla) {
-            wrapperTabla.insertAdjacentHTML('afterend', getPaginacionUsuariosHTML(totalPaginas));
+        // Actualizar contador
+        const contador = document.getElementById('totalUsuariosAviso');
+        if (contador) {
+            contador.textContent = `${totalUsuariosData.toLocaleString('es-ES')} Usuario${totalUsuariosData !== 1 ? 's' : ''}`;
         }
     }
+
+    // Actualizar paginación
+    const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
+    if (paginacionExistente) {
+        paginacionExistente.remove();
+    }
+    const wrapperTabla = contenedor.querySelector('.admin-tabla-wrapper');
+    if (wrapperTabla) {
+        wrapperTabla.insertAdjacentHTML('afterend', getPaginacionUsuariosHTML(totalPaginas));
+    }
+
+    // Ajustar ancho de inputs de paginación
+    ajustarTodosInputsPaginacion();
 }
 
 /**
- * Busca usuarios por nombre con debounce.
+ * Busca usuarios por nombre con debounce y paginación server-side.
  */
 function buscarUsuarios() {
     // Cancelar la búsqueda anterior si el usuario sigue escribiendo
@@ -2270,22 +2399,8 @@ function buscarUsuarios() {
     // Establecer un nuevo temporizador de 300ms
     debounceTimerUsuarios = setTimeout(() => {
         const texto = document.getElementById('inputBuscarUsuario').value;
-        const params = new URLSearchParams();
-        if (texto) params.append('buscar', texto);
-
-        fetch('api/usuarios.php?' + params.toString())
-            .then(res => {
-                if (!res.ok) {
-                    return res.json().then(err => { throw new Error(err.error || 'Error al buscar'); });
-                }
-                return res.json();
-            })
-            .then(data => renderUsuariosAdmin(data, false))
-            .catch(err => {
-                console.error('Error buscando usuarios:', err);
-                document.getElementById('adminContenido').innerHTML =
-                    '<p class="sin-productos">Error: ' + err.message + '</p>';
-            });
+        // Usar la función principal con paginación
+        cargarUsuariosAdmin(texto, true);
     }, 300); // 300ms de espera después de que el usuario deje de escribir
 }
 
@@ -2595,7 +2710,8 @@ function cargarVentasAdmin(filtroFecha = 'todos', metodoPago = 'todos', tipoDocu
 /**
  * Genera el HTML del header de la tabla de ventas.
  */
-function getVentasTablaHeader(filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc', busqueda = '') {
+function getVentasTablaHeader(filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc', busqueda = '', totalVentas = 0) {
+    const contadorHTML = `${totalVentas.toLocaleString('es-ES')} Venta${totalVentas !== 1 ? 's' : ''}`;
     return `
         <div class="admin-tabla-header ventas-header">
             <div class="ventas-filtros">
@@ -2650,6 +2766,9 @@ function getVentasTablaHeader(filtroFecha = 'todos', metodoPago = 'todos', tipoD
                 <button class="btn-limpiar-ventas" onclick="limpiarTodasVentas()" title="Eliminar todas las ventas">
                     🗑️ Limpiar ventas
                 </button>
+                <span id="totalVentasAviso" class="total-clientes-aviso">
+                    ${contadorHTML}
+                </span>
             </div>
         </div>
         <div class="admin-tabla-wrapper sin-scroll">
@@ -2675,24 +2794,28 @@ function getVentasTablaHeader(filtroFecha = 'todos', metodoPago = 'todos', tipoD
  */
 function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc', busqueda = '') {
     const contenedor = document.getElementById('adminContenido');
+    const totalVentas = ventas ? ventas.length : 0;
 
     if (!ventas || ventas.length === 0) {
         if (esPrimeraVez || adminTablaHeaderHTML === '') {
-            adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden, busqueda);
+            adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden, busqueda, totalVentas);
             contenedor.innerHTML = adminTablaHeaderHTML +
                 '<tr><td colspan="9" class="sin-productos">No hay ventas registradas.</td></tr></tbody></table></div>';
         } else {
             const tbody = contenedor.querySelector('tbody');
             if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="sin-productos">No hay ventas registradas.</td></tr>';
+            // Actualizar contador aunque no haya resultados
+            const contador = document.getElementById('totalVentasAviso');
+            if (contador) {
+                contador.textContent = '0 Ventas';
+            }
         }
         return;
     }
 
-    // Always update header when searching
-    if (busqueda !== '') {
-        adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden, busqueda);
-    } else if (esPrimeraVez || adminTablaHeaderHTML === '') {
-        adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden, busqueda);
+    // Always update header to include current counter
+    if (busqueda !== '' || esPrimeraVez || adminTablaHeaderHTML === '') {
+        adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden, busqueda, totalVentas);
     }
 
     let html = adminTablaHeaderHTML;
@@ -2778,6 +2901,12 @@ function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', m
             }
         }
     });
+
+    // Actualizar contador de ventas dinámicamente
+    const contador = document.getElementById('totalVentasAviso');
+    if (contador) {
+        contador.textContent = `${totalVentas.toLocaleString('es-ES')} Venta${totalVentas !== 1 ? 's' : ''}`;
+    }
 }
 
 /**
@@ -3748,6 +3877,10 @@ function aplicarFiltroLogs() {
  * Limpia el filtro de fecha y recarga los logs.
  */
 function limpiarFiltroFecha() {
+    const fechaInput = document.getElementById('filtroFecha');
+    if (fechaInput) {
+        fechaInput.value = '';
+    }
     window.filtroFechaLog = '';
     aplicarFiltroLogs();
 }
@@ -4610,7 +4743,8 @@ function cargarRetirosAdmin(orden = 'fecha_desc') {
 /**
  * Genera el HTML del header de la tabla de retiros.
  */
-function getRetirosTablaHeader(orden = 'fecha_desc') {
+function getRetirosTablaHeader(orden = 'fecha_desc', totalRetiros = 0) {
+    const contadorHTML = `${totalRetiros.toLocaleString('es-ES')} Retiro${totalRetiros !== 1 ? 's' : ''}`;
     return `
         <div class="admin-tabla-header retiros-header">
             <div class="ventas-filtros">
@@ -4623,6 +4757,9 @@ function getRetirosTablaHeader(orden = 'fecha_desc') {
                         <option value="importe_asc" ${orden === 'importe_asc' ? 'selected' : ''}>Menor importe</option>
                     </select>
                 </div>
+                <span id="totalRetirosAviso" class="total-clientes-aviso">
+                    ${contadorHTML}
+                </span>
             </div>
         </div>
         <div class="admin-tabla-wrapper sin-scroll">
@@ -4645,15 +4782,21 @@ function getRetirosTablaHeader(orden = 'fecha_desc') {
  */
 function renderRetirosAdmin(retiros, isFirstTime = true, orden = 'fecha_desc') {
     const contenedor = document.getElementById('adminContenido');
+    const totalRetiros = retiros ? retiros.length : 0;
 
     if (!retiros || retiros.length === 0) {
         if (isFirstTime || adminTablaHeaderHTML === '') {
-            adminTablaHeaderHTML = getRetirosTablaHeader(orden);
+            adminTablaHeaderHTML = getRetirosTablaHeader(orden, totalRetiros);
             contenedor.innerHTML = adminTablaHeaderHTML +
                 '<tr><td colspan="6" class="sin-productos">No hay retiros de caja registrados.</td></tr></tbody></table></div>';
         } else {
             const tbody = contenedor.querySelector('tbody');
             if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="sin-productos">No hay retiros de caja registrados.</td></tr>';
+            // Actualizar contador
+            const contador = document.getElementById('totalRetirosAviso');
+            if (contador) {
+                contador.textContent = '0 Retiros';
+            }
         }
         return;
     }
@@ -4672,7 +4815,7 @@ function renderRetirosAdmin(retiros, isFirstTime = true, orden = 'fecha_desc') {
     const paginacionHTML = getPaginacionRetirosHTML(totalPaginas);
 
     if (isFirstTime || adminTablaHeaderHTML === '') {
-        adminTablaHeaderHTML = getRetirosTablaHeader(orden);
+        adminTablaHeaderHTML = getRetirosTablaHeader(orden, totalRetiros);
         let html = adminTablaHeaderHTML;
 
         retirosPagina.forEach((retiro, index) => {
@@ -4700,6 +4843,12 @@ function renderRetirosAdmin(retiros, isFirstTime = true, orden = 'fecha_desc') {
         if (wrapperTabla) {
             wrapperTabla.insertAdjacentHTML('afterend', paginacionHTML);
         }
+    }
+
+    // Actualizar contador de retiros dinámicamente
+    const contador = document.getElementById('totalRetirosAviso');
+    if (contador) {
+        contador.textContent = `${totalRetiros.toLocaleString('es-ES')} Retiro${totalRetiros !== 1 ? 's' : ''}`;
     }
 }
 
@@ -4846,7 +4995,8 @@ function renderCajaSesionesAdmin(sesiones, isFirstTime = true, orden = 'fecha_de
 /**
  * Genera el HTML del header de la tabla de devoluciones.
  */
-function getDevolucionesTablaHeader(orden = 'fecha_desc', busquedaTicket = '') {
+function getDevolucionesTablaHeader(orden = 'fecha_desc', busquedaTicket = '', totalDevoluciones = 0) {
+    const contadorHTML = `${totalDevoluciones.toLocaleString('es-ES')} Devolución${totalDevoluciones !== 1 ? 'es' : ''}`;
     return `
         <div class="admin-tabla-header devoluciones-header">
             <div class="ventas-filtros">
@@ -4868,6 +5018,9 @@ function getDevolucionesTablaHeader(orden = 'fecha_desc', busquedaTicket = '') {
                         <option value="importe_asc" ${orden === 'importe_asc' ? 'selected' : ''}>Menor importe</option>
                     </select>
                 </div>
+                <span id="totalDevolucionesAviso" class="total-clientes-aviso">
+                    ${contadorHTML}
+                </span>
             </div>
         </div>
         <div class="admin-tabla-wrapper">
@@ -4893,15 +5046,22 @@ function getDevolucionesTablaHeader(orden = 'fecha_desc', busquedaTicket = '') {
  */
 function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fecha_desc', busquedaTicket = '', total = 0) {
     const contenedor = document.getElementById('adminContenido');
+    // Usar el total real de la API (no el de la página actual)
+    const totalDevoluciones = total || (devoluciones ? devoluciones.length : 0);
 
     if (!devoluciones || devoluciones.length === 0) {
         if (isFirstTime || adminTablaHeaderHTML === '') {
-            adminTablaHeaderHTML = getDevolucionesTablaHeader(orden, busquedaTicket);
+            adminTablaHeaderHTML = getDevolucionesTablaHeader(orden, busquedaTicket, totalDevoluciones);
             contenedor.innerHTML = adminTablaHeaderHTML +
                 '<tr><td colspan="8" class="sin-productos">No hay devoluciones registradas.</td></tr></tbody></table></div>';
         } else {
             const tbody = contenedor.querySelector('tbody');
             if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="sin-productos">No hay devoluciones registradas.</td></tr>';
+            // Actualizar contador
+            const contador = document.getElementById('totalDevolucionesAviso');
+            if (contador) {
+                contador.textContent = '0 Devoluciones';
+            }
         }
         // Eliminar paginación si existe
         const paginacionExistente = contenedor.querySelector('.admin-paginacion-wrapper');
@@ -4909,11 +5069,8 @@ function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fech
         return;
     }
 
-    if (isFirstTime || adminTablaHeaderHTML === '') {
-        adminTablaHeaderHTML = getDevolucionesTablaHeader(orden, busquedaTicket);
-    } else if (busquedaTicket !== '') {
-        // Always update header with search value when searching
-        adminTablaHeaderHTML = getDevolucionesTablaHeader(orden, busquedaTicket);
+    if (isFirstTime || adminTablaHeaderHTML === '' || busquedaTicket !== '') {
+        adminTablaHeaderHTML = getDevolucionesTablaHeader(orden, busquedaTicket, totalDevoluciones);
     }
 
     let html = adminTablaHeaderHTML;
@@ -4982,6 +5139,12 @@ function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fech
         // Ajustar inputs de paginación
         ajustarTodosInputsPaginacion();
     });
+
+    // Actualizar contador de devoluciones dinámicamente
+    const contador = document.getElementById('totalDevolucionesAviso');
+    if (contador) {
+        contador.textContent = `${totalDevoluciones.toLocaleString('es-ES')} Devolución${totalDevoluciones !== 1 ? 'es' : ''}`;
+    }
 }
 
 /**
@@ -4996,7 +5159,9 @@ function verDetalleDevolucion(id) {
     fetch(`api/devoluciones.php?todas=1`) // Podríamos filtrar por ID en la API si estuviera implementado
         .then(res => res.json())
         .then(data => {
-            const dev = data.find(d => d.id == id);
+            // data es un objeto paginado { devoluciones: [...], total: ... }
+            const lista = data.devoluciones || data;
+            const dev = lista.find(d => d.id == id);
             if (!dev) {
                 alert('No se encontró la devolución');
                 return;
@@ -5339,8 +5504,12 @@ function cargarClientesAdmin(textoBusqueda = '', resetPagina = true) {
     params.append('pagina', paginaActualClientes);
     params.append('porPagina', clientesPorPagina);
 
-    // Mostrar indicador de carga en el tbody si ya existe tabla
-    if (!esPrimeraVez) {
+    // Mostrar indicador de carga
+    if (esPrimeraVez) {
+        // Primera carga: mostrar indicador de carga en todo el contenedor
+        contenedor.innerHTML = '<div style="text-align:center;padding:60px 20px;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--color-primary);"></i><p style="margin-top:15px;color:var(--text-secondary);">Cargando clientes...</p></div>';
+    } else {
+        // Carga posterior: mostrar indicador en el tbody
         const tbody = contenedor.querySelector('tbody');
         if (tbody) {
             tbody.innerHTML = '<tr><td colspan="10" class="sin-productos" style="text-align:center;"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>';
@@ -5474,6 +5643,8 @@ function renderClientesAdmin(respuesta, esPrimeraVez = true) {
 
     if (esPrimeraVez) {
         contenedor.innerHTML = html;
+        // Ajustar ancho de inputs de paginación
+        ajustarTodosInputsPaginacion();
     } else {
         const tbody = contenedor.querySelector('tbody');
         if (tbody) {
@@ -6347,6 +6518,9 @@ function mostrarPanelCategorias(textoBusqueda = '') {
                     <button class="btn-admin-accion btn-nuevo" onclick="abrirModalNuevaCategoria()">
                         <i class="fas fa-plus"></i> Nueva Categoría
                     </button>
+                    <span id="totalCategoriasAviso" class="total-clientes-aviso">
+                        0 Categoría(s)
+                    </span>
                 </div>
             </div>`;
     }
@@ -6407,6 +6581,18 @@ function mostrarPanelCategorias(textoBusqueda = '') {
             html += getPaginacionCategoriasHTML(totalPaginas);
 
             contenedor.innerHTML = html;
+
+            // Actualizar contador de categorías después de renderizar
+            const contadorCategorias = document.getElementById('totalCategoriasAviso');
+            if (contadorCategorias) {
+                const totalCategorias = data.length;
+                const hayBusqueda = textoBusqueda && textoBusqueda.trim() !== '';
+                if (hayBusqueda) {
+                    contadorCategorias.textContent = `${filteredData.length.toLocaleString('es-ES')} Resultado${filteredData.length !== 1 ? 's' : ''}`;
+                } else {
+                    contadorCategorias.textContent = `${totalCategorias.toLocaleString('es-ES')} Categoría${totalCategorias !== 1 ? 's' : ''}`;
+                }
+            }
         })
         .catch(err => {
             console.error('Error:', err);
@@ -7366,9 +7552,20 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
         fetch('api/productos.php').then(res => res.json())
     ])
         .then(([tarifas, productos]) => {
-            // Calcular precios para cada producto
+            // Guardar todos los productos para paginación
+            window.tarifasData = tarifas;
+            todosLosProductosTarifas = productos;
+            productosOriginalesTarifas = [...productos]; // Guardar copia original
+            paginaActualTarifas = 1;
+
+            // Calcular índices de la página actual
+            const inicio = (paginaActualTarifas - 1) * productosPorPaginaTarifas;
+            const fin = inicio + productosPorPaginaTarifas;
+            const productosPagina = productos.slice(inicio, fin);
+
+            // Calcular precios para cada producto de la página actual
             let filasTablaProductos = '';
-            productos.forEach(prod => {
+            productosPagina.forEach(prod => {
                 let precioBaseOriginal = parseFloat(prod.precio);
                 const iva = parseFloat(prod.iva) || 21;
 
@@ -7380,8 +7577,8 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
 
                 let fila = `
                 <tr style="border-bottom: 1px solid ${tableRowBorder};">
-                    <td style="padding: 10px; font-weight: 500; color: ${textColor};">${prod.nombre}</td>
-                    <td style="padding: 10px; color: ${isDark ? '#f3f4f6' : '#1f2937'}; font-weight: 600;">${precioBaseAMostrar.toFixed(2)} €</td>`;
+                    <td style="padding: 8px 6px; font-weight: 500; color: ${textColor};">${prod.nombre}</td>
+                    <td style="padding: 8px 6px; color: ${isDark ? '#f3f4f6' : '#1f2937'}; font-weight: 600;">${precioBaseAMostrar.toFixed(2)} €</td>`;
 
                 tarifas.forEach(tarifa => {
                     const idTarifa = tarifa.id;
@@ -7422,7 +7619,7 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
                     }
 
                     fila += `
-                    <td style="padding: 10px;">
+                    <td style="padding: 8px 6px;">
                         <div style="display: flex; align-items: center; gap: 4px;">
                             <input type="number" step="0.01" 
                                 value="${valueToShow.toFixed(2)}" 
@@ -7430,7 +7627,7 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
                                 onchange="actualizarPrecioTarifaIndividual(${prod.id}, ${idTarifa}, this, ${iva})"
                                 ${disabledAttr}
                                 class="${customClass}"
-                                style="width: 80px; padding: 4px 6px; border-radius: 4px; font-weight: 600; text-align: right; ${manualStyle} ${disabledStyle}">
+                                style="width: 70px; padding: 4px 6px; border-radius: 4px; font-weight: 600; text-align: right; ${manualStyle} ${disabledStyle}">
                             <span style="font-size: 14px; font-weight: 600; color: #10b981;">€</span>
                             ${esManual ? '<i class="fas fa-hand-paper" title="Precio manual" style="color: #10b981; font-size: 12px;"></i>' : ''}
                         </div>
@@ -7460,12 +7657,12 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
 
             // Generar los encabezados dinámicamente
             let cabecerasPrecios = `
-                <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor}; border-bottom: 2px solid ${borderColor}; position: -webkit-sticky; position: sticky; top: -1px; z-index: 10; background: ${tableHeaderBg}; outline: 1px solid ${borderColor}; outline-offset: -1px; border:none;">Producto</th>
-                <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor}; border-bottom: 2px solid ${borderColor}; position: -webkit-sticky; position: sticky; top: -1px; z-index: 10; background: ${tableHeaderBg}; outline: 1px solid ${borderColor}; outline-offset: -1px; border:none;">Precio</th>`;
+                <th style="padding: 12px 8px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor}; border-bottom: 2px solid ${borderColor}; position: -webkit-sticky; position: sticky; top: -1px; z-index: 10; background: ${tableHeaderBg}; outline: 1px solid ${borderColor}; outline-offset: -1px; border:none;">Producto</th>
+                <th style="padding: 12px 8px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor}; border-bottom: 2px solid ${borderColor}; position: -webkit-sticky; position: sticky; top: -1px; z-index: 10; background: ${tableHeaderBg}; outline: 1px solid ${borderColor}; outline-offset: -1px; border:none;">Precio</th>`;
 
             let detalleDescuentos = [];
             tarifas.forEach(tarifa => {
-                cabecerasPrecios += `<th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor}; border-bottom: 2px solid ${borderColor}; position: -webkit-sticky; position: sticky; top: -1px; z-index: 10; background: ${tableHeaderBg}; outline: 1px solid ${borderColor}; outline-offset: -1px; border:none;">${tarifa.nombre}</th>`;
+                cabecerasPrecios += `<th style="padding: 12px 8px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor}; border-bottom: 2px solid ${borderColor}; position: -webkit-sticky; position: sticky; top: -1px; z-index: 10; background: ${tableHeaderBg}; outline: 1px solid ${borderColor}; outline-offset: -1px; border:none;">${tarifa.nombre}</th>`;
                 detalleDescuentos.push(`${tarifa.nombre} (${tarifa.descuento_porcentaje}%)`);
             });
             let descripcionDescuentos = "Vista de precios según las tarifas aplicadas. Descuentos: " + (detalleDescuentos.length > 0 ? detalleDescuentos.join(", ") : "Ninguno");
@@ -7481,7 +7678,7 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
                     placeholder="Buscar producto..." 
                     value="${tarifaBusquedaProducto}"
                     oninput="tarifaBusquedaProducto = this.value; filtrarTablaTarifas();"
-                    style="padding: 10px 15px; border: 1px solid ${borderColor}; border-radius: 8px; font-size: 14px; background: ${isDark ? '#374151' : 'white'}; color: ${textColor}; outline: none; transition: border-color 0.2s; min-width: 400px;"
+                    style="padding: 10px 15px; border: 1px solid ${borderColor}; border-radius: 8px; font-size: 14px; background: ${isDark ? '#374151' : 'white'}; color: ${textColor}; outline: none; transition: border-color 0.2s; min-width: 250px;"
                     onfocus="this.style.borderColor = '#6366f1';"
                     onblur="this.style.borderColor = '${borderColor}';">
                 
@@ -7510,12 +7707,12 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
             </div>
             
 
-            <div style="margin-top: 40px; border-top: 2px solid ${borderColor}; padding-top: 30px;">
+            <div style="margin-top: 25px; border-top: 2px solid ${borderColor}; padding-top: 20px;">
                 <div class="admin-tabla-header">
                     <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: ${textColor};">Precios por Producto</h2>
                     <p style="color: ${subTextColor}; margin-top: 5px;">${descripcionDescuentos} ${tarifasMostrarConIva ? '(Precios con IVA incluido)' : '(Precios base sin IVA)'}</p>
                 </div>
-                <div style="overflow-x: auto; max-height: 200px; overflow-y: auto; border: 1px solid ${borderColor}; border-radius: 8px;">
+                <div style="border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
                     <table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 8px; background: ${cardBg};" class="tabla-precios-producto">
                         <thead class="tabla-precios-head">
                             <tr>
@@ -7524,6 +7721,9 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
                         </thead>
                         <tbody id="tablaPreciosProductos">${filasTablaProductos}</tbody>
                     </table>
+                </div>
+                <div id="paginacionTarifas">
+                    ${getPaginacionTarifasHTML(Math.ceil(productos.length / productosPorPaginaTarifas))}
                 </div>
             </div>
             <div id="modalesTarifas"></div>
@@ -8024,15 +8224,15 @@ function mostrarPanelHistorialPrecios() {
                 </div>
             </div>
 
-            <div id="tablaHistorialPreciosContainer" style="display: none; max-height: 420px; overflow-y: auto;">
-                <table style="width: 100%; border-collapse: collapse; margin-top: 20px; border: 1px solid ${borderColor}; background: ${bgColor};">
+            <div id="tablaHistorialPreciosContainer" style="display: none; max-height: 380px; overflow-y: auto; border: 1px solid ${borderColor}; border-radius: 8px;">
+                <table style="width: 100%; border-collapse: separate; border-spacing: 0; background: ${bgColor};">
                     <thead>
-                        <tr style="background: ${tableHeaderBg};">
-                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Precio</th>
-                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Válido Desde</th>
-                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Válido Hasta</th>
-                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Tarifa</th>
-                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor};">Usuario</th>
+                        <tr>
+                            <th style="position: sticky; top: 0; background: ${tableHeaderBg}; padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor}; z-index: 10;">Precio</th>
+                            <th style="position: sticky; top: 0; background: ${tableHeaderBg}; padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor}; z-index: 10;">Válido Desde</th>
+                            <th style="position: sticky; top: 0; background: ${tableHeaderBg}; padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor}; z-index: 10;">Válido Hasta</th>
+                            <th style="position: sticky; top: 0; background: ${tableHeaderBg}; padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor}; z-index: 10;">Tarifa</th>
+                            <th style="position: sticky; top: 0; background: ${tableHeaderBg}; padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor}; z-index: 10;">Usuario</th>
                         </tr>
                     </thead>
                     <tbody id="tablaHistorialPreciosBody">
@@ -9247,6 +9447,122 @@ function exportarInformePDF(periodo) {
 // ------------------------------------------------------------------------------------------------
 // FUNCIONES PARA PROGRAMACIÓN DE CAMBIOS DE TARIFAS
 // ------------------------------------------------------------------------------------------------
+
+/**
+ * Cambia la página de la tabla de tarifas
+ * @param {number} nuevaPagina - El número de página a la que cambiar
+ */
+function cambiarPaginaTarifas(nuevaPagina) {
+    const totalPaginas = Math.ceil(todosLosProductosTarifas.length / productosPorPaginaTarifas);
+
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+
+    paginaActualTarifas = nuevaPagina;
+    actualizarTablaTarifas();
+}
+
+/**
+ * Actualiza la tabla de tarifas con la página actual
+ */
+function actualizarTablaTarifas() {
+    const isDark = document.body.classList.contains('dark-mode');
+    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const tableRowBorder = isDark ? '#374151' : '#e5d7eb';
+    const iva = 21; // Valor por defecto
+
+    const tarifas = window.tarifasData || [];
+    const productos = todosLosProductosTarifas;
+
+    // Calcular índices de la página
+    const inicio = (paginaActualTarifas - 1) * productosPorPaginaTarifas;
+    const fin = inicio + productosPorPaginaTarifas;
+    const productosPagina = productos.slice(inicio, fin);
+    const totalPaginas = Math.ceil(productos.length / productosPorPaginaTarifas);
+
+    // Generar filas solo para los productos de la página actual
+    let filasTablaProductos = '';
+    productosPagina.forEach(prod => {
+        let precioBaseOriginal = parseFloat(prod.precio);
+        const ivaProd = parseFloat(prod.iva) || iva;
+
+        let precioBaseAMostrar = precioBaseOriginal;
+        if (tarifasMostrarConIva) {
+            precioBaseAMostrar = precioBaseOriginal * (1 + ivaProd / 100);
+        }
+
+        let fila = `
+        <tr style="border-bottom: 1px solid ${tableRowBorder};">
+            <td style="padding: 8px 6px; font-weight: 500; color: ${textColor};">${prod.nombre}</td>
+            <td style="padding: 8px 6px; color: ${isDark ? '#f3f4f6' : '#1f2937'}; font-weight: 600;">${precioBaseAMostrar.toFixed(2)} €</td>`;
+
+        tarifas.forEach(tarifa => {
+            const idTarifa = tarifa.id;
+            const dataTarifa = prod.preciosTarifas && prod.preciosTarifas[idTarifa];
+
+            let precioFinal = 0;
+            let esManual = false;
+
+            if (dataTarifa) {
+                precioFinal = parseFloat(dataTarifa.precio);
+                esManual = dataTarifa.es_manual == 1;
+                if (tarifasMostrarConIva) {
+                    precioFinal = precioFinal * (1 + ivaProd / 100);
+                }
+            } else {
+                const descuento = parseFloat(tarifa.descuento_porcentaje) || 0;
+                precioFinal = precioBaseAMostrar * (1 - descuento / 100);
+            }
+
+            const manualStyle = esManual ? 'border: 1px solid #10b981; background: #ecfdf5; color: #065f46;' : (isDark ? 'border: 1px solid #374151; background: #111827; color: #10b981;' : 'border: 1px solid #d1d5db; background: white; color: #10b981;');
+            const disabledAttr = (tarifasMostrarConIva && !modoProgramacionTarifas) ? 'disabled' : '';
+            const disabledStyle = (tarifasMostrarConIva && !modoProgramacionTarifas) ? 'opacity: 0.5; cursor: not-allowed;' : '';
+
+            const key = `${prod.id}-${idTarifa}`;
+            let valueToShow = precioFinal;
+            let customClass = '';
+            if (loteCambiosTarifas[key] !== undefined) {
+                valueToShow = parseFloat(loteCambiosTarifas[key]);
+                if (tarifasMostrarConIva) {
+                    valueToShow = valueToShow * (1 + ivaProd / 100);
+                }
+                customClass = 'input-precio-programado';
+            }
+
+            fila += `
+            <td style="padding: 8px 6px;">
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" step="0.01" 
+                        value="${valueToShow.toFixed(2)}" 
+                        data-precio-anterior="${precioFinal.toFixed(4)}"
+                        onchange="actualizarPrecioTarifaIndividual(${prod.id}, ${idTarifa}, this, ${ivaProd})"
+                        ${disabledAttr}
+                        class="${customClass}"
+                        style="width: 70px; padding: 4px 6px; border-radius: 4px; font-weight: 600; text-align: right; ${manualStyle} ${disabledStyle}">
+                    <span style="font-size: 14px; font-weight: 600; color: #10b981;">€</span>
+                    ${esManual ? '<i class="fas fa-hand-paper" title="Precio manual" style="color: #10b981; font-size: 12px;"></i>' : ''}
+                </div>
+            </td>`;
+        });
+
+        fila += `</tr>`;
+        filasTablaProductos += fila;
+    });
+
+    // Actualizar la tabla
+    const tbody = document.getElementById('tablaPreciosProductos');
+    if (tbody) {
+        tbody.innerHTML = filasTablaProductos;
+    }
+
+    // Actualizar controles de paginación
+    const paginacionContenedor = document.getElementById('paginacionTarifas');
+    if (paginacionContenedor) {
+        paginacionContenedor.innerHTML = getPaginacionTarifasHTML(totalPaginas);
+    }
+
+    // Ajustar ancho de inputs de paginación
+    ajustarTodosInputsPaginacion();
+}
 
 function alternarModoProgramacionTarifas() {
     if (modoProgramacionTarifas) {

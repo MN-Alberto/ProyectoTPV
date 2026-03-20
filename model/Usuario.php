@@ -359,7 +359,86 @@ class Usuario
     }
 
     /**
-     * Obtiene todos los usuarios.
+     * Obtiene todos los usuarios con paginación eficiente.
+     * @param int $pagina Número de página (1-based)
+     * @param int $porPagina Registros por página
+     * @return array ['usuarios' => array, 'total' => int, 'pagina' => int, 'porPagina' => int, 'totalPaginas' => int]
+     */
+    public static function obtenerTodosPaginados($pagina = 1, $porPagina = 6)
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+
+        // Obtener total de registros (usando índice)
+        $stmtCount = $conexion->query("SELECT COUNT(*) as total FROM usuarios");
+        $total = (int)$stmtCount->fetch()['total'];
+
+        // Calcular OFFSET
+        $offset = ($pagina - 1) * $porPagina;
+
+        // Consulta optimizada con LIMIT y ORDER BY usando índice
+        $stmt = $conexion->prepare("SELECT * FROM usuarios ORDER BY id LIMIT :limit OFFSET :offset");
+        $stmt->bindValue(':limit', $porPagina, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $usuarios = [];
+        while ($fila = $stmt->fetch()) {
+            $usuarios[] = self::crearDesdeArray($fila);
+        }
+
+        return [
+            'usuarios' => $usuarios,
+            'total' => $total,
+            'pagina' => $pagina,
+            'porPagina' => $porPagina,
+            'totalPaginas' => (int)ceil($total / $porPagina)
+        ];
+    }
+
+    /**
+     * Busca usuarios por nombre con paginación.
+     * @param string $nombre Texto a buscar
+     * @param int $pagina Número de página
+     * @param int $porPagina Registros por página
+     * @return array
+     */
+    public static function buscarPorNombreParcialPaginado($nombre, $pagina = 1, $porPagina = 6)
+    {
+        $conexion = ConexionDB::getInstancia();
+        $pdo = $conexion->getConexion();
+        $busqueda = '%' . $nombre . '%';
+
+        // Contar resultados con índice
+        $stmtCount = $pdo->prepare("SELECT COUNT(*) as total FROM usuarios WHERE nombre LIKE :nombre");
+        $stmtCount->bindParam(':nombre', $busqueda);
+        $stmtCount->execute();
+        $total = (int)$stmtCount->fetch()['total'];
+
+        $offset = ($pagina - 1) * $porPagina;
+
+        // Consulta paginada con índice
+        $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE nombre LIKE :nombre ORDER BY nombre LIMIT :limit OFFSET :offset");
+        $stmt->bindParam(':nombre', $busqueda);
+        $stmt->bindValue(':limit', $porPagina, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $usuarios = [];
+        while ($fila = $stmt->fetch()) {
+            $usuarios[] = self::crearDesdeArray($fila);
+        }
+
+        return [
+            'usuarios' => $usuarios,
+            'total' => $total,
+            'pagina' => $pagina,
+            'porPagina' => $porPagina,
+            'totalPaginas' => (int)ceil($total / $porPagina)
+        ];
+    }
+
+    /**
+     * Obtiene todos los usuarios (sin paginación - para backward compatibility).
      * @return array
      */
     public static function obtenerTodos()

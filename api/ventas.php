@@ -372,7 +372,7 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
             }
         }
 
-        $sql .= " ORDER BY " . $orden . " LIMIT 100";
+        $sql .= " ORDER BY " . $orden;
 
         $stmt = $conexion->prepare($sql);
         $stmt->execute($parametros);

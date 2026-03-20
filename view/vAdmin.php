@@ -5,7 +5,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <section id="cajero">
     <!-- Panel izquierdo: Navegación de Admin -->
-    <div class="cajero-productos admin-sidebar" style="max-width: 300px; border-right: 1px solid #e5e7eb;">
+    <div class="cajero-productos admin-sidebar" style="max-width: 260px; border-right: 1px solid #e5e7eb;">
         <div id="formBuscarProducto" class="admin-sidebar-header" style="padding: 20px;">
             <h2 class="admin-view-title">Administración</h2>
         </div>
