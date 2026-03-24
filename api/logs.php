@@ -40,8 +40,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             exit;
         }
 
-        // Parámetros - sin límite para mostrar todos los logs
-        $porPagina = 10000; // Un número alto para essentially ilimitado
+        // Parámetros de paginación
+        $pagina = isset($_GET['pagina']) ? max(1, intval($_GET['pagina'])) : 1;
+        $porPagina = isset($_GET['por_pagina']) ? max(1, intval($_GET['por_pagina'])) : 6;
+        $offset = ($pagina - 1) * $porPagina;
 
         // Filtros
         $tipo = isset($_GET['tipo']) && $_GET['tipo'] !== '' ? $_GET['tipo'] : null;
@@ -107,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
 
         $sqlSelect .= count($whereSelect) > 0 ? ' WHERE ' . implode(' AND ', $whereSelect) : '';
-        $sqlSelect .= " ORDER BY fecha DESC LIMIT $porPagina";
+        $sqlSelect .= " ORDER BY fecha DESC LIMIT $porPagina OFFSET $offset";
 
         $stmt = $pdo->query($sqlSelect);
         $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);

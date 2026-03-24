@@ -131,17 +131,6 @@ endforeach; ?>
                     Retirar Dinero
                 </button>
 
-                <!-- Botón CIERRE TEMPORAL: permite pausar la sesión o cambiar de turno -->
-                <button type="button" class="btn-historial" id="btnCierreTemporal" onclick="mostrarModalCierreTemporal()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
-                    style="background: #64748b; color: white; <?php echo !$sesionCaja ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                    Pausa / Turno
-                </button>
-
                 <!-- Botón HISTORIAL DE VENTAS: abre el modal con el historial de ventas de la sesión actual -->
                 <button type="button" class="btn-historial" id="btnHistorial" onclick="mostrarHistorialVentas()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
                     style="<?php echo !$sesionCaja ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>">
@@ -319,8 +308,14 @@ endif; ?>
         <!-- Indicador de cliente identificado (DNI) - se muestra al acumular puntos o aplicar descuento -->
         <div id="indicadorClienteDni" style="display: none; background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #3b82f6; border-radius: 8px; padding: 8px 14px; margin: 0 10px 8px 10px; align-items: center; gap: 8px; font-size: 0.85rem;">
             <span style="font-size: 1.1rem;">👤</span>
-            <span style="color: #1e40af; font-weight: 600;">Cliente:</span>
+            <span id="indicadorClienteNombre" style="color: #1e40af; font-weight: 600; font-size: 0.75rem; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title=""></span>
+            <span style="color: #1e40af; font-weight: 600; opacity: 0.6;">-</span>
             <span id="indicadorClienteDniValor" style="color: #1e3a8a; font-weight: 700; letter-spacing: 0.5px;"></span>
+            <button type="button" onclick="desvincularCliente()" 
+                style="background: #eff6ff; border: 1px solid #3b82f6; color: #ef4444; font-size: 1rem; cursor: pointer; padding: 2px 8px; border-radius: 4px; line-height: 1; margin-left: auto; font-weight: bold; transition: all 0.2s;"
+                onmouseover="this.style.background='#ef4444'; this.style.color='white'"
+                onmouseout="this.style.background='#eff6ff'; this.style.color='#ef4444'"
+                title="Quitar cliente">✕</button>
         </div>
 
         <!-- Contenedor de las líneas del ticket (se rellena dinámicamente con JS) -->
@@ -365,10 +360,10 @@ endif; ?>
                     ⏳
                 </button>
 
-                <!-- Botón RECUPERAR: recupera la última venta pospuesta -->
-                <button class="btn-descuento" id="btnRecuperar" onclick="recuperarVenta()" style="background: #f59e0b;"
-                    title="Recuperar venta">
-                    🔄
+                <!-- Botón VER POSPUESTAS: muestra modal con todas las ventas pospuestas para recuperar -->
+                <button class="btn-descuento" id="btnVerPospuestas" onclick="mostrarModalVentasPospuestas()" disabled
+                    style="background: #8b5cf6;" title="Ver ventas pospuestas">
+                    📋
                 </button>
             </div>
 
@@ -1284,62 +1279,6 @@ endif; ?>
 <?php
 endif; ?>
 
-<!-- ##=========================== MODAL: CIERRE TEMPORAL ===========================## -->
-<!-- Modal para elegir entre pausa (descanso) o cambio de turno (cierre sesión caja) -->
-<div class="modal-overlay" id="modalCierreTemporal" style="display:none;">
-    <div class="modal-content modal-premium" style="max-width: 500px;">
-        <div class="modal-header-premium" style="background: linear-gradient(135deg, #4b5563, #1f2937);">
-            <div class="icon-container-discount">
-                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
-                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-            </div>
-            <h3>Cierre Temporal</h3>
-            <p>Selecciona el motivo de la interrupción</p>
-        </div>
-
-        <div class="modal-body-premium">
-            <div class="modal-opciones-doc" style="margin-top: 20px;">
-                <!-- Opción 1: Pausa / Descanso (Logout simple, caja abierta) -->
-                <div class="opcion-doc" onclick="pausarSesion()">
-                    <div style="background: #eff6ff; padding: 15px; border-radius: 50%; margin-bottom: 10px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
-                            stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="6" y="4" width="4" height="16"></rect>
-                            <rect x="14" y="4" width="4" height="16"></rect>
-                        </svg>
-                    </div>
-                    <span class="opcion-titulo">Pausa / Descanso</span>
-                    <span class="opcion-desc">Cerrar sesión de usuario.<br>La caja se mantiene <b>Abierta</b>.</span>
-                </div>
-
-                <!-- Opción 2: Cambio de Turno (Cierre de caja completo) -->
-                <div class="opcion-doc" onclick="cambiarTurno()">
-                    <div style="background: #f0fdf4; padding: 15px; border-radius: 50%; margin-bottom: 10px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
-                            stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M17 2.1l4 4-4 4"></path>
-                            <path d="M3 12.2v-2a4 4 0 0 1 4-4h12.8"></path>
-                            <path d="M7 21.9l-4-4 4-4"></path>
-                            <path d="M21 11.8v2a4 4 0 0 1-4 4H4.2"></path>
-                        </svg>
-                    </div>
-                    <span class="opcion-titulo">Cambio de Turno</span>
-                    <span class="opcion-desc">Cerrar sesión de usuario.<br>La caja se mantiene <b>Abierta</b>.</span>
-                </div>
-            </div>
-
-            <div style="margin-top: 30px; border-top: 1px solid var(--border-main); padding-top: 20px; text-align: center;">
-                <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalCierreTemporal')">
-                    Cancelar
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- ##=========================== MODAL: RETIRAR DINERO ===========================## -->
 <!-- Modal para retirar efectivo de la caja (ej: pago a proveedor, ingreso en banco) -->
 <!-- Se envía por POST con la acción "retirarDinero" al controlador -->
@@ -1974,39 +1913,6 @@ endif; ?>
     </div>
 </div>
 
-<!-- Modal: Nuevo Turno -->
-<div class="modal-overlay" id="modalNuevoTurno" style="display:none;">
-    <div class="modal-content modal-premium" style="max-width: 450px;">
-        <div class="modal-header-premium modal-header-blue">
-            <div class="icon-container-discount">
-                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
-                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <polyline points="16 11 18 13 22 9"></polyline>
-                </svg>
-            </div>
-            <h3>Inicio de Nuevo Turno</h3>
-            <p>Información sobre el relevo de caja</p>
-        </div>
-        <div class="modal-body-premium" style="text-align: center;">
-            <div style="background: var(--bg-main); padding: 15px; border-radius: 12px; border: 1px solid var(--border-main); margin-bottom: 20px;">
-                <p style="margin-bottom: 10px; font-size: 0.9rem; color: var(--text-muted);">El turno anterior fue cerrado por:</p>
-                <div style="font-weight: 600; font-size: 1.1rem; color: var(--text-main); margin-bottom: 5px;" id="welcomeOldUser">--</div>
-                <div style="font-size: 0.85rem; color: var(--accent);" id="welcomeCloseTime">--</div>
-            </div>
-            
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-top: 1px dashed var(--border-main);">
-                <span style="color: var(--text-muted); font-size: 0.9rem;">Hora actual:</span>
-                <span style="font-weight: 600;" id="welcomeCurrentTime"><?php echo date('H:i'); ?></span>
-            </div>
-            
-            <button class="btn-apply-premium" style="width: 100%; margin-top: 20px; background: #2563eb; color: white;"
-                onclick="cerrarModalBienvenida('modalNuevoTurno')">Empezar Turno</button>
-        </div>
-    </div>
-</div>
-
 <script>
     /**
      * Cierra el modal de bienvenida y limpia el estado en el servidor.
@@ -2094,19 +2000,25 @@ endif; ?>
 
 <!-- ##=========================== MODAL: DETALLE DE VENTA ===========================## -->
 <div class="modal-overlay" id="modalDetalleVenta" style="display:none;">
-    <div class="modal-content modal-premium" style="max-width: 700px; padding: 20px;">
-        <div class="modal-header-premium">
+    <div class="modal-content modal-premium" style="max-width: 700px;">
+        <div class="modal-header-premium modal-header-blue">
+            <div class="icon-container-discount">
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
+                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+            </div>
             <h3>Detalle de Venta</h3>
+            <p id="detalleVentaId">Información del comprobante</p>
         </div>
-        <div class="modal-body-premium" style="padding: 10px;">
+        <div class="modal-body-premium">
             <div id="detalleVentaContenido">
                 <!-- Aquí se cargarán los detalles de la venta -->
             </div>
-        </div>
-        <div
-            style="display: flex; justify-content: flex-end; margin-top: 20px; padding: 15px; border-top: 1px solid var(--border-main);">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalDetalleVenta')"
-                style="min-width: 100px; margin-right: 10px;">Cerrar</button>
         </div>
     </div>
 </div>
@@ -2403,42 +2315,61 @@ endif; ?>
                 const venta = data.venta;
                 const lineas = data.lineas;
                 const fecha = new Date(venta.fecha).toLocaleString('es-ES');
+                
+                // Update header info
+                document.getElementById('detalleVentaId').textContent = 'Venta #' + venta.id + ' - ' + fecha;
+                
+                const tipoIcono = venta.tipoDocumento === 'factura' ? '📄' : '🧾';
+                const tipoLabel = venta.tipoDocumento === 'factura' ? 'Factura' : 'Ticket';
+                const pagoIcono = venta.metodoPago && venta.metodoPago.toLowerCase().includes('tarjeta') ? '💳' : '💵';
+                const pagoLabel = venta.metodoPago || 'Efectivo';
 
-                let html = '<div class="detalle-venta-header">';
-                html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
-                html += '<div><strong style="font-size: 18px;">Venta #' + venta.id + '</strong></div>';
-                html += '<div style="font-size: 12px; opacity: 0.9;">' + fecha + '</div>';
+                // Simple style matching other modals
+                let html = '';
+                
+                // Info row
+                html += '<div style="display: flex; gap: 15px; margin-bottom: 20px;">';
+                html += '<div style="flex: 1; background: var(--bg-secondary); padding: 12px; border-radius: 8px;">';
+                html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Tipo</div>';
+                html += '<div style="font-weight: 600;">' + tipoIcono + ' ' + tipoLabel + '</div>';
+                html += '</div>';
+                html += '<div style="flex: 1; background: var(--bg-secondary); padding: 12px; border-radius: 8px;">';
+                html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Pago</div>';
+                html += '<div style="font-weight: 600;">' + pagoIcono + ' ' + pagoLabel + '</div>';
                 html += '</div>';
                 html += '</div>';
 
-                html += '<div class="detalle-venta-info">';
-                html += '<div><strong>Tipo:</strong> ' + (venta.tipoDocumento === 'factura' ? '📄 Factura' : '🧾 Ticket') + '</div>';
-                html += '<div><strong>Pago:</strong> ' + (venta.metodoPago || '💵 Efectivo') + '</div>';
-                html += '</div>';
-
-                html += '<div style="max-height: 300px; overflow-y: auto; margin: 15px 0;">';
-                html += '<table class="detalle-venta-tabla">';
-                html += '<thead><tr>';
-                html += '<th style="padding: 10px; text-align: left;">Producto</th>';
-                html += '<th style="padding: 10px; text-align: center;">Cant.</th>';
-                html += '<th style="padding: 10px; text-align: right;">P.U.</th>';
-                html += '<th style="padding: 10px; text-align: right;">Subtotal</th>';
-                html += '</tr></thead><tbody class="detalle-venta-body">';
+                // Products table
+                html += '<div style="max-height: 250px; overflow-y: auto; margin-bottom: 20px;">';
+                html += '<table style="width: 100%; border-collapse: collapse;">';
+                html += '<thead><tr style="background: var(--bg-secondary);">';
+                html += '<th style="padding: 10px; text-align: left; font-size: 12px; color: var(--text-muted);">Producto</th>';
+                html += '<th style="padding: 10px; text-align: center; font-size: 12px; color: var(--text-muted);">Cant.</th>';
+                html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);">P.V.P</th>';
+                html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);">Importe</th>';
+                html += '</tr></thead><tbody>';
 
                 lineas.forEach(item => {
                     const subtotal = (item.precioUnitario * item.cantidad).toFixed(2).replace('.', ',');
-                    html += '<tr>';
-                    html += '<td>' + item.producto_nombre + '</td>';
-                    html += '<td style="text-align: center;">' + item.cantidad + '</td>';
-                    html += '<td style="text-align: right;">' + parseFloat(item.precioUnitario).toFixed(2).replace('.', ',') + ' €</td>';
-                    html += '<td style="text-align: right; font-weight: 600;">' + subtotal + ' €</td>';
+                    html += '<tr style="border-bottom: 1px solid var(--border-main);">';
+                    html += '<td style="padding: 10px;">' + item.producto_nombre + '</td>';
+                    html += '<td style="padding: 10px; text-align: center;">' + item.cantidad + '</td>';
+                    html += '<td style="padding: 10px; text-align: right;">' + parseFloat(item.precioUnitario).toFixed(2).replace('.', ',') + ' €</td>';
+                    html += '<td style="padding: 10px; text-align: right; font-weight: 600; color: var(--accent);">' + subtotal + ' €</td>';
                     html += '</tr>';
                 });
 
                 html += '</tbody></table>';
                 html += '</div>';
-                html += '<div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border-radius: 8px; text-align: center; font-weight: bold; font-size: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">';
+                
+                // Total
+                html += '<div style="background: var(--accent); color: white; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px;">';
                 html += 'TOTAL: ' + parseFloat(venta.total).toFixed(2).replace('.', ',') + ' €';
+                html += '</div>';
+                
+                // Close button
+                html += '<div style="margin-top: 20px; text-align: right;">';
+                html += '<button class="btn-modal-cancelar" onclick="cerrarModal(\'modalDetalleVenta\')">Cerrar</button>';
                 html += '</div>';
 
                 contenido.innerHTML = html;
@@ -2687,28 +2618,24 @@ endif; ?>
      * Elimina todos los productos del carrito y resetea el descuento.
      */
     function vaciarCarrito() {
-        carrito = [];
-        descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
-        puntosCanjeados = null; // Resetear puntos canjeados al vaciar el carrito
-        
-        // Resetear la asociación del cliente identificado
-        clienteIdentificadoEnModalPuntos = false;
-        const inputNif = document.getElementById('clienteNif');
-        if (inputNif) inputNif.value = '';
-        const inputNombre = document.getElementById('clienteNombre');
-        if (inputNombre) inputNombre.value = '';
-        
-        // Ocultar el indicador de DNI del ticket
-        ocultarDniEnTicket();
-        
-        // Resetear también el select de tarifa a Cliente
-        const tarifaCliente = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
-        if (tarifaCliente) {
-            document.getElementById('tarifaVenta').value = tarifaCliente.id;
-        } else if (tarifasPrefijadas.length > 0) {
-            document.getElementById('tarifaVenta').value = tarifasPrefijadas[0].id;
+        if (carrito.length === 0) return;
+        if (confirm('¿Estás seguro de que quieres vaciar el carrito?')) {
+            carrito = [];
+            
+            // Desvincular cliente y resetar descuentos
+            descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+            descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
+            desvincularCliente();
+            
+            // Resetear también el select de tarifa global a Cliente
+            const tarifaCliente = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+            if (tarifaCliente) {
+                const selectTarifa = document.getElementById('tarifaVenta');
+                if (selectTarifa) selectTarifa.value = tarifaCliente.id;
+            }
+            
+            actualizarTicket();
         }
-        actualizarTicket();
     }
 
     // Función global para resetear puntos canjeados después de una venta exitosa
@@ -2743,7 +2670,11 @@ endif; ?>
             ? { dni: puntosCanjeados.dni, puntos: puntosCanjeados.puntos }
             : null;
 
+        // Generar ID único para la venta pospuesta
+        const ventaId = Date.now();
+
         const ventaPospuesta = {
+            id: ventaId,
             carrito: carrito,
             descuento: descuento,
             tarifa: document.getElementById('tarifaVenta').value,
@@ -2753,8 +2684,22 @@ endif; ?>
             fecha: new Date().toLocaleString('es-ES')
         };
 
-        // Guardar en sessionStorage
-        sessionStorage.setItem('ventaPospuesta', JSON.stringify(ventaPospuesta));
+        // Obtener ventas pospuestas existentes o crear array vacío
+        let ventasPospuestas = [];
+        const ventasJson = sessionStorage.getItem('ventasPospuestas');
+        if (ventasJson) {
+            try {
+                ventasPospuestas = JSON.parse(ventasJson);
+            } catch (e) {
+                ventasPospuestas = [];
+            }
+        }
+
+        // Añadir nueva venta pospuesta al array
+        ventasPospuestas.push(ventaPospuesta);
+
+        // Guardar en sessionStorage como array
+        sessionStorage.setItem('ventasPospuestas', JSON.stringify(ventasPospuestas));
 
         // Vaciar el carrito y resetear datos del cliente
         carrito = [];
@@ -2779,105 +2724,262 @@ endif; ?>
         actualizarTicket();
 
         // Mostrar mensaje
-        alert('✅ Venta pospuesta. Puedes recuperarla cuando quieras.');
+        const totalPospuestas = ventasPospuestas.length;
+        alert(`✅ Venta pospuesta. Tienes ${totalPospuestas} venta(s) pospuesta(s). Puedes recuperarlas cuando quieras.`);
 
         // Actualizar estado del botón recuperar
-        actualizarBotonRecuperar();
+        actualizarBotonesPospuestos();
     }
 
     /**
-     * recuperarVenta()
-     * Recupera la última venta pospuesta y la vuelve al carrito.
+     * mostrarModalVentasPospuestas()
+     * Muestra un modal con todas las ventas pospuestas.
      */
-    function recuperarVenta() {
-        const ventaJson = sessionStorage.getItem('ventaPospuesta');
+    function mostrarModalVentasPospuestas() {
+        const ventasJson = sessionStorage.getItem('ventasPospuestas');
+        let ventasPospuestas = [];
+        
+        if (ventasJson) {
+            try {
+                ventasPospuestas = JSON.parse(ventasJson);
+            } catch (e) {
+                ventasPospuestas = [];
+            }
+        }
 
-        if (!ventaJson) {
-            alert('No hay ninguna venta pospuesta para recuperar');
+        if (ventasPospuestas.length === 0) {
+            alert('No hay ventas pospuestas para recuperar');
             return;
         }
 
-        const ventaPospuesta = JSON.parse(ventaJson);
+        // Crear el HTML del modal usando las clases CSS del sistema
+        const isDark = document.body.classList.contains('dark-mode');
+        const bgColor = isDark ? '#1f2937' : 'white';
+        const textColor = isDark ? '#e5e7eb' : '#1a1a2e';
+        const borderColor = isDark ? '#374151' : '#e5e7eb';
+        const subTextColor = isDark ? '#9ca3af' : '#6b7280';
+        
+        const modalHtml = `
+            <div id="modalVentasPospuestas" class="modal-overlay" style="display: flex;">
+                <div class="modal-content" style="background: ${bgColor}; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); max-width: 500px; width: 90%; max-height: 80vh; overflow: hidden;">
+                    <div style="padding: 20px; border-bottom: 1px solid ${borderColor}; display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0; font-size: 20px; color: ${textColor};">Ventas Pospuestas</h2>
+                        <button onclick="cerrarModalVentasPospuestas()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: ${subTextColor};">&times;</button>
+                    </div>
+                    <div style="padding: 20px; overflow-y: auto; max-height: 60vh;">
+                        ${ventasPospuestas.map((venta, index) => {
+                            const totalVenta = venta.carrito.reduce((sum, item) => sum + (item.pvpUnitario * item.cantidad), 0);
+                            const numProductos = venta.carrito.reduce((sum, item) => sum + item.cantidad, 0);
+                            return `
+                                <div style="border: 1px solid ${borderColor}; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: ${isDark ? '#111827' : '#f9fafb'};">
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                                        <div>
+                                            <strong style="color: ${textColor};">Venta #${index + 1}</strong>
+                                            <div style="font-size: 12px; color: ${subTextColor};">${venta.fecha}</div>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <div style="font-size: 16px; font-weight: 600; color: #059669;">${totalVenta.toFixed(2)} €</div>
+                                            <div style="font-size: 12px; color: ${subTextColor};">${numProductos} producto(s)</div>
+                                        </div>
+                                    </div>
+                                    <div style="font-size: 13px; color: ${subTextColor}; margin-bottom: 10px;">
+                                        ${venta.clienteDni ? 'Cliente: ' + venta.clienteDni : 'Sin cliente'}
+                                    </div>
+                                    <div style="display: flex; gap: 10px; margin-top: 12px;">
+                                        <button onclick="recuperarVenta(${venta.id})" class="btn-tpv" style="background: #059669; flex: 1;">
+                                            <i class="fas fa-reply"></i> Recuperar
+                                        </button>
+                                        <button onclick="eliminarVentaPospuesta(${venta.id})" class="btn-tpv" style="background: #dc2626; flex: 1;">
+                                            <i class="fas fa-trash"></i> Eliminar
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
 
-        // Restaurar el carrito y descuento
-        if (carrito.length > 0) {
-            if (!confirm('⚠️ Ya hay productos en el carrito. ¿Quieres añadir los productos pospuestos?')) {
+        // Añadir el modal al body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    /**
+     * cerrarModalVentasPospuestas()
+     * Cierra el modal de ventas pospuestas.
+     */
+    function cerrarModalVentasPospuestas() {
+        const modal = document.getElementById('modalVentasPospuestas');
+        if (modal) {
+            modal.remove();
+        }
+    }
+
+    /**
+     * eliminarVentaPospuesta(id)
+     * Elimina una venta pospuesta sin recuperarla.
+     */
+    function eliminarVentaPospuesta(id) {
+        if (!confirm('¿Estás seguro de que quieres eliminar esta venta pospuesta?')) {
+            return;
+        }
+
+        const ventasJson = sessionStorage.getItem('ventasPospuestas');
+        let ventasPospuestas = [];
+        
+        if (ventasJson) {
+            try {
+                ventasPospuestas = JSON.parse(ventasJson);
+            } catch (e) {
+                ventasPospuestas = [];
+            }
+        }
+
+        // Buscar la venta por ID
+        const ventaIndex = ventasPospuestas.findIndex(v => v.id === id);
+        if (ventaIndex === -1) {
+            alert('No se encontró la venta pospuesta');
+            return;
+        }
+
+        // Eliminar la venta del array
+        ventasPospuestas.splice(ventaIndex, 1);
+        sessionStorage.setItem('ventasPospuestas', JSON.stringify(ventasPospuestas));
+
+        alert('✅ Venta pospuesta eliminada');
+
+        // Actualizar estado del botón
+        actualizarBotonesPospuestos();
+
+        // Si no quedan ventas, cerrar el modal
+        if (ventasPospuestas.length === 0) {
+            cerrarModalVentasPospuestas();
+        } else {
+            // Actualizar el modal mostrando las ventas restantes
+            mostrarModalVentasPospuestas();
+        }
+    }
+
+    /**
+     * recuperarVenta(id)
+     * Recupera una venta pospuesta específica y la vuelve al carrito.
+     */
+    function recuperarVenta(id) {
+        const ventasJson = sessionStorage.getItem('ventasPospuestas');
+        let ventasPospuestas = [];
+        
+        if (ventasJson) {
+            try {
+                ventasPospuestas = JSON.parse(ventasJson);
+            } catch (e) {
+                alert('Error al recuperar las ventas pospuestas');
                 return;
             }
-            // Añadir los productos pospuestos al carrito existente manteniendo sus datos redondeados
-            ventaPospuesta.carrito.forEach(productoPospuesto => {
-                // Buscamos si ya existe el mismo producto con la misma tarifa para agruparlo
-                const existente = carrito.find(item =>
-                    item.idProducto === productoPospuesto.idProducto &&
-                    item.tarifaNombre === productoPospuesto.tarifaNombre
-                );
+        }
 
-                if (existente) {
-                    existente.cantidad += productoPospuesto.cantidad;
-                } else {
-                    carrito.push(productoPospuesto);
-                }
-            });
+        // Buscar la venta por ID
+        const ventaIndex = ventasPospuestas.findIndex(v => v.id === id);
+        if (ventaIndex === -1) {
+            alert('No se encontró la venta pospuesta');
+            return;
+        }
+
+        const ventaPospuesta = ventasPospuestas[ventaIndex];
+
+        // Sobrescribir el carrito directamente con los productos de la venta pospuesta
+        // Primero vaciamos el carrito actual
+        carrito = [];
+        
+        // Restaurar el carrito y descuento directamente
+        carrito = ventaPospuesta.carrito;
+        descuento = ventaPospuesta.descuento || { tipo: 'ninguno', valor: 0, cupon: '' };
+        
+        // Restaurar la tarifa seleccionada en el selector global
+        if (ventaPospuesta.tarifa) {
+            document.getElementById('tarifaVenta').value = ventaPospuesta.tarifa;
         } else {
-            // Restaurar el carrito y descuento directamente
-            carrito = ventaPospuesta.carrito;
-            descuento = ventaPospuesta.descuento || { tipo: 'ninguno', valor: 0, cupon: '' };
-            // Restaurar la tarifa seleccionada en el selector global
-            if (ventaPospuesta.tarifa) {
-                document.getElementById('tarifaVenta').value = ventaPospuesta.tarifa;
-            } else {
-                const tarifaCliente3 = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
-                if (tarifaCliente3) {
-                    document.getElementById('tarifaVenta').value = tarifaCliente3.id;
-                } else if (tarifasPrefijadas.length > 0) {
-                    document.getElementById('tarifaVenta').value = tarifasPrefijadas[0].id;
-                }
+            const tarifaCliente3 = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+            if (tarifaCliente3) {
+                document.getElementById('tarifaVenta').value = tarifaCliente3.id;
+            } else if (tarifasPrefijadas.length > 0) {
+                document.getElementById('tarifaVenta').value = tarifasPrefijadas[0].id;
             }
+        }
 
-            // Restaurar DNI del cliente si existe
-            if (ventaPospuesta.clienteDni) {
-                const clienteNifInput = document.getElementById('clienteNif');
-                if (clienteNifInput) {
-                    clienteNifInput.value = ventaPospuesta.clienteDni;
-                    // Mostrar indicador de cliente
-                    mostrarDniEnTicket(ventaPospuesta.clienteDni);
-                }
+        // Restaurar DNI del cliente si existe
+        if (ventaPospuesta.clienteDni) {
+            const clienteNifInput = document.getElementById('clienteNif');
+            if (clienteNifInput) {
+                clienteNifInput.value = ventaPospuesta.clienteDni;
+                // Mostrar indicador de cliente
+                mostrarDniEnTicket(ventaPospuesta.clienteDni);
             }
+        } else {
+            // Limpiar datos del cliente si no hay en la venta pospuesta
+            const clienteNifInput = document.getElementById('clienteNif');
+            if (clienteNifInput) clienteNifInput.value = '';
+            const clienteNombreInput = document.getElementById('clienteNombre');
+            if (clienteNombreInput) clienteNombreInput.value = '';
+            const indicador = document.getElementById('indicadorClienteDni');
+            if (indicador) indicador.style.display = 'none';
+        }
 
-            // Restaurar puntos canjeados si existen
-            if (ventaPospuesta.puntosCanjeados && ventaPospuesta.puntosCanjeados.dni && ventaPospuesta.puntosCanjeados.puntos > 0) {
-                puntosCanjeados = {
-                    dni: ventaPospuesta.puntosCanjeados.dni,
-                    puntos: ventaPospuesta.puntosCanjeados.puntos
-                };
-            }
+        // Restaurar puntos canjeados si existen, sino limpiar
+        if (ventaPospuesta.puntosCanjeados && ventaPospuesta.puntosCanjeados.dni && ventaPospuesta.puntosCanjeados.puntos > 0) {
+            puntosCanjeados = {
+                dni: ventaPospuesta.puntosCanjeados.dni,
+                puntos: ventaPospuesta.puntosCanjeados.puntos
+            };
+        } else {
+            puntosCanjeados = null;
         }
 
         actualizarTicket();
 
-        // Limpiar la venta pospuesta
-        sessionStorage.removeItem('ventaPospuesta');
+        // Cerrar el modal
+        cerrarModalVentasPospuestas();
+
+        // Eliminar la venta pospuesta del array
+        ventasPospuestas.splice(ventaIndex, 1);
+        sessionStorage.setItem('ventasPospuestas', JSON.stringify(ventasPospuestas));
 
         alert('✅ Venta recuperada: ' + ventaPospuesta.fecha);
 
         // Actualizar estado del botón recuperar
-        actualizarBotonRecuperar();
+        actualizarBotonesPospuestos();
     }
 
     /**
-     * actualizarBotonRecuperar()
-     * Habilita/deshabilita el botón de recuperar según si hay venta pospuesta.
+     * actualizarBotonesPospuestos()
+     * Habilita/deshabilita los botones de recuperar según si hay ventas pospuestas.
      */
-    function actualizarBotonRecuperar() {
-        const btnRecuperar = document.getElementById('btnRecuperar');
-        const ventaJson = sessionStorage.getItem('ventaPospuesta');
+    function actualizarBotonesPospuestos() {
+        const btnVerPospuestas = document.getElementById('btnVerPospuestas');
+        
+        const ventasJson = sessionStorage.getItem('ventasPospuestas');
+        let ventasPospuestas = [];
+        
+        if (ventasJson) {
+            try {
+                ventasPospuestas = JSON.parse(ventasJson);
+            } catch (e) {
+                ventasPospuestas = [];
+            }
+        }
 
-        if (ventaJson) {
-            btnRecuperar.disabled = false;
-            btnRecuperar.style.opacity = '1';
-        } else {
-            btnRecuperar.disabled = true;
-            btnRecuperar.style.opacity = '0.5';
+        const tieneVentas = ventasPospuestas && ventasPospuestas.length > 0;
+        
+        if (btnVerPospuestas) {
+            if (tieneVentas) {
+                btnVerPospuestas.disabled = false;
+                btnVerPospuestas.style.opacity = '1';
+                btnVerPospuestas.textContent = '📋 (' + ventasPospuestas.length + ')';
+            } else {
+                btnVerPospuestas.disabled = true;
+                btnVerPospuestas.style.opacity = '0.5';
+                btnVerPospuestas.textContent = '📋';
+            }
         }
     }
 
@@ -2921,7 +3023,7 @@ endif; ?>
 
     // Inicializar botón de recuperar al cargar la página
     document.addEventListener('DOMContentLoaded', function () {
-        actualizarBotonRecuperar();
+        actualizarBotonesPospuestos();
         verificarCambiosIvaProgramados();
     });
 
@@ -4629,13 +4731,20 @@ endif; ?>
      * Cancela la selección del cliente y cierra el modal
      */
     /**
-     * Muestra el DNI del cliente identificado en la zona del ticket
+     * Muestra el DNI y nombre del cliente identificado en la zona del ticket
      */
     function mostrarDniEnTicket(dni) {
         const indicador = document.getElementById('indicadorClienteDni');
-        const valor = document.getElementById('indicadorClienteDniValor');
-        if (indicador && valor && dni) {
-            valor.textContent = dni.toUpperCase();
+        const valorDni = document.getElementById('indicadorClienteDniValor');
+        const valorNombre = document.getElementById('indicadorClienteNombre');
+        const nombreInput = document.getElementById('clienteNombre');
+        
+        if (indicador && valorDni && dni) {
+            valorDni.textContent = dni.toUpperCase();
+            if (valorNombre && nombreInput) {
+                valorNombre.textContent = nombreInput.value.toUpperCase();
+                valorNombre.title = nombreInput.value;
+            }
             indicador.style.display = 'flex';
         }
     }
@@ -4650,25 +4759,48 @@ endif; ?>
         if (valor) valor.textContent = '';
     }
 
-    function cerrarYLimpiarClientePuntos() {
+    /**
+     * Desvincula el cliente actual de la venta, limpiando todos sus datos y puntos
+     */
+    function desvincularCliente() {
         clienteIdentificadoEnModalPuntos = false;
-        document.getElementById('clienteNif').value = '';
-        document.getElementById('clienteNombre').value = '';
+        
+        // Limpiar campos de datos del cliente
+        const ids = ['clienteNif', 'clienteNombre', 'clienteDireccion', 'clienteObservaciones', 
+                     'inputClienteNifFinal', 'inputClienteNombreFinal', 'inputClienteDireccionFinal', 
+                     'inputObservacionesFinal', 'inputPuntosCanjeadosDni', 'inputPuntosCanjeadosCantidad',
+                     'dniPuntosCliente', 'dniBusquedaCliente'];
+        
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        
+        // Resetear flag de puntos
+        const identificadorPuntos = document.getElementById('inputClienteIdentificadoPuntos');
+        if (identificadorPuntos) identificadorPuntos.value = 'false';
+        
+        // Resetear variables globales
         puntosCanjeados = null;
         
-        // Limpiar el DNI del input del modal de puntos
-        document.getElementById('dniPuntosCliente').value = '';
-        
-        // Resetear el flag de cliente identificado para que no se regalen puntos
-        document.getElementById('inputClienteIdentificadoPuntos').value = 'false';
-        
-        // Ocultar el indicador de DNI del ticket
+        // Ocultar indicador en UI
         ocultarDniEnTicket();
+        
+        // Si el descuento actual era por puntos (ej: PUNTOS_1000), lo quitamos también
+        if (descuento.cupon && descuento.cupon.startsWith('PUNTOS_')) {
+            descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+        }
+        
+        // Actualizar ticket para reflejar que ya no hay cliente (puntos previstos, etc)
+        actualizarTicket();
+    }
+
+    function cerrarYLimpiarClientePuntos() {
+        desvincularCliente();
         
         cerrarModal('modalPuntosCliente'); 
         document.getElementById('puntosClienteBusqueda').style.display='block'; 
         document.getElementById('puntosClienteInfo').style.display='none';
-        actualizarTicket();
     }
     
     /**

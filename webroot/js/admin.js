@@ -7,6 +7,9 @@
 // Variable global para el término de búsqueda en tarifas
 let tarifaBusquedaProducto = '';
 
+// Variable global para guardar la posición del scroll de la previsualización
+let scrollPrevisualizacion = 0;
+
 // Función para filtrar la tabla de tarifas por nombre de producto
 function filtrarTablaTarifas() {
     const termino = tarifaBusquedaProducto.toLowerCase();
@@ -2186,14 +2189,26 @@ function abrirImagenGrande(src, alt = '') {
  * el valor mostrado en la tarjeta correspondiente del panel de estadísticas.
  */
 function actualizarContadorProductos() {
-    // Contar el número de badges "activo" presentes en la tabla de productos.
-    const totalActivos = document.querySelectorAll('#adminContenido .badge-activo').length;
+    // Contar productos activos desde los datos (todos los productos, no solo los de la página actual)
+    let totalActivos = 0;
+    let alertasStock = 0;
+    if (productosData && productosData.length > 0) {
+        totalActivos = productosData.filter(p => p.activo === 1).length;
+        // Calcular alertas de stock (productos con stock <= 3)
+        alertasStock = productosData.filter(p => p.stock <= 3 && p.stock > 0).length;
+    }
 
-    // Buscar la tarjeta de estadísticas que muestra "Total Productos Activos" y actualizar su valor.
+    // Buscar y actualizar las tarjetas de estadísticas
     const tarjetas = document.querySelectorAll('.admin-stat-card');
     tarjetas.forEach(card => {
-        if (card.querySelector('.admin-stat-label')?.textContent.includes('Total Productos Activos')) {
+        const label = card.querySelector('.admin-stat-label');
+        if (!label) return;
+        
+        if (label.textContent.includes('Total Productos Activos')) {
             card.querySelector('.admin-stat-value').textContent = totalActivos;
+        }
+        if (label.textContent.includes('Alertas Stock')) {
+            card.querySelector('.admin-stat-value').textContent = alertasStock;
         }
     });
 }
@@ -3502,27 +3517,40 @@ function cargarConfiguracion(subseccion = 'todas') {
 }
 
 /**
+ * Paginación de Logs
+ */
+let paginaActualLogs = 1;
+let totalPaginasLogs = 1;
+const logsPorPagina = 6;
+// Usar window.filtroTipoLog y window.filtroFechaLog para persistencia
+if (window.filtroTipoLog === undefined) window.filtroTipoLog = '';
+if (window.filtroFechaLog === undefined) window.filtroFechaLog = '';
+
+/**
  * Carga y muestra los logs del sistema.
  */
 function cargarLogs(filtros = {}) {
     seccionActual = 'logs';
     adminTablaHeaderHTML = '';
 
-    // Inicializar filtros si no existen
-    if (window.filtroFechaLog === undefined) {
-        window.filtroFechaLog = '';
-    }
-    if (window.filtroTipoLog === undefined) {
-        window.filtroTipoLog = '';
-    }
+    // Si se pasa una página en filtros, actualizar la página actual, si no resetear a 1
+    paginaActualLogs = filtros.pagina !== undefined ? filtros.pagina : 1;
 
     const contenedor = document.getElementById('adminContenido');
     contenedor.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--text-muted);">Cargando logs...</p>';
 
     // Construir URL con filtros
-    const params = new URLSearchParams(filtros);
-    params.set('pagina', filtros.pagina || 1);
-    params.set('por_pagina', filtros.porPagina || 50);
+    const params = new URLSearchParams();
+
+    // Usar filtros pasados o los globales de window
+    const tipo = filtros.tipo !== undefined ? filtros.tipo : window.filtroTipoLog;
+    const fecha = filtros.fecha !== undefined ? filtros.fecha : window.filtroFechaLog;
+
+    if (tipo) params.set('tipo', tipo);
+    if (fecha) params.set('fecha', fecha);
+
+    params.set('pagina', paginaActualLogs);
+    params.set('por_pagina', logsPorPagina);
 
     const url = 'api/logs.php?' + params.toString();
     console.log('Cargar logs - URL:', url);
@@ -3532,6 +3560,7 @@ function cargarLogs(filtros = {}) {
         .then(data => {
             // Guardar los datos globalmente para acceder desde verDetalleLog
             window.logsData = data.logs || [];
+            totalPaginasLogs = Math.ceil((data.total || 0) / logsPorPagina);
             renderLogs(data);
         })
         .catch(err => {
@@ -3653,10 +3682,96 @@ function renderLogs(data) {
                     </tbody>
                 </table>
             </div>
+            ${getPaginacionLogsHTML(totalPaginasLogs)}
         </div>
     `;
 
     contenedor.innerHTML = html;
+
+    // Ajustar ancho de inputs de paginación
+    ajustarTodosInputsPaginacion();
+}
+
+/**
+ * Genera los controles de paginación para logs
+ */
+function getPaginacionLogsHTML(totalPaginas) {
+    if (totalPaginas <= 1) return '';
+
+    let botones = '';
+
+    // Botón primera página
+    if (paginaActualLogs > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaLogs(1)" title="Primera página">
+            <i class="fas fa-angle-double-left"></i>
+        </button>`;
+    }
+
+    // Botón anterior
+    if (paginaActualLogs > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaLogs(${paginaActualLogs - 1})" title="Página anterior">
+            <i class="fas fa-chevron-left"></i>
+        </button>`;
+    }
+
+    // Input para número de página
+    botones += `<div class="input-paginacion">
+        <input type="number" id="inputPaginaLogs" class="input-numero-pagina" 
+            value="${paginaActualLogs}" min="1" max="${totalPaginas}" 
+            onfocus="ajustarAnchoInput(this)" oninput="ajustarAnchoInput(this)" onblur="ajustarAnchoInput(this)" onchange="irAPaginaLogs()" onkeypress="if(event.key === 'Enter') irAPaginaLogs()">
+        <span class="info-paginacion"> de ${totalPaginas}</span>
+    </div>`;
+
+    // Botón siguiente
+    if (paginaActualLogs < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaLogs(${paginaActualLogs + 1})" title="Siguiente página">
+            <i class="fas fa-chevron-right"></i>
+        </button>`;
+    }
+
+    // Botón última página
+    if (paginaActualLogs < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaLogs(${totalPaginas})" title="Última página">
+            <i class="fas fa-angle-double-right"></i>
+        </button>`;
+    }
+
+    return `
+        <div class="admin-paginacion-wrapper">
+            <div class="admin-paginacion">
+                ${botones}
+            </div>
+        </div>`;
+}
+
+/**
+ * Cambia la página de logs
+ */
+function cambiarPaginaLogs(nuevaPagina) {
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginasLogs) return;
+    paginaActualLogs = nuevaPagina;
+    cargarLogs({
+        tipo: window.filtroTipoLog,
+        fecha: window.filtroFechaLog,
+        pagina: paginaActualLogs
+    });
+}
+
+/**
+ * Navega a la página de logs especificada
+ */
+function irAPaginaLogs() {
+    const input = document.getElementById('inputPaginaLogs');
+    if (!input) return;
+
+    let pagina = parseInt(input.value);
+    if (isNaN(pagina) || pagina < 1) {
+        pagina = 1;
+    } else if (pagina > totalPaginasLogs) {
+        pagina = totalPaginasLogs;
+    }
+
+    cambiarPaginaLogs(pagina);
 }
 
 /**
@@ -6664,7 +6779,19 @@ function buscarCategorias() {
     }, 300);
 }
 
+let productosCategoriaActual = [];
+let indexProductoActual = 0;
+
 function verCategoria(id) {
+    const listCont = document.getElementById('verCategoriaListaProductos');
+    const badge = document.getElementById('verCategoriaCantProdBadge');
+
+    // Limpiar y poner cargando
+    listCont.innerHTML = '<div class="cat-prod-empty">Cargando...</div>';
+    badge.textContent = '0';
+    productosCategoriaActual = [];
+    indexProductoActual = 0;
+
     fetch('api/categorias.php?id=' + id)
         .then(res => res.json())
         .then(data => {
@@ -6673,22 +6800,106 @@ function verCategoria(id) {
                 return;
             }
 
-            const fecha = data.fecha_creacion ? new Date(data.fecha_creacion).toLocaleString('es-ES') : '—';
-
-            // Llenar los campos del modal
+            // Llenar los campos del modal (info básica)
             document.getElementById('verCategoriaId').textContent = data.id;
             document.getElementById('verCategoriaNombre').textContent = data.nombre;
-            document.getElementById('verCategoriaProductos').innerHTML = '<span class="admin-badge" style="background: #e0e7ff; color: #3730a3;">' + data.num_productos + '</span>';
-            document.getElementById('verCategoriaFecha').textContent = fecha;
             document.getElementById('verCategoriaDescripcion').textContent = data.descripcion || 'Sin descripción';
+            badge.textContent = data.num_productos;
 
             // Abrir el modal
             abrirModal('modalVerCategoria');
+
+            // Cargar productos de la categoría
+            return fetch('api/productos.php?idCategoria=' + id);
+        })
+        .then(res => res ? res.json() : null)
+        .then(productos => {
+            if (!productos) return;
+            productosCategoriaActual = productos;
+            renderizarProductoCarrusel();
         })
         .catch(err => {
             console.error('Error:', err);
-            alert('Error al cargar los datos de la categoría.');
+            listCont.innerHTML = '<div class="cat-prod-empty" style="color: #dc2626;">Error al cargar productos</div>';
         });
+}
+
+function renderizarProductoCarrusel() {
+    const listCont = document.getElementById('verCategoriaListaProductos');
+    const inputPag = document.getElementById('catCarouselInput');
+    const totalSpan = document.getElementById('catCarouselTotal');
+    const btnFirst = document.getElementById('firstCatProd');
+    const btnPrev = document.getElementById('prevCatProd');
+    const btnNext = document.getElementById('nextCatProd');
+    const btnLast = document.getElementById('lastCatProd');
+
+    if (productosCategoriaActual.length === 0) {
+        listCont.innerHTML = '<div class="cat-prod-empty">No hay productos en esta categoría</div>';
+        if (inputPag) inputPag.value = 0;
+        if (totalSpan) totalSpan.textContent = '0';
+        btnFirst.disabled = true;
+        btnPrev.disabled = true;
+        btnNext.disabled = true;
+        btnLast.disabled = true;
+        return;
+    }
+
+    const p = productosCategoriaActual[indexProductoActual];
+    const img = p.imagen ? p.imagen : 'webroot/img/productos/default.png';
+    const stockClass = p.stock <= 5 ? 'low' : '';
+    const precio = parseFloat(p.precio).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    listCont.innerHTML = `
+        <div class="cat-prod-card animate-fade-in">
+            <img src="${img}" alt="${p.nombre}" class="cat-prod-img" onerror="this.src='webroot/img/productos/default.png'">
+            <div class="cat-prod-name">${p.nombre}</div>
+            <div class="cat-prod-price">${precio} €</div>
+            <div class="cat-prod-stock ${stockClass}">Stock: ${p.stock} unidades</div>
+        </div>`;
+
+    // Actualizar controles
+    if (inputPag) {
+        inputPag.value = indexProductoActual + 1;
+        inputPag.max = productosCategoriaActual.length;
+    }
+    if (totalSpan) {
+        totalSpan.textContent = productosCategoriaActual.length;
+    }
+
+    const isFirst = indexProductoActual === 0;
+    const isLast = indexProductoActual === productosCategoriaActual.length - 1;
+
+    btnFirst.disabled = isFirst;
+    btnPrev.disabled = isFirst;
+    btnNext.disabled = isLast;
+    btnLast.disabled = isLast;
+}
+
+function cambiarProductoCarrusel(op) {
+    if (op === 'first') {
+        indexProductoActual = 0;
+    } else if (op === 'last') {
+        indexProductoActual = productosCategoriaActual.length - 1;
+    } else {
+        indexProductoActual += op;
+    }
+
+    // Validar limites
+    if (indexProductoActual < 0) indexProductoActual = 0;
+    if (indexProductoActual >= productosCategoriaActual.length) indexProductoActual = productosCategoriaActual.length - 1;
+
+    renderizarProductoCarrusel();
+}
+
+function saltarAProductoCarrusel(valor) {
+    let num = parseInt(valor);
+    if (isNaN(num)) return;
+
+    if (num < 1) num = 1;
+    if (num > productosCategoriaActual.length) num = productosCategoriaActual.length;
+
+    indexProductoActual = num - 1;
+    renderizarProductoCarrusel();
 }
 
 function abrirModalNuevaCategoria() {
@@ -6871,7 +7082,17 @@ function eliminarCategoria(id) {
         .then(res => res.json())
         .then(data => {
             if (data.error) {
-                alert(data.error);
+                // Verificar si es error de productos asociados
+                if (data.num_productos && data.categoria) {
+                    Swal.fire({
+                        title: 'No se puede eliminar',
+                        html: `La categoría <b>"${data.categoria}"</b> tiene <b>${data.num_productos}</b> productos asociados.<br><br>Para eliminarla, primero debes desvincular o eliminar los productos de esta categoría.`,
+                        icon: 'warning',
+                        confirmButtonText: 'Entendido'
+                    });
+                } else {
+                    Swal.fire('Error', data.error, 'error');
+                }
                 return;
             }
             // Recargar categorías
@@ -6883,7 +7104,7 @@ function eliminarCategoria(id) {
         })
         .catch(err => {
             console.error('Error:', err);
-            alert('Error al eliminar la categoría');
+            Swal.fire('Error', 'Error al eliminar la categoría', 'error');
         });
 }
 
@@ -7106,6 +7327,12 @@ function mostrarTablaPrevisualizacionIVA(productos, nuevoIVA) {
 
     html += `</tbody></table></div></div>`;
     contenedor.innerHTML = html;
+
+    // Restaurar scroll si existía
+    const wrapper = contenedor.querySelector('.previsualizacion-tabla-wrapper');
+    if (wrapper && scrollPrevisualizacion > 0) {
+        wrapper.scrollTop = scrollPrevisualizacion;
+    }
 }
 
 /**
@@ -8183,6 +8410,10 @@ function previsualizarAjustePrecios() {
         });
 }
 
+let paginaActualHistorial = 1;
+let totalPaginasHistorial = 1;
+const historialPorPagina = 6;
+
 /**
  * Muestra el panel de historial de precios en la vista de admin
  */
@@ -8190,49 +8421,39 @@ function mostrarPanelHistorialPrecios() {
     const contenedor = document.getElementById('adminContenido');
     seccionActual = 'historial-precios';
     adminTablaHeaderHTML = '';
-
-    // Detectar tema actual
-    const isDark = document.body.classList.contains('dark-mode');
-    const bgColor = isDark ? '#1f2937' : '#ffffff';
-    const textColor = isDark ? '#e5e7eb' : '#1f2937';
-    const subTextColor = isDark ? '#9ca3af' : '#6b7280';
-    const borderColor = isDark ? '#374151' : '#e5e7eb';
-    const inputBg = isDark ? '#374151' : '#ffffff';
-    const tableHeaderBg = isDark ? '#111827' : '#f3f4f6';
+    paginaActualHistorial = 1;
 
     contenedor.innerHTML = `
-        <div style="padding: 20px; background: ${bgColor}; border-radius: 8px;">
-            <h3 style="margin-bottom: 20px; color: ${textColor};">Historial de Precios</h3>
-            
-            <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 250px;">
-                    <label style="display: block; margin-bottom: 8px; color: ${textColor}; font-weight: 500;">Seleccionar Producto:</label>
-                    <select id="selectHistorialProducto" 
-                        style="width: 100%; padding: 10px; border: 1px solid ${borderColor}; border-radius: 8px; background: ${inputBg}; color: ${textColor}; font-size: 14px; cursor: pointer;"
-                        onchange="cargarHistorialPrecios()">
-                        <option value="" style="background: ${bgColor}; color: ${textColor};">-- Seleccionar un producto --</option>
-                    </select>
+        <div class="logs-container">
+            <div class="logs-filtros">
+                <div class="logs-filtro-item" style="flex: 1; min-width: 250px; position: relative;">
+                    <label>Seleccionar Producto:</label>
+                    <input type="text" id="inputHistorialProducto" 
+                        placeholder="Escriba el nombre del producto..."
+                        oninput="filtrarProductosAutocomplete(this.value)"
+                        onfocus="filtrarProductosAutocomplete(this.value)"
+                        autocomplete="off">
+                    <input type="hidden" id="selectHistorialProducto">
+                    <div id="autocompleteResults" class="autocomplete-results" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; background: var(--bg-card); border: 1px solid var(--border-main); border-radius: 0 0 8px 8px; max-height: 200px; overflow-y: auto; box-shadow: var(--shadow-md);"></div>
                 </div>
-                <div style="flex: 1; min-width: 250px;">
-                    <label style="display: block; margin-bottom: 8px; color: ${textColor}; font-weight: 500;">Seleccionar Tarifa:</label>
-                    <select id="selectHistorialTarifa" 
-                        style="width: 100%; padding: 10px; border: 1px solid ${borderColor}; border-radius: 8px; background: ${inputBg}; color: ${textColor}; font-size: 14px; cursor: pointer;"
-                        onchange="cargarHistorialPrecios()">
-                        <option value="" style="background: ${bgColor}; color: ${textColor};">-- Todas las tarifas --</option>
-                        <option value="base" style="background: ${bgColor}; color: ${textColor};">Precio Base</option>
+                <div class="logs-filtro-item" style="flex: 1; min-width: 250px;">
+                    <label>Seleccionar Tarifa:</label>
+                    <select id="selectHistorialTarifa" onchange="cargarHistorialPrecios()">
+                        <option value="">-- Todas las tarifas --</option>
+                        <option value="base">Precio Base</option>
                     </select>
                 </div>
             </div>
 
-            <div id="tablaHistorialPreciosContainer" style="display: none; max-height: 380px; overflow-y: auto; border: 1px solid ${borderColor}; border-radius: 8px;">
-                <table style="width: 100%; border-collapse: separate; border-spacing: 0; background: ${bgColor};">
+            <div id="tablaHistorialPreciosContainer" class="admin-tabla-wrapper sin-scroll" style="display: none; margin-bottom: 20px;">
+                <table class="admin-tabla">
                     <thead>
                         <tr>
-                            <th style="position: sticky; top: 0; background: ${tableHeaderBg}; padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor}; z-index: 10;">Precio</th>
-                            <th style="position: sticky; top: 0; background: ${tableHeaderBg}; padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor}; z-index: 10;">Válido Desde</th>
-                            <th style="position: sticky; top: 0; background: ${tableHeaderBg}; padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor}; z-index: 10;">Válido Hasta</th>
-                            <th style="position: sticky; top: 0; background: ${tableHeaderBg}; padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor}; z-index: 10;">Tarifa</th>
-                            <th style="position: sticky; top: 0; background: ${tableHeaderBg}; padding: 12px; text-align: left; border-bottom: 2px solid ${borderColor}; color: ${textColor}; z-index: 10;">Usuario</th>
+                            <th>Precio</th>
+                            <th>Válido Desde</th>
+                            <th>Válido Hasta</th>
+                            <th>Tarifa</th>
+                            <th>Usuario</th>
                         </tr>
                     </thead>
                     <tbody id="tablaHistorialPreciosBody">
@@ -8240,7 +8461,7 @@ function mostrarPanelHistorialPrecios() {
                 </table>
             </div>
 
-            <div id="historialPreciosMensaje" style="margin-top: 20px; color: ${subTextColor}; font-style: italic;">
+            <div id="historialPreciosMensaje" class="admin-mensaje-vacio" style="margin-top: 20px; text-align: center; padding: 40px; color: var(--text-muted); font-style: italic; background: var(--bg-card); border: 1px dashed var(--border-main); border-radius: 8px;">
                 Seleccione un producto para ver su historial de precios
             </div>
         </div>
@@ -8259,13 +8480,7 @@ function mostrarPanelHistorialPrecios() {
     fetch('api/productos.php?listaProductos')
         .then(res => res.json())
         .then(productos => {
-            const select = document.getElementById('selectHistorialProducto');
-            productos.forEach(prod => {
-                const option = document.createElement('option');
-                option.value = prod.id;
-                option.textContent = prod.nombre;
-                select.appendChild(option);
-            });
+            window.catalogoProductos = productos;
         })
         .catch(err => {
             console.error('Error cargando productos:', err);
@@ -8276,14 +8491,14 @@ function mostrarPanelHistorialPrecios() {
         .then(res => res.json())
         .then(tarifas => {
             const select = document.getElementById('selectHistorialTarifa');
-            tarifas.forEach(tarifa => {
-                const option = document.createElement('option');
-                option.value = tarifa.id;
-                option.textContent = tarifa.nombre;
-                option.style.background = bgColor;
-                option.style.color = textColor;
-                select.appendChild(option);
-            });
+            if (select) {
+                tarifas.forEach(tarifa => {
+                    const option = document.createElement('option');
+                    option.value = tarifa.id;
+                    option.textContent = tarifa.nombre;
+                    select.appendChild(option);
+                });
+            }
         })
         .catch(err => {
             console.error('Error cargando tarifas:', err);
@@ -8293,7 +8508,7 @@ function mostrarPanelHistorialPrecios() {
 /**
  * Carga el historial de precios del producto seleccionado
  */
-function cargarHistorialPrecios() {
+function cargarHistorialPrecios(filtros = {}) {
     const select = document.getElementById('selectHistorialProducto');
     const idProducto = select.value;
     const selectTarifa = document.getElementById('selectHistorialTarifa');
@@ -8302,18 +8517,20 @@ function cargarHistorialPrecios() {
     const mensaje = document.getElementById('historialPreciosMensaje');
     const tbody = document.getElementById('tablaHistorialPreciosBody');
 
-    // Detectar tema actual
-    const isDark = document.body.classList.contains('dark-mode');
-    const textColor = isDark ? '#e5e7eb' : '#1f2937';
-    const subTextColor = isDark ? '#9ca3af' : '#6b7280';
-    const borderColor = isDark ? '#374151' : '#e5e7eb';
-    const rowBg = isDark ? '#1f2937' : '#ffffff';
-    const rowAltBg = isDark ? '#111827' : '#f3f4f6';
+    // Si se pasa una página en filtros, actualizar la página actual
+    if (filtros.pagina !== undefined) {
+        paginaActualHistorial = filtros.pagina;
+    } else if (filtros.resetPaginacion !== false) {
+        paginaActualHistorial = 1;
+    }
 
     if (!idProducto) {
         container.style.display = 'none';
         mensaje.style.display = 'block';
         mensaje.textContent = 'Seleccione un producto para ver su historial de precios';
+        // Limpiar controles de paginación previos si los hay
+        const oldPaginacion = document.getElementById('paginacionHistorial');
+        if (oldPaginacion) oldPaginacion.remove();
         return;
     }
 
@@ -8322,69 +8539,69 @@ function cargarHistorialPrecios() {
     mensaje.style.display = 'block';
     container.style.display = 'none';
 
-    fetch('api/productos.php?historialPrecios=' + idProducto)
+    // Construir URL con filtros y paginación
+    let url = `api/productos.php?historialPrecios=${idProducto}&pagina=${paginaActualHistorial}&por_pagina=${historialPorPagina}`;
+    if (idTarifa) url += `&id_tarifa=${idTarifa}`;
+
+    fetch(url)
         .then(res => res.json())
-        .then(historial => {
+        .then(data => {
             mensaje.style.display = 'none';
 
-            if (!historial || historial.length === 0) {
-                mensaje.textContent = 'No hay historial de precios para este producto';
+            if (!data.ok || !data.historial || data.historial.length === 0) {
+                mensaje.textContent = data.error || 'No hay historial de precios para este producto con los filtros seleccionados';
                 mensaje.style.display = 'block';
                 container.style.display = 'none';
+
+                // Limpiar paginación si no hay datos
+                const oldPaginacion = document.getElementById('paginacionHistorial');
+                if (oldPaginacion) oldPaginacion.remove();
                 return;
             }
 
-            // Filtrar por tarifa si se ha seleccionado una
-            let historialFiltrado = historial;
-            if (idTarifa) {
-                if (idTarifa === 'base') {
-                    // Mostrar solo precios base (sin tarifa)
-                    historialFiltrado = historial.filter(item => !item.id_tarifa || item.id_tarifa === null);
-                } else {
-                    // Mostrar solo precios de la tarifa seleccionada
-                    historialFiltrado = historial.filter(item => item.id_tarifa == idTarifa);
-                }
-            }
-
-            if (historialFiltrado.length === 0) {
-                mensaje.textContent = idTarifa === 'base'
-                    ? 'No hay historial de precios base para este producto'
-                    : 'No hay historial de precios para esta tarifa';
-                mensaje.style.display = 'block';
-                container.style.display = 'none';
-                return;
-            }
+            const historial = data.historial;
+            totalPaginasHistorial = Math.ceil(data.total / historialPorPagina);
 
             let html = '';
-            historialFiltrado.forEach((item, index) => {
+            historial.forEach((item, index) => {
                 const fechaDesde = new Date(item.valido_desde).toLocaleString('es-ES', {
                     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
                 });
 
-                // El precio más reciente es "Actual", los demás muestran la fecha del siguiente cambio
+                // Lógica simplificada para fechaHasta: sólo mostrar "Actual" si es el primer registro de la página 1
+                // de lo contrario mostrar "—" o podrías intentar compararlos si estuvieran todos (pero ya no)
                 let fechaHasta = '—';
-                if (index === 0) {
+                if (paginaActualHistorial === 1 && index === 0) {
                     fechaHasta = 'Actual';
-                } else if (historialFiltrado[index - 1] && historialFiltrado[index - 1].valido_desde) {
-                    const fechaAnterior = new Date(historialFiltrado[index - 1].valido_desde).toLocaleString('es-ES', {
+                } else if (item.valido_hasta) {
+                    fechaHasta = new Date(item.valido_hasta).toLocaleString('es-ES', {
                         day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
                     });
-                    fechaHasta = fechaAnterior;
                 }
 
                 html += `
-                    <tr style="background: ${index % 2 === 0 ? rowBg : rowAltBg}; border-bottom: 1px solid ${borderColor};">
-                        <td style="padding: 12px; color: ${textColor}; font-weight: 600;">${item.precio.toFixed(2)} €</td>
-                        <td style="padding: 12px; color: ${textColor};">${fechaDesde}</td>
-                        <td style="padding: 12px; color: ${subTextColor};">${fechaHasta}</td>
-                        <td style="padding: 12px; color: ${subTextColor};">${item.tarifa || 'Precio Base'}</td>
-                        <td style="padding: 12px; color: ${subTextColor};">${item.usuario || 'Sistema'}</td>
+                    <tr>
+                        <td style="font-weight: 600;">${item.precio.toFixed(2)} €</td>
+                        <td>${fechaDesde}</td>
+                        <td style="color: var(--text-muted);">${fechaHasta}</td>
+                        <td style="color: var(--text-muted);">${item.tarifa || 'Precio Base'}</td>
+                        <td style="color: var(--text-muted);">${item.usuario || 'Sistema'}</td>
                     </tr>
                 `;
             });
 
             tbody.innerHTML = html;
             container.style.display = 'block';
+
+            // Renderizar paginación
+            let paginacionDiv = document.getElementById('paginacionHistorial');
+            if (!paginacionDiv) {
+                paginacionDiv = document.createElement('div');
+                paginacionDiv.id = 'paginacionHistorial';
+                container.parentNode.insertBefore(paginacionDiv, container.nextSibling);
+            }
+            paginacionDiv.innerHTML = getPaginacionHistorialHTML(totalPaginasHistorial);
+            ajustarTodosInputsPaginacion();
         })
         .catch(err => {
             console.error('Error cargando historial:', err);
@@ -8392,6 +8609,133 @@ function cargarHistorialPrecios() {
             mensaje.style.display = 'block';
         });
 }
+
+function getPaginacionHistorialHTML(totalPaginas) {
+    if (totalPaginas <= 1) return '';
+
+    let botones = '';
+
+    // Botón primera página
+    if (paginaActualHistorial > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaHistorial(1)" title="Primera página">
+            <i class="fas fa-angle-double-left"></i>
+        </button>`;
+    }
+
+    // Botón anterior
+    if (paginaActualHistorial > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaHistorial(${paginaActualHistorial - 1})" title="Página anterior">
+            <i class="fas fa-chevron-left"></i>
+        </button>`;
+    }
+
+    // Input para número de página
+    botones += `<div class="input-paginacion">
+        <input type="number" id="inputPaginaHistorial" class="input-numero-pagina" 
+            value="${paginaActualHistorial}" min="1" max="${totalPaginas}" 
+            onfocus="ajustarAnchoInput(this)" oninput="ajustarAnchoInput(this)" onblur="ajustarAnchoInput(this)" onchange="irAPaginaHistorial()" onkeypress="if(event.key === 'Enter') irAPaginaHistorial()">
+        <span class="info-paginacion"> de ${totalPaginas}</span>
+    </div>`;
+
+    // Botón siguiente
+    if (paginaActualHistorial < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaHistorial(${paginaActualHistorial + 1})" title="Siguiente página">
+            <i class="fas fa-chevron-right"></i>
+        </button>`;
+    }
+
+    // Botón última página
+    if (paginaActualHistorial < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaHistorial(${totalPaginas})" title="Última página">
+            <i class="fas fa-angle-double-right"></i>
+        </button>`;
+    }
+
+    return `
+        <div class="admin-paginacion-wrapper">
+            <div class="admin-paginacion">
+                ${botones}
+            </div>
+        </div>`;
+}
+
+function cambiarPaginaHistorial(nuevaPagina) {
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginasHistorial) return;
+    paginaActualHistorial = nuevaPagina;
+    cargarHistorialPrecios({ pagina: paginaActualHistorial });
+}
+
+function irAPaginaHistorial() {
+    const input = document.getElementById('inputPaginaHistorial');
+    if (!input) return;
+    let pag = parseInt(input.value);
+    if (isNaN(pag) || pag < 1) pag = 1;
+    if (pag > totalPaginasHistorial) pag = totalPaginasHistorial;
+    cambiarPaginaHistorial(pag);
+}
+
+function filtrarProductosAutocomplete(query) {
+    const resultsContainer = document.getElementById('autocompleteResults');
+    if (!resultsContainer) return;
+
+    if (!query || query.length < 1) {
+        resultsContainer.innerHTML = '';
+        resultsContainer.style.display = 'none';
+        return;
+    }
+
+    if (!window.catalogoProductos) return;
+
+    const filtered = window.catalogoProductos.filter(p =>
+        p.nombre.toLowerCase().includes(query.toLowerCase())
+    ).slice(0, 10);
+
+    if (filtered.length === 0) {
+        resultsContainer.innerHTML = '<div style="padding: 10px; color: var(--text-muted);">No se encontraron productos</div>';
+        resultsContainer.style.display = 'block';
+        return;
+    }
+
+    let html = '';
+    const isDark = document.body.classList.contains('dark-mode');
+    const hoverBg = isDark ? '#4b5563' : '#f3f4f6';
+    const textColor = isDark ? '#e5e7eb' : '#1f2937';
+    const borderColor = isDark ? '#374151' : '#e5e7eb';
+
+    filtered.forEach(p => {
+        html += `<div class="autocomplete-item" 
+            style="padding: 10px 15px; cursor: pointer; border-bottom: 1px solid var(--border-main); color: var(--text-main); transition: background 0.2s;" 
+            onmouseover="this.style.background='var(--bg-hover)'" 
+            onmouseout="this.style.background='transparent'"
+            onclick="seleccionarProductoAutocomplete('${p.id}', '${p.nombre.replace(/'/g, "\\'")}')">
+            ${p.nombre}
+        </div>`;
+    });
+
+    resultsContainer.innerHTML = html;
+    resultsContainer.style.display = 'block';
+}
+
+function seleccionarProductoAutocomplete(id, nombre) {
+    const input = document.getElementById('inputHistorialProducto');
+    const hidden = document.getElementById('selectHistorialProducto');
+    if (input) input.value = nombre;
+    if (hidden) hidden.value = id;
+
+    const resultsContainer = document.getElementById('autocompleteResults');
+    if (resultsContainer) resultsContainer.style.display = 'none';
+
+    cargarHistorialPrecios();
+}
+
+// Cerrar autocomplete al hacer clic fuera
+document.addEventListener('click', (e) => {
+    const resultsContainer = document.getElementById('autocompleteResults');
+    const input = document.getElementById('inputHistorialProducto');
+    if (resultsContainer && input && !resultsContainer.contains(e.target) && e.target !== input) {
+        resultsContainer.style.display = 'none';
+    }
+});
 
 function mostrarTablaPrevisualizacionPrecios(productos, porcentaje) {
     const contenedor = document.getElementById('previsualizacionCambios');
@@ -8445,9 +8789,21 @@ function mostrarTablaPrevisualizacionPrecios(productos, porcentaje) {
 
     html += `</tbody></table></div></div>`;
     contenedor.innerHTML = html;
+
+    // Restaurar scroll si existía
+    const wrapper = contenedor.querySelector('.previsualizacion-tabla-wrapper');
+    if (wrapper && scrollPrevisualizacion > 0) {
+        wrapper.scrollTop = scrollPrevisualizacion;
+    }
 }
 
 function toggleExcluirProducto(idProducto, tipo) {
+    // Guardar scroll actual
+    const wrapper = document.querySelector('.previsualizacion-tabla-wrapper');
+    if (wrapper) {
+        scrollPrevisualizacion = wrapper.scrollTop;
+    }
+
     const index = productosExcluidos.indexOf(idProducto);
     if (index > -1) {
         // Quitar de excluidos
@@ -8465,6 +8821,12 @@ function toggleExcluirProducto(idProducto, tipo) {
 }
 
 function excluirTodosProductos(tipo) {
+    // Guardar scroll actual
+    const wrapper = document.querySelector('.previsualizacion-tabla-wrapper');
+    if (wrapper) {
+        scrollPrevisualizacion = wrapper.scrollTop;
+    }
+
     // Obtener los productos según el tipo
     const productos = tipo === 'iva' ? productosPrevisualizacionIVA : productosPrevisualizacionPrecios;
 
@@ -8491,6 +8853,12 @@ function excluirTodosProductos(tipo) {
 }
 
 function incluirTodosProductos(tipo) {
+    // Guardar scroll actual
+    const wrapper = document.querySelector('.previsualizacion-tabla-wrapper');
+    if (wrapper) {
+        scrollPrevisualizacion = wrapper.scrollTop;
+    }
+
     // Limpiar el array de excluidos
     productosExcluidos = [];
 
@@ -9783,6 +10151,635 @@ function eliminarBatchTarifas(id) {
                 alert('Error al eliminar: ' + (data.error || 'Desconocido'));
             }
         });
+}
+
+/**
+ * Muestra el panel de gestión de Copias de Seguridad (Backups)
+ */
+function mostrarPanelBackups() {
+    const contenedor = document.getElementById('adminContenido');
+    seccionActual = 'backups';
+    adminTablaHeaderHTML = '';
+
+    const isDark = document.body.classList.contains('dark-mode');
+    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const subTextColor = isDark ? '#9ca3af' : '#6b7280';
+    const cardBg = isDark ? '#1f2937' : 'white';
+    const borderColor = isDark ? '#374151' : '#e5e7eb';
+
+    contenedor.innerHTML = `
+        <div class="admin-tabla-header">
+            <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: ${textColor};">Gestión de Copias de Seguridad</h2>
+            <p style="color: ${subTextColor}; margin-top: 5px;">Administra los respaldos del sistema, base de datos y archivos críticos.</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px;">
+            <div class="backup-stat-card" style="background: ${cardBg}; border: 1px solid ${borderColor}; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm);">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                    <div style="background: #d1fae5; color: #065f46; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div>
+                        <h4 style="margin: 0; font-size: 14px; text-transform: uppercase; color: ${subTextColor};">Último Backup</h4>
+                        <div id="ultimaCopiaFecha" style="font-size: 18px; font-weight: 600; color: ${textColor};">Cargando...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="backup-stat-card" style="background: ${cardBg}; border: 1px solid ${borderColor}; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm);">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                    <div style="background: #e0e7ff; color: #3730a3; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                        <i class="fas fa-hdd"></i>
+                    </div>
+                    <div>
+                        <h4 style="margin: 0; font-size: 14px; text-transform: uppercase; color: ${subTextColor};">Copias Almacenadas</h4>
+                        <div id="totalCopias" style="font-size: 18px; font-weight: 600; color: ${textColor};">Cargando...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="background: ${cardBg}; border: 1px solid ${borderColor}; border-radius: 12px; overflow: visible; box-shadow: var(--shadow-sm);">
+            <div style="padding: 20px; border-bottom: 1px solid ${borderColor}; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: ${textColor};">Historial de Backups</h3>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="crearBackupManual()" class="btn-tpv" style="background: #6366f1; font-size: 13px; padding: 8px 15px;">
+                        <i class="fas fa-plus-circle"></i> Backup Estándar
+                    </button>
+                    <button onclick="crearBackupTabla('clientes')" class="btn-tpv" style="background: #059669; font-size: 13px; padding: 8px 15px;" title="Backup de tabla clientes (10.5M+ registros)">
+                        <i class="fas fa-users"></i> Backup Clientes
+                    </button>
+                    <button onclick="crearBackupTabla('usuarios')" class="btn-tpv" style="background: #0891b2; font-size: 13px; padding: 8px 15px;" title="Backup de tabla usuarios (100K+ registros)">
+                        <i class="fas fa-user-shield"></i> Backup Usuarios
+                    </button>
+                </div>
+            </div>
+            <div id="tablaBackupsContainer" style="overflow-x: auto; margin-bottom: 0;">
+                <div style="padding: 10px; text-align: center;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
+            </div>
+            
+            <div id="backupPagination" style="display: flex !important; visibility: visible !important;">
+            </div>
+        </div>
+    `;
+
+    cargarListadoBackups();
+}
+
+/**
+ * Carga el historial de copias de seguridad desde la API
+ */
+let backupData = [];
+let currentPage = 1;
+const itemsPerPage = 3;
+
+function cargarListadoBackups() {
+    const container = document.getElementById('tablaBackupsContainer');
+    const paginationContainer = document.getElementById('backupPagination');
+    const isDark = document.body.classList.contains('dark-mode');
+    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const borderColor = isDark ? '#374151' : '#e5e7eb';
+
+    console.log('Calling backup API...');
+    fetch('api/backups.php', {
+        credentials: 'same-origin'
+    })
+        .then(res => {
+            console.log('Backup API response status:', res.status);
+            console.log('Backup API response statusText:', res.statusText);
+            console.log('Backup API response content-type:', res.headers.get('content-type'));
+            if (!res.ok) {
+                return res.text().then(text => {
+                    console.log('Error response text:', text);
+                    throw new Error('HTTP ' + res.status + ': ' + text);
+                });
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data.ok) {
+                backupData = data.backups;
+                const totalCopias = backupData.length;
+                const totalCopiasDiv = document.getElementById('totalCopias');
+                const ultimaCopiaDiv = document.getElementById('ultimaCopiaFecha');
+
+                if (totalCopiasDiv) totalCopiasDiv.textContent = totalCopias + ' archivos';
+                if (ultimaCopiaDiv) ultimaCopiaDiv.textContent = totalCopias > 0 ? backupData[0].fecha : 'Ninguna';
+
+                if (totalCopias === 0) {
+                    container.innerHTML = '<div style="padding: 50px; text-align: center; color: #6b7280;">No hay copias de seguridad generadas todavía.</div>';
+                    return;
+                }
+
+                renderBackupPage(1);
+                renderBackupPagination();
+            } else {
+                container.innerHTML = `<div style="padding: 40px; text-align: center; color: #ef4444;">Error al cargar: ${data.error}</div>`;
+            }
+        })
+        .catch(err => {
+            console.error('Error loading backups:', err);
+            if (container) container.innerHTML = `<div style="padding: 40px; text-align: center; color: #ef4444;">Error de conexión con la API de backups: ${err.message}</div>`;
+        });
+}
+
+function renderBackupPage(page) {
+    currentPage = page;
+    const container = document.getElementById('tablaBackupsContainer');
+    const isDark = document.body.classList.contains('dark-mode');
+    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const borderColor = isDark ? '#374151' : '#e5e7eb';
+
+    const start = (page - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    const pageItems = backupData.slice(start, end);
+    const totalPages = Math.ceil(backupData.length / itemsPerPage);
+
+    let html = `
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead style="background: ${isDark ? '#111827' : '#f9fafb'}; text-align: left;">
+                <tr>
+                    <th style="padding: 8px 15px; font-size: 13px; font-weight: 600; color: ${textColor}; border-bottom: 2px solid ${borderColor};">Tipo</th>
+                    <th style="padding: 8px 15px; font-size: 13px; font-weight: 600; color: ${textColor}; border-bottom: 2px solid ${borderColor};">Archivo</th>
+                    <th style="padding: 8px 15px; font-size: 13px; font-weight: 600; color: ${textColor}; border-bottom: 2px solid ${borderColor};">Fecha</th>
+                    <th style="padding: 8px 15px; font-size: 13px; font-weight: 600; color: ${textColor}; border-bottom: 2px solid ${borderColor};">Tamaño</th>
+                    <th style="padding: 8px 15px; font-size: 13px; font-weight: 600; color: ${textColor}; border-bottom: 2px solid ${borderColor}; text-align: right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+    pageItems.forEach(b => {
+        const sizeMB = (b.tamano / (1024 * 1024)).toFixed(2);
+        let icon, color, tipoLabel;
+        if (b.tipo === 'tabla') {
+            icon = b.tabla === 'clientes' ? 'fa-users' : 'fa-user-shield';
+            color = b.tabla === 'clientes' ? '#059669' : '#0891b2';
+            tipoLabel = b.tabla === 'clientes' ? 'Clientes' : 'Usuarios';
+        } else {
+            icon = 'fa-file-archive';
+            color = '#6366f1';
+            tipoLabel = 'Completo';
+        }
+
+        html += `
+            <tr style="border-bottom: 1px solid ${borderColor};">
+                <td style="padding: 8px 15px; font-size: 14px; color: ${color}; font-weight: 600;">
+                    <i class="fas ${icon}" style="margin-right: 8px;"></i> ${tipoLabel}
+                </td>
+                <td style="padding: 8px 15px; font-size: 14px; color: ${textColor};">${b.nombre}</td>
+                <td style="padding: 8px 15px; font-size: 14px; color: ${textColor};">${b.fecha}</td>
+                <td style="padding: 8px 15px; font-size: 14px; color: ${textColor};">${sizeMB} MB</td>
+                <td style="padding: 8px 15px; text-align: right; display: flex; justify-content: flex-end; gap: 8px;">
+                    <button onclick="descargarBackup('${b.nombre}')" class="btn-info" title="Descargar" style="padding: 6px 10px; font-size: 12px;">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button onclick="confirmarRestauracion('${b.nombre}')" class="btn-tpv" title="Restaurar" style="background: #10b981; padding: 6px 10px; font-size: 12px;">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button onclick="eliminarBackup('${b.nombre}')" class="btn-danger" title="Eliminar" style="padding: 6px 10px; font-size: 12px;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+
+    renderBackupPagination();
+}
+
+function renderBackupPagination() {
+    const paginationContainer = document.getElementById('backupPagination');
+    const totalPages = Math.ceil(backupData.length / itemsPerPage);
+
+    if (totalPages <= 1) {
+        paginationContainer.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+
+    // Botón primera página
+    if (currentPage > 1) {
+        html += `<button class="btn-paginacion" onclick="renderBackupPage(1)" title="Primera página">
+            <i class="fas fa-angle-double-left"></i>
+        </button>`;
+    }
+
+    // Botón anterior
+    if (currentPage > 1) {
+        html += `<button class="btn-paginacion" onclick="renderBackupPage(${currentPage - 1})" title="Página anterior">
+            <i class="fas fa-chevron-left"></i>
+        </button>`;
+    }
+
+    // Input para número de página
+    html += `<div class="input-paginacion">
+        <input type="number" id="inputPaginaBackups" class="input-numero-pagina"
+            value="${currentPage}" min="1" max="${totalPages}"
+            onfocus="ajustarAnchoInput(this)" oninput="ajustarAnchoInput(this)" onblur="ajustarAnchoInput(this)" onchange="irAPaginaBackups()" onkeypress="if(event.key === 'Enter') irAPaginaBackups()">
+        <span class="info-paginacion"> de ${totalPages}</span>
+    </div>`;
+
+    // Botón siguiente
+    if (currentPage < totalPages) {
+        html += `<button class="btn-paginacion" onclick="renderBackupPage(${currentPage + 1})" title="Siguiente página">
+            <i class="fas fa-chevron-right"></i>
+        </button>`;
+    }
+
+    // Botón última página
+    if (currentPage < totalPages) {
+        html += `<button class="btn-paginacion" onclick="renderBackupPage(${totalPages})" title="Última página">
+            <i class="fas fa-angle-double-right"></i>
+        </button>`;
+    }
+
+    paginationContainer.innerHTML = `
+        <div class="admin-paginacion-wrapper" style="display: flex !important; visibility: visible !important;">
+            <div class="admin-paginacion">
+                ${html}
+            </div>
+        </div>`;
+
+    // Ajustar ancho del input después de renderizar
+    setTimeout(() => {
+        const input = document.getElementById('inputPaginaBackups');
+        if (input) {
+            ajustarAnchoInput(input);
+        }
+    }, 100);
+}
+
+function irAPaginaBackups() {
+    const input = document.getElementById('inputPaginaBackups');
+    if (!input) return;
+
+    const totalPages = Math.ceil(backupData.length / itemsPerPage);
+    let nuevaPagina = parseInt(input.value);
+
+    if (isNaN(nuevaPagina) || nuevaPagina < 1) {
+        nuevaPagina = 1;
+    } else if (nuevaPagina > totalPages) {
+        nuevaPagina = totalPages;
+    }
+
+    renderBackupPage(nuevaPagina);
+}
+
+/**
+ * Llama a la API para crear un nuevo backup manual
+ */
+function crearBackupManual() {
+    // Crear modal con barra de progreso
+    const progressHtml = `
+        <div id="backupProgressContainer" style="text-align: center; padding: 20px;">
+            <div style="font-size: 14px; color: #6b7280; margin-bottom: 15px;">Generando copia de seguridad completa...</div>
+            <div style="background: #e5e7eb; border-radius: 8px; height: 20px; overflow: hidden; margin-bottom: 10px;">
+                <div id="backupProgressBar" style="background: linear-gradient(90deg, #6366f1, #8b5cf6); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+            </div>
+            <div id="backupProgressText" style="font-size: 13px; color: #6b7280;">Iniciando...</div>
+        </div>
+    `;
+
+    Swal.fire({
+        title: 'Backup en progreso',
+        html: progressHtml,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+            // Iniciar animación de progreso
+            let progress = 0;
+            const progressBar = document.getElementById('backupProgressBar');
+            const progressText = document.getElementById('backupProgressText');
+
+            // Simular progreso (el servidor no proporciona progreso real para backup completo)
+            const progressInterval = setInterval(() => {
+                if (progress < 90) {
+                    progress += Math.random() * 5;
+                    if (progress > 90) progress = 90;
+                    progressBar.style.width = progress + '%';
+                    progressText.textContent = Math.round(progress) + '% completado';
+                }
+            }, 1000);
+
+            // Hacer la petición de backup
+            fetch('api/backups.php', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accion: 'crear' })
+            })
+                .then(res => {
+                    clearInterval(progressInterval);
+                    if (!res.ok) {
+                        return res.text().then(text => {
+                            throw new Error('Server error: ' + res.status);
+                        });
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    clearInterval(progressInterval);
+                    progressBar.style.width = '100%';
+                    progressText.textContent = '100% - Completado';
+
+                    if (data.ok) {
+                        setTimeout(() => {
+                            Swal.fire('¡Éxito!', 'Copia de seguridad creada correctamente.', 'success');
+                            cargarListadoBackups();
+                        }, 500);
+                    } else {
+                        Swal.fire('Error', 'No se pudo crear el backup: ' + (data.error || 'Error desconocido'), 'error');
+                    }
+                })
+                .catch(err => {
+                    clearInterval(progressInterval);
+                    console.error('Fetch error:', err);
+                    Swal.fire('Error', 'Fallo en la comunicación con el servidor.', 'error');
+                });
+        }
+    });
+}
+
+/**
+ * Crea un backup de una tabla específica (para tablas grandes)
+ */
+function crearBackupTabla(tabla) {
+    let progressInterval = null;
+
+    const tablaNombres = {
+        'clientes': 'Clientes',
+        'usuarios': 'Usuarios'
+    };
+
+    const nombreMostrar = tablaNombres[tabla] || tabla;
+
+    // Crear modal con barra de progreso y botón de cancelar
+    let backupAborted = false;
+
+    const progressHtml = `
+        <div id="backupProgressContainer" style="text-align: center; padding: 20px;">
+            <div style="font-size: 14px; color: #6b7280; margin-bottom: 15px;">Generando backup de ${nombreMostrar}...</div>
+            <div style="background: #e5e7eb; border-radius: 8px; height: 20px; overflow: hidden; margin-bottom: 10px;">
+                <div id="backupProgressBar" style="background: linear-gradient(90deg, #059669, #10b981); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+            </div>
+            <div id="backupProgressText" style="font-size: 13px; color: #6b7280;">Iniciando...</div>
+        </div>
+    `;
+
+    Swal.fire({
+        title: 'Backup de tabla en progreso',
+        html: progressHtml,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        showCancelButton: true,
+        cancelButtonText: 'Cancelar',
+        cancelButtonColor: '#ef4444',
+        willClose: () => {
+            // Keep track that we're closing
+        },
+        didClose: () => {
+            // Verificar la razón del cierre - si fue por click en cancelar
+            if (backupAborted) {
+                console.log('Modal was closed - sending cancel to server');
+                // Notificar al servidor
+                fetch('api/backups.php?cancelBackup=1&tabla=' + tabla, {
+                    credentials: 'same-origin'
+                }).then(() => {
+                    console.log('Cancel notification sent to server');
+                });
+            }
+        },
+        didOpen: () => {
+            const progressBar = document.getElementById('backupProgressBar');
+            const progressText = document.getElementById('backupProgressText');
+
+            console.log('Starting backup for tabla:', tabla);
+
+            // Add click listener to cancel button
+            const cancelBtn = document.querySelector('.swal2-cancel');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Cancel button clicked - sending cancel request');
+                    backupAborted = true;
+
+                    // Mostrar que se está cancelando
+                    if (progressText) {
+                        progressText.textContent = 'Cancelando...';
+                    }
+
+                    if (progressInterval) {
+                        clearInterval(progressInterval);
+                    }
+
+                    // Notify server immediately
+                    fetch('api/backups.php?cancelBackup=1&tabla=' + tabla, {
+                        credentials: 'same-origin'
+                    }).then(res => res.json()).then(data => {
+                        console.log('Cancel response:', data);
+                    }).catch(err => {
+                        console.error('Cancel error:', err);
+                    });
+                });
+            }
+
+            // Primero obtener el número total de filas
+            fetch('api/backups.php?getRowCount=1&tabla=' + tabla, {
+                credentials: 'same-origin'
+            })
+                .then(res => {
+                    console.log('Row count response:', res.status);
+                    if (!res.ok) {
+                        return res.text().then(text => {
+                            console.error('Row count error:', text);
+                            throw new Error('Row count error: ' + text);
+                        });
+                    }
+                    return res.json();
+                })
+                .then(countData => {
+                    console.log('Row count data:', countData);
+                    // Verificar respuesta válida
+                    const totalRows = (countData && countData.ok) ? (countData.total || 0) : 0;
+                    let processedRows = 0;
+
+                    // Actualizar texto inicial
+                    progressText.textContent = '0 / ' + totalRows.toLocaleString() + ' filas';
+                    console.log('Total rows:', totalRows);
+
+                    progressInterval = setInterval(() => {
+                        if (backupAborted) {
+                            clearInterval(progressInterval);
+                            return;
+                        }
+
+                        fetch(`api/backups.php?getBackupProgress=1&tabla=${tabla}`, {
+                            credentials: 'same-origin'
+                        })
+                            .then(res => res.json())
+                            .then(prog => {
+                                if (!prog.ok || prog.total === 0) return;
+
+                                const pct = Math.min(99, prog.porcentaje); // dejamos el 100% para cuando termine
+                                progressBar.style.width = pct + '%';
+                                progressText.textContent =
+                                    `${prog.progreso.toLocaleString('es-ES')} / ${prog.total.toLocaleString('es-ES')} filas (${pct}%)`;
+                            })
+                            .catch(() => { }); // silenciar errores de red durante el proceso
+                    }, 1500);
+
+                    // Hacer la petición de backup
+                    return fetch('api/backups.php', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ accion: 'crear_tabla', tabla: tabla })
+                    })
+                        .then(res => {
+                            clearInterval(progressInterval);
+                            if (backupAborted) {
+                                return { ok: false, error: 'Backup cancelado por el usuario' };
+                            }
+                            if (!res.ok) {
+                                throw new Error('Server error: ' + res.status);
+                            }
+                            return res.json();
+                        })
+                        .then(data => {
+                            if (backupAborted) {
+                                return;
+                            }
+
+                            // Verificar si el servidor indicó que fue cancelado
+                            if (data && data.error && data.error.includes('cancelado')) {
+                                progressText.textContent = 'Cancelado';
+                                return;
+                            }
+
+                            progressBar.style.width = '100%';
+                            progressText.textContent = 'Completado (100%)';
+
+                            if (data.ok) {
+                                setTimeout(() => {
+                                    Swal.fire('¡Éxito!', 'Copia de seguridad de ' + nombreMostrar + ' creada correctamente.', 'success');
+                                    cargarListadoBackups();
+                                }, 500);
+                            } else {
+                                Swal.fire('Error', 'No se pudo crear el backup: ' + (data.error || 'Error desconocido'), 'error');
+                            }
+                        })
+                        .catch(err => {
+                            clearInterval(progressInterval);
+                            progressBar.style.width = '100%';
+                            progressText.textContent = 'Completado (100%)';
+                            // No relanzar el error si fue cancelado por el usuario
+                            if (backupAborted) {
+                                return;
+                            }
+                            throw err;
+                        });
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    Swal.fire('Error', 'Fallo al obtener el progreso del backup.', 'error');
+                });
+        }
+    });
+}
+
+/**
+ * Descarga un archivo de backup
+ */
+function descargarBackup(archivo) {
+    window.location.href = `api/backups.php?accion=descargar&archivo=${archivo}`;
+}
+
+/**
+ * Muestra confirmación y ejecuta la restauración
+ */
+function confirmarRestauracion(archivo) {
+    Swal.fire({
+        title: '¿Restaurar sistema?',
+        html: `Estás a punto de restaurar el TPV al estado del día <b>${archivo}</b>.<br><br><span style="color: #ef4444; font-weight: bold;">ADVERTENCIA:</span> Se sobrescribirán todos los datos actuales de la base de datos y archivos de configuración.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Sí, restaurar ahora',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Restaurando...',
+                text: 'Por favor, no cierre el navegador.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch('api/backups.php', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accion: 'restaurar', archivo: archivo })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.ok) {
+                        Swal.fire({
+                            title: '¡Sistema Restaurado!',
+                            text: 'El TPV se ha restaurado correctamente. La página se recargará ahora.',
+                            icon: 'success',
+                            confirmButtonText: 'Aceptar'
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire('Error de restauración', data.error || 'Error desconocido', 'error');
+                    }
+                })
+                .catch(err => {
+                    Swal.fire('Error fatal', 'Fallo crítico en la comunicación durante la restauración.', 'error');
+                });
+        }
+    });
+}
+
+/**
+ * Elimina un archivo de backup
+ */
+function eliminarBackup(archivo) {
+    Swal.fire({
+        title: '¿Eliminar backup?',
+        text: `¿Estás seguro de que deseas eliminar permanentemente el archivo ${archivo}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`api/backups.php?archivo=${archivo}`, {
+                method: 'DELETE',
+                credentials: 'same-origin'
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.ok) {
+                        Swal.fire('Eliminado', 'El archivo ha sido borrado.', 'success');
+                        cargarListadoBackups();
+                    } else {
+                        Swal.fire('Error', data.error, 'error');
+                    }
+                });
+        }
+    });
 }
 
 

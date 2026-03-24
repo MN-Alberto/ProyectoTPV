@@ -208,6 +208,17 @@ function renderProductos(productos) {
                     </div>
                     <div class="producto-info-inferior" style="display: flex; flex-direction: column; gap: 2px;">
                         <span class="producto-precio">${precioFmt} €</span>
+                        <input type="number"
+                            class="precio-editable"
+                            value="${round2(precioPVP).toFixed(2)}"
+                            step="0.01"
+                            min="0"
+                            onclick="event.stopPropagation()"
+                            onchange="actualizarPrecioDesdeInput(this)"
+                            onkeyup="if(event.key === 'Enter') agregarAlCarrito(this.closest('.producto-card'))"
+                            placeholder="PVP"
+                            style="width: 70px; padding: 4px; font-size: 11px; border: 1px solid #ccc; border-radius: 4px; margin: 2px 0;"
+                            title="Edita el precio PVP y pulsa Enter para añadir">
                         ${selectorTarifas}
                         <span class="producto-stock" ${prod.stock <= 0 ? 'style="color: red; text-decoration: underline;"' : ''}>Stock: ${prod.stock}</span>
                     </div>
@@ -216,6 +227,35 @@ function renderProductos(productos) {
 
     // Insertar todo el HTML generado en la cuadrícula de productos.
     grid.innerHTML = html;
+}
+
+/**
+ * Actualiza el precio PVP desde el input editable en la tarjeta del producto.
+ * @param {HTMLElement} input - El input que contiene el nuevo precio
+ */
+function actualizarPrecioDesdeInput(input) {
+    const card = input.closest('.producto-card');
+    if (!card) return;
+
+    const nuevoPVP = parseFloat(input.value);
+    const ivaProd = parseInt(card.dataset.iva) || 21;
+
+    if (isNaN(nuevoPVP) || nuevoPVP < 0) {
+        return; // No actualizar si el valor no es válido
+    }
+
+    // Calcular el precio base sin IVA
+    const precioBase = nuevoPVP / (1 + (ivaProd / 100));
+
+    // Actualizar los datos de la tarjeta
+    card.dataset.pvp = nuevoPVP.toFixed(2);
+    card.dataset.precio = precioBase.toFixed(2);
+
+    // Actualizar el precio mostrado en la tarjeta
+    const precioSpan = card.querySelector('.producto-precio');
+    if (precioSpan) {
+        precioSpan.textContent = nuevoPVP.toFixed(2).replace('.', ',') + ' €';
+    }
 }
 
 /**
@@ -265,14 +305,14 @@ function resetearTarifaCard(card) {
         if (optionCliente) {
             select.value = optionCliente.value;
             const iva = parseInt(card.dataset.iva);
-            
+
             // Obtener los precios de tarifa almacenados
             const preciosTarifasStr = card.dataset.preciosTarifas || '{}';
             let preciosTarifas = {};
             try {
                 preciosTarifas = JSON.parse(preciosTarifasStr);
             } catch (e) { console.error("Error parseando preciosTarifas", e); }
-            
+
             // Si existe precio para la tarifa Cliente, usarlo directamente
             let precioBase;
             if (tarifaClienteId && preciosTarifas[tarifaClienteId]) {
@@ -281,7 +321,7 @@ function resetearTarifaCard(card) {
                 // Si no hay precio de tarifa, usar el precio original
                 precioBase = parseFloat(card.dataset.precioOriginal || card.dataset.precio);
             }
-            
+
             actualizarPrecioCard(select, precioBase, iva, false);
         }
     }
@@ -516,52 +556,3 @@ function abrirImagenGrande(src, alt = '') {
 
     document.body.appendChild(overlay);
 }
-
-/**
- * Muestra el modal de cierre temporal.
- */
-function mostrarModalCierreTemporal() {
-    document.getElementById('modalCierreTemporal').style.display = 'flex';
-}
-
-/**
- * Realiza una pausa/descanso cerrando la sesión del usuario pero manteniendo la caja abierta.
- */
-function pausarSesion(motivo = 'pausa') {
-    const btnCerrarSesion = document.querySelector('input[name="cerrarSesion"]');
-    if (btnCerrarSesion && !motivo) {
-        btnCerrarSesion.click();
-    } else {
-        // Fallback: enviar el cierre de sesión manualmente con el motivo
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'index.php';
-        
-        const inputLogout = document.createElement('input');
-        inputLogout.type = 'hidden';
-        inputLogout.name = 'cerrarSesion';
-        inputLogout.value = 'Cerrar Sesión';
-        form.appendChild(inputLogout);
-
-        if (motivo) {
-            const inputMotivo = document.createElement('input');
-            inputMotivo.type = 'hidden';
-            inputMotivo.name = 'motivoCierre';
-            inputMotivo.value = motivo;
-            form.appendChild(inputMotivo);
-        }
-
-        document.body.appendChild(form);
-        form.submit();
-    }
-}
-
-/**
- * Inicia el proceso de cambio de turno.
- * En este sistema, el cambio de turno simplemente cierra la sesión del usuario
- * manteniendo la caja abierta para el siguiente empleado.
- */
-function cambiarTurno() {
-    pausarSesion('turno');
-}
-

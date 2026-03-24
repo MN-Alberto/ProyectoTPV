@@ -717,35 +717,58 @@ try {
         $idProducto = intval($_GET['historialPrecios']);
 
         if ($idProducto <= 0) {
-            http_response_code(400);
             echo json_encode(['error' => 'ID de producto inválido']);
             exit;
         }
 
         $conexion = ConexionDB::getInstancia()->getConexion();
 
-        // Verificar si la tabla de historial existe
-        try {
-            $stmtCheck = $conexion->query("SHOW TABLES LIKE 'productos_historial_precios'");
-            if ($stmtCheck->rowCount() == 0) {
-                echo json_encode([]);
-                exit;
+        // Filtro por tarifa (opcional)
+        $idTarifa = isset($_GET['id_tarifa']) ? $_GET['id_tarifa'] : '';
+        $where = "WHERE h.id_producto = :id_producto";
+        $params = [':id_producto' => $idProducto];
+
+        if ($idTarifa !== '') {
+            if ($idTarifa === 'base') {
+                $where .= " AND h.id_tarifa IS NULL";
+            } else {
+                $where .= " AND h.id_tarifa = :id_tarifa";
+                $params[':id_tarifa'] = intval($idTarifa);
             }
-        } catch (Exception $e) {
-            echo json_encode([]);
-            exit;
         }
 
-        // Obtener el historial de precios
+        // Paginación
+        $pagina = isset($_GET['pagina']) ? intval($_GET['pagina']) : 1;
+        $por_pagina = isset($_GET['por_pagina']) ? intval($_GET['por_pagina']) : 6;
+        $offset = ($pagina - 1) * $por_pagina;
+
+        // Obtener el total para la paginación
+        $stmtTotal = $conexion->prepare("SELECT COUNT(*) as total FROM productos_historial_precios h $where");
+        foreach ($params as $key => $val) {
+            $stmtTotal->bindValue($key, $val);
+        }
+        $stmtTotal->execute();
+        $total = $stmtTotal->fetch(PDO::FETCH_ASSOC)['total'];
+
+        // Obtener los registros paginados
         $stmt = $conexion->prepare("
-            SELECT h.id, h.precio, h.fecha_cambio, h.id_tarifa, t.nombre as tarifa_nombre, u.nombre as usuario_nombre
+            SELECT h.id, h.precio, h.fecha_cambio, h.id_tarifa, t.nombre as tarifa_nombre, u.nombre as usuario_nombre,
+                   (SELECT MIN(h2.fecha_cambio) 
+                    FROM productos_historial_precios h2 
+                    WHERE h2.id_producto = h.id_producto 
+                      AND (h2.id_tarifa = h.id_tarifa OR (h2.id_tarifa IS NULL AND h.id_tarifa IS NULL))
+                      AND h2.fecha_cambio > h.fecha_cambio
+                   ) as fecha_hasta
             FROM productos_historial_precios h
             LEFT JOIN tarifas_prefijadas t ON h.id_tarifa = t.id
             LEFT JOIN usuarios u ON h.usuario_id = u.id
-            WHERE h.id_producto = :id_producto
+            $where
             ORDER BY h.fecha_cambio DESC
+            LIMIT $por_pagina OFFSET $offset
         ");
-        $stmt->bindParam(':id_producto', $idProducto, PDO::PARAM_INT);
+        foreach ($params as $key => $val) {
+            $stmt->bindValue($key, $val);
+        }
         $stmt->execute();
 
         $historial = [];
@@ -753,13 +776,18 @@ try {
             $historial[] = [
                 'precio' => floatval($row['precio']),
                 'valido_desde' => $row['fecha_cambio'],
+                'valido_hasta' => $row['fecha_hasta'],
                 'id_tarifa' => $row['id_tarifa'],
                 'tarifa' => $row['tarifa_nombre'] ?? 'Precio Base',
                 'usuario' => $row['usuario_nombre'] ?? 'Sistema'
             ];
         }
 
-        echo json_encode($historial);
+        echo json_encode([
+            'ok' => true,
+            'historial' => $historial,
+            'total' => intval($total)
+        ]);
         exit;
     }
 

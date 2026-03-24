@@ -286,3 +286,153 @@ footer h4 {
 .btn-login:active {
     transform: translateY(0);
 }
+
+/* ======================== FORGOT PASSWORD LINK ======================== */
+
+.forgot-password-link {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.forgot-password-link a {
+    color: #6b7280;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+}
+
+.forgot-password-link a:hover {
+    color: #1a1a2e;
+    text-decoration: underline;
+}
+
+/* ======================== MODAL ======================== */
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #fff;
+    border-radius: 16px;
+    padding: 30px;
+    width: 100%;
+    max-width: 400px;
+    position: relative;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-close {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    color: #9ca3af;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: #1a1a2e;
+}
+
+.modal-content h3 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.modal-subtitle {
+    color: #6b7280;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.btn-secondary {
+    width: 100%;
+    padding: 12px;
+    background: #e5e7eb;
+    color: #374151;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 10px;
+}
+
+.btn-secondary:hover {
+    background: #d1d5db;
+}
+
+.login-error {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.login-error.success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.login-error.error {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+/* Dark mode support */
+body.dark-mode .login-card {
+    background: #1f2937;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .login-card h2 {
+    color: #f3f4f6;
+}
+
+body.dark-mode .login-subtitle {
+    color: #9ca3af;
+}
+
+body.dark-mode .forgot-password-link a:hover {
+    color: #f3f4f6;
+}
+
+body.dark-mode .modal-content {
+    background: #1f2937;
+}
+
+body.dark-mode .modal-content h3 {
+    color: #f3f4f6;
+}
+
+body.dark-mode .modal-subtitle {
+    color: #9ca3af;
+}
+
+body.dark-mode .modal-close {
+    color: #9ca3af;
+}
+
+body.dark-mode .modal-close:hover {
+    color: #f3f4f6;
+}
