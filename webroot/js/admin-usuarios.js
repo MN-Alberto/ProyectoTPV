@@ -598,7 +598,7 @@ function verComprasCliente(dni) {
                     <div class="carousel-sale-slide" data-index="${i}" style="display:${i === 0 ? 'block' : 'none'};">
                         <div style="background:${isDark ? '#374151' : '#f3f4f6'};padding:12px;border-radius:8px;margin-bottom:15px;">
                             <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-                                <div><span style="color:${labelColor};font-size:13px;">Ticket #${v.id}</span>
+                                <div><span style="color:${labelColor};font-size:13px;">${v.serie || 'T'}${String(v.numero || v.id).padStart(5, '0')}</span>
                                     <div style="font-weight:600;">${fecha}</div></div>
                                 <div style="text-align:right;"><span style="color:${labelColor};font-size:13px;">${v.usuario_nombre || 'Cajero'}</span>
                                     <div><i class="fas ${icon}"></i> ${v.metodoPago}</div></div>

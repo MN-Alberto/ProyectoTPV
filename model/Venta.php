@@ -103,6 +103,10 @@ class Venta
      * @var string|null Justificación o código del descuento manual. 
      */
     private $descuentoManualCupon;
+    
+    // Campos de número correlativo
+    private $serie;
+    private $numero;
 
     // ======================== GETTERS ========================
 
@@ -176,6 +180,24 @@ class Venta
     public function getCerrada()
     {
         return $this->cerrada;
+    }
+
+    public function getSerie()
+    {
+        return $this->serie;
+    }
+
+    public function getNumero()
+    {
+        return $this->numero;
+    }
+
+    public function getNumeroCompleto()
+    {
+        if (!$this->serie || !$this->numero) {
+            return '';
+        }
+        return $this->serie . str_pad($this->numero, 5, '0', STR_PAD_LEFT);
     }
 
     // ======================== SETTERS ========================
@@ -282,6 +304,16 @@ class Venta
     public function setIdSesionCaja($idSesionCaja)
     {
         $this->idSesionCaja = $idSesionCaja;
+    }
+
+    public function setSerie($serie)
+    {
+        $this->serie = $serie;
+    }
+
+    public function setNumero($numero)
+    {
+        $this->numero = $numero;
     }
 
     public function getImporteEntregado()
@@ -550,9 +582,20 @@ class Venta
             // Iniciamos transacción para asegurar consistencia entre tablas
             $conexion->beginTransaction();
 
-            // 1. Generar un nuevo ID único en la tabla ventas_ids
-            $stmtId = $conexion->prepare("INSERT INTO ventas_ids (tipo) VALUES (:tipo)");
+            // 1. Determinar serie según tipo de documento: ticket -> T, factura -> F
+            $serie = ($this->tipoDocumento === 'factura') ? 'F' : 'T';
+            
+            // 2. Obtener el siguiente número correlativo para esta serie
+            $stmtMax = $conexion->prepare("SELECT COALESCE(MAX(numero), 0) + 1 as siguiente FROM ventas_ids WHERE serie = ?");
+            $stmtMax->execute([$serie]);
+            $rowMax = $stmtMax->fetch(PDO::FETCH_ASSOC);
+            $siguienteNumero = $rowMax['siguiente'];
+            
+            // 3. Generar un nuevo ID único en la tabla ventas_ids con el correlativo
+            $stmtId = $conexion->prepare("INSERT INTO ventas_ids (tipo, serie, numero) VALUES (:tipo, :serie, :numero)");
             $stmtId->bindParam(':tipo', $this->tipoDocumento);
+            $stmtId->bindParam(':serie', $serie);
+            $stmtId->bindParam(':numero', $siguienteNumero, PDO::PARAM_INT);
             $stmtId->execute();
             
             // Obtenemos el ID generado
@@ -876,7 +919,12 @@ class Venta
         $venta->setImporteEntregado($fila['importeEntregado'] ?? null);
         $venta->setCambioDevuelto($fila['cambioDevuelto'] ?? null);
         $venta->setIdSesionCaja($fila['idSesionCaja'] ?? null);
-        // Devolvemos la venta
+        if (isset($fila['serie'])) {
+            $venta->setSerie($fila['serie']);
+        }
+        if (isset($fila['numero'])) {
+            $venta->setNumero($fila['numero']);
+        }
         return $venta;
     }
 }

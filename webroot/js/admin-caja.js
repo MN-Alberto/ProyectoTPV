@@ -428,7 +428,7 @@ function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fech
             filasHtml += `
                 <tr>
                     <td class="col-id">${dev.id}</td>
-                    <td class="col-ticket" style="font-weight:600;color:#1e40af;">#${dev.idVenta || '—'}</td>
+                    <td class="col-ticket" style="font-weight:600;color:#1e40af;">${dev.serie || 'T'}${String(dev.numero || dev.idVenta || '—').padStart(5, '0')}</td>
                     <td class="col-fecha">${fecha}</td>
                     <td class="col-usuario">${dev.usuario_nombre || '—'}</td>
                     <td class="col-producto">${dev.producto_nombre || '—'}</td>
@@ -478,13 +478,16 @@ function verDetalleDevolucion(id) {
             const dev = lista.find(d => d.id == id);
             if (!dev) { alert('No se encontró la devolución'); return; }
 
+            // Guardar para el botón "Ver Ticket"
+            window._ultimaDevAdmin = dev;
+
             const fecha = new Date(dev.fecha).toLocaleString('es-ES', {
                 day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
             });
 
             document.getElementById('verDevolucionId').textContent = dev.id;
             if (document.getElementById('verDevolucionTicket')) {
-                document.getElementById('verDevolucionTicket').textContent = '#' + (dev.idVenta || '—');
+                document.getElementById('verDevolucionTicket').textContent = (dev.serie || 'T') + String(dev.numero || dev.idVenta || '—').padStart(5, '0');
             }
             document.getElementById('verDevolucionFecha').textContent = fecha;
             document.getElementById('verDevolucionProducto').textContent = dev.producto_nombre || '—';
@@ -499,6 +502,98 @@ function verDetalleDevolucion(id) {
             console.error('Error al ver detalle de devolución:', err);
             alert('Error al cargar detalles');
         });
+}
+
+/**
+ * Genera y abre un ticket de devolución completo agrupando todos los productos
+ * devueltos en el mismo lote (mismo idVenta y misma fecha).
+ */
+function verTicketDevolucion() {
+    const dev = window._ultimaDevAdmin;
+    const todas = window._todasDevolucionesAdmin || [];
+    if (!dev) { alert('No hay datos de devolución'); return; }
+
+    // Agrupar todas las devoluciones del mismo lote (mismo idVenta y misma fecha)
+    const lote = todas.filter(d => d.idVenta == dev.idVenta && d.fecha === dev.fecha);
+    if (lote.length === 0) lote.push(dev); // fallback
+
+    const fecha = new Date(dev.fecha).toLocaleString('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+
+    // Generar filas de productos
+    let filasHtml = '';
+    let totalGeneral = 0;
+    lote.forEach(linea => {
+        const importe = parseFloat(linea.importeTotal) || 0;
+        const precioBase = linea.precioUnitario ? parseFloat(linea.precioUnitario).toFixed(2).replace('.', ',') : '—';
+        const importeFmt = importe.toFixed(2).replace('.', ',');
+        totalGeneral += importe;
+        filasHtml += `
+            <tr>
+                <td>${linea.producto_nombre || '—'}</td>
+                <td style="text-align:center">${linea.cantidad}</td>
+                <td style="text-align:right">${precioBase} €</td>
+                <td style="text-align:right">${importeFmt} €</td>
+            </tr>`;
+    });
+
+    const totalFmt = totalGeneral.toFixed(2).replace('.', ',');
+    const motivo = dev.motivo || '';
+
+    const contenido = `
+    <html>
+    <head>
+        <title>TICKET DE DEVOLUCIÓN - Ticket #${dev.idVenta}</title>
+        <style>
+            body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #1a1a1a; max-width: 80mm; margin: 0 auto; line-height: 1.4; }
+            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
+            .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; color: #dc2626; }
+            .datos { margin-bottom: 15px; font-size: 0.85rem; }
+            .datos p { margin: 3px 0; }
+            table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.8rem; }
+            th { background: #f0f0f0; padding: 6px 4px; text-align: left; border-bottom: 1px solid #ccc; }
+            td { padding: 6px 4px; border-bottom: 1px dashed #eee; }
+            .total-row { border-top: 2px solid #000; margin-top: 10px; padding-top: 8px; text-align: right; font-size: 1.1rem; font-weight: bold; }
+            .footer { text-align: center; font-size: 0.75rem; padding-top: 15px; border-top: 1px solid #ccc; margin-top: 20px; }
+            @media print { body { margin: 0; padding: 10px; } }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>TICKET DE DEVOLUCIÓN</h1>
+        </div>
+        <div class="datos">
+            <strong>TPV Bazar — Productos Informáticos</strong><br>
+            NIF: B12345678<br>
+            C/ Falsa 123, 23000 León<br>
+            <div style="margin-top: 10px;">
+                <p><strong>Ticket Original:</strong> #${dev.idVenta || '—'}</p>
+                <p><strong>Fecha:</strong> ${fecha}</p>
+                <p><strong>Empleado:</strong> ${dev.usuario_nombre || '—'}</p>
+                <p><strong>Método Reembolso:</strong> ${dev.metodoPago}</p>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">P. Unit.</th><th style="text-align:right">Total</th></tr>
+            </thead>
+            <tbody>${filasHtml}</tbody>
+        </table>
+        <div class="total-row" style="color: #dc2626;">
+            TOTAL REEMBOLSADO: -${totalFmt} €
+        </div>
+        ${motivo ? '<div style="margin-top: 15px; font-size: 0.8rem;"><strong>Motivo:</strong> ' + motivo + '</div>' : ''}
+        <div class="footer">
+            <p>Las cantidades han sido reembolsadas mediante ${dev.metodoPago}.</p>
+            <p>Conserve este ticket como justificante.</p>
+        </div>
+    </body>
+    </html>`;
+
+    const ventana = window.open('', '_blank', 'width=400,height=600');
+    ventana.document.write(contenido);
+    ventana.document.close();
 }
 
 /**

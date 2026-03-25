@@ -1,4 +1,17 @@
-<script src="webroot/js/admin.js"></script>
+<!-- <script src="webroot/js/admin.js"></script> -->
+ <script src="webroot/js/admin-backups.js"></script>
+ <script src="webroot/js/admin-caja.js?v=3"></script>
+ <script src="webroot/js/admin-clientes.js"></script>
+ <script src="webroot/js/admin-configuracion.js"></script>
+ <script src="webroot/js/admin-informes.js"></script>
+ <script src="webroot/js/admin-logs.js"></script>
+ <script src="webroot/js/admin-pagination.js"></script>
+ <script src="webroot/js/admin-productos.js"></script>
+ <script src="webroot/js/admin-state.js"></script>
+ <script src="webroot/js/admin-tarifas.js"></script>
+ <script src="webroot/js/admin-usuarios.js"></script>
+ <script src="webroot/js/admin-utils.js"></script>
+ <script src="webroot/js/admin-ventas.js?v=3"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -451,9 +464,12 @@
             </div>
         </div>
 
-        <div style="display: flex; justify-content: center; margin-top: 20px;">
+        <div style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">
             <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerDevolucion')" style="min-width: 100px;">
                 Cerrar
+            </button>
+            <button class="btn-exito" onclick="verTicketDevolucion()" style="min-width: 100px; margin: 0;">
+                <i class="fas fa-receipt"></i> Ver Ticket
             </button>
         </div>
     </div>

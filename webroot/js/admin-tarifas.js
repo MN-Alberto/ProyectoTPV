@@ -916,42 +916,53 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
     seccionActual = 'tarifas-prefijadas';
     adminTablaHeaderHTML = '';
 
+    // Detectar tema actual
     const isDark = document.body.classList.contains('dark-mode');
+    const bgColor = isDark ? '#1f2937' : 'white';
     const textColor = isDark ? '#e5e7eb' : '#374151';
     const subTextColor = isDark ? '#9ca3af' : '#6b7280';
     const borderColor = isDark ? '#374151' : '#e5e7eb';
     const tableHeaderBg = isDark ? '#111827' : '#f9fafb';
+    const tableRowBorder = isDark ? '#374151' : '#e5e7eb';
     const cardBg = isDark ? '#1f2937' : 'white';
+    const modalContentBg = isDark ? '#1f2937' : 'white';
 
     return Promise.all([
         fetch('api/tarifas.php').then(res => res.json()),
         fetch('api/productos.php').then(res => res.json())
     ])
         .then(([tarifas, productos]) => {
+            // Guardar todos los productos para paginación
             window.tarifasData = tarifas;
             todosLosProductosTarifas = productos;
             productosOriginalesTarifas = [...productos];
             paginaActualTarifas = 1;
 
+            // Calcular índices de la página actual
             const inicio = (paginaActualTarifas - 1) * productosPorPaginaTarifas;
-            const productosPagina = productos.slice(inicio, inicio + productosPorPaginaTarifas);
+            const fin = inicio + productosPorPaginaTarifas;
+            const productosPagina = productos.slice(inicio, fin);
 
+            // Generar filas de la tabla de precios
             let filasTablaProductos = '';
             productosPagina.forEach(prod => {
                 let precioBaseOriginal = parseFloat(prod.precio);
                 const iva = parseFloat(prod.iva) || 21;
+
                 let precioBaseAMostrar = precioBaseOriginal;
                 if (tarifasMostrarConIva) {
                     precioBaseAMostrar = precioBaseOriginal * (1 + iva / 100);
                 }
 
-                let fila = `<tr style="border-bottom: 1px solid ${borderColor};">
+                let fila = `
+                <tr style="border-bottom: 1px solid ${tableRowBorder};">
                     <td style="padding: 8px 6px; font-weight: 500; color: ${textColor};">${prod.nombre}</td>
-                    <td style="padding: 8px 6px; font-weight: 600;">${precioBaseAMostrar.toFixed(2)} €</td>`;
+                    <td style="padding: 8px 6px; color: ${isDark ? '#f3f4f6' : '#1f2937'}; font-weight: 600;">${precioBaseAMostrar.toFixed(2)} €</td>`;
 
                 tarifas.forEach(tarifa => {
                     const idTarifa = tarifa.id;
                     const dataTarifa = prod.preciosTarifas && prod.preciosTarifas[idTarifa];
+
                     let precioFinal = 0;
                     let esManual = false;
 
@@ -966,6 +977,15 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
                         precioFinal = precioBaseAMostrar * (1 - descuento / 100);
                     }
 
+                    const manualStyle = esManual
+                        ? 'border: 1px solid #10b981; background: #ecfdf5; color: #065f46;'
+                        : (isDark
+                            ? 'border: 1px solid #374151; background: #111827; color: #10b981;'
+                            : 'border: 1px solid #d1d5db; background: white; color: #10b981;');
+                    const disabledAttr = (tarifasMostrarConIva && !modoProgramacionTarifas) ? 'disabled' : '';
+                    const disabledStyle = (tarifasMostrarConIva && !modoProgramacionTarifas) ? 'opacity: 0.5; cursor: not-allowed;' : '';
+
+                    // Comprobar si hay un cambio programado en el lote local
                     const key = `${prod.id}-${idTarifa}`;
                     let valueToShow = precioFinal;
                     let customClass = '';
@@ -977,91 +997,171 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
                         customClass = 'input-precio-programado';
                     }
 
-                    fila += `<td style="padding: 8px 6px;">
+                    fila += `
+                    <td style="padding: 8px 6px;">
                         <div style="display: flex; align-items: center; gap: 4px;">
-                            <input type="number" step="0.01" value="${valueToShow.toFixed(2)}"
+                            <input type="number" step="0.01"
+                                value="${valueToShow.toFixed(2)}"
                                 data-precio-anterior="${precioFinal.toFixed(4)}"
                                 onchange="actualizarPrecioTarifaIndividual(${prod.id}, ${idTarifa}, this, ${iva})"
+                                ${disabledAttr}
                                 class="${customClass}"
-                                style="width: 70px; padding: 4px 6px; border-radius: 4px; font-weight: 600; text-align: right;">
+                                style="width: 70px; padding: 4px 6px; border-radius: 4px; font-weight: 600; text-align: right; ${manualStyle} ${disabledStyle}">
                             <span style="font-size: 14px; font-weight: 600; color: #10b981;">€</span>
                             ${esManual ? '<i class="fas fa-hand-paper" title="Precio manual" style="color: #10b981; font-size: 12px;"></i>' : ''}
                         </div>
                     </td>`;
                 });
-                fila += '</tr>';
+
+                fila += `</tr>`;
                 filasTablaProductos += fila;
             });
 
             let filasTablaTarifas = '';
             tarifas.forEach(tarifa => {
                 const requiereCliente = tarifa.requiere_cliente ? 'Sí' : 'No';
-                filasTablaTarifas += `<tr style="border-bottom: 1px solid ${borderColor};">
+                const descuentoBadge = `<span style="background: ${isDark ? '#1e3a8a' : '#dbeafe'}; color: ${isDark ? '#bfdbfe' : '#1e40af'}; padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 13px;">${tarifa.descuento_porcentaje}%</span>`;
+                filasTablaTarifas += `
+                <tr style="border-bottom: 1px solid ${tableRowBorder};">
                     <td style="padding: 12px; font-weight: 600; color: ${textColor};">${tarifa.nombre}</td>
                     <td style="padding: 12px; color: ${subTextColor};">${tarifa.descripcion || '-'}</td>
-                    <td style="padding: 12px;">${tarifa.descuento_porcentaje}%</td>
+                    <td style="padding: 12px;">${descuentoBadge}</td>
                     <td style="padding: 12px; color: ${tarifa.requiere_cliente ? '#10b981' : subTextColor};">${requiereCliente}</td>
                     <td style="padding: 12px;">
-                        <button onclick="abrirModalEditarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}', '${(tarifa.descripcion || '').replace(/'/g, "\\'")}', ${tarifa.descuento_porcentaje}, ${tarifa.requiere_cliente ? 1 : 0})" style="padding: 6px 12px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 5px;">Editar</button>
-                        <button onclick="eliminarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}')" style="padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">Eliminar</button>
+                        <button onclick="abrirModalEditarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}', '${(tarifa.descripcion || '').replace(/'/g, "\\'")}', ${tarifa.descuento_porcentaje}, ${tarifa.requiere_cliente ? 1 : 0})" style="padding: 6px 12px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 5px;"><i class="fas fa-edit"></i> Editar</button>
+                        <button onclick="eliminarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}')" style="padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;"><i class="fas fa-trash"></i> Eliminar</button>
                     </td>
                 </tr>`;
             });
 
-            let cabecerasPrecios = '<th style="padding: 12px; font-weight: 600;">Producto</th><th style="padding: 12px; font-weight: 600;">Precio</th>';
+            // Generar encabezados dinámicos con sticky y outline
+            let cabecerasPrecios = `
+                <th style="padding: 12px 8px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor}; position: -webkit-sticky; position: sticky; top: -1px; z-index: 10; background: ${tableHeaderBg}; outline: 1px solid ${borderColor}; outline-offset: -1px; border: none;">Producto</th>
+                <th style="padding: 12px 8px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor}; position: -webkit-sticky; position: sticky; top: -1px; z-index: 10; background: ${tableHeaderBg}; outline: 1px solid ${borderColor}; outline-offset: -1px; border: none;">Precio</th>`;
+
+            let detalleDescuentos = [];
             tarifas.forEach(tarifa => {
-                cabecerasPrecios += `<th style="padding: 12px; font-weight: 600;">${tarifa.nombre}</th>`;
+                cabecerasPrecios += `<th style="padding: 12px 8px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor}; position: -webkit-sticky; position: sticky; top: -1px; z-index: 10; background: ${tableHeaderBg}; outline: 1px solid ${borderColor}; outline-offset: -1px; border: none;">${tarifa.nombre}</th>`;
+                detalleDescuentos.push(`${tarifa.nombre} (${tarifa.descuento_porcentaje}%)`);
             });
+            let descripcionDescuentos = 'Vista de precios según las tarifas aplicadas. Descuentos: ' + (detalleDescuentos.length > 0 ? detalleDescuentos.join(', ') : 'Ninguno');
 
             contenedor.innerHTML = `
             <div class="admin-tabla-header">
-                <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: ${textColor};">Tarifas Prefijadas ${modoProgramacionTarifas ? '<span style="color: #f59e0b; font-size: 14px;">(MODO PROGRAMACIÓN ACTIVO)</span>' : ''}</h2>
-                <p style="color: ${subTextColor}; margin-top: 5px;">${modoProgramacionTarifas ? 'Planifica los cambios de precios para una fecha futura.' : 'Vista de precios según las tarifas aplicadas.'}</p>
+                <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: ${textColor};">Tarifas Prefijadas ${modoProgramacionTarifas ? '<span style="color: #f59e0b; font-size: 14px; margin-left: 10px;">(MODO PROGRAMACIÓN ACTIVO)</span>' : ''}</h2>
+                <p style="color: ${subTextColor}; margin-top: 5px;">${modoProgramacionTarifas ? 'Planifica los cambios de precios para una fecha futura. Estos no se aplicarán inmediatamente.' : 'Vista de precios según las tarifas aplicadas.'}</p>
             </div>
-            <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+                <input type="text"
+                    id="buscarProductoTarifa"
+                    placeholder="Buscar producto..."
+                    value="${tarifaBusquedaProducto}"
+                    oninput="tarifaBusquedaProducto = this.value; filtrarTablaTarifas();"
+                    style="padding: 10px 15px; border: 1px solid ${borderColor}; border-radius: 8px; font-size: 14px; background: ${isDark ? '#374151' : 'white'}; color: ${textColor}; outline: none; transition: border-color 0.2s; min-width: 250px;"
+                    onfocus="this.style.borderColor = '#6366f1';"
+                    onblur="this.style.borderColor = '${borderColor}';">
+
                 ${!modoProgramacionTarifas ? `
-                    <button onclick="abrirModalTarifas()" class="btn-tpv" style="background: #6366f1;">Ver/Editar Tarifas</button>
-                    <button onclick="toggleTarifasIva()" class="btn-tpv" style="background: ${tarifasMostrarConIva ? '#10b981' : '#4b5563'};">
+                    <button onclick="abrirModalTarifas()" class="admin-top-btn" style="background: #6366f1; color: white;">
+                        <i class="fas fa-tags"></i> Ver/Editar Tarifas
+                    </button>
+                    <button onclick="toggleTarifasIva()" class="admin-top-btn" style="background: ${tarifasMostrarConIva ? '#10b981' : (isDark ? '#4b5563' : '#4b5563')}; color: white;">
+                        <i class="fas ${tarifasMostrarConIva ? 'fa-file-invoice-dollar' : 'fa-coins'}"></i>
                         ${tarifasMostrarConIva ? 'Ver Sin IVA' : 'Ver Con IVA'}
                     </button>
-                    <button onclick="alternarModoProgramacionTarifas()" class="btn-tpv" style="background: #f59e0b;">Programar Cambios</button>
+                    <button onclick="alternarModoProgramacionTarifas()" class="admin-top-btn" style="background: #f59e0b; color: white;">
+                        <i class="fas fa-clock"></i> Programar Cambios
+                    </button>
+                    <button onclick="abrirModalVerCambiosTarifasProgramados()" class="admin-top-btn" style="background: #3b82f6; color: white;">
+                        <i class="fas fa-history"></i> Ver Programaciones
+                    </button>
                 ` : `
-                    <button onclick="abrirModalProgramarCambiosTarifas()" class="btn-tpv" style="background: #10b981;">Finalizar y Programar (${Object.keys(loteCambiosTarifas).length})</button>
-                    <button onclick="alternarModoProgramacionTarifas()" class="btn-tpv" style="background: #ef4444;">Cancelar</button>
+                    <button onclick="abrirModalProgramarCambiosTarifas()" class="admin-top-btn" style="background: #10b981; color: white;">
+                        <i class="fas fa-check"></i> Finalizar y Programar (${Object.keys(loteCambiosTarifas).length})
+                    </button>
+                    <button onclick="alternarModoProgramacionTarifas()" class="admin-top-btn" style="background: #ef4444; color: white;">
+                        <i class="fas fa-times"></i> Cancelar Modo Programación
+                    </button>
                 `}
             </div>
+
             <div style="margin-top: 25px; border-top: 2px solid ${borderColor}; padding-top: 20px;">
-                <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: ${textColor};">Precios por Producto</h2>
-                <div style="border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden; margin-top: 15px;">
-                    <table style="width: 100%; border-collapse: collapse; background: ${cardBg};">
-                        <thead>
-                            <tr>${cabecerasPrecios}</tr>
+                <div class="admin-tabla-header">
+                    <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: ${textColor};">Precios por Producto</h2>
+                    <p style="color: ${subTextColor}; margin-top: 5px;">${descripcionDescuentos} ${tarifasMostrarConIva ? '(Precios con IVA incluido)' : '(Precios base sin IVA)'}</p>
+                </div>
+                <div style="border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
+                    <table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 8px; background: ${cardBg};" class="tabla-precios-producto">
+                        <thead class="tabla-precios-head">
+                            <tr>
+                                ${cabecerasPrecios}
+                            </tr>
                         </thead>
                         <tbody id="tablaPreciosProductos">${filasTablaProductos}</tbody>
                     </table>
                 </div>
-                <div id="paginacionTarifas">${getPaginacionTarifasHTML(Math.ceil(productos.length / productosPorPaginaTarifas))}</div>
+                <div id="paginacionTarifas">
+                    ${getPaginacionTarifasHTML(Math.ceil(productos.length / productosPorPaginaTarifas))}
+                </div>
             </div>
             <div id="modalesTarifas"></div>
-            <div id="modalTarifas" class="modal-overlay" style="display: none;">
-                <div class="modal-content" style="background: ${cardBg}; border-radius: 12px; max-width: 800px; width: 90%;">
-                    <div style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white; padding: 20px;">
-                        <h3 style="margin: 0;">Gestión de Tarifas</h3>
+
+            <style>
+                .admin-top-btn {
+                    padding: 10px 15px;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 14px;
+                }
+                .admin-top-btn:hover {
+                    filter: brightness(0.9);
+                    transform: translateY(-1px);
+                }
+                .input-precio-programado {
+                    border: 2px solid #f59e0b !important;
+                    background: #fffbeb !important;
+                    color: #92400e !important;
+                }
+                .dark-mode .input-precio-programado {
+                    background: #451a03 !important;
+                    color: #fbbf24 !important;
+                }
+            </style>
+
+            <!-- Modal de Tarifas -->
+            <div id="modalTarifas" class="modal-overlay" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+                <div class="modal-content" style="background: ${modalContentBg}; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); max-width: 800px; width: 90%; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; border: 1px solid ${borderColor};">
+                    <div style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0; font-size: 18px; font-weight: 600;">Gestión de Tarifas</h3>
+                        <button onclick="cerrarModal('modalTarifas')" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1; opacity: 0.8; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">&times;</button>
                     </div>
-                    <div style="padding: 20px;">
-                        <button onclick="abrirModalNuevaTarifa()" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 15px;">Nueva Tarifa</button>
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr>
-                                    <th style="padding: 14px 12px; text-align: left;">Nombre</th>
-                                    <th style="padding: 14px 12px; text-align: left;">Descripción</th>
-                                    <th style="padding: 14px 12px; text-align: left;">Descuento</th>
-                                    <th style="padding: 14px 12px; text-align: left;">Requiere Cliente</th>
-                                    <th style="padding: 14px 12px; text-align: left;">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tablaTarifas">${filasTablaTarifas}</tbody>
-                        </table>
+                    <div style="padding: 20px; overflow-y: auto; flex: 1;">
+                        <div style="margin-bottom: 20px;">
+                            <button onclick="abrirModalNuevaTarifa()" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'">
+                                <i class="fas fa-plus"></i> Nueva Tarifa
+                            </button>
+                        </div>
+                        <p style="color: ${subTextColor}; margin-top: 0; margin-bottom: 15px; font-size: 14px;">Gestiona las tarifas disponibles en el selector de tickets del cajero.</p>
+                        <div style="overflow-x: auto; max-height: 400px; overflow-y: auto; border: 1px solid ${borderColor}; border-radius: 8px;">
+                            <table style="width: 100%; border-collapse: collapse; background: ${isDark ? '#111827' : 'white'};" class="tabla-tarifas">
+                                <thead class="tabla-tarifas-head" style="position: sticky; top: 0; z-index: 10; background: ${tableHeaderBg}; border-bottom: 2px solid ${borderColor};">
+                                    <tr>
+                                        <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor};">Nombre</th>
+                                        <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor};">Descripción</th>
+                                        <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor};">Descuento</th>
+                                        <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor};">Requiere Cliente</th>
+                                        <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor};">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaTarifas">${filasTablaTarifas}</tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>`;
@@ -1265,6 +1365,142 @@ function eliminarTarifa(id, nombre) {
             if (data.ok) {
                 alert('Tarifa eliminada');
                 mostrarPanelTarifasPrefijadas();
+            } else {
+                alert('Error al eliminar: ' + (data.error || 'Desconocido'));
+            }
+        });
+}
+
+function abrirModalVerCambiosTarifasProgramados() {
+    document.getElementById('modalVerCambiosTarifasProgramados').style.display = 'flex';
+    cargarCambiosTarifasBatches();
+}
+
+function cargarCambiosTarifasBatches() {
+    const container = document.getElementById('listaBatchesTarifas');
+    container.innerHTML = '<div style="padding: 20px; text-align: center;"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>';
+
+    fetch('api/tarifas.php?obtenerCambiosProgramados=1')
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                if (data.batches.length === 0) {
+                    container.innerHTML = '<div style="padding: 30px; text-align: center; color: #6b7280;">No hay programaciones registradas.</div>';
+                    return;
+                }
+
+                let html = `
+            <table style="width:100%; border-collapse: collapse;">
+                <thead style="background: var(--bg-secondary);">
+                    <tr>
+                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-main);">ID</th>
+                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-main);">Fecha Programada</th>
+                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-main);">Productos</th>
+                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-main);">Estado</th>
+                        <th style="padding: 12px; text-align: right; border-bottom: 2px solid var(--border-main);">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+                data.batches.forEach(b => {
+                    const isPendiente = b.estado === 'pendiente';
+                    const statusBadge = isPendiente
+                        ? '<span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Pendiente</span>'
+                        : '<span style="background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Aplicado</span>';
+
+                    const fecha = new Date(b.fecha_programada).toLocaleString();
+
+                    html += `
+                <tr style="border-bottom: 1px solid var(--border-main);">
+                    <td style="padding: 12px;">#${b.id}</td>
+                    <td style="padding: 12px;">${fecha}</td>
+                    <td style="padding: 12px;">${b.total_productos} ítems</td>
+                    <td style="padding: 12px;">${statusBadge}</td>
+                    <td style="padding: 12px; text-align: right; display: flex; justify-content: flex-end; gap: 5px;">
+                        <button onclick="verDetalleBatchTarifas(${b.id})" class="btn-info" style="padding: 5px 10px; font-size: 12px;"><i class="fas fa-eye"></i></button>
+                        ${isPendiente ? `<button onclick="eliminarBatchTarifas(${b.id})" class="btn-danger" style="padding: 5px 10px; font-size: 12px;"><i class="fas fa-trash"></i></button>` : ''}
+                    </td>
+                </tr>`;
+                });
+
+                html += `</tbody></table>`;
+                container.innerHTML = html;
+            }
+        })
+        .catch(err => {
+            console.error('Error al cargar programaciones de tarifas:', err);
+            container.innerHTML = '<div style="padding: 20px; text-align: center; color: red;">Error al cargar las programaciones. Por favor, inténtelo de nuevo o contacte con el administrador.</div>';
+        });
+}
+
+function verDetalleBatchTarifas(id) {
+    document.getElementById('detalleBatchId').textContent = id;
+    const tableDiv = document.getElementById('tablaDetalleBatch');
+    tableDiv.innerHTML = '<div style="padding: 20px; text-align: center;"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>';
+
+    document.getElementById('modalDetalleBatchTarifas').style.display = 'flex';
+
+    fetch(`api/tarifas.php?verDetalleBatch=${id}`)
+        .then(res => res.json())
+        .then(data => {
+            console.log('Response from API:', data);
+            if (data.ok) {
+                if (data.detalles && data.detalles.length > 0) {
+                    let html = `
+                <table style="width:100%; border-collapse: collapse; font-size: 13px;">
+                    <thead style="background: var(--bg-secondary);">
+                        <tr>
+                            <th style="padding: 8px; text-align: left;">Producto</th>
+                            <th style="padding: 8px; text-align: left;">Tarifa</th>
+                            <th style="padding: 8px; text-align: right;">Precio Anterior</th>
+                            <th style="padding: 8px; text-align: right;">Nuevo Precio</th>
+                            <th style="padding: 8px; text-align: right;">Diferencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+                    data.detalles.forEach(d => {
+                        const precioAnterior = parseFloat(d.precio_anterior || 0);
+                        const precioNuevo = parseFloat(d.precio_nuevo);
+                        const diferencia = precioNuevo - precioAnterior;
+                        const diferenciaSigno = diferencia >= 0 ? '+' : '';
+                        const diferenciaColor = diferencia >= 0 ? '#10b981' : '#ef4444';
+
+                        html += `
+                    <tr style="border-bottom: 1px solid var(--border-main);">
+                        <td style="padding: 8px;">${d.producto_nombre}</td>
+                        <td style="padding: 8px;">${d.tarifa_nombre}</td>
+                        <td style="padding: 8px; text-align: right;">${precioAnterior.toFixed(2)} €</td>
+                        <td style="padding: 8px; text-align: right; font-weight: 600;">${precioNuevo.toFixed(2)} €</td>
+                        <td style="padding: 8px; text-align: right; font-weight: 600; color: ${diferenciaColor};">${diferenciaSigno}${diferencia.toFixed(2)} €</td>
+                    </tr>`;
+                    });
+
+                    html += `</tbody></table>`;
+                    tableDiv.innerHTML = html;
+                } else {
+                    tableDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #6b7280;">No hay detalles para esta programación.</div>';
+                }
+            } else {
+                tableDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: red;">Error: ' + (data.error || 'Error desconocido. Ver consola para detalles.') + '</div>';
+            }
+        })
+        .catch(err => {
+            console.error('Error al cargar detalles del batch:', err);
+            tableDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: red;">Error al cargar los detalles. Por favor, inténtelo de nuevo.</div>';
+        });
+}
+
+function eliminarBatchTarifas(id) {
+    if (!confirm('¿Estás seguro de que deseas cancelar esta programación?')) return;
+
+    fetch(`api/tarifas.php?eliminarBatch=${id}`, {
+        method: 'DELETE'
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                cargarCambiosTarifasBatches();
             } else {
                 alert('Error al eliminar: ' + (data.error || 'Desconocido'));
             }

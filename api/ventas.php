@@ -114,9 +114,11 @@ if (isset($_GET['historialCaja'])) {
         // Obtener las ventas desde la apertura de la caja
         $stmt = $conexion->prepare("
             SELECT v.id, v.fecha, v.total, v.metodoPago as forma_pago, v.tipoDocumento, u.nombre as usuario_nombre,
+            vi.serie, vi.numero,
             (SELECT SUM(lv.cantidad) FROM lineasVenta lv WHERE lv.idVenta = v.id) as cantidad_productos
             FROM ventas v
             LEFT JOIN usuarios u ON v.idUsuario = u.id
+            LEFT JOIN ventas_ids vi ON v.id = vi.id
             WHERE v.fecha >= ?
             ORDER BY v.fecha DESC
         ");
@@ -139,18 +141,55 @@ if (isset($_GET['historialCaja'])) {
  */
 if (isset($_GET['detalleVenta'])) {
     try {
-        $idVenta = (int)$_GET['detalleVenta'];
+        $input = $_GET['detalleVenta'];
         $conexion = ConexionDB::getInstancia()->getConexion();
+        $idVenta = 0;
+        $venta = null;
 
-        // Obtener datos de la venta
-        $stmt = $conexion->prepare("
-            SELECT v.*, u.nombre as usuario_nombre
-            FROM ventas v
-            LEFT JOIN usuarios u ON v.idUsuario = u.id
-            WHERE v.id = ?
-        ");
+        // Intentar primero por ID directo
+        $idVenta = (int)$input;
+        $stmt = $conexion->prepare("SELECT v.*, u.nombre as usuario_nombre FROM ventas v LEFT JOIN usuarios u ON v.idUsuario = u.id WHERE v.id = ?");
         $stmt->execute([$idVenta]);
         $venta = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Si no se encuentra, intentar por número correlativo
+        if (!$venta) {
+            $serie = '';
+            $numero = $input;
+
+            if (preg_match('/^([TF]?)0*(\d+)$/i', $input, $matches)) {
+                $serie = strtoupper($matches[1]);
+                $numero = (int)$matches[2];
+            }
+
+            if ($serie !== '') {
+                $stmtIds = $conexion->prepare("SELECT id FROM ventas_ids WHERE serie = ? AND numero = ?");
+                $stmtIds->execute([$serie, $numero]);
+            }
+            else {
+                $stmtIds = $conexion->prepare("SELECT id FROM ventas_ids WHERE numero = ?");
+                $stmtIds->execute([$numero]);
+            }
+            $row = $stmtIds->fetch(PDO::FETCH_ASSOC);
+
+            if ($row) {
+                $idVenta = $row['id'];
+                $stmt = $conexion->prepare("SELECT v.*, u.nombre as usuario_nombre FROM ventas v LEFT JOIN usuarios u ON v.idUsuario = u.id WHERE v.id = ?");
+                $stmt->execute([$idVenta]);
+                $venta = $stmt->fetch(PDO::FETCH_ASSOC);
+            }
+        }
+
+        // Obtener número correlativo y serie
+        if ($venta && $idVenta > 0) {
+            $stmtNum = $conexion->prepare("SELECT numero, serie FROM ventas_ids WHERE id = ?");
+            $stmtNum->execute([$idVenta]);
+            $numData = $stmtNum->fetch(PDO::FETCH_ASSOC);
+            if ($numData) {
+                $venta['numero'] = $numData['numero'];
+                $venta['serie'] = $numData['serie'];
+            }
+        }
 
         if (!$venta) {
             echo json_encode(['error' => 'Venta no encontrada']);
@@ -212,13 +251,62 @@ if (isset($_GET['detalleVenta'])) {
 if (isset($_GET['checkVentaDevolucion'])) {
     try {
         require_once(__DIR__ . '/../model/LineaVenta.php');
-        $idVenta = (int)$_GET['checkVentaDevolucion'];
+        $input = $_GET['checkVentaDevolucion'];
+        $serieParam = isset($_GET['serie']) ? strtoupper($_GET['serie']) : '';
 
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Obtener datos básicos de la venta
-        $stmt = $conexion->prepare("SELECT * FROM ventas WHERE id = ?");
-        $stmt->execute([$idVenta]);
-        $venta = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Intentar primero por ID directo solo si no hay serie especificada
+        $venta = null;
+        if (empty($serieParam)) {
+            $idVenta = (int)$input;
+            $stmt = $conexion->prepare("SELECT * FROM ventas WHERE id = ?");
+            $stmt->execute([$idVenta]);
+            $venta = $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+
+        // Si no se encuentra, intentar por número correlativo (formato: T00001, F00001, o solo el número)
+        if (!$venta) {
+            // Parse input: "T00001" -> serie="T", numero=1; or just "1" -> buscar por numero
+            $serie = $serieParam;
+            $numero = (int)$input;
+
+            if (preg_match('/^([TF]?)0*(\d+)$/i', $input, $matches)) {
+                // Si no se pasó serie como parámetro, usar la del input
+                if (empty($serie)) {
+                    $serie = strtoupper($matches[1]); // Serie puede estar vacía, T, o F
+                }
+                $numero = (int)$matches[2];
+            }
+
+            // Buscar en ventas_ids por serie y numero
+            if (!empty($serie)) {
+                $stmtIds = $conexion->prepare("SELECT id FROM ventas_ids WHERE serie = ? AND numero = ?");
+                $stmtIds->execute([$serie, $numero]);
+                $row = $stmtIds->fetch(PDO::FETCH_ASSOC);
+            }
+            else {
+                // Solo número - buscar cualquier serie
+                $stmtIds = $conexion->prepare("SELECT id FROM ventas_ids WHERE numero = ?");
+                $stmtIds->execute([$numero]);
+                $row = $stmtIds->fetch(PDO::FETCH_ASSOC);
+            }
+
+            if ($row) {
+                $idVenta = $row['id'];
+                $stmt = $conexion->prepare("SELECT * FROM ventas WHERE id = ?");
+                $stmt->execute([$idVenta]);
+                $venta = $stmt->fetch(PDO::FETCH_ASSOC);
+            }
+
+            // Si no se encontró por serie+número, intentar por ID como respaldo
+            if (!$venta && !empty($numero)) {
+                $stmt = $conexion->prepare("SELECT * FROM ventas WHERE id = ?");
+                $stmt->execute([$numero]);
+                $venta = $stmt->fetch(PDO::FETCH_ASSOC);
+                $idVenta = $numero;
+            }
+        }
 
         if (!$venta) {
             echo json_encode(['error' => 'Ticket no encontrado']);
@@ -227,6 +315,15 @@ if (isset($_GET['checkVentaDevolucion'])) {
 
         // Obtener líneas con cantidades devueltas calculadas
         $lineas = LineaVenta::obtenerDetalleParaDevolucion($idVenta);
+
+        // Obtener serie y numero de ventas_ids
+        $stmtNum = $conexion->prepare("SELECT serie, numero FROM ventas_ids WHERE id = ?");
+        $stmtNum->execute([$idVenta]);
+        $numData = $stmtNum->fetch(PDO::FETCH_ASSOC);
+        if ($numData) {
+            $venta['serie'] = $numData['serie'];
+            $venta['numero'] = $numData['numero'];
+        }
 
         echo json_encode([
             'venta' => $venta,
@@ -299,10 +396,31 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
             $parametros[] = $_GET['tipoDocumento'];
         }
 
-        // Filtro por búsqueda (ID de venta)
+        // Filtro por búsqueda (ID de venta o número correlativo)
         if (isset($_GET['busqueda']) && $_GET['busqueda'] !== '') {
-            $busquedaInt = intval($_GET['busqueda']);
-            if ($busquedaInt > 0) {
+            $busqueda = $_GET['busqueda'];
+            $busquedaInt = intval($busqueda);
+
+            // Comprobar si es formato correlativo (T00001, F00001, etc.)
+            if (preg_match('/^([TF]?)0*(\d+)$/i', $busqueda, $matches)) {
+                $serie = strtoupper($matches[1]);
+                $numero = (int)$matches[2];
+
+                if ($serie !== '') {
+                    $condiciones[] = "(v.id = ? OR (vi.serie = ? AND vi.numero = ?))";
+                    $parametros[] = $busquedaInt;
+                    $parametros[] = $serie;
+                    $parametros[] = $numero;
+                }
+                else {
+                    // Solo número - buscar en ventas_ids
+                    $condiciones[] = "(v.id = ? OR vi.numero = ?)";
+                    $parametros[] = $busquedaInt;
+                    $parametros[] = $busquedaInt;
+                }
+            }
+            elseif ($busquedaInt > 0) {
+                // Solo ID numérico
                 $condiciones[] = "v.id = ?";
                 $parametros[] = $busquedaInt;
             }
@@ -332,10 +450,12 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
         $sql = "
             SELECT v.id, v.fecha, v.total, v.metodoPago as forma_pago, v.tipoDocumento, u.nombre as usuario_nombre,
             t.nombre as tarifa_nombre,
+            vi.serie, vi.numero,
             (SELECT SUM(lv.cantidad) FROM lineasVenta lv WHERE lv.idVenta = v.id) as cantidad_productos
             FROM ventas v
             LEFT JOIN usuarios u ON v.idUsuario = u.id
             LEFT JOIN tarifas_prefijadas t ON v.idTarifa = t.id
+            LEFT JOIN ventas_ids vi ON v.id = vi.id
         ";
         if (!empty($condiciones)) {
             $sql .= " WHERE " . implode(" AND ", $condiciones);

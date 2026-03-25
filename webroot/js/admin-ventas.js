@@ -71,7 +71,7 @@ function generarFilaVenta(venta) {
     const doc = { ticket: '🧾 Ticket', factura: '📄 Factura' }[venta.tipoDocumento] || (venta.tipoDocumento || 'ticket');
     return `
         <tr>
-            <td class="col-id">${venta.id}</td>
+            <td class="col-id">${venta.serie || 'T'}${String(venta.numero || venta.id).padStart(5, '0')}</td>
             <td class="col-fecha">${fecha}</td>
             <td class="col-usuario">${venta.usuario_nombre || '—'}</td>
             <td class="col-productos">${venta.cantidad_productos || 0}</td>
@@ -232,7 +232,7 @@ function verDetalleVenta(idVenta) {
             let html = `<div style="border-radius:12px;overflow:hidden;background:${bg};">
                 <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:20px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <h3 style="margin:0;">Venta #${venta.id}</h3>
+                        <h3 style="margin:0;">${venta.serie || 'T'}${String(venta.numero || venta.id).padStart(5, '0')}</h3>
                         <span style="font-size:14px;opacity:.9;">${fecha}</span>
                     </div>
                 </div>
@@ -379,7 +379,7 @@ function renderDevolucionesAdmin(devoluciones, esPrimeraVez = true, orden = 'fec
         return `
             <tr>
                 <td class="col-id">${dev.id}</td>
-                <td class="col-ticket" style="font-weight:600;color:#1e40af;">#${dev.idVenta || '—'}</td>
+                <td class="col-ticket" style="font-weight:600;color:#1e40af;">${dev.serie || 'T'}${String(dev.numero || dev.idVenta || '—').padStart(5, '0')}</td>
                 <td class="col-fecha">${fecha}</td>
                 <td class="col-usuario">${dev.usuario_nombre || '—'}</td>
                 <td class="col-producto">${dev.producto_nombre || '—'}</td>
@@ -429,12 +429,16 @@ function verDetalleDevolucion(id) {
             const dev = lista.find(d => d.id == id);
             if (!dev) { alert('No se encontró la devolución'); return; }
 
+            // Guardar para el botón "Ver Ticket" (dev individual + lista completa para agrupar por lote)
+            window._ultimaDevAdmin = dev;
+            window._todasDevolucionesAdmin = lista;
+
             const fecha = new Date(dev.fecha).toLocaleString('es-ES',
                 { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
             document.getElementById('verDevolucionId').textContent = dev.id;
             const t = document.getElementById('verDevolucionTicket');
-            if (t) t.textContent = '#' + (dev.idVenta || '—');
+            if (t) t.textContent = (dev.serie || 'T') + String(dev.numero || dev.idVenta || '—').padStart(5, '0');
             document.getElementById('verDevolucionFecha').textContent = fecha;
             document.getElementById('verDevolucionProducto').textContent = dev.producto_nombre || '—';
             document.getElementById('verDevolucionCantidad').textContent = dev.cantidad;

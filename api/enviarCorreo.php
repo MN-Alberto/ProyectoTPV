@@ -114,7 +114,15 @@ $textoDescuentoManual = '';
 
 // Determinamos el título principal del documento según la elección del usuario
 $isFactura = ($tipoDocumento === 'factura');
-$tipoTitulo = $isFactura ? 'FACTURA' : 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
+$isDevolucion = ($tipoDocumento === 'devolucion');
+
+if ($isFactura) {
+    $tipoTitulo = 'FACTURA';
+} elseif ($isDevolucion) {
+    $tipoTitulo = 'TICKET DE DEVOLUCIÓN';
+} else {
+    $tipoTitulo = 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
+}
 
 /**
  * ────────────────────────────────────────────────────────────────────────────
@@ -297,7 +305,8 @@ $totalesHtml .= "
 // E. Bloque de observaciones (si existen)
 $obsHtml = '';
 if ($clienteObs) {
-    $obsHtml = "<div style='margin-top: 15px; font-size: 13px;'><strong>Observaciones:</strong> " . htmlspecialchars($clienteObs) . "</div>";
+    $tituloObs = $isDevolucion ? 'Motivo' : 'Observaciones';
+    $obsHtml = "<div style='margin-top: 15px; font-size: 13px;'><strong>{$tituloObs}:</strong> " . htmlspecialchars($clienteObs) . "</div>";
 }
 
 /**
@@ -348,10 +357,16 @@ $cuerpo = "
         
         {$totalesHtml}
 
+        " . ($isDevolucion ? "
+        <div style='font-size: 13px; margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px; text-align:right;'>
+            <p style='margin: 3px 0; color: #dc2626; font-weight: bold;'><strong>TOTAL REEMBOLSADO:</strong> -{$totalFinalPVFmt} €</p>
+        </div>
+        " : "
         <div style='font-size: 13px; margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px; text-align:right;'>
             <p style='margin: 3px 0;'><strong>Entregado:</strong> {$entregado} €</p>
             <p style='margin: 3px 0;'><strong>Cambio devuelto:</strong> {$cambio} €</p>
         </div>
+        ") . "
         
         {$obsHtml}
 

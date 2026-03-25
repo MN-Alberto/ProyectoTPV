@@ -389,6 +389,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $_SESSION['ultimaVentaId'] = $venta->getId();
             $_SESSION['ultimaVentaTotal'] = $total;
             $_SESSION['ultimaVentaTipo'] = $_POST['tipoDocumento'] ?? 'ticket';
+            
+            // Obtener serie y número correlativo de la venta desde ventas_ids
+            require_once(__DIR__ . '/../core/conexionDB.php');
+            $conexion = ConexionDB::getInstancia()->getConexion();
+            $stmtIds = $conexion->prepare("SELECT serie, numero FROM ventas_ids WHERE id = ?");
+            $stmtIds->execute([$venta->getId()]);
+            $idsData = $stmtIds->fetch(PDO::FETCH_ASSOC);
+            
+            if ($idsData) {
+                $_SESSION['ultimaVentaSerie'] = $idsData['serie'] ?: ($_POST['tipoDocumento'] === 'factura' ? 'F' : 'T');
+                $_SESSION['ultimaVentaNumero'] = $idsData['numero'] ?: $venta->getId();
+            } else {
+                $_SESSION['ultimaVentaSerie'] = $_POST['tipoDocumento'] === 'factura' ? 'F' : 'T';
+                $_SESSION['ultimaVentaNumero'] = $venta->getId();
+            }
+            
             $_SESSION['ultimaVentaCarrito'] = json_encode($lineasVenta);
             $_SESSION['ultimaVentaMetodoPago'] = $_POST['metodoPago'] ?? 'efectivo';
             $_SESSION['ultimaVentaFecha'] = date('d/m/Y H:i');
@@ -557,6 +573,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
         $productos = json_decode($_POST['productos'], true);
         $metodoPago = $_POST['metodoPago'] ?? 'Efectivo';
         $totalReembolso = (float) ($_POST['totalReembolso'] ?? 0);
+        $motivo = isset($_POST['motivo']) ? trim($_POST['motivo']) : '';
+        $lineasReembolso = [];
 
         if (!empty($productos)) {
             // Verificar si hay suficiente efectivo en caja para el reembolso
@@ -604,10 +622,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 $devolucion->setPrecioUnitario($lineaOriginal['precioUnitario']);
                 $devolucion->setIva($lineaOriginal['iva']);
                 // Redondear importe a 2 decimales
-                $devolucion->setImporteTotal(round((float) $item['importe'], 2));
+                $subtotalLinea = round((float) $item['importe'], 2);
+                $devolucion->setImporteTotal($subtotalLinea);
                 $devolucion->setIdVenta($idVenta);
                 $devolucion->setIdSesionCaja($sesionCaja ? $sesionCaja->getId() : null);
                 $devolucion->setMetodoPago($metodoPago);
+                $devolucion->setMotivo($motivo);
+                
+                $lineasReembolso[] = [
+                    'nombre' => $lineaOriginal['producto_nombre'] ?? 'Producto ' . $idProducto,
+                    'cantidad' => $cantidadSolicitada,
+                    'precio' => $lineaOriginal['precioUnitario'],
+                    'iva' => $lineaOriginal['iva'],
+                    'importe' => $subtotalLinea
+                ];
 
                 if ($devolucion->insertar()) {
                     // Actualizar stock
@@ -656,11 +684,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 }
 
                 $_SESSION['devolucionExito'] = true;
-                // Guardar detalles para mostrar en el modal - usar el total reales procesado
+                // Guardar detalles para mostrar en el modal y la impresion de ticket
+                // Obtener serie y numero correlativo
+                $stmtIds = $conexion->prepare("SELECT serie, numero FROM ventas_ids WHERE id = ?");
+                $stmtIds->execute([$idVenta]);
+                $idsData = $stmtIds->fetch(PDO::FETCH_ASSOC);
+                $serie = !empty($idsData['serie']) ? $idsData['serie'] : 'T';
+                $num = !empty($idsData['numero']) ? $idsData['numero'] : $idVenta;
+                $numCompleto = $serie . str_pad($num, 5, '0', STR_PAD_LEFT);
+                
                 $_SESSION['devolucionDetalles'] = array(
-                    'ticket' => $idVenta,
+                    'ticket' => $numCompleto,
                     'productos' => $cantidadTotalDevuelta,
-                    'total' => $totalReembolsoRedondeado
+                    'total' => $totalReembolsoRedondeado,
+                    'motivo' => $motivo,
+                    'lineas' => $lineasReembolso,
+                    'fecha' => date('d/m/Y H:i'),
+                    'metodoPago' => $metodoPago
                 );
             } else {
                 $_SESSION['ventaError'] = "Error al procesar algunas líneas de la devolución.";

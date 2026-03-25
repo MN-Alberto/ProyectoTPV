@@ -519,3 +519,322 @@ function renderProductos(productos) {
                 </div>`;
     }).join('');
 }
+
+
+// --- Historial de precios -------------------------------------
+
+function mostrarPanelHistorialPrecios() {
+    const contenedor = document.getElementById('adminContenido');
+    seccionActual = 'historial-precios';
+    adminTablaHeaderHTML = '';
+    paginaActualHistorial = 1;
+
+    contenedor.innerHTML = `
+        <div class="logs-container">
+            <div class="logs-filtros">
+                <div class="logs-filtro-item" style="flex: 1; min-width: 250px; position: relative;">
+                    <label>Seleccionar Producto:</label>
+                    <input type="text" id="inputHistorialProducto" 
+                        placeholder="Escriba el nombre del producto..."
+                        oninput="filtrarProductosAutocomplete(this.value)"
+                        onfocus="filtrarProductosAutocomplete(this.value)"
+                        autocomplete="off">
+                    <input type="hidden" id="selectHistorialProducto">
+                    <div id="autocompleteResults" class="autocomplete-results" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; background: var(--bg-card); border: 1px solid var(--border-main); border-radius: 0 0 8px 8px; max-height: 200px; overflow-y: auto; box-shadow: var(--shadow-md);"></div>
+                </div>
+                <div class="logs-filtro-item" style="flex: 1; min-width: 250px;">
+                    <label>Seleccionar Tarifa:</label>
+                    <select id="selectHistorialTarifa" onchange="cargarHistorialPrecios()">
+                        <option value="">-- Todas las tarifas --</option>
+                        <option value="base">Precio Base</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="tablaHistorialPreciosContainer" class="admin-tabla-wrapper sin-scroll" style="display: none; margin-bottom: 20px;">
+                <table class="admin-tabla">
+                    <thead>
+                        <tr>
+                            <th>Precio</th>
+                            <th>Válido Desde</th>
+                            <th>Válido Hasta</th>
+                            <th>Tarifa</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaHistorialPreciosBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="historialPreciosMensaje" class="admin-mensaje-vacio" style="margin-top: 20px; text-align: center; padding: 40px; color: var(--text-muted); font-style: italic; background: var(--bg-card); border: 1px dashed var(--border-main); border-radius: 8px;">
+                Seleccione un producto para ver su historial de precios
+            </div>
+        </div>
+    `;
+
+    // Observer para detectar cambios en el tema
+    const observer = new MutationObserver(() => {
+        // Cuando cambie el tema, volver a cargar el panel
+        if (seccionActual === 'historial-precios') {
+            mostrarPanelHistorialPrecios();
+        }
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
+    // Cargar la lista de productos
+    fetch('api/productos.php?listaProductos')
+        .then(res => res.json())
+        .then(productos => {
+            window.catalogoProductos = productos;
+        })
+        .catch(err => {
+            console.error('Error cargando productos:', err);
+        });
+
+    // Cargar la lista de tarifas
+    fetch('api/tarifas.php')
+        .then(res => res.json())
+        .then(tarifas => {
+            const select = document.getElementById('selectHistorialTarifa');
+            if (select) {
+                tarifas.forEach(tarifa => {
+                    const option = document.createElement('option');
+                    option.value = tarifa.id;
+                    option.textContent = tarifa.nombre;
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(err => {
+            console.error('Error cargando tarifas:', err);
+        });
+}
+
+function filtrarProductosAutocomplete(query) {
+    const resultsContainer = document.getElementById('autocompleteResults');
+    if (!resultsContainer) return;
+
+    if (!query || query.length < 1) {
+        resultsContainer.innerHTML = '';
+        resultsContainer.style.display = 'none';
+        return;
+    }
+
+    if (!window.catalogoProductos) return;
+
+    const filtered = window.catalogoProductos.filter(p =>
+        p.nombre.toLowerCase().includes(query.toLowerCase())
+    ).slice(0, 10);
+
+    if (filtered.length === 0) {
+        resultsContainer.innerHTML = '<div style="padding: 10px; color: var(--text-muted);">No se encontraron productos</div>';
+        resultsContainer.style.display = 'block';
+        return;
+    }
+
+    let html = '';
+    const isDark = document.body.classList.contains('dark-mode');
+    const hoverBg = isDark ? '#4b5563' : '#f3f4f6';
+    const textColor = isDark ? '#e5e7eb' : '#1f2937';
+    const borderColor = isDark ? '#374151' : '#e5e7eb';
+
+    filtered.forEach(p => {
+        html += `<div class="autocomplete-item" 
+            style="padding: 10px 15px; cursor: pointer; border-bottom: 1px solid var(--border-main); color: var(--text-main); transition: background 0.2s;" 
+            onmouseover="this.style.background='var(--bg-hover)'" 
+            onmouseout="this.style.background='transparent'"
+            onclick="seleccionarProductoAutocomplete('${p.id}', '${p.nombre.replace(/'/g, "\\'")}')">
+            ${p.nombre}
+        </div>`;
+    });
+
+    resultsContainer.innerHTML = html;
+    resultsContainer.style.display = 'block';
+}
+
+function seleccionarProductoAutocomplete(id, nombre) {
+    const input = document.getElementById('inputHistorialProducto');
+    const hidden = document.getElementById('selectHistorialProducto');
+    if (input) input.value = nombre;
+    if (hidden) hidden.value = id;
+
+    const resultsContainer = document.getElementById('autocompleteResults');
+    if (resultsContainer) resultsContainer.style.display = 'none';
+
+    cargarHistorialPrecios();
+}
+
+// Cerrar autocomplete al hacer clic fuera
+document.addEventListener('click', (e) => {
+    const resultsContainer = document.getElementById('autocompleteResults');
+    const input = document.getElementById('inputHistorialProducto');
+    if (resultsContainer && input && !resultsContainer.contains(e.target) && e.target !== input) {
+        resultsContainer.style.display = 'none';
+    }
+});
+
+function mostrarTablaPrevisualizacionPrecios(productos, porcentaje) {
+    const contenedor = document.getElementById('previsualizacionCambios');
+
+    const esSubida = porcentaje > 0;
+    const claseDiferencia = esSubida ? 'diferencia-subida' : 'diferencia-bajada';
+
+    let html = `
+        <div class="previsualizacion-tabla-container">
+            <div class="previsualizacion-tabla-header">
+                <h3>Previsualización del ajuste de precios (${porcentaje}%)</h3>
+                <div class="previsualizacion-botones">
+                    <span class="previsualizacion-hint">💡 Clic en fila para excluir</span>
+                    <button class="btn-excluir-todos" onclick="excluirTodosProductos('precios')">Excluir todos</button>
+                    <button class="btn-incluir-todos" onclick="incluirTodosProductos('precios')">Incluir todos</button>
+                </div>
+            </div>
+            <div class="previsualizacion-tabla-wrapper">
+                <table class="previsualizacion-tabla">
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;">#</th>
+                            <th>ID</th>
+                            <th>Producto</th>
+                            <th style="text-align: right;">Precio Actual</th>
+                            <th style="text-align: right;">Precio Nuevo</th>
+                            <th style="text-align: right;">Diferencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+    productos.forEach((p, index) => {
+        const excluido = productosExcluidos.includes(p.id);
+        const claseFila = excluido ? 'fila-excluida' : (p.diferencia !== 0 ? 'fila-destacada' : '');
+        const precioNuevo = excluido ? p.precio_actual : p.precio_nuevo;
+        const diferencia = excluido ? 0 : p.diferencia;
+        const claseDif = excluido ? '' : claseDiferencia;
+        const simboloDif = esSubida && !excluido ? '+' : '';
+        const indicador = excluido ? '❌' : (index + 1);
+
+        html += `
+            <tr class="${claseFila}" onclick="toggleExcluirProducto(${p.id}, 'precios')">
+                <td style="text-align: center;">${indicador}</td>
+                <td>${p.id}</td>
+                <td>${p.nombre}</td>
+                <td style="text-align: right;">${parseFloat(p.precio_actual).toFixed(2)} €</td>
+                <td style="text-align: right; font-weight: bold;">${parseFloat(precioNuevo).toFixed(2)} €</td>
+                <td style="text-align: right;" class="${claseDif}">${simboloDif}${diferencia.toFixed(2)} €</td>
+            </tr>`;
+    });
+
+    html += `</tbody></table></div></div>`;
+    contenedor.innerHTML = html;
+
+    // Restaurar scroll si existía
+    const wrapper = contenedor.querySelector('.previsualizacion-tabla-wrapper');
+    if (wrapper && scrollPrevisualizacion > 0) {
+        wrapper.scrollTop = scrollPrevisualizacion;
+    }
+}
+
+/**
+ * Carga el historial de precios del producto seleccionado
+ */
+function cargarHistorialPrecios(filtros = {}) {
+    const select = document.getElementById('selectHistorialProducto');
+    const idProducto = select.value;
+    const selectTarifa = document.getElementById('selectHistorialTarifa');
+    const idTarifa = selectTarifa ? selectTarifa.value : '';
+    const container = document.getElementById('tablaHistorialPreciosContainer');
+    const mensaje = document.getElementById('historialPreciosMensaje');
+    const tbody = document.getElementById('tablaHistorialPreciosBody');
+
+    // Si se pasa una página en filtros, actualizar la página actual
+    if (filtros.pagina !== undefined) {
+        paginaActualHistorial = filtros.pagina;
+    } else if (filtros.resetPaginacion !== false) {
+        paginaActualHistorial = 1;
+    }
+
+    if (!idProducto) {
+        container.style.display = 'none';
+        mensaje.style.display = 'block';
+        mensaje.textContent = 'Seleccione un producto para ver su historial de precios';
+        // Limpiar controles de paginación previos si los hay
+        const oldPaginacion = document.getElementById('paginacionHistorial');
+        if (oldPaginacion) oldPaginacion.remove();
+        return;
+    }
+
+    // Mostrar mensaje de carga
+    mensaje.textContent = 'Cargando historial...';
+    mensaje.style.display = 'block';
+    container.style.display = 'none';
+
+    // Construir URL con filtros y paginación
+    let url = `api/productos.php?historialPrecios=${idProducto}&pagina=${paginaActualHistorial}&por_pagina=${historialPorPagina}`;
+    if (idTarifa) url += `&id_tarifa=${idTarifa}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            mensaje.style.display = 'none';
+
+            if (!data.ok || !data.historial || data.historial.length === 0) {
+                mensaje.textContent = data.error || 'No hay historial de precios para este producto con los filtros seleccionados';
+                mensaje.style.display = 'block';
+                container.style.display = 'none';
+
+                // Limpiar paginación si no hay datos
+                const oldPaginacion = document.getElementById('paginacionHistorial');
+                if (oldPaginacion) oldPaginacion.remove();
+                return;
+            }
+
+            const historial = data.historial;
+            totalPaginasHistorial = Math.ceil(data.total / historialPorPagina);
+
+            let html = '';
+            historial.forEach((item, index) => {
+                const fechaDesde = new Date(item.valido_desde).toLocaleString('es-ES', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+
+                // Lógica simplificada para fechaHasta: sólo mostrar "Actual" si es el primer registro de la página 1
+                // de lo contrario mostrar "—" o podrías intentar compararlos si estuvieran todos (pero ya no)
+                let fechaHasta = '—';
+                if (paginaActualHistorial === 1 && index === 0) {
+                    fechaHasta = 'Actual';
+                } else if (item.valido_hasta) {
+                    fechaHasta = new Date(item.valido_hasta).toLocaleString('es-ES', {
+                        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                    });
+                }
+
+                html += `
+                    <tr>
+                        <td style="font-weight: 600;">${item.precio.toFixed(2)} €</td>
+                        <td>${fechaDesde}</td>
+                        <td style="color: var(--text-muted);">${fechaHasta}</td>
+                        <td style="color: var(--text-muted);">${item.tarifa || 'Precio Base'}</td>
+                        <td style="color: var(--text-muted);">${item.usuario || 'Sistema'}</td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+            container.style.display = 'block';
+
+            // Renderizar paginación
+            let paginacionDiv = document.getElementById('paginacionHistorial');
+            if (!paginacionDiv) {
+                paginacionDiv = document.createElement('div');
+                paginacionDiv.id = 'paginacionHistorial';
+                container.parentNode.insertBefore(paginacionDiv, container.nextSibling);
+            }
+            paginacionDiv.innerHTML = getPaginacionHistorialHTML(totalPaginasHistorial);
+            ajustarTodosInputsPaginacion();
+        })
+        .catch(err => {
+            console.error('Error cargando historial:', err);
+            mensaje.textContent = 'Error al cargar el historial de precios';
+            mensaje.style.display = 'block';
+        });
+}

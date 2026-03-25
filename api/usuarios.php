@@ -74,6 +74,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
 
     // Si el id es válido
     if ($id > 0) {
+        // Verificar si el usuario tiene ventas asociadas
+        $stmtCheckVentas = $pdo->prepare("SELECT COUNT(*) as total FROM ventas WHERE idUsuario = :idUsuario");
+        $stmtCheckVentas->execute([':idUsuario' => $id]);
+        $resultadoVentas = $stmtCheckVentas->fetch(PDO::FETCH_ASSOC);
+
+        if ($resultadoVentas && $resultadoVentas['total'] > 0) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'No se puede eliminar el usuario porque tiene ventas asociadas.']);
+            exit();
+        }
+
         $usuario = Usuario::buscarPorId($id);
         if ($usuario && $usuario->eliminar()) {
             // Registrar log de eliminación de usuario
@@ -411,13 +422,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($password)) {
             http_response_code(400);
             echo json_encode(['ok' => false, 'error' => 'La contraseña es obligatoria para nuevos usuarios.']);
-            exit();
-        }
-
-        // Verificar que no existe otro usuario con el mismo email
-        if (Usuario::buscarPorEmail($email)) {
-            http_response_code(400);
-            echo json_encode(['ok' => false, 'error' => 'Ya existe un usuario con ese email.']);
             exit();
         }
 

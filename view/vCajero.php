@@ -167,6 +167,18 @@ endforeach; ?>
                     </svg>
                     Nuevo Cliente
                 </button>
+
+                <!-- Botón HISTORIAL DE DEVOLUCIONES: abre el modal con el historial de devoluciones -->
+                <button type="button" class="btn-nuevo-producto" id="btnHistorialDevoluciones"
+                    onclick="mostrarHistorialDevoluciones()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                    style="<?php echo !$sesionCaja ? 'opacity: 0.3; cursor: not-allowed;' : ''; ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 4v6h6"></path>
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                    </svg>
+                    Historial Devoluciones
+                </button>
             </div>
         </div>
 
@@ -846,7 +858,11 @@ foreach ($tarifas as $t) {
             <!-- Detalle de la venta: tipo de documento, número y total -->
             <p class="exito-detalle">
                 <?php echo($_SESSION['ultimaVentaTipo'] === 'factura') ? 'Factura' : 'Ticket'; ?>
-                #<?php echo $_SESSION['ultimaVentaId']; ?> — Total:
+                #<?php
+    $serie = $_SESSION['ultimaVentaSerie'] ?? 'T';
+    $numero = $_SESSION['ultimaVentaNumero'] ?? $_SESSION['ultimaVentaId'];
+    echo $serie . str_pad($numero, 5, '0', STR_PAD_LEFT);
+?> — Total:
                 <?php echo number_format($_SESSION['ultimaVentaTotal'], 2, ',', '.'); ?> €
             </p>
 
@@ -916,7 +932,9 @@ foreach ($tarifas as $t) {
     <!-- Se usa para las funciones de impresión y envío por correo -->
     <script>
         let ultimaVenta = {
-            id: <?php echo $_SESSION['ultimaVentaId'] ?? 'null'; ?>,                                          // ID de        la venta
+            id: <?php echo $_SESSION['ultimaVentaId'] ?? 'null'; ?>,
+            serie: '<?php echo $_SESSION['ultimaVentaSerie'] ?? 'T'; ?>',
+            numero: <?php echo $_SESSION['ultimaVentaNumero'] ?? 'null'; ?>,
             total: '<?php echo number_format($_SESSION['ultimaVentaTotal'] ?? 0, 2, ',', '.'); ?>',       // Total formateado
             tipo: '<?php echo $_SESSION['ultimaVentaTipo'] ?? 'ticket'; ?>',                                     // 'ticket' o 'factura'
             carrito: <?php echo $_SESSION['ultimaVentaCarrito'] ?? '[]'; ?>,                                  // Array de productos (JSON)
@@ -945,6 +963,8 @@ foreach ($tarifas as $t) {
     // Limpiar todas las variables de sesión de la última venta para evitar que se muestren de nuevo
     unset($_SESSION['ventaExito']);
     unset($_SESSION['ultimaVentaId']);
+    unset($_SESSION['ultimaVentaSerie']);
+    unset($_SESSION['ultimaVentaNumero']);
     unset($_SESSION['ultimaVentaTotal']);
     unset($_SESSION['ultimaVentaTipo']);
     unset($_SESSION['ultimaVentaCarrito']);
@@ -1078,7 +1098,7 @@ endif; ?>
                     </p>
 
                     <div style="max-width: 340px; margin: 0 auto;">
-                        <input type="number" id="inputTicketIdDev" placeholder="Ej: 123"
+                        <input type="text" id="inputTicketIdDev" placeholder="Ej: T00001"
                             style="width: 100%; padding: 18px; font-size: 1.6rem; text-align: center; border-radius: 14px; border: 2px solid var(--border-main); background: var(--bg-input); color: var(--text-main); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transition: all 0.2s; outline: none; font-weight: 600;"
                             onkeypress="if(event.key === 'Enter') buscarTicketParaDevolucion()"
                             onfocus="this.style.borderColor = 'var(--accent-danger)'; this.style.boxShadow = '0 0 0 4px rgba(220, 38, 38, 0.1)'; this.style.transform = 'translateY(-2px)'"
@@ -1184,6 +1204,11 @@ endif; ?>
                         </label>
                     </div>
                 </div>
+
+                <div class="form-group-premium" style="margin-top: 20px;">
+                    <label style="font-size: 1rem;">Motivo de la Devolución</label>
+                    <textarea id="motivoDevolucionDev" placeholder="Opcional. Ej: Producto defectuoso, cambio de opinión..." style="width: 100%; border-radius: 8px; border: 1px solid var(--border-main); padding: 12px; background: var(--bg-input); color: var(--text-main); height: 80px; resize: vertical; margin-top: 5px; font-family: inherit; font-size: 0.9rem;"></textarea>
+                </div>
             </div>
         </div>
 
@@ -1238,8 +1263,8 @@ endif; ?>
 <?php if (isset($_SESSION['devolucionExito']) && $_SESSION['devolucionExito'] === true): ?>
     <div class="modal-overlay" id="devolucionExito"
         style="display: flex !important; z-index: 99999; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6);">
-        <div class="modal-content modal-exito modal-border-red"
-            style="max-width: 450px; background: #1f2937; border-radius: 12px; padding: 25px; margin: auto; color: #f3f4f6; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        <div class="modal-content modal-exito modal-border-red devolucion-modal"
+            style="max-width: 450px; border-radius: 12px; padding: 25px; margin: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
             <!-- Icono de devolución en fondo rojo claro -->
             <div style="text-align: center; margin-bottom: 15px;">
                 <div
@@ -1251,18 +1276,55 @@ endif; ?>
                     </svg>
                 </div>
             </div>
-            <h3 style="text-align: center; margin: 10px 0; font-size: 1.4rem; color: #f3f4f6;">Devolución Realizada</h3>
-            <p style="text-align: center; margin: 10px 0; color: #9ca3af;">La devolución se ha procesado correctamente.</p>
+            <h3 style="text-align: center; margin: 10px 0; font-size: 1.4rem;" class="devolucion-titulo">Devolución Realizada</h3>
+            <p style="text-align: center; margin: 10px 0;" class="devolucion-subtitulo">La devolución se ha procesado correctamente.</p>
             <?php if (isset($_SESSION['devolucionDetalles']) && is_array($_SESSION['devolucionDetalles'])): ?>
-                <div style="background: #374151; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: left;">
-                    <p style="margin: 5px 0; font-size: 0.9rem; color: #e5e7eb;"><strong>Ticket:</strong>
+                <div class="devolucion-detalles" style="border-radius: 8px; padding: 15px; margin: 15px 0; text-align: left;">
+                    <p style="margin: 5px 0; font-size: 0.9rem;"><strong>Ticket:</strong>
                         #<?php echo htmlspecialchars($_SESSION['devolucionDetalles']['ticket'] ?? ''); ?></p>
-                    <p style="margin: 5px 0; font-size: 0.9rem; color: #e5e7eb;"><strong>Productos devueltos:</strong>
+                    <p style="margin: 5px 0; font-size: 0.9rem;"><strong>Productos devueltos:</strong>
                         <?php echo htmlspecialchars($_SESSION['devolucionDetalles']['productos'] ?? ''); ?></p>
-                    <p style="margin: 5px 0; font-size: 0.9rem; color: #e5e7eb;"><strong>Importe devuelto:</strong> <span
+                    <?php if (!empty($_SESSION['devolucionDetalles']['motivo'])): ?>
+                    <p style="margin: 5px 0; font-size: 0.9rem;"><strong>Motivo:</strong>
+                        <?php echo htmlspecialchars($_SESSION['devolucionDetalles']['motivo']); ?></p>
+                    <?php
+        endif; ?>
+                    <p style="margin: 5px 0; font-size: 0.9rem;"><strong>Importe devuelto:</strong> <span
                             style="color: #f87171; font-weight: bold;">-<?php echo number_format($_SESSION['devolucionDetalles']['total'] ?? 0, 2, ',', '.'); ?>
                             €</span></p>
                 </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button onclick="imprimirTicketDevolucion()"
+                        style="flex: 1; background: #3b82f6; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                        <i class="fas fa-print"></i> Imprimir
+                    </button>
+                    <button onclick="mostrarFormEmailDevolucion()"
+                        style="flex: 1; background: #10b981; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                        <i class="fas fa-envelope"></i> Correo
+                    </button>
+                </div>
+
+                <div id="formEmailDev" class="devolucion-email-form" style="display: none; margin-bottom: 15px; padding: 15px; border-radius: 8px;">
+                    <input type="email" id="inputEmailDev" placeholder="Correo del cliente"
+                        style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid; margin-bottom: 10px;" class="devolucion-email-input">
+                    <button onclick="enviarPorCorreoDevolucion()"
+                        style="width: 100%; background: #10b981; color: white; padding: 8px; border: none; border-radius: 6px; cursor: pointer;">
+                        Enviar Ticket
+                    </button>
+                    <div id="emailStatusDev" style="margin-top: 10px; font-size: 0.85rem; text-align: center;"></div>
+                </div>
+
+                <script>
+                    const ultimaDevolucion = {
+                        id: '<?php echo $_SESSION['devolucionDetalles']['ticket'] ?? ""; ?>',
+                        fecha: '<?php echo $_SESSION['devolucionDetalles']['fecha'] ?? date("d/m/Y H:i"); ?>',
+                        metodoPago: '<?php echo $_SESSION['devolucionDetalles']['metodoPago'] ?? "Efectivo"; ?>',
+                        total: '<?php echo number_format($_SESSION['devolucionDetalles']['total'] ?? 0, 2, ".", ""); ?>',
+                        motivo: '<?php echo addslashes($_SESSION['devolucionDetalles']['motivo'] ?? ""); ?>',
+                        lineas: <?php echo json_encode($_SESSION['devolucionDetalles']['lineas'] ?? []); ?>
+                    };
+                </script>
                 <?php unset($_SESSION['devolucionDetalles']); ?>
             <?php
     endif; ?>
@@ -1998,6 +2060,65 @@ endif; ?>
     </div>
 </div>
 
+<!-- ##=========================== MODAL: HISTORIAL DE DEVOLUCIONES ===========================## -->
+<div class="modal-overlay" id="modalHistorialDevoluciones" style="display:none;">
+    <div class="modal-content modal-premium" style="max-width: 650px;">
+        <!-- Cabecera con gradiente rojo y icono de devoluciones -->
+        <div class="modal-header-premium modal-header-red">
+            <div class="icon-container-discount">
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
+                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 4v6h6"></path>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                </svg>
+            </div>
+            <h3>Historial de Devoluciones</h3>
+            <p id="historialDevolucionesFecha">Devoluciones desde la apertura de caja</p>
+        </div>
+
+        <div class="modal-body-premium">
+            <div id="historialDevolucionesContenido" style="max-height: 400px; overflow-y: auto;">
+                <!-- Aquí se cargarán las devoluciones -->
+            </div>
+            <div
+                style="display: flex; justify-content: space-between; margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-main);">
+                <div id="historialDevolucionesTotal" style="font-weight: bold; font-size: 1.1rem;"></div>
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalHistorialDevoluciones')"
+                    style="min-width: 100px;">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: DETALLE DE DEVOLUCION ===========================## -->
+<div class="modal-overlay" id="modalDetalleDevolucion" style="display:none;">
+    <div class="modal-content modal-premium" style="max-width: 700px;">
+        <div class="modal-header-premium modal-header-red">
+            <div class="icon-container-discount">
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
+                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 4v6h6"></path>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                </svg>
+            </div>
+            <h3>Detalle de Devolución</h3>
+            <p id="detalleDevolucionId">Información de la devolución</p>
+        </div>
+
+        <div class="modal-body-premium">
+            <div id="detalleDevolucionContenido">
+                <!-- Aquí se cargarán los detalles -->
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalDetalleDevolucion')">Cerrar</button>
+                <button class="btn-exito" id="btnReimprimirDevolucion" onclick="reimprimirTicketDevolucionDesdeHistorial()" style="margin: 0;">
+                    <i class="fas fa-print"></i> Reimprimir Ticket
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ##=========================== MODAL: DETALLE DE VENTA ===========================## -->
 <div class="modal-overlay" id="modalDetalleVenta" style="display:none;">
     <div class="modal-content modal-premium" style="max-width: 700px;">
@@ -2317,7 +2438,9 @@ endif; ?>
                 const fecha = new Date(venta.fecha).toLocaleString('es-ES');
                 
                 // Update header info
-                document.getElementById('detalleVentaId').textContent = 'Venta #' + venta.id + ' - ' + fecha;
+                const serie = venta.serie || (venta.tipoDocumento === 'factura' ? 'F' : 'T');
+                const numero = venta.numero || venta.id;
+                document.getElementById('detalleVentaId').textContent = serie + String(numero).padStart(5, '0') + ' - ' + fecha;
                 
                 const tipoIcono = venta.tipoDocumento === 'factura' ? '📄' : '🧾';
                 const tipoLabel = venta.tipoDocumento === 'factura' ? 'Factura' : 'Ticket';
@@ -2432,7 +2555,8 @@ endif; ?>
                 const venta = data.venta;
                 const lineas = data.lineas;
                 ultimaVenta = {
-                    id: venta.id, tipo: venta.tipoDocumento, total: parseFloat(venta.total),
+                    id: venta.id, serie: venta.serie, numero: venta.numero,
+                    tipo: venta.tipoDocumento, total: parseFloat(venta.total),
                     fecha: venta.fecha, metodoPago: venta.metodoPago,
                     entregado: parseFloat(venta.importeEntregado) || 0,
                     cambio: parseFloat(venta.cambioDevuelto) || 0,
@@ -2462,7 +2586,8 @@ endif; ?>
                 const venta = data.venta;
                 const lineas = data.lineas;
                 ventaHistorialTemporal = {
-                    id: venta.id, tipo: venta.tipoDocumento, total: parseFloat(venta.total),
+                    id: venta.id, serie: venta.serie, numero: venta.numero,
+                    tipo: venta.tipoDocumento, total: parseFloat(venta.total),
                     fecha: venta.fecha, metodoPago: venta.metodoPago,
                     entregado: parseFloat(venta.importeEntregado) || 0,
                     cambio: parseFloat(venta.cambioDevuelto) || 0,
@@ -2476,6 +2601,307 @@ endif; ?>
                 mostrarFormEmail();
             })
             .catch(err => { console.error('Error:', err); alert('Error al obtener los datos del ticket: ' + err.message); });
+    }
+
+    // Variable para almacenar la devolución actual del historial
+    let devolucionHistorialTemporal = null;
+
+    /**
+     * Muestra el modal con el historial de devoluciones de hoy
+     */
+    function mostrarHistorialDevoluciones() {
+        const modal = document.getElementById('modalHistorialDevoluciones');
+        const contenido = document.getElementById('historialDevolucionesContenido');
+        const totalDiv = document.getElementById('historialDevolucionesTotal');
+        const fechaDiv = document.getElementById('historialDevolucionesFecha');
+
+        // Actualizar la fecha en el subtítulo
+        const hoy = new Date();
+        if (fechaDiv) {
+            fechaDiv.textContent = 'Devoluciones desde la apertura de caja - ' + hoy.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+
+        // Mostrar modal
+        modal.style.display = 'flex';
+
+        // Cargar devoluciones desde la API (la sesión se obtiene automáticamente en el servidor)
+        fetch('api/devoluciones.php?historialSesion=1')
+            .then(res => {
+                console.log('Response status:', res.status);
+                if (!res.ok) {
+                    throw new Error('HTTP error ' + res.status);
+                }
+                return res.json();
+            })
+            .then(devoluciones => {
+                console.log('Devoluciones:', devoluciones);
+                if (devoluciones.error) {
+                    if (devoluciones.error.includes('No hay sesión')) {
+                        contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">No hay sesión de caja abierta.</p>';
+                        totalDiv.textContent = '';
+                        return;
+                    }
+                    throw new Error(devoluciones.error);
+                }
+                if (!devoluciones || devoluciones.length === 0) {
+                    contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">No hay devoluciones registradas hoy.</p>';
+                    totalDiv.textContent = 'Total: 0.00 €';
+                    return;
+                }
+
+                // Calcular total
+                let total = 0;
+                let html = '<table class="historial-ventas-tabla">';
+                html += '<thead><tr>';
+                html += '<th>Hora</th>';
+                html += '<th>Usuario</th>';
+                html += '<th>Productos</th>';
+                html += '<th>Forma de pago</th>';
+                html += '<th>Total</th>';
+                html += '<th>Acciones</th>';
+                html += '</tr></thead><tbody>';
+
+                devoluciones.forEach(d => {
+                    const fecha = new Date(d.fecha);
+                    const hora = fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                    const totalDevolucion = parseFloat(d.total);
+                    const numItems = d.numItems || 1;
+                    total += totalDevolucion;
+
+                    let formaPago = d.metodoPago || 'Efectivo';
+                    let usuario = d.usuario_nombre || 'Cajero';
+
+                    html += '<tr>';
+                    html += '<td>' + hora + '</td>';
+                    html += '<td>' + usuario + '</td>';
+                    html += '<td>' + numItems + '</td>';
+                    html += '<td>' + formaPago + '</td>';
+                    html += '<td style="font-weight: 600; color: #ef4444;">-' + totalDevolucion.toFixed(2).replace('.', ',') + ' €</td>';
+                    html += '<td>';
+                    html += '<div style="display: flex; gap: 5px; justify-content: center;">';
+                    html += '<button class="btn-exito" onclick="verDetalleDevolucion(' + d.idVenta + ')" title="Ver detalles" style="padding: 5px 10px; font-size: 12px;">👁️</button>';
+                    html += '<button class="btn-exito" onclick="reimprimirTicketDevolucionDesdeHistorial(' + d.idVenta + ')" title="Reimprimir ticket" style="padding: 5px 10px; font-size: 12px;">🖨️</button>';
+                    html += '</div>';
+                    html += '</td>';
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                contenido.innerHTML = html;
+                totalDiv.textContent = 'Total devuelto: -' + total.toFixed(2).replace('.', ',') + ' € (' + devoluciones.length + ' devoluciones)';
+            })
+            .catch(err => {
+                console.error('Error cargando historial:', err);
+                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 40px;">Error al cargar el historial de devoluciones: ' + err.message + '</p>';
+                totalDiv.textContent = '';
+            });
+    }
+
+    /**
+     * Muestra los detalles de una devolución específica en un modal
+     */
+    function verDetalleDevolucion(idVenta) {
+        const modal = document.getElementById('modalDetalleDevolucion');
+        const contenido = document.getElementById('detalleDevolucionContenido');
+
+        modal.style.display = 'flex';
+        contenido.innerHTML = '<p style="text-align: center; padding: 20px;">Cargando...</p>';
+
+        fetch('api/devoluciones.php?detalleVenta=' + idVenta)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;">Error: ' + data.error + '</p>';
+                    return;
+                }
+
+                if (!data || data.length === 0) {
+                    contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No se encontraron productos devueltos.</p>';
+                    return;
+                }
+
+                const primera = data[0];
+                const fecha = new Date(primera.fecha).toLocaleString('es-ES');
+                
+                // Update header info
+                const serie = devolucion.serie || 'T';
+                const numero = devolucion.numero || idVenta;
+                document.getElementById('detalleDevolucionId').textContent = 'Devolución ' + serie + String(numero).padStart(5, '0') + ' - ' + fecha;
+
+                // Simple style matching other modals
+                let html = '';
+                
+                // Info row
+                html += '<div style="display: flex; gap: 15px; margin-bottom: 20px;">';
+                html += '<div style="flex: 1; background: var(--bg-secondary); padding: 12px; border-radius: 8px;">';
+                html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Forma de pago</div>';
+                html += '<div style="font-weight: 600;">💵 ' + (primera.metodoPago || 'Efectivo') + '</div>';
+                html += '</div>';
+                html += '<div style="flex: 1; background: var(--bg-secondary); padding: 12px; border-radius: 8px;">';
+                html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Motivo</div>';
+                html += '<div style="font-weight: 600;">' + (primera.motivo || 'No especificado') + '</div>';
+                html += '</div>';
+                html += '</div>';
+
+                // Products table
+                html += '<div style="max-height: 250px; overflow-y: auto; margin-bottom: 20px;">';
+                html += '<table style="width: 100%; border-collapse: collapse;">';
+                html += '<thead><tr style="background: var(--bg-secondary);">';
+                html += '<th style="padding: 10px; text-align: left; font-size: 12px; color: var(--text-muted);">Producto</th>';
+                html += '<th style="padding: 10px; text-align: center; font-size: 12px; color: var(--text-muted);">Cant.</th>';
+                html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);">P.V.P</th>';
+                html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);">Importe</th>';
+                html += '</tr></thead><tbody>';
+
+                let totalDevolucion = 0;
+                data.forEach(item => {
+                    const subtotal = parseFloat(item.importeTotal || 0);
+                    totalDevolucion += subtotal;
+                    html += '<tr style="border-bottom: 1px solid var(--border-main);">';
+                    html += '<td style="padding: 10px;">' + (item.producto_nombre || 'Producto') + '</td>';
+                    html += '<td style="padding: 10px; text-align: center;">' + item.cantidad + '</td>';
+                    html += '<td style="padding: 10px; text-align: right;">' + parseFloat(item.precioUnitario || 0).toFixed(2).replace('.', ',') + ' €</td>';
+                    html += '<td style="padding: 10px; text-align: right; font-weight: 600; color: #ef4444;">-' + subtotal.toFixed(2).replace('.', ',') + ' €</td>';
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                html += '</div>';
+                
+                // Total
+                html += '<div style="background: #ef4444; color: white; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px;">';
+                html += 'TOTAL DEVUELTO: -' + totalDevolucion.toFixed(2).replace('.', ',') + ' €';
+                html += '</div>';
+
+                contenido.innerHTML = html;
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;">Error al cargar los detalles</p>';
+            });
+    }
+
+    /**
+     * Reimprime un ticket de devolución desde el historial
+     */
+    function reimprimirTicketDevolucionDesdeHistorial(idVenta) {
+        fetch('api/devoluciones.php?detalleVenta=' + idVenta)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) { alert('Error: ' + data.error); return; }
+                if (!data || data.length === 0) { alert('No se encontraron datos de la devolución'); return; }
+
+                const primera = data[0];
+                devolucionHistorialTemporal = {
+                    id: idVenta,
+                    fecha: primera.fecha,
+                    metodoPago: primera.metodoPago || 'Efectivo',
+                    total: data.reduce((sum, item) => sum + parseFloat(item.importeTotal || 0), 0),
+                    motivo: primera.motivo || '',
+                    lineas: data.map(l => ({
+                        idProducto: l.idProducto,
+                        nombre: l.producto_nombre || 'Producto',
+                        cantidad: l.cantidad,
+                        precioUnitario: l.precioUnitario,
+                        importeTotal: l.importeTotal,
+                        iva: l.iva || 21
+                    }))
+                };
+                ultimaDevolucion = devolucionHistorialTemporal;
+                imprimirDocumentoDevolucion();
+            })
+            .catch(err => { console.error('Error:', err); alert('Error al obtener los datos del ticket'); });
+    }
+
+    /**
+     * Función para imprimir el documento de devolución
+     */
+    function imprimirDocumentoDevolucion() {
+        if (!ultimaDevolucion) {
+            alert('No hay devolución para imprimir');
+            return;
+        }
+
+        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        if (!printWindow) {
+            alert('Por favor permita ventanas emergentes para imprimir');
+            return;
+        }
+
+        const devolucion = ultimaDevolucion;
+        const fecha = new Date(devolucion.fecha).toLocaleString('es-ES');
+        
+        let html = '<!DOCTYPE html><html><head><title>Ticket de Devolución</title>';
+        html += '<style>';
+        html += 'body { font-family: Arial, sans-serif; font-size: 12px; margin: 0; padding: 10px; }';
+        html += '.header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }';
+        html += '.title { font-size: 18px; font-weight: bold; }';
+        html += '.info { margin: 5px 0; }';
+        html += 'table { width: 100%; border-collapse: collapse; margin: 10px 0; }';
+        html += 'th, td { padding: 5px; text-align: left; }';
+        html += '.total { font-size: 16px; font-weight: bold; text-align: right; margin-top: 10px; }';
+        html += '.footer { text-align: center; margin-top: 20px; font-size: 10px; }';
+        html += '</style></head><body>';
+        
+        html += '<div class="header">';
+        html += '<div class="title">TICKET DE DEVOLUCIÓN</div>';
+        html += '<div class="info">Ticket Original: #' + devolucion.id + '</div>';
+        html += '<div class="info">Fecha: ' + fecha + '</div>';
+        html += '<div class="info">Método de pago: ' + devolucion.metodoPago + '</div>';
+        html += '</div>';
+        
+        html += '<table>';
+        html += '<thead><tr><th>Producto</th><th>Cant</th><th>Importe</th></tr></thead>';
+        html += '<tbody>';
+        
+        if (devolucion.lineas) {
+            let sumaLineas = 0;
+            devolucion.lineas.forEach(linea => {
+                const precioBase = parseFloat(linea.precioUnitario) || 0;
+                const cantidad = parseInt(linea.cantidad) || 1;
+                const importe = parseFloat(linea.importeTotal) || 0;
+                sumaLineas += importe;
+                // Show the price including IVA (importeTotal / cantidad)
+                const precioConIVA = cantidad > 0 ? importe / cantidad : precioBase;
+                html += '<tr><td>' + linea.nombre + '</td><td>' + cantidad + '</td><td>-' + precioConIVA.toFixed(2) + ' €</td></tr>';
+            });
+            // Update total with correct sum
+            devolucion.total = sumaLineas;
+        }
+        
+        html += '</tbody></table>';
+        
+        html += '<div class="total">TOTAL DEVUELTO: -' + parseFloat(devolucion.total).toFixed(2).replace('.', ',') + ' €</div>';
+        
+        if (devolucion.motivo) {
+            html += '<div style="margin-top: 10px;"><strong>Motivo:</strong> ' + devolucion.motivo + '</div>';
+        }
+        
+        html += '<div class="footer">';
+        html += '<p>Gracias por su compra</p>';
+        html += '</div>';
+        
+        html += '</body></html>';
+        
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.print();
+    }
+
+    /**
+     * Obtiene el ID de la sesión de caja actual
+     */
+    function obtenerIdSesionCaja() {
+        // Intentar obtener de la variable global de sesión
+        if (typeof idSesionCajaActual !== 'undefined' && idSesionCajaActual) {
+            return idSesionCajaActual;
+        }
+        // Intentar obtener del elemento en el DOM
+        const sesionElement = document.getElementById('idSesionCajaActual');
+        if (sesionElement) {
+            return sesionElement.value;
+        }
+        return null;
     }
 </script>
 
@@ -2774,7 +3200,7 @@ endif; ?>
                                 <div style="border: 1px solid ${borderColor}; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: ${isDark ? '#111827' : '#f9fafb'};">
                                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
                                         <div>
-                                            <strong style="color: ${textColor};">Venta #${index + 1}</strong>
+                                            <strong style="color: ${textColor};">${venta.serie || 'T'}${String(venta.numero || (index + 1)).padStart(5, '0')}</strong>
                                             <div style="font-size: 12px; color: ${subTextColor};">${venta.fecha}</div>
                                         </div>
                                         <div style="text-align: right;">
@@ -3668,7 +4094,15 @@ endif; ?>
         const tipoTitulo = isFactura ? 'FACTURA' : 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
 
         // Datos del emisor (empresa) - fijos
-        const emisorHtml = `
+        const emisorHtml = isFactura ? `
+            <div style="margin-bottom: 20px;">
+                <h2 style="margin: 0; font-size: 1.4rem;">TPV Bazar — Productos Informáticos</h2>
+                <p style="margin: 5px 0;">NIF: B12345678</p>
+                <p style="margin: 5px 0;">C/ Falsa 123, 28000 Madrid</p>
+                <p style="margin: 5px 0;">Tel: 912 345 678</p>
+                <p style="margin: 5px 0;">Email: info@tpvbazar.es</p>
+            </div>
+        ` : `
             <strong>TPV Bazar — Productos Informáticos</strong><br>
             NIF: B12345678<br>
             C/ Falsa 123, 28000 Madrid<br>
@@ -3871,61 +4305,154 @@ endif; ?>
         }
 
         // Componer el documento HTML completo para impresión
-        const contenido = `
-        <html>
-        <head>
-            <title>${tipoTitulo} #${ultimaVenta.id}</title>
-            <style>
-                body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #1a1a1a; max-width: 80mm; margin: 0 auto; line-height: 1.4; }
-                .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
-                .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; }
-                .header h2 { margin: 5px 0 0; font-size: 0.9rem; font-weight: normal;}
-                .datos { margin-bottom: 15px; font-size: 0.85rem; }
-                .datos p { margin: 3px 0; }
-                table.tabla-lineas { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.8rem; }
-                table.tabla-lineas th { background: #f0f0f0; padding: 6px 4px; text-align: left; border-bottom: 1px solid #ccc;  }
-                table.tabla-lineas td { padding: 6px 4px; border-bottom: 1px dashed #eee; }
-                .footer { text-align: center; font-size: 0.75rem; padding-top: 15px; border-top: 1px solid #ccc; margin-top: 20px;}
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>${tipoTitulo}</h1>
-            </div>
-            
-            <div class="datos">
-                ${emisorHtml}
-                <div style="margin-top: 10px;">
-                    <p><strong>Nº Factura/Ticket:</strong> ${ultimaVenta.id}</p>
-                    <p><strong>Fecha Operación y Expedición:</strong> ${ultimaVenta.fecha}</p>
-                    <p><strong>Método de pago:</strong> ${ultimaVenta.metodoPago}</p>
+        let contenido;
+        
+        if (isFactura) {
+            // FORMATO FACTURA - Más completo y profesional
+            contenido = `
+            <html>
+            <head>
+                <title>${tipoTitulo} #${ultimaVenta.id}</title>
+                <style>
+                    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 30px; color: #1a1a1a; max-width: 180mm; margin: 0 auto; line-height: 1.5; }
+                    .header { border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 25px; }
+                    .header h1 { margin: 0; font-size: 1.8rem; color: #2563eb; text-transform: uppercase; letter-spacing: 2px; }
+                    .two-col { display: flex; justify-content: space-between; margin-bottom: 25px; }
+                    .col { flex: 1; }
+                    .col h3 { font-size: 0.9rem; color: #666; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+                    .col p { margin: 3px 0; font-size: 0.9rem; }
+                    .num-doc { text-align: right; }
+                    .num-doc .numero { font-size: 1.5rem; font-weight: bold; color: #1a1a1a; }
+                    .num-doc .fecha { font-size: 0.9rem; color: #666; }
+                    table.tabla-lineas { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.9rem; }
+                    table.tabla-lineas th { background: #f8fafc; padding: 10px 8px; text-align: left; border-bottom: 2px solid #2563eb; }
+                    table.tabla-lineas td { padding: 10px 8px; border-bottom: 1px solid #e5e7eb; }
+                    .totales-box { float: right; width: 45%; margin-top: 20px; }
+                    table.tabla-totales { width: 100%; font-size: 0.95rem; }
+                    table.tabla-totales tr { border-bottom: 1px solid #e5e7eb; }
+                    table.tabla-totales td { padding: 8px; }
+                    table.tabla-totales .total-row { background: #2563eb; color: white; font-size: 1.1rem; }
+                    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 0.85rem; color: #666; }
+                    .nota { margin-top: 20px; font-size: 0.8rem; color: #888; font-style: italic; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>${tipoTitulo}</h1>
                 </div>
+                
+                <div class="two-col">
+                    <div class="col">
+                        <h3>Emisor</h3>
+                        <p><strong>TPV Bazar — Productos Informáticos</strong></p>
+                        <p>NIF: B12345678</p>
+                        <p>C/ Falsa 123, 28000 Madrid</p>
+                        <p>Tel: 912 345 678</p>
+                        <p>Email: info@tpvbazar.es</p>
+                    </div>
+                    <div class="col num-doc">
+                        <div class="numero">Nº ${ultimaVenta.serie || (isFactura ? 'F' : 'T')}${String(ultimaVenta.numero || ultimaVenta.id).padStart(5, '0')}</div>
+                        <div class="fecha">Fecha: ${ultimaVenta.fecha}</div>
+                    </div>
+                </div>
+                
                 ${receptorHtml}
-            </div>
 
-            <table class="tabla-lineas">
-                <thead>
-                    <tr><th>Desc.</th><th style="text-align:center">Cant</th><th style="text-align:right">Precio</th><th style="text-align:center">IVA</th><th style="text-align:right">Subt.</th></tr>
-                </thead>
-                <tbody>${lineasHtml}</tbody>
-            </table>
-            
-            ${totalesHtml}
+                <table class="tabla-lineas">
+                    <thead>
+                        <tr>
+                            <th style="width:50%">Descripción</th>
+                            <th style="text-align:center;width:10%">Cantidad</th>
+                            <th style="text-align:right;width:15%">Precio Unit.</th>
+                            <th style="text-align:center;width:10%">IVA %</th>
+                            <th style="text-align:right;width:15%">Importe</th>
+                        </tr>
+                    </thead>
+                    <tbody>${lineasHtml}</tbody>
+                </table>
+                
+                <div class="totales-box">
+                    ${totalesHtml}
+                </div>
+                
+                <div style="clear:both"></div>
+                
+                <div class="datos-pago" style="margin-top: 25px; padding: 15px; background: #f8fafc; border-radius: 8px;">
+                    <p><strong>Método de pago:</strong> ${ultimaVenta.metodoPago}</p>
+                    ${ultimaVenta.entregado > 0 ? `<p><strong>Importe entregado:</strong> ${parseFloat(ultimaVenta.entregado).toFixed(2).replace('.', ',')} €</p>` : ''}
+                    ${ultimaVenta.cambio > 0 ? `<p><strong>Cambio:</strong> ${parseFloat(ultimaVenta.cambio).toFixed(2).replace('.', ',')} €</p>` : ''}
+                </div>
+                
+                ${obsHtml}
 
-            <div class="datos-pago" style="font-size: 0.85rem; margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px;">
-                <p><strong>Entregado:</strong> ${ultimaVenta.entregado} €</p>
-                <p><strong>Cambio devuelto:</strong> ${ultimaVenta.cambio} €</p>
-            </div>
-            
-            ${obsHtml}
+                <div class="nota">
+                    <p>Los precios incluyen IVA. Esta factura está sujeta a las condiciones generales de venta.</p>
+                </div>
+                
+                <div class="footer">
+                    <p>TPV Bazar — Productos Informáticos | www.tpvbazar.es</p>
+                </div>
+            </body>
+            </html>
+            `;
+        } else {
+            // FORMATO TICKET - El existente
+            contenido = `
+            <html>
+            <head>
+                <title>${tipoTitulo} #${ultimaVenta.id}</title>
+                <style>
+                    body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #1a1a1a; max-width: 80mm; margin: 0 auto; line-height: 1.4; }
+                    .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
+                    .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; }
+                    .header h2 { margin: 5px 0 0; font-size: 0.9rem; font-weight: normal;}
+                    .datos { margin-bottom: 15px; font-size: 0.85rem; }
+                    .datos p { margin: 3px 0; }
+                    table.tabla-lineas { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.8rem; }
+                    table.tabla-lineas th { background: #f0f0f0; padding: 6px 4px; text-align: left; border-bottom: 1px solid #ccc;  }
+                    table.tabla-lineas td { padding: 6px 4px; border-bottom: 1px dashed #eee; }
+                    .footer { text-align: center; font-size: 0.75rem; padding-top: 15px; border-top: 1px solid #ccc; margin-top: 20px;}
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>${tipoTitulo}</h1>
+                </div>
+                
+                <div class="datos">
+                    ${emisorHtml}
+                    <div style="margin-top: 10px;">
+                        <p><strong>Nº Factura/Ticket:</strong> ${ultimaVenta.id}</p>
+                        <p><strong>Fecha Operación y Expedición:</strong> ${ultimaVenta.fecha}</p>
+                        <p><strong>Método de pago:</strong> ${ultimaVenta.metodoPago}</p>
+                    </div>
+                    ${receptorHtml}
+                </div>
 
-            <div class="footer">
-                <p><strong>GRACIAS POR SU COMPRA</strong></p>
-                <p>Los precios mostrados incluyen IVA.</p>
-            </div>
-        </body>
-        </html>
-        `;
+                <table class="tabla-lineas">
+                    <thead>
+                        <tr><th>Desc.</th><th style="text-align:center">Cant</th><th style="text-align:right">Precio</th><th style="text-align:center">IVA</th><th style="text-align:right">Subt.</th></tr>
+                    </thead>
+                    <tbody>${lineasHtml}</tbody>
+                </table>
+                
+                ${totalesHtml}
+
+                <div class="datos-pago" style="font-size: 0.85rem; margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px;">
+                    <p><strong>Entregado:</strong> ${ultimaVenta.entregado} €</p>
+                    <p><strong>Cambio devuelto:</strong> ${ultimaVenta.cambio} €</p>
+                </div>
+                
+                ${obsHtml}
+
+                <div class="footer">
+                    <p><strong>GRACIAS POR SU COMPRA</strong></p>
+                    <p>Los precios mostrados incluyen IVA.</p>
+                </div>
+            </body>
+            </html>
+            `;
+        }
         // Crear un iframe oculto para imprimir sin afectar la página actual
         const iframe = document.createElement('iframe');
         iframe.style.position = 'absolute';
@@ -4072,6 +4599,180 @@ endif; ?>
             });
     }
 
+    /**
+    * mostrarFormEmailDevolucion()
+    * Muestra el formulario de envío por correo electrónico dentro del modal de devolución exitosa.
+    */
+    function mostrarFormEmailDevolucion() {
+        document.getElementById('formEmailDev').style.display = 'block';
+        document.getElementById('inputEmailDev').focus();
+    }
+
+    /**
+    * enviarPorCorreoDevolucion()
+    * Envía los datos de la devolución por correo electrónico al cliente.
+    */
+    function enviarPorCorreoDevolucion() {
+        if (typeof ultimaDevolucion === 'undefined') return;
+
+        const email = document.getElementById('inputEmailDev').value.trim();
+        const statusEl = document.getElementById('emailStatusDev');
+
+        // Validación básica del email
+        if (!email || !email.includes('@')) {
+            statusEl.textContent = 'Por favor, introduce un correo válido.';
+            statusEl.style.color = '#ef4444';
+            return;
+        }
+
+        // Mostrar estado "Enviando..."
+        statusEl.textContent = 'Enviando...';
+        statusEl.style.color = '#3b82f6';
+
+        // Petición AJAX al endpoint de envío de correo
+        fetch('api/enviarCorreo.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: email,
+                tipoDocumento: 'devolucion',
+                ventaId: ultimaDevolucion.id,
+                total: ultimaDevolucion.total,
+                lineas: ultimaDevolucion.lineas,
+                fecha: ultimaDevolucion.fecha,
+                metodoPago: ultimaDevolucion.metodoPago,
+                clienteObs: ultimaDevolucion.motivo // pasamos el motivo como observaciones
+            })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.ok) {
+                    // Envío exitoso
+                    statusEl.textContent = '✓ Correo enviado correctamente a ' + email;
+                    statusEl.style.color = '#10b981';
+                } else {
+                    // Error del servidor
+                    statusEl.textContent = '✗ ' + (data.mensaje || 'Error al enviar el correo.');
+                    statusEl.style.color = '#ef4444';
+                }
+            })
+            .catch(err => {
+                // Error de conexión
+                statusEl.textContent = '✗ Error de conexión al enviar el correo.';
+                statusEl.style.color = '#ef4444';
+            });
+    }
+
+    /**
+    * imprimirTicketDevolucion()
+    * Genera un iframe oculto e imprime el ticket de devolución usando ultimaDevolucion.
+    */
+    function imprimirTicketDevolucion() {
+        if (typeof ultimaDevolucion === 'undefined') return;
+
+        let lineasHtml = '';
+        if (ultimaDevolucion.lineas && ultimaDevolucion.lineas.length > 0) {
+            ultimaDevolucion.lineas.forEach(linea => {
+                // Formatting depending on the object fields
+                const cant = linea.cantidad || 0;
+                const prec = linea.precio || 0;
+                const imp = linea.importe || 0;
+                
+                // Formatear precios (asegurar que es numérico y usar replace para la coma)
+                const precFmt = parseFloat(prec).toFixed(2).replace('.', ',');
+                const impFmt = parseFloat(imp).toFixed(2).replace('.', ',');
+                
+                lineasHtml += `
+                    <tr>
+                        <td>${linea.nombre || 'Producto'}</td>
+                        <td style="text-align:center">${cant}</td>
+                        <td style="text-align:right">${precFmt} €</td>
+                        <td style="text-align:right">${impFmt} €</td>
+                    </tr>
+                `;
+            });
+        }
+
+        const totalesHtml = `
+            <table style="width: 100%; border-top: 2px solid #000; margin-top: 10px; padding-top: 5px;">
+                <tr>
+                    <td style="font-size: 1.2rem; font-weight: bold;">TOTAL DEVUELTO:</td>
+                    <td style="font-size: 1.2rem; font-weight: bold; text-align:right; color: #dc2626;">-${parseFloat(ultimaDevolucion.total).toFixed(2).replace('.', ',')} €</td>
+                </tr>
+            </table>
+        `;
+
+        let obsHtml = '';
+        if (ultimaDevolucion.motivo) {
+            obsHtml = `<div style="margin-top: 15px; font-size: 0.8rem;"><strong>Motivo:</strong> ${ultimaDevolucion.motivo}</div>`;
+        }
+
+        const contenido = `
+        <html>
+        <head>
+            <title>TICKET DE DEVOLUCIÓN #${ultimaDevolucion.id}</title>
+            <style>
+                body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #1a1a1a; max-width: 80mm; margin: 0 auto; line-height: 1.4; }
+                .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
+                .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; color: #dc2626; }
+                .header h2 { margin: 5px 0 0; font-size: 0.9rem; font-weight: normal;}
+                .datos { margin-bottom: 15px; font-size: 0.85rem; }
+                .datos p { margin: 3px 0; }
+                table.tabla-lineas { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.8rem; }
+                table.tabla-lineas th { background: #f0f0f0; padding: 6px 4px; text-align: left; border-bottom: 1px solid #ccc;  }
+                table.tabla-lineas td { padding: 6px 4px; border-bottom: 1px dashed #eee; }
+                .footer { text-align: center; font-size: 0.75rem; padding-top: 15px; border-top: 1px solid #ccc; margin-top: 20px;}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>TICKET DE DEVOLUCIÓN</h1>
+            </div>
+            
+            <div class="datos">
+                <strong>TPV Bazar — Productos Informáticos</strong><br>
+                NIF: B12345678<br>
+                C/ Falsa 123, 23000 León<br>
+                <div style="margin-top: 10px;">
+                    <p><strong>Nº Ticket Original:</strong> ${ultimaDevolucion.id}</p>
+                    <p><strong>Fecha Operación:</strong> ${ultimaDevolucion.fecha}</p>
+                    <p><strong>Método de pago:</strong> ${ultimaDevolucion.metodoPago}</p>
+                </div>
+            </div>
+
+            <table class="tabla-lineas">
+                <thead>
+                    <tr><th>Desc.</th><th style="text-align:center">Cant</th><th style="text-align:right">Precio Base</th><th style="text-align:right">Subt.</th></tr>
+                </thead>
+                <tbody>${lineasHtml}</tbody>
+            </table>
+            
+            ${totalesHtml}
+            ${obsHtml}
+
+            <div class="footer">
+                <p>Las cantidades han sido reembolsadas mediante ${ultimaDevolucion.metodoPago}.</p>
+                <p>Conserve este ticket como justificante.</p>
+            </div>
+        </body>
+        </html>
+        `;
+
+        // Crear un iframe oculto para imprimir sin afectar la página actual
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.top = '-10000px';
+        document.body.appendChild(iframe);
+        iframe.contentDocument.write(contenido);
+        iframe.contentDocument.close();
+
+        // Cuando el iframe cargue, ejecutar la impresión y luego eliminarlo
+        iframe.onload = function () {
+            iframe.contentWindow.print();
+            setTimeout(() => iframe.remove(), 1000);
+        };
+    }
+
     // ======================== CAJA ========================
 
     /**
@@ -4191,19 +4892,35 @@ endif; ?>
      * Busca un ticket mediante su ID para iniciar el proceso de devolución.
      */
     function buscarTicketParaDevolucion() {
-        const idTicket = document.getElementById('inputTicketIdDev').value;
+        const input = document.getElementById('inputTicketIdDev').value.trim();
         const errorEl = document.getElementById('errorTicketDev');
 
-        if (!idTicket) {
-            errorEl.textContent = 'Por favor, introduce un ID de ticket.';
+        if (!input) {
+            errorEl.textContent = 'Por favor, introduce el número del ticket (ej: T00001).';
             errorEl.style.display = 'block';
             return;
         }
 
         errorEl.style.display = 'none';
 
+        // Parse correlative number format (e.g., "T00001" -> serie="T", numero=1)
+        let serie = '';
+        let numero = input;
+        
+        const match = input.match(/^([TF]?)0*(\d+)$/i);
+        if (match) {
+            serie = match[1].toUpperCase(); // Serie: T, F, o vacio
+            numero = match[2]; // Numero sin ceros a la izquierda
+        }
+
+        // Construir URL con serie y numero
+        let url = `api/ventas.php?checkVentaDevolucion=${numero}`;
+        if (serie) {
+            url += `&serie=${serie}`;
+        }
+
         // Consultar API para verificar el ticket y obtener productos
-        fetch(`api/ventas.php?checkVentaDevolucion=${idTicket}`)
+        fetch(url)
             .then(res => res.json())
             .then(data => {
                 if (data.error) {
@@ -4234,7 +4951,11 @@ endif; ?>
                 document.getElementById('resumenReembolso').style.display = 'block';
                 document.getElementById('devolucionSubtitulo').textContent = 'Selecciona las unidades a devolver';
 
-                document.getElementById('infoTicketId').textContent = 'TICKET #' + ticketActualDevolucion.id;
+                // Mostrar TICKET T00001 o FACTURA F00001 según la serie
+                const serie = ticketActualDevolucion.serie || 'T';
+                const tipoDoc = serie === 'F' ? 'FACTURA' : 'TICKET';
+                const numero = String(ticketActualDevolucion.numero || ticketActualDevolucion.id).padStart(5, '0');
+                document.getElementById('infoTicketId').textContent = tipoDoc + ' ' + serie + numero;
                 document.getElementById('infoTicketFecha').textContent = new Date(ticketActualDevolucion.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 document.getElementById('infoTicketTotal').textContent = parseFloat(ticketActualDevolucion.total).toFixed(2).replace('.', ',') + ' €';
                 // Also update the original total in the footer
@@ -4422,26 +5143,8 @@ endif; ?>
             }
         });
 
-        // Redondear el total hacia abajo a 2 decimales
-        total = Math.floor(total * 100) / 100;
-
-        // Si se devuelven TODOS los productos disponibles, mostrar el total original de la venta
-        let totalUnidadesDisponibles = 0;
-        let totalUnidadesSeleccionadas = 0;
-        const inputsCheck = document.querySelectorAll('.cant-dev-input');
-        inputsCheck.forEach(input => {
-            const index = input.dataset.index;
-            const linea = lineasVentaDevolucion[index];
-            const comprado = parseInt(linea.cantidad);
-            const devuelto = parseInt(linea.cantidad_devuelta);
-            const disponible = comprado - devuelto;
-            totalUnidadesDisponibles += disponible;
-            totalUnidadesSeleccionadas += parseInt(input.value) || 0;
-        });
-
-        if (totalUnidadesSeleccionadas === totalUnidadesDisponibles && totalUnidadesDisponibles > 0) {
-            total = parseFloat(ticketActualDevolucion.total);
-        }
+        // Redondear el total a 2 decimales
+        total = Math.round(total * 100) / 100;
 
         document.getElementById('totalReembolsoDisplay').textContent = total.toFixed(2).replace('.', ',') + ' €';
 
@@ -4477,7 +5180,7 @@ endif; ?>
         document.getElementById('devolucionPaso2').style.display = 'none';
         document.getElementById('btnConfirmarMultiDev').style.display = 'none';
         document.getElementById('resumenReembolso').style.display = 'none';
-        document.getElementById('devolucionSubtitulo').textContent = 'Introduce el ID del Ticket para comenzar';
+        document.getElementById('devolucionSubtitulo').textContent = 'Introduce el número del Ticket (ej: T00001)';
         document.getElementById('inputTicketIdDev').value = '';
         document.getElementById('errorTicketDev').style.display = 'none';
         document.getElementById('totalOriginalDisplay').textContent = '0,00 €';
@@ -4526,12 +5229,6 @@ endif; ?>
 
         if (productosDev.length === 0) return;
 
-        // Si se devuelven TODOS los productos disponibles, usar el total original de la venta
-        // Esto asegura que el reembolso sea exacto incluyendo descuentos
-        if (totalUnidadesSeleccionadas === totalUnidadesDisponibles && totalUnidadesDisponibles > 0) {
-            totalReembolso = parseFloat(ticketActualDevolucion.total);
-        }
-
         // Redondear total final a 2 decimales
         totalReembolso = Math.round(totalReembolso * 100) / 100;
 
@@ -4547,6 +5244,12 @@ endif; ?>
         accionInput.name = 'accion';
         accionInput.value = 'tramitarMultiDevolucion';
         form.appendChild(accionInput);
+
+        const motivoInput = document.createElement('input');
+        motivoInput.type = 'hidden';
+        motivoInput.name = 'motivo';
+        motivoInput.value = document.getElementById('motivoDevolucionDev') ? document.getElementById('motivoDevolucionDev').value.trim() : '';
+        form.appendChild(motivoInput);
 
         const idVentaInput = document.createElement('input');
         idVentaInput.type = 'hidden';

@@ -356,3 +356,135 @@ function exportarInformePDF(periodo) {
         Swal.fire('Error', 'No se pudo generar el PDF. Asegúrate de que jsPDF esté cargado.', 'error');
     }
 }
+// ═══════════════════════════════════════════════════════════════════════════════
+// DASHBOARD — Gráficos de ventas
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * HTML base del dashboard con los canvas para las gráficas de Chart.js.
+ * Se inyecta en el contenedor al mostrar el panel principal.
+ */
+const HTML_DASHBOARD = `
+    <div class="dashboard-graficos">
+        <div class="grafico-card">
+            <div class="grafico-header">
+                <span class="grafico-titulo">Ventas últimos 7 días</span>
+                <span id="dashTotalSemana" class="grafico-total">—</span>
+            </div>
+            <canvas id="graficaVentas" height="180"></canvas>
+        </div>
+        <div class="grafico-card">
+            <div class="grafico-header">
+                <span class="grafico-titulo">Ventas últimos 7 días</span>
+                <span id="dashTotalPedidos" class="grafico-total">—</span>
+            </div>
+            <canvas id="graficaPedidos" height="180"></canvas>
+        </div>
+    </div>`;
+
+/**
+ * Carga los datos de ventas de los últimos 7 días desde la API y renderiza
+ * dos gráficos en el dashboard usando Chart.js:
+ *   1. Gráfico de barras con el total de ventas en euros por día.
+ *   2. Gráfico de líneas con el número de pedidos por día.
+ * También actualiza los totales acumulados en las cabeceras de cada gráfico.
+ */
+function cargarGraficoDashboard() {
+    fetch('api/ventas.php')
+        .then(res => res.json())
+        .then(data => {
+            const labels = data.map(d => {
+                const fecha = new Date(d.dia);
+                return fecha.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+            });
+
+            const ventas = data.map(d => parseFloat(d.total));
+            const pedidos = data.map(d => parseInt(d.pedidos));
+
+            const totalVentas = ventas.reduce((a, b) => a + b, 0);
+            const totalPedidos = pedidos.reduce((a, b) => a + b, 0);
+
+            document.getElementById('dashTotalSemana').textContent =
+                totalVentas.toFixed(2).replace('.', ',') + ' €';
+            document.getElementById('dashTotalPedidos').textContent = totalPedidos + ' pedidos';
+
+            const isDark = document.body.classList.contains('dark-mode');
+            const gridColor = isDark ? '#374151' : '#f0f2f5';
+            const textColor = isDark ? '#ffffff' : '#374151';
+
+            const opcionesComunes = {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: textColor } },
+                    y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor } }
+                }
+            };
+
+            const actualizarGraficos = () => {
+                const isDarkNow = document.body.classList.contains('dark-mode');
+                const newGridColor = isDarkNow ? '#374151' : '#f0f2f5';
+                const newTextColor = isDarkNow ? '#ffffff' : '#374151';
+
+                const chartVentas = Chart.getChart('graficaVentas');
+                const chartPedidos = Chart.getChart('graficaPedidos');
+
+                if (chartVentas) {
+                    chartVentas.options.scales.x.ticks.color = newTextColor;
+                    chartVentas.options.scales.y.ticks.color = newTextColor;
+                    chartVentas.options.scales.y.grid.color = newGridColor;
+                    chartVentas.update();
+                }
+
+                if (chartPedidos) {
+                    chartPedidos.options.scales.x.ticks.color = newTextColor;
+                    chartPedidos.options.scales.y.ticks.color = newTextColor;
+                    chartPedidos.options.scales.y.grid.color = newGridColor;
+                    chartPedidos.update();
+                }
+            };
+
+            window.removeEventListener('themeChange', actualizarGraficos);
+            window.addEventListener('themeChange', actualizarGraficos);
+
+            new Chart(document.getElementById('graficaVentas'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: ventas,
+                        backgroundColor: 'rgba(5, 150, 105, 0.08)',
+                        borderColor: '#059669',
+                        borderWidth: 2,
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    ...opcionesComunes,
+                    scales: {
+                        ...opcionesComunes.scales,
+                        y: { ...opcionesComunes.scales.y, ticks: { callback: v => v + ' €' } }
+                    }
+                }
+            });
+
+            new Chart(document.getElementById('graficaPedidos'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: pedidos,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#3b82f6',
+                        pointRadius: 4,
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: opcionesComunes
+            });
+        })
+        .catch(err => console.error('Error cargando gráficas:', err));
+}
