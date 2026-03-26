@@ -314,10 +314,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                         $stmtPuntosActuales->execute([$clienteNif]);
                         $resultadoPuntos = $stmtPuntosActuales->fetch(PDO::FETCH_ASSOC);
                         $_SESSION['puntosActualesAcumulados'] = $resultadoPuntos ? $resultadoPuntos['puntos'] : 0;
-                    } else if ($puntosGanados > 0) {
-                        // Se ganó puntos, pero no se identificó explícitamente desde el modal, así que no se muestra el pop-up post venta,
-                        // pero los mantenemos por si hiciera falta.
-                        $_SESSION['puntosGanados'] = $puntosGanados;
                     }
                 } catch (Exception $e) {
                     // Si falla la actualización del cliente, no detenemos la venta
