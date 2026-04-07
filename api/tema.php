@@ -83,7 +83,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'btn_white_color',
         'btn_white_font',
         'header_icon',
-        'favicon'
+        'favicon',
+        // Tamaño de tarjetas de productos
+        'producto_card_width',
+        'producto_card_height',
+        'producto_card_max_width',
+        'producto_card_max_height',
+        // Grid y spacing
+        'producto_grid_columns',
+        'producto_grid_gap',
+        // Tamaños de fuente
+        'producto_nombre_font_size',
+        'producto_precio_font_size',
+        'producto_stock_font_size'
     ];
 
     try {

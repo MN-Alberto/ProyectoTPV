@@ -1,4 +1,17 @@
-<script src="webroot/js/admin.js"></script>
+<!-- <script src="webroot/js/admin.js"></script> -->
+ <script src="webroot/js/admin-backups.js"></script>
+ <script src="webroot/js/admin-caja.js?v=3"></script>
+ <script src="webroot/js/admin-clientes.js"></script>
+ <script src="webroot/js/admin-configuracion.js"></script>
+ <script src="webroot/js/admin-informes.js"></script>
+ <script src="webroot/js/admin-logs.js"></script>
+ <script src="webroot/js/admin-pagination.js"></script>
+ <script src="webroot/js/admin-productos.js"></script>
+ <script src="webroot/js/admin-state.js"></script>
+ <script src="webroot/js/admin-tarifas.js"></script>
+ <script src="webroot/js/admin-usuarios.js"></script>
+ <script src="webroot/js/admin-utils.js"></script>
+ <script src="webroot/js/admin-ventas.js?v=3"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -55,10 +68,12 @@
                 </button>
                 <button class="cat-btn submenu-btn" data-seccion="tarifa-prefijadas"
                     style="width: 100%; text-align: left; font-size: 13px;">
-                    <i class="fas fa-tags" style="margin-right: 10px;"></i> Tarifas Prefijadas
+                    <i class="fas fa-list-ul"></i> Tarifas Prefijadas
                 </button>
             </div>
-
+            <button class="cat-btn" data-seccion="backups" style="width: 100%; text-align: left;">
+                <i class="fas fa-database" style="margin-right: 10px;"></i> Copia de Seguridad
+            </button>
             <button class="cat-btn" id="btnInformes" style="width: 100%; text-align: left;">
                 <i class="fas fa-chart-bar" style="margin-right: 10px;"></i> Informes ▾
             </button>
@@ -174,26 +189,19 @@
 <!-- ##-----------------------------------MODAL VER CATEGORÍA-----------------------------------## -->
 
 <div class="modal-overlay" id="modalVerCategoria" style="display:none;">
-    <div class="modal-content modal-verCategoria" style="max-width: 420px;">
+    <div class="modal-content modal-verCategoria" style="max-width: 480px; width: 90%;">
         <h3>Detalle de Categoría</h3>
-        <p class="modal-subtitulo">Información completa</p>
+        <p class="modal-subtitulo">Información y productos asociados</p>
 
-        <div style="display: flex; flex-direction: column; gap: 12px; margin: 15px 0;">
+        <!-- Info básica (Una sola columna) -->
+        <div style="display: flex; flex-direction: column; gap: 10px; margin: 15px 0;">
             <div class="ver-cat-fila">
                 <span class="ver-cat-label">ID</span>
                 <span id="verCategoriaId" class="ver-cat-valor"></span>
             </div>
             <div class="ver-cat-fila">
                 <span class="ver-cat-label">Nombre</span>
-                <span id="verCategoriaNombre" class="ver-cat-valor"></span>
-            </div>
-            <div class="ver-cat-fila">
-                <span class="ver-cat-label">Productos</span>
-                <span id="verCategoriaProductos" class="ver-cat-valor"></span>
-            </div>
-            <div class="ver-cat-fila">
-                <span class="ver-cat-label">Fecha de Creación</span>
-                <span id="verCategoriaFecha" class="ver-cat-valor"></span>
+                <span id="verCategoriaNombre" class="ver-cat-valor" style="font-weight: 700;"></span>
             </div>
             <div class="ver-cat-fila">
                 <span class="ver-cat-label">Descripción</span>
@@ -201,8 +209,47 @@
             </div>
         </div>
 
-        <div style="display: flex; justify-content: center; margin-top: 20px;">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCategoria')" style="min-width: 100px;">
+        <!-- Carrusel de productos debajo -->
+        <div class="cat-prod-container">
+            <div class="cat-prod-title">
+                <span>Productos vinculados</span>
+                <span id="verCategoriaCantProdBadge" class="admin-badge" style="background: #e0e7ff; color: #3730a3;">0</span>
+            </div>
+            
+            <div class="cat-carousel-wrapper">
+                <div style="display: flex; gap: 5px;">
+                    <button id="firstCatProd" class="cat-carousel-btn small" title="Primero" onclick="cambiarProductoCarrusel('first')">
+                        <i class="fas fa-angle-double-left"></i>
+                    </button>
+                    <button id="prevCatProd" class="cat-carousel-btn" title="Anterior" onclick="cambiarProductoCarrusel(-1)">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                </div>
+                
+                <div id="verCategoriaListaProductos" class="cat-prod-card-wrapper">
+                    <!-- Se carga un solo producto aquí -->
+                    <div class="cat-prod-empty">Cargando...</div>
+                </div>
+                
+                <div style="display: flex; gap: 5px;">
+                    <button id="nextCatProd" class="cat-carousel-btn" title="Siguiente" onclick="cambiarProductoCarrusel(1)">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <button id="lastCatProd" class="cat-carousel-btn small" title="Último" onclick="cambiarProductoCarrusel('last')">
+                        <i class="fas fa-angle-double-right"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="catCarouselDots" class="cat-carousel-info" style="justify-content: center; margin-top: 15px;">
+                <span>Producto</span>
+                <input type="number" id="catCarouselInput" class="cat-carousel-input" min="1" onchange="saltarAProductoCarrusel(this.value)">
+                <span>de <span id="catCarouselTotal">0</span></span>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: center; margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--border-main);">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCategoria')" style="min-width: 120px;">
                 Cerrar
             </button>
         </div>
@@ -417,9 +464,12 @@
             </div>
         </div>
 
-        <div style="display: flex; justify-content: center; margin-top: 20px;">
+        <div style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">
             <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerDevolucion')" style="min-width: 100px;">
                 Cerrar
+            </button>
+            <button class="btn-exito" onclick="verTicketDevolucion()" style="min-width: 100px; margin: 0;">
+                <i class="fas fa-receipt"></i> Ver Ticket
             </button>
         </div>
     </div>
@@ -1093,10 +1143,17 @@
 
             // Toggle modo configuración para ganar espacio
             const dashboard = document.querySelector('.admin-dashboard');
+            const panel = document.querySelector('.admin-content-panel');
             if (seccion.startsWith('config-') || seccion === 'configuracion') {
                 dashboard.classList.add('admin-mode-config');
             } else {
                 dashboard.classList.remove('admin-mode-config');
+            }
+
+            if (seccion.startsWith('informe-')) {
+                panel.classList.add('informes-view');
+            } else {
+                panel.classList.remove('informes-view');
             }
 
             switch (seccion) {
@@ -1136,6 +1193,9 @@
                     break;
                 case 'caja-sesiones':
                     cargarCajaSesionesAdmin();
+                    break;
+                case 'backups':
+                    mostrarPanelBackups();
                     break;
                 case 'categorias':
                     cargarCategoriasAdmin().then(() => mostrarPanelCategorias());

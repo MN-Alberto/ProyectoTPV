@@ -10,11 +10,13 @@
     <!-- Si la pagina en curso solicitada es la del cajero y la solicita el cajero o el admin, cargamos la hoja de estilos de cajero -->
     <?php if (isset($_SESSION['paginaEnCurso']) && ($_SESSION['paginaEnCurso'] === 'cajero' || $_SESSION['paginaEnCurso'] === 'admin')): ?>
         <link href="webroot/css/cajero.css" rel="stylesheet" type="text/css">
-    <?php endif; ?>
+    <?php
+endif; ?>
     <!-- Si la pagina en curso solicitada es la del admin o cajero, cargamos la hoja de estilos de admin (para modales) -->
     <?php if (isset($_SESSION['paginaEnCurso']) && ($_SESSION['paginaEnCurso'] === 'admin' || $_SESSION['paginaEnCurso'] === 'cajero')): ?>
         <link href="webroot/css/admin.css" rel="stylesheet" type="text/css">
-    <?php endif; ?>
+    <?php
+endif; ?>
     <link rel="icon" href="webroot/img/logoCPU.PNG" type="image/png" id="favicon-link">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -55,27 +57,30 @@
                     <a href="?ctl=cajero" class="btn-ir-cajero" title="Ir a Vista de Cajero">
                         <i class="fas fa-cash-register"></i> Cajero
                     </a>
-                <?php elseif (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'cajero' && isset($_SESSION['rolUsuario']) && $_SESSION['rolUsuario'] === 'admin'): ?>
+                <?php
+    elseif (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'cajero' && isset($_SESSION['rolUsuario']) && $_SESSION['rolUsuario'] === 'admin'): ?>
                     <a href="?ctl=admin" class="btn-ir-cajero" title="Volver a Administración">
                         <i class="fas fa-user-shield"></i> Admin
                     </a>
-                <?php endif; ?>
+                <?php
+    endif; ?>
                 <span>Hola, <strong><?php echo htmlspecialchars($_SESSION['nombreUsuario']); ?></strong></span>
                 <form action="<?php echo $_SERVER["PHP_SELF"]; ?>" method="post">
                     <input type="submit" name="cerrarSesion" class="btn-cerrar-sesion" value="Cerrar Sesión">
                 </form>
             </div>
-        <?php endif; ?>
+        <?php
+endif; ?>
     </header>
     <?php
 
-    /*
-     * Autor: Alberto Méndez 
-     * Fecha de actualización: 24/02/2026
-     */
+/*
+ * Autor: Alberto Méndez 
+ * Fecha de actualización: 24/02/2026
+ */
 
-    require_once $view[$_SESSION["paginaEnCurso"]]; //Añadimos la pagina en curso para cargarla.
-    ?>
+require_once $view[$_SESSION["paginaEnCurso"]]; //Añadimos la pagina en curso para cargarla.
+?>
     <footer>
         <a href="https://github.com/MN-Alberto/ProyectoTPV" target="blank" id="link-repositorio">
             <h4>Alberto Méndez Núñez</h4>
@@ -148,6 +153,20 @@
                 if (faviconLink) {
                     faviconLink.href = tema.favicon;
                 }
+            }
+
+            // Aplicar tamaño de tarjetas de productos
+            if (tema.producto_card_width || tema.producto_card_height || tema.producto_card_max_width || tema.producto_card_max_height || tema.producto_grid_columns || tema.producto_grid_gap || tema.producto_nombre_font_size || tema.producto_precio_font_size || tema.producto_stock_font_size) {
+                const root = document.documentElement;
+                if (tema.producto_card_width) root.style.setProperty('--producto-card-width', tema.producto_card_width);
+                if (tema.producto_card_height) root.style.setProperty('--producto-card-height', tema.producto_card_height);
+                if (tema.producto_card_max_width) root.style.setProperty('--producto-card-max-width', tema.producto_card_max_width);
+                if (tema.producto_card_max_height) root.style.setProperty('--producto-card-max-height', tema.producto_card_max_height);
+                if (tema.producto_grid_columns) root.style.setProperty('--producto-grid-columns', tema.producto_grid_columns);
+                if (tema.producto_grid_gap) root.style.setProperty('--producto-grid-gap', tema.producto_grid_gap);
+                if (tema.producto_nombre_font_size) root.style.setProperty('--producto-nombre-font-size', tema.producto_nombre_font_size);
+                if (tema.producto_precio_font_size) root.style.setProperty('--producto-precio-font-size', tema.producto_precio_font_size);
+                if (tema.producto_stock_font_size) root.style.setProperty('--producto-stock-font-size', tema.producto_stock_font_size);
             }
         } catch (e) {
             console.error('Error applying theme:', e);

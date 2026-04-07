@@ -93,7 +93,8 @@ if ($method === 'GET') {
                    COALESCE((SELECT COUNT(*) FROM ventas v 
                              WHERE v.idSesionCaja = cs.id OR (v.idSesionCaja IS NULL AND v.fecha >= cs.fechaApertura AND (cs.fechaCierre IS NULL OR v.fecha <= cs.fechaCierre))), 0) as total_ventas,
                    (SELECT diferencia FROM arqueos_caja WHERE idCajaSesion = cs.id AND tipoArqueo = 'cierre' ORDER BY fechaArqueo DESC LIMIT 1) as diferencia,
-                   (SELECT efectivoContado FROM arqueos_caja WHERE idCajaSesion = cs.id AND tipoArqueo = 'cierre' ORDER BY fechaArqueo DESC LIMIT 1) as efectivoContado
+                   (SELECT efectivoContado FROM arqueos_caja WHERE idCajaSesion = cs.id AND tipoArqueo = 'cierre' ORDER BY fechaArqueo DESC LIMIT 1) as efectivoContado,
+                   (SELECT u2.nombre FROM arqueos_caja ac JOIN usuarios u2 ON ac.idUsuario = u2.id WHERE ac.idCajaSesion = cs.id AND ac.tipoArqueo = 'cierre' ORDER BY ac.fechaArqueo DESC LIMIT 1) as usuario_cierre_nombre
             FROM caja_sesiones cs
             LEFT JOIN usuarios u ON cs.idUsuario = u.id
         ";

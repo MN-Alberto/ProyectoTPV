@@ -112,9 +112,22 @@ if ($descuentoTarifaCupon && $descuentoTarifaCupon !== '') {
 $importeDescuentoManual = 0;
 $textoDescuentoManual = '';
 
+// Puntos de fidelidad
+$puntosGanados = (int) ($datos['puntos_ganados'] ?? 0);
+$puntosCanjeados = (int) ($datos['puntos_canjeados'] ?? 0);
+$puntosBalance = (int) ($datos['puntos_balance'] ?? 0);
+
 // Determinamos el título principal del documento según la elección del usuario
 $isFactura = ($tipoDocumento === 'factura');
-$tipoTitulo = $isFactura ? 'FACTURA' : 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
+$isDevolucion = ($tipoDocumento === 'devolucion');
+
+if ($isFactura) {
+    $tipoTitulo = 'FACTURA';
+} elseif ($isDevolucion) {
+    $tipoTitulo = 'TICKET DE DEVOLUCIÓN';
+} else {
+    $tipoTitulo = 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
+}
 
 /**
  * ────────────────────────────────────────────────────────────────────────────
@@ -187,15 +200,19 @@ foreach ($lineas as $linea) {
         }
     }
 
-    // Acumular para el desglose fiscal final (usando el precio base real tras tarifa)
+    $subtotalBase = round($subtotalPVP / (1 + ($ivaPorc / 100)), 2);
+    $subtotalIva = round($subtotalPVP - $subtotalBase, 2);
+
+    // Acumular para el desglose fiscal final
     if (!isset($desgloseIva[$ivaPorc])) {
-        $desgloseIva[$ivaPorc] = ['pvpAcumulado' => 0]; // Agrupamos por PVP para back-calculate
+        $desgloseIva[$ivaPorc] = ['base' => 0, 'cuota' => 0];
     }
-    $desgloseIva[$ivaPorc]['pvpAcumulado'] += $subtotalPVP;
+    $desgloseIva[$ivaPorc]['base'] += $subtotalBase;
+    $desgloseIva[$ivaPorc]['cuota'] += $subtotalIva;
 
     // Formatear precios para la tabla
     $pvpFmt = number_format($subtotalPVP, 2, ',', '.');
-    $unitarioFmt = number_format($pvpUnitarioReal ?? ($precioBase * (1 + ($ivaPorc / 100))), 2, ',', '.');
+    $unitarioFmt = number_format($precioBaseUnitarioReal, 2, ',', '.');
 
     $filasLineas .= "
         <tr>
@@ -264,14 +281,9 @@ $totalesHtml .= "
 
 ksort($desgloseIva);
 foreach ($desgloseIva as $porc => $valores) {
-    // Cálculo exacto del desglose fiscal prorrateando el descuento manual
-    $pvpFinalConDescuento = $valores['pvpAcumulado'] * $factorDescuento;
-    
-    $baseFinal = round($pvpFinalConDescuento / (1 + ($porc / 100)), 2);
-    $cuotaFinal = round($pvpFinalConDescuento - $baseFinal, 2);
-
-    $bf = number_format($baseFinal, 2, ',', '.');
-    $cf = number_format($cuotaFinal, 2, ',', '.');
+    // Calculamos igual que en vCajero.php (acumulado por lineas sin prorrateo de descuento general)
+    $bf = number_format($valores['base'], 2, ',', '.');
+    $cf = number_format($valores['cuota'], 2, ',', '.');
 
     $totalesHtml .= "
         <tr style='font-size: 12px; color: #555;'>
@@ -283,6 +295,7 @@ foreach ($desgloseIva as $porc => $valores) {
             <td style='border: none; text-align:right'>{$cf} €</td>
         </tr>";
 }
+
 
 $totalFinalPVFmt = number_format($totalFinalPVP, 2, ',', '.');
 
@@ -297,15 +310,129 @@ $totalesHtml .= "
 // E. Bloque de observaciones (si existen)
 $obsHtml = '';
 if ($clienteObs) {
-    $obsHtml = "<div style='margin-top: 15px; font-size: 13px;'><strong>Observaciones:</strong> " . htmlspecialchars($clienteObs) . "</div>";
+    $tituloObs = $isDevolucion ? 'Motivo' : 'Observaciones';
+    $obsHtml = "<div style='margin-top: 15px; font-size: 13px;'><strong>{$tituloObs}:</strong> " . htmlspecialchars($clienteObs) . "</div>";
+}
+
+// F. Bloque de puntos (si aplican)
+$puntosHtml = '';
+if ($puntosGanados > 0 || $puntosCanjeados > 0 || $puntosBalance > 0) {
+    $puntosHtml = "
+    <div style='margin-top: 20px; padding: 15px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 0.9rem;'>
+        <div style='color: #d97706; font-weight: bold; margin-bottom: 8px;'>★ Programa de Puntos</div>
+        <table style='width:100%; border:none; margin: 0;'>";
+        
+    if ($puntosGanados > 0) {
+        $puntosHtml .= "<tr><td style='padding:3px 0; color:#16a34a;'>Puntos ganados en esta compra:</td><td style='padding:3px 0; text-align:right; color:#16a34a;'>+ " . number_format($puntosGanados, 0, ',', '.') . "</td></tr>";
+    }
+    if ($puntosCanjeados > 0) {
+        $puntosHtml .= "<tr><td style='padding:3px 0; color:#ef4444;'>Puntos canjeados en esta compra:</td><td style='padding:3px 0; text-align:right; color:#ef4444;'>- " . number_format($puntosCanjeados, 0, ',', '.') . "</td></tr>";
+    }
+    
+    $puntosHtml .= "
+            <tr>
+                <td style='padding-top: 8px; border-top: 1px solid #fde68a;'><strong>Saldo disponible:</strong></td>
+                <td style='padding-top: 8px; border-top: 1px solid #fde68a; text-align:right;'><strong>" . number_format($puntosBalance, 0, ',', '.') . "</strong></td>
+            </tr>
+        </table>
+    </div>";
 }
 
 /**
  * ────────────────────────────────────────────────────────────────────────────
- * 6. ESTRUCTURA FINAL DEL CUERPO DEL EMAIL (HTML)
+ * 6. ESTRUCTURA FINAL DEL CUERPO DEL EMAIL (HTML) - IDÉNTICO A imprimirDocumento()
  * ────────────────────────────────────────────────────────────────────────────
  */
-$cuerpo = "
+if ($isFactura) {
+    // FACTURA - Formato exacto copiado de vCajero.php function imprimirDocumento()
+    $cuerpo = "
+<html>
+<head>
+    <title>{$tipoTitulo} #{$ventaId}</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 30px; color: #1a1a1a; max-width: 180mm; margin: 0 auto; line-height: 1.5; }
+        .header { border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 25px; }
+        .header h1 { margin: 0; font-size: 1.8rem; color: #2563eb; text-transform: uppercase; letter-spacing: 2px; }
+        .two-col { display: flex; justify-content: space-between; margin-bottom: 25px; }
+        .col { flex: 1; }
+        .col h3 { font-size: 0.9rem; color: #666; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .col p { margin: 3px 0; font-size: 0.9rem; }
+        .num-doc { text-align: right; }
+        .num-doc .numero { font-size: 1.5rem; font-weight: bold; color: #1a1a1a; }
+        .num-doc .fecha { font-size: 0.9rem; color: #666; }
+        table.tabla-lineas { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.9rem; }
+        table.tabla-lineas th { background: #f8fafc; padding: 10px 8px; text-align: left; border-bottom: 2px solid #2563eb; }
+        table.tabla-lineas td { padding: 10px 8px; border-bottom: 1px solid #e5e7eb; }
+        .totales-box { float: right; width: 45%; margin-top: 20px; }
+        table.tabla-totales { width: 100%; font-size: 0.95rem; }
+        table.tabla-totales tr { border-bottom: 1px solid #e5e7eb; }
+        table.tabla-totales td { padding: 8px; }
+        table.tabla-totales .total-row { background: #2563eb; color: white; font-size: 1.1rem; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 0.85rem; color: #666; }
+        .nota { margin-top: 20px; font-size: 0.8rem; color: #888; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class=\"header\">
+        <h1>{$tipoTitulo}</h1>
+    </div>
+    
+    <div class=\"two-col\">
+        <div class=\"col\">
+            <h3>Emisor</h3>
+            <p><strong>TPV Bazar — Productos Informáticos</strong></p>
+            <p>NIF: B12345678</p>
+            <p>C/ Falsa 123, 28000 Madrid</p>
+            <p>Tel: 912 345 678</p>
+            <p>Email: info@tpvbazar.es</p>
+        </div>
+        <div class=\"col num-doc\">
+            <div class=\"numero\">Nº {$ventaId}</div>
+            <div class=\"fecha\">Fecha: {$fecha}</div>
+        </div>
+    </div>
+    
+    {$receptorHtml}
+
+    <table class=\"tabla-lineas\">
+        <thead>
+            <tr>
+                <th style=\"width:50%\">Descripción</th>
+                <th style=\"text-align:center;width:10%\">Cantidad</th>
+                <th style=\"text-align:right;width:15%\">Precio Unit.</th>
+                <th style=\"text-align:center;width:10%\">IVA %</th>
+                <th style=\"text-align:right;width:15%\">Importe</th>
+            </tr>
+        </thead>
+        <tbody>{$filasLineas}</tbody>
+    </table>
+    
+    <div class=\"totales-box\">
+        {$totalesHtml}
+    </div>
+    
+    <div style=\"clear:both\"></div>
+    
+    {$puntosHtml}
+    
+    <div class=\"datos-pago\" style=\"margin-top: 25px; padding: 15px; background: #f8fafc; border-radius: 8px;\">
+        <p><strong>Método de pago:</strong> {$metodoPago}</p>
+    </div>
+    
+    {$obsHtml}
+
+    <div class=\"nota\">
+        <p>Los precios incluyen IVA. Esta factura está sujeta a las condiciones generales de venta.</p>
+    </div>
+    
+    <div class=\"footer\">
+        <p>TPV Bazar — Productos Informáticos | www.tpvbazar.es</p>
+    </div>
+</body>
+</html>";
+} else {
+    // TICKET - Formato original
+    $cuerpo = "
 <html>
 <head>
     <style>
@@ -348,10 +475,18 @@ $cuerpo = "
         
         {$totalesHtml}
 
+        {$puntosHtml}
+
+        " . ($isDevolucion ? "
+        <div style='font-size: 13px; margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px; text-align:right;'>
+            <p style='margin: 3px 0; color: #dc2626; font-weight: bold;'><strong>TOTAL REEMBOLSADO:</strong> -{$totalFinalPVFmt} €</p>
+        </div>
+        " : "
         <div style='font-size: 13px; margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px; text-align:right;'>
             <p style='margin: 3px 0;'><strong>Entregado:</strong> {$entregado} €</p>
             <p style='margin: 3px 0;'><strong>Cambio devuelto:</strong> {$cambio} €</p>
         </div>
+        ") . "
         
         {$obsHtml}
 
@@ -362,6 +497,7 @@ $cuerpo = "
     </div>
 </body>
 </html>";
+}
 
 /**
  * ────────────────────────────────────────────────────────────────────────────

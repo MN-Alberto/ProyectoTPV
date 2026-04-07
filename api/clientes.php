@@ -211,9 +211,9 @@ try {
         // Para cada venta, obtener las líneas de productos
         foreach ($ventas as &$venta) {
             $stmtLineas = $pdo->prepare("
-                SELECT lv.*, p.nombre as producto_nombre, p.imagen as producto_imagen
+                SELECT lv.*, COALESCE(lv.nombreProducto, p.nombre) as producto_nombre, p.imagen as producto_imagen
                 FROM lineasVenta lv
-                JOIN productos p ON lv.idProducto = p.id
+                LEFT JOIN productos p ON lv.idProducto = p.id
                 WHERE lv.idVenta = ?
             ");
             $stmtLineas->execute([$venta['id']]);

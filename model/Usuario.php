@@ -468,7 +468,7 @@ class Usuario
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "INSERT INTO usuarios (nombre, email, password, rol, fechaAlta, activo, total_descansos, total_turnos, permisos) 
+            "INSERT INTO usuarios (nombre, email, password, rol, fechaAlta, activo, total_descansos, total_turnos, permisos)
              VALUES (:nombre, :email, :password, :rol, :fechaAlta, :activo, :total_descansos, :total_turnos, :permisos)"
         );
         // Vinculamos los parámetros
@@ -482,11 +482,21 @@ class Usuario
         $stmt->bindParam(':total_turnos', $this->totalTurnos, PDO::PARAM_INT);
         $stmt->bindParam(':permisos', $this->permisos);
         // Ejecutamos la consulta
-        $resultado = $stmt->execute();
-        // Obtenemos el ID del nuevo usuario
-        $this->id = $conexion->lastInsertId();
-        // Devolvemos el resultado
-        return $resultado;
+        try {
+            $resultado = $stmt->execute();
+            // Obtenemos el ID del nuevo usuario
+            $this->id = $conexion->lastInsertId();
+            // Devolvemos el resultado
+            return $resultado;
+        }
+        catch (PDOException $e) {
+            // Verificar si es un error de duplicado (clave única)
+            if ($e->getCode() == 1062 || strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                throw new Exception("Ya existe un usuario con este email.");
+            }
+            // Re-lanzar otras excepciones
+            throw $e;
+        }
     }
 
     /**
@@ -514,7 +524,17 @@ class Usuario
         $stmt->bindParam(':permisos', $this->permisos);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
         // Ejecutamos la consulta
-        return $stmt->execute();
+        try {
+            return $stmt->execute();
+        }
+        catch (PDOException $e) {
+            // Verificar si es un error de duplicado (clave única)
+            if ($e->getCode() == 1062 || strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                throw new Exception("Ya existe un usuario con este email.");
+            }
+            // Re-lanzar otras excepciones
+            throw $e;
+        }
     }
 
     /**

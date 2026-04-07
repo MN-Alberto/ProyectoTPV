@@ -22,6 +22,7 @@ class Devolucion
     private $metodoPago;
     private $fecha;
     private $motivo;
+    private $nombreProducto;
 
     private $idSesionCaja;
 
@@ -57,10 +58,92 @@ class Devolucion
         $this->idSesionCaja = $idSesionCaja;
     }
 
+    /**
+     * Obtiene las devoluciones agrupadas por ticket de venta de una sesión de caja.
+     * @param int $idSesionCaja ID de la sesión de caja
+     * @return array Array de devoluciones agrupadas por ticket
+     */
+    public static function obtenerPorSesion($idSesionCaja)
+    {
+        try {
+            $conexion = ConexionDB::getInstancia()->getConexion();
+
+            // Obtener devoluciones agrupadas por ticket de venta
+            $sql = "SELECT
+                        d.idVenta,
+                        d.idSesionCaja,
+                        d.fecha,
+                        d.metodoPago,
+                        d.motivo,
+                        d.idUsuario,
+                        GROUP_CONCAT(DISTINCT p.nombre ORDER BY p.nombre SEPARATOR ', ') as productos,
+                        SUM(d.importeTotal) as total,
+                        COUNT(*) as numItems,
+                        u.nombre as usuario_nombre
+                    FROM devoluciones d
+                    LEFT JOIN producto p ON d.idProducto = p.id
+                    LEFT JOIN usuario u ON d.idUsuario = u.id
+                    WHERE d.idSesionCaja = ?
+                    GROUP BY d.idVenta, d.idSesionCaja, d.fecha, d.metodoPago, d.motivo, d.idUsuario, u.nombre
+                    ORDER BY d.fecha DESC";
+
+            $stmt = $conexion->prepare($sql);
+            $stmt->execute([$idSesionCaja]);
+            $resultados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return $resultados;
+        }
+        catch (Exception $e) {
+            error_log("Error al obtener devoluciones por sesión: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Obtiene el detalle de productos devueltos de un ticket específico.
+     * @param int $idVenta ID de la venta
+     * @return array Array con los productos devueltos
+     */
+    public static function obtenerDetallePorVenta($idVenta)
+    {
+        try {
+            $conexion = ConexionDB::getInstancia()->getConexion();
+
+            $sql = "SELECT
+                        d.id,
+                        d.idVenta,
+                        d.idProducto,
+                        COALESCE(d.nombreProducto, p.nombre) as producto_nombre,
+                        d.cantidad,
+                        d.precioUnitario,
+                        d.iva,
+                        d.importeTotal,
+                        d.motivo,
+                        d.fecha
+                    FROM devoluciones d
+                    LEFT JOIN productos p ON d.idProducto = p.id
+                    WHERE d.idVenta = ?
+                    ORDER BY d.fecha DESC";
+
+            $stmt = $conexion->prepare($sql);
+            $stmt->execute([$idVenta]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+        catch (Exception $e) {
+            error_log("Error al obtener detalle de devolución: " . $e->getMessage());
+            return [];
+        }
+    }
+
     // Setters
     public function setId($id)
     {
         $this->id = $id;
+    }
+
+    public function setNombreProducto($nombreProducto)
+    {
+        $this->nombreProducto = $nombreProducto;
     }
 
     public function setIdVenta($idVenta)
@@ -124,6 +207,11 @@ class Devolucion
         return $this->id;
     }
 
+    public function getNombreProducto()
+    {
+        return $this->nombreProducto;
+    }
+
     public function getIdVenta()
     {
         return $this->idVenta;
@@ -182,14 +270,15 @@ class Devolucion
     {
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
-            
+
             // Inserción completa con todos los campos (Requiere script scriptDB/fix_devoluciones_columns.sql)
-            $sql = "INSERT INTO devoluciones (idVenta, idProducto, cantidad, precioUnitario, iva, importeTotal, idUsuario, metodoPago, motivo, idSesionCaja, fecha) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            $sql = "INSERT INTO devoluciones (idVenta, idProducto, nombreProducto, cantidad, precioUnitario, iva, importeTotal, idUsuario, metodoPago, motivo, idSesionCaja, fecha) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
             $stmt = $conexion->prepare($sql);
             return $stmt->execute([
                 $this->idVenta,
                 $this->idProducto,
+                $this->nombreProducto,
                 $this->cantidad,
                 $this->precioUnitario,
                 $this->iva,
@@ -216,7 +305,7 @@ class Devolucion
     {
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
-            $sql = "SELECT d.*, p.nombre as producto_nombre, u.nombre as usuario_nombre 
+            $sql = "SELECT d.*, COALESCE(d.nombreProducto, p.nombre) as producto_nombre, u.nombre as usuario_nombre 
                     FROM devoluciones d
                     LEFT JOIN productos p ON d.idProducto = p.id
                     LEFT JOIN usuarios u ON d.idUsuario = u.id
@@ -240,7 +329,7 @@ class Devolucion
     {
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
-            $sql = "SELECT d.*, p.nombre as producto_nombre, u.nombre as usuario_nombre 
+            $sql = "SELECT d.*, COALESCE(d.nombreProducto, p.nombre) as producto_nombre, u.nombre as usuario_nombre 
                     FROM devoluciones d
                     LEFT JOIN productos p ON d.idProducto = p.id
                     LEFT JOIN usuarios u ON d.idUsuario = u.id
@@ -323,10 +412,11 @@ class Devolucion
         $stmtCount->execute();
         $total = (int)$stmtCount->fetchColumn();
 
-        $sql = "SELECT d.*, p.nombre as producto_nombre, u.nombre as usuario_nombre 
+        $sql = "SELECT d.*, COALESCE(d.nombreProducto, p.nombre) as producto_nombre, u.nombre as usuario_nombre, vi.serie, vi.numero
                 FROM devoluciones d
                 LEFT JOIN productos p ON d.idProducto = p.id
-                LEFT JOIN usuarios u ON d.idUsuario = u.id";
+                LEFT JOIN usuarios u ON d.idUsuario = u.id
+                LEFT JOIN ventas_ids vi ON d.idVenta = vi.id";
 
         if (!empty($condiciones)) {
             $sql .= " WHERE " . implode(" AND ", $condiciones);
@@ -373,10 +463,10 @@ class Devolucion
     {
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
-            $sql = "SELECT COALESCE(SUM(d.importeTotal), 0) as total 
-                    FROM devoluciones d
-                    INNER JOIN ventas v ON d.idVenta = v.id
-                    WHERE v.idCajaSesion = ? AND d.metodoPago = ?";
+            // Usar el campo directo idSesionCaja en lugar de join con ventas
+            $sql = "SELECT COALESCE(SUM(importeTotal), 0) as total
+                    FROM devoluciones
+                    WHERE idSesionCaja = ? AND metodoPago = ?";
             $stmt = $conexion->prepare($sql);
             $stmt->execute([$idSesionCaja, $metodoPago]);
             $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -397,10 +487,10 @@ class Devolucion
     {
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
-            $sql = "SELECT COALESCE(SUM(d.importeTotal), 0) as total 
-                    FROM devoluciones d
-                    INNER JOIN ventas v ON d.idVenta = v.id
-                    WHERE v.idCajaSesion = ?";
+            // Usar el campo directo idSesionCaja en lugar de join con ventas
+            $sql = "SELECT COALESCE(SUM(importeTotal), 0) as total
+                    FROM devoluciones
+                    WHERE idSesionCaja = ?";
             $stmt = $conexion->prepare($sql);
             $stmt->execute([$idSesionCaja]);
             $resultado = $stmt->fetch(PDO::FETCH_ASSOC);

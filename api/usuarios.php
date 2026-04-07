@@ -15,6 +15,14 @@ session_start();
 require_once(__DIR__ . '/../config/confDB.php');
 require_once(__DIR__ . '/../model/Usuario.php');
 
+// Cargar PHPMailer para recuperación de contraseña (deshabilitado temporalmente)
+// require_once __DIR__ . '/../core/Exception.php';
+// require_once __DIR__ . '/../core/PHPMailer.php';
+// require_once __DIR__ . '/../core/SMTP.php';
+
+// use PHPMailer\PHPMailer\PHPMailer;
+// use PHPMailer\PHPMailer\Exception;
+
 // Obtener conexión a la base de datos
 $pdo = ConexionDB::getInstancia()->getConexion();
 
@@ -66,6 +74,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
 
     // Si el id es válido
     if ($id > 0) {
+        // Verificar si el usuario tiene ventas asociadas
+        $stmtCheckVentas = $pdo->prepare("SELECT COUNT(*) as total FROM ventas WHERE idUsuario = :idUsuario");
+        $stmtCheckVentas->execute([':idUsuario' => $id]);
+        $resultadoVentas = $stmtCheckVentas->fetch(PDO::FETCH_ASSOC);
+
+        if ($resultadoVentas && $resultadoVentas['total'] > 0) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'No se puede eliminar el usuario porque tiene ventas asociadas.']);
+            exit();
+        }
+
         $usuario = Usuario::buscarPorId($id);
         if ($usuario && $usuario->eliminar()) {
             // Registrar log de eliminación de usuario
@@ -95,6 +114,212 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
  * Realiza validaciones estrictas de formato de email y persistencia segura de contraseñas.
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // ────────────────────────────────────────────────────────────────────────────
+    // RECUPERACIÓN DE CONTRASEÑA (primero, antes de cualquier otra cosa)
+    // ────────────────────────────────────────────────────────────────────────────
+
+    // Endpoint: Enviar código de recuperación
+    if (isset($_POST['action']) && $_POST['action'] === 'send_recovery_code') {
+        // Disable error output to prevent HTML in JSON response
+        error_reporting(0);
+        ini_set('display_errors', 0);
+
+        header('Content-Type: application/json; charset=utf-8');
+
+        // Debug: log received data
+        error_log('Received action: ' . $_POST['action']);
+        error_log('Received nombre: ' . ($_POST['nombre'] ?? 'none'));
+
+        // SIMPLE TEST - return hardcoded response
+        echo json_encode(['ok' => true, 'message' => 'API funciona!']);
+        exit();
+
+        $nombre = trim($_POST['nombre'] ?? '');
+
+        if (empty($nombre)) {
+            echo json_encode(['ok' => false, 'error' => 'El nombre de usuario es obligatorio.']);
+            exit();
+        }
+
+        // Buscar usuario por nombre
+        $usuario = Usuario::buscarPorNombre($nombre);
+
+        if (!$usuario) {
+            // Por seguridad, no revelar si el usuario existe o no
+            echo json_encode(['ok' => true, 'message' => 'Si el usuario existe, se enviará un código a su correo.']);
+            exit();
+        }
+
+        $email = $usuario->getEmail();
+
+        if (empty($email)) {
+            echo json_encode(['ok' => false, 'error' => 'El usuario no tiene un correo asociado.']);
+            exit();
+        }
+
+        // Generar código de 6 dígitos
+        $codigo = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        // Guardar código en sesión (temporalmente)
+        $_SESSION['recovery_code'] = $codigo;
+        $_SESSION['recovery_user'] = $nombre;
+        $_SESSION['recovery_time'] = time();
+
+        // MOSTRAR EL CÓDIGO EN LA RESPUESTA PARA PRUEBAS
+        // (Quitar esto en producción)
+        echo json_encode(['ok' => true, 'message' => 'Código enviado correctamente (debug: ' . $codigo . ')']);
+        exit();
+
+        // Enviar correo con el código (deshabilitado temporalmente para pruebas)
+        // $mail = new PHPMailer(true);
+
+        try {
+            // Configuración del servidor SMTP
+            $mail->isSMTP();
+            $mail->Host = 'smtp.gmail.com';
+            $mail->SMTPAuth = true;
+            $mail->Username = 'albertomennun04@gmail.com';
+            $mail->Password = 'jdpq cfwd whpm ekmc';
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port = 587;
+
+            // Remitente
+            $mail->setFrom('albertomennun04@gmail.com', 'TPV Bazar');
+
+            // Destinatario
+            $mail->addAddress($email, $usuario->getNombre());
+
+            // Contenido
+            $mail->isHTML(true);
+            $mail->CharSet = 'UTF-8';
+            $mail->Subject = 'Código de recuperación de contraseña - TPV Bazar';
+            $mail->Body = '
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #333;">Recuperación de Contraseña</h2>
+                <p>Has solicitado recuperar tu contraseña en <strong>TPV Bazar</strong>.</p>
+                <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+                    <p style="margin: 0; font-size: 14px; color: #666;">Tu código de verificación es:</p>
+                    <p style="margin: 10px 0 0 0; font-size: 32px; font-weight: bold; color: #333; letter-spacing: 8px;">' . $codigo . '</p>
+                </div>
+                <p style="color: #666; font-size: 12px;">Este código expira en 30 minutos.</p>
+                <p style="color: #666; font-size: 12px;">Si no has solicitado este código, puedes ignorar este mensaje.</p>
+            </div>
+            ';
+            $mail->AltBody = 'Tu código de verificación es: ' . $codigo . '. Este código expira en 30 minutos.';
+
+            $mail->send();
+
+            echo json_encode(['ok' => true, 'message' => 'Código enviado correctamente.']);
+        }
+        catch (Exception $e) {
+            error_log('Error al enviar correo: ' . $mail->ErrorInfo);
+            echo json_encode(['ok' => false, 'error' => 'Error al enviar el correo. Inténtalo más tarde.']);
+        }
+        exit();
+    }
+
+    // Endpoint: Verificar código
+    if (isset($_POST['action']) && $_POST['action'] === 'verify_recovery_code') {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $codigoIngresado = trim($_POST['codigo'] ?? '');
+
+        if (empty($codigoIngresado)) {
+            echo json_encode(['ok' => false, 'error' => 'El código es obligatorio.']);
+            exit();
+        }
+
+        // Verificar que existe una sesión de recuperación
+        if (!isset($_SESSION['recovery_code']) || !isset($_SESSION['recovery_time'])) {
+            echo json_encode(['ok' => false, 'error' => 'No hay una solicitud de recuperación activa.']);
+            exit();
+        }
+
+        // Verificar que no ha expirado (30 minutos)
+        $tiempoTranscurrido = time() - $_SESSION['recovery_time'];
+        if ($tiempoTranscurrido > 1800) {
+            unset($_SESSION['recovery_code'], $_SESSION['recovery_user'], $_SESSION['recovery_time']);
+            echo json_encode(['ok' => false, 'error' => 'El código ha expirado. Solicita uno nuevo.']);
+            exit();
+        }
+
+        // Verificar código
+        if ($codigoIngresado !== $_SESSION['recovery_code']) {
+            echo json_encode(['ok' => false, 'error' => 'Código incorrecto.']);
+            exit();
+        }
+
+        // Código válido, marcar como verificado
+        $_SESSION['recovery_verified'] = true;
+
+        echo json_encode(['ok' => true, 'message' => 'Código verificado correctamente.']);
+        exit();
+    }
+
+    // Endpoint: Cambiar contraseña
+    if (isset($_POST['action']) && $_POST['action'] === 'change_password') {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $nuevaPassword = $_POST['password'] ?? '';
+        $confirmarPassword = $_POST['confirm_password'] ?? '';
+
+        // Validaciones
+        if (empty($nuevaPassword) || empty($confirmarPassword)) {
+            echo json_encode(['ok' => false, 'error' => 'Ambas contraseñas son obligatorias.']);
+            exit();
+        }
+
+        if ($nuevaPassword !== $confirmarPassword) {
+            echo json_encode(['ok' => false, 'error' => 'Las contraseñas no coinciden.']);
+            exit();
+        }
+
+        if (strlen($nuevaPassword) < 6) {
+            echo json_encode(['ok' => false, 'error' => 'La contraseña debe tener al menos 6 caracteres.']);
+            exit();
+        }
+
+        // Verificar que la sesión está validada
+        if (!isset($_SESSION['recovery_verified']) || !$_SESSION['recovery_verified'] || !isset($_SESSION['recovery_user'])) {
+            echo json_encode(['ok' => false, 'error' => 'Debes verificar el código primero.']);
+            exit();
+        }
+
+        $nombreUsuario = $_SESSION['recovery_user'];
+
+        // Buscar usuario
+        $usuario = Usuario::buscarPorNombre($nombreUsuario);
+
+        if (!$usuario) {
+            echo json_encode(['ok' => false, 'error' => 'Usuario no encontrado.']);
+            exit();
+        }
+
+        // Actualizar contraseña
+        $nuevaPasswordHash = password_hash($nuevaPassword, PASSWORD_DEFAULT);
+
+        try {
+            $stmt = $pdo->prepare("UPDATE usuarios SET password = :password WHERE nombre = :nombre");
+            $stmt->execute([':password' => $nuevaPasswordHash, ':nombre' => $nombreUsuario]);
+
+            // Limpiar sesión de recuperación
+            unset($_SESSION['recovery_code'], $_SESSION['recovery_user'], $_SESSION['recovery_time'], $_SESSION['recovery_verified']);
+
+            // Registrar en log
+            registrarLogUsuario($pdo, 'cambio_password', $usuario->getId(), $nombreUsuario, 'Cambio de contraseña mediante recuperación');
+
+            echo json_encode(['ok' => true, 'message' => 'Contraseña actualizada correctamente.']);
+        }
+        catch (Exception $e) {
+            echo json_encode(['ok' => false, 'error' => 'Error al actualizar la contraseña.']);
+        }
+        exit();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // FIN DE RECUPERACIÓN DE CONTRASEÑA
+    // ────────────────────────────────────────────────────────────────────────────
+
     $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
     $nombre = trim($_POST['nombre'] ?? '');
     $email = trim($_POST['email'] ?? '');
@@ -155,41 +380,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $passwordCambiada = true;
         }
 
-        if ($usuario->actualizar()) {
-            // Registrar log de modificación de usuario con detalles de cambios
-            $adminId = $_SESSION['id'] ?? null;
-            $adminNombre = $_SESSION['nombre'] ?? 'Admin';
+        try {
+            if ($usuario->actualizar()) {
+                // Registrar log de modificación de usuario con detalles de cambios
+                $adminId = $_SESSION['id'] ?? null;
+                $adminNombre = $_SESSION['nombre'] ?? 'Admin';
 
-            // Comparar cambios
-            $cambios = array();
-            if ($valoresAnteriores['nombre'] !== $nombre) {
-                $cambios['nombre'] = array('antes' => $valoresAnteriores['nombre'], 'después' => $nombre);
-            }
-            if ($valoresAnteriores['email'] !== $email) {
-                $cambios['email'] = array('antes' => $valoresAnteriores['email'], 'después' => $email);
-            }
-            if ($valoresAnteriores['rol'] !== $rol) {
-                $cambios['rol'] = array('antes' => $valoresAnteriores['rol'], 'después' => $rol);
-            }
-            if ($valoresAnteriores['activo'] !== (bool)$activo) {
-                $cambios['activo'] = array('antes' => $valoresAnteriores['activo'] ? 'Sí' : 'No', 'después' => $activo ? 'Sí' : 'No');
-            }
-            if ($passwordCambiada) {
-                $cambios['password'] = array('antes' => '(oculta)', 'después' => '(nueva)');
-            }
-            if ($valoresAnteriores['permisos'] !== $permisos) {
-                $cambios['permisos'] = array('antes' => $valoresAnteriores['permisos'], 'después' => $permisos);
-            }
+                // Comparar cambios
+                $cambios = array();
+                if ($valoresAnteriores['nombre'] !== $nombre) {
+                    $cambios['nombre'] = array('antes' => $valoresAnteriores['nombre'], 'después' => $nombre);
+                }
+                if ($valoresAnteriores['email'] !== $email) {
+                    $cambios['email'] = array('antes' => $valoresAnteriores['email'], 'después' => $email);
+                }
+                if ($valoresAnteriores['rol'] !== $rol) {
+                    $cambios['rol'] = array('antes' => $valoresAnteriores['rol'], 'después' => $rol);
+                }
+                if ($valoresAnteriores['activo'] !== (bool)$activo) {
+                    $cambios['activo'] = array('antes' => $valoresAnteriores['activo'] ? 'Sí' : 'No', 'después' => $activo ? 'Sí' : 'No');
+                }
+                if ($passwordCambiada) {
+                    $cambios['password'] = array('antes' => '(oculta)', 'después' => '(nueva)');
+                }
+                if ($valoresAnteriores['permisos'] !== $permisos) {
+                    $cambios['permisos'] = array('antes' => $valoresAnteriores['permisos'], 'después' => $permisos);
+                }
 
-            $detalles = count($cambios) > 0 ? $cambios : null;
-            registrarLogUsuario($pdo, 'modificacion_usuario', $adminId, $adminNombre, 'Usuario modificado: ' . $nombre . ' (ID: ' . $id . ')', $detalles);
+                $detalles = count($cambios) > 0 ? $cambios : null;
+                registrarLogUsuario($pdo, 'modificacion_usuario', $adminId, $adminNombre, 'Usuario modificado: ' . $nombre . ' (ID: ' . $id . ')', $detalles);
 
-            http_response_code(200);
-            echo json_encode(['ok' => true]);
+                http_response_code(200);
+                echo json_encode(['ok' => true]);
+            }
+            else {
+                http_response_code(400);
+                echo json_encode(['ok' => false, 'error' => 'No se pudo actualizar el usuario.']);
+            }
         }
-        else {
+        catch (Exception $e) {
             http_response_code(400);
-            echo json_encode(['ok' => false, 'error' => 'No se pudo actualizar el usuario.']);
+            echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
         }
     }
     else {
@@ -197,13 +428,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($password)) {
             http_response_code(400);
             echo json_encode(['ok' => false, 'error' => 'La contraseña es obligatoria para nuevos usuarios.']);
-            exit();
-        }
-
-        // Verificar que no existe otro usuario con el mismo email
-        if (Usuario::buscarPorEmail($email)) {
-            http_response_code(400);
-            echo json_encode(['ok' => false, 'error' => 'Ya existe un usuario con ese email.']);
             exit();
         }
 
@@ -318,4 +542,3 @@ else {
         'totalPaginas' => $resultado['totalPaginas']
     ]);
 }
-?>

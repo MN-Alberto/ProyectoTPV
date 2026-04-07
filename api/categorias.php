@@ -125,6 +125,18 @@ try {
             exit;
         }
 
+        // Verificar si hay productos asociados a esta categoría
+        $numProductos = $categoria->contarProductos();
+        if ($numProductos > 0) {
+            http_response_code(400);
+            echo json_encode([
+                'error' => 'No se puede eliminar la categoría porque tiene productos asociados',
+                'num_productos' => $numProductos,
+                'categoria' => $categoria->getNombre()
+            ]);
+            exit;
+        }
+
         if ($categoria->eliminar()) {
             // Registrar log de eliminación de categoría
             try {
