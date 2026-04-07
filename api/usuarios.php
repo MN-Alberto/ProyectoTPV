@@ -380,41 +380,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $passwordCambiada = true;
         }
 
-        if ($usuario->actualizar()) {
-            // Registrar log de modificación de usuario con detalles de cambios
-            $adminId = $_SESSION['id'] ?? null;
-            $adminNombre = $_SESSION['nombre'] ?? 'Admin';
+        try {
+            if ($usuario->actualizar()) {
+                // Registrar log de modificación de usuario con detalles de cambios
+                $adminId = $_SESSION['id'] ?? null;
+                $adminNombre = $_SESSION['nombre'] ?? 'Admin';
 
-            // Comparar cambios
-            $cambios = array();
-            if ($valoresAnteriores['nombre'] !== $nombre) {
-                $cambios['nombre'] = array('antes' => $valoresAnteriores['nombre'], 'después' => $nombre);
-            }
-            if ($valoresAnteriores['email'] !== $email) {
-                $cambios['email'] = array('antes' => $valoresAnteriores['email'], 'después' => $email);
-            }
-            if ($valoresAnteriores['rol'] !== $rol) {
-                $cambios['rol'] = array('antes' => $valoresAnteriores['rol'], 'después' => $rol);
-            }
-            if ($valoresAnteriores['activo'] !== (bool)$activo) {
-                $cambios['activo'] = array('antes' => $valoresAnteriores['activo'] ? 'Sí' : 'No', 'después' => $activo ? 'Sí' : 'No');
-            }
-            if ($passwordCambiada) {
-                $cambios['password'] = array('antes' => '(oculta)', 'después' => '(nueva)');
-            }
-            if ($valoresAnteriores['permisos'] !== $permisos) {
-                $cambios['permisos'] = array('antes' => $valoresAnteriores['permisos'], 'después' => $permisos);
-            }
+                // Comparar cambios
+                $cambios = array();
+                if ($valoresAnteriores['nombre'] !== $nombre) {
+                    $cambios['nombre'] = array('antes' => $valoresAnteriores['nombre'], 'después' => $nombre);
+                }
+                if ($valoresAnteriores['email'] !== $email) {
+                    $cambios['email'] = array('antes' => $valoresAnteriores['email'], 'después' => $email);
+                }
+                if ($valoresAnteriores['rol'] !== $rol) {
+                    $cambios['rol'] = array('antes' => $valoresAnteriores['rol'], 'después' => $rol);
+                }
+                if ($valoresAnteriores['activo'] !== (bool)$activo) {
+                    $cambios['activo'] = array('antes' => $valoresAnteriores['activo'] ? 'Sí' : 'No', 'después' => $activo ? 'Sí' : 'No');
+                }
+                if ($passwordCambiada) {
+                    $cambios['password'] = array('antes' => '(oculta)', 'después' => '(nueva)');
+                }
+                if ($valoresAnteriores['permisos'] !== $permisos) {
+                    $cambios['permisos'] = array('antes' => $valoresAnteriores['permisos'], 'después' => $permisos);
+                }
 
-            $detalles = count($cambios) > 0 ? $cambios : null;
-            registrarLogUsuario($pdo, 'modificacion_usuario', $adminId, $adminNombre, 'Usuario modificado: ' . $nombre . ' (ID: ' . $id . ')', $detalles);
+                $detalles = count($cambios) > 0 ? $cambios : null;
+                registrarLogUsuario($pdo, 'modificacion_usuario', $adminId, $adminNombre, 'Usuario modificado: ' . $nombre . ' (ID: ' . $id . ')', $detalles);
 
-            http_response_code(200);
-            echo json_encode(['ok' => true]);
+                http_response_code(200);
+                echo json_encode(['ok' => true]);
+            }
+            else {
+                http_response_code(400);
+                echo json_encode(['ok' => false, 'error' => 'No se pudo actualizar el usuario.']);
+            }
         }
-        else {
+        catch (Exception $e) {
             http_response_code(400);
-            echo json_encode(['ok' => false, 'error' => 'No se pudo actualizar el usuario.']);
+            echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
         }
     }
     else {

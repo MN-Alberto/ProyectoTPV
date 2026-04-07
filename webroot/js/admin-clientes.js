@@ -38,7 +38,6 @@ function getClientesTablaHeader(textoBusqueda = '', totalClientes = 0, totalInac
             <table class="admin-tabla">
                 <thead>
                     <tr>
-                        <th>#</th>
                         <th>DNI</th>
                         <th>Nombre</th>
                         <th>Apellidos</th>
@@ -66,6 +65,10 @@ function cargarClientesAdmin(textoBusqueda = '', resetPagina = true) {
     }
 
     const esPrimeraVez = !tablaExistente || adminTablaHeaderHTML === '';
+
+    if (esPrimeraVez) {
+        adminTablaHeaderHTML = '';
+    }
 
     if (resetPagina) {
         paginaActualClientes = 1;
@@ -144,7 +147,6 @@ function renderClientesAdmin(respuesta, esPrimeraVez = true) {
 
             filasHtml += `
                 <tr class="${cli.activo == 0 ? 'fila-inactiva' : ''}">
-                    <td class="col-id">${cli.id}</td>
                     <td>${cli.dni || '—'}</td>
                     <td>${cli.nombre || '—'}</td>
                     <td>${cli.apellidos || '—'}</td>
@@ -234,7 +236,6 @@ function getProveedoresTablaHeader(textoBusqueda = '') {
             <table class="admin-tabla">
                 <thead>
                     <tr>
-                        <th>#</th>
                         <th>Nombre</th>
                         <th>Contacto</th>
                         <th>Email</th>
@@ -259,6 +260,10 @@ function cargarProveedoresAdmin(textoBusqueda = '') {
     }
 
     const esPrimeraVez = !tablaExistente || adminTablaHeaderHTML === '';
+
+    if (esPrimeraVez) {
+        adminTablaHeaderHTML = '';
+    }
 
     const params = new URLSearchParams();
     if (textoBusqueda) params.append('buscar', textoBusqueda);
@@ -310,7 +315,6 @@ function renderProveedoresAdmin(proveedores, esPrimeraVez = true) {
                     data-email="${(prov.email || '').replace(/"/g, '&quot;')}"
                     data-direccion="${(prov.direccion || '').replace(/"/g, '&quot;')}"
                     data-activo="${prov.activo}">
-                    <td class="col-id">${prov.id}</td>
                     <td class="col-nombre">${prov.nombre}</td>
                     <td>${prov.contacto || '—'}</td>
                     <td>${prov.email || '—'}</td>

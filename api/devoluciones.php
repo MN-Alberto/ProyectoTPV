@@ -174,13 +174,15 @@ if ($method === 'GET') {
 
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
-            // Query simple sin joins
+            // Query con joins para obtener serie y numero del ticket original
             $sql = "SELECT
-                id, idVenta, idProducto, cantidad, precioUnitario, iva,
-                importeTotal, motivo, fecha, metodoPago
-            FROM devoluciones
-            WHERE idVenta = ?
-            ORDER BY fecha DESC";
+                d.id, d.idVenta, d.idProducto, d.cantidad, d.precioUnitario, d.iva,
+                d.importeTotal, d.motivo, d.fecha, d.metodoPago,
+                vi.serie, vi.numero
+            FROM devoluciones d
+            LEFT JOIN ventas_ids vi ON d.idVenta = vi.id
+            WHERE d.idVenta = ?
+            ORDER BY d.fecha DESC";
             $stmt = $conexion->prepare($sql);
             $stmt->execute([$idVenta]);
             $detalle = $stmt->fetchAll(PDO::FETCH_ASSOC);

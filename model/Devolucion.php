@@ -22,6 +22,7 @@ class Devolucion
     private $metodoPago;
     private $fecha;
     private $motivo;
+    private $nombreProducto;
 
     private $idSesionCaja;
 
@@ -112,7 +113,7 @@ class Devolucion
                         d.id,
                         d.idVenta,
                         d.idProducto,
-                        p.nombre as producto_nombre,
+                        COALESCE(d.nombreProducto, p.nombre) as producto_nombre,
                         d.cantidad,
                         d.precioUnitario,
                         d.iva,
@@ -120,7 +121,7 @@ class Devolucion
                         d.motivo,
                         d.fecha
                     FROM devoluciones d
-                    LEFT JOIN producto p ON d.idProducto = p.id
+                    LEFT JOIN productos p ON d.idProducto = p.id
                     WHERE d.idVenta = ?
                     ORDER BY d.fecha DESC";
 
@@ -138,6 +139,11 @@ class Devolucion
     public function setId($id)
     {
         $this->id = $id;
+    }
+
+    public function setNombreProducto($nombreProducto)
+    {
+        $this->nombreProducto = $nombreProducto;
     }
 
     public function setIdVenta($idVenta)
@@ -201,6 +207,11 @@ class Devolucion
         return $this->id;
     }
 
+    public function getNombreProducto()
+    {
+        return $this->nombreProducto;
+    }
+
     public function getIdVenta()
     {
         return $this->idVenta;
@@ -261,12 +272,13 @@ class Devolucion
             $conexion = ConexionDB::getInstancia()->getConexion();
 
             // Inserción completa con todos los campos (Requiere script scriptDB/fix_devoluciones_columns.sql)
-            $sql = "INSERT INTO devoluciones (idVenta, idProducto, cantidad, precioUnitario, iva, importeTotal, idUsuario, metodoPago, motivo, idSesionCaja, fecha) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            $sql = "INSERT INTO devoluciones (idVenta, idProducto, nombreProducto, cantidad, precioUnitario, iva, importeTotal, idUsuario, metodoPago, motivo, idSesionCaja, fecha) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
             $stmt = $conexion->prepare($sql);
             return $stmt->execute([
                 $this->idVenta,
                 $this->idProducto,
+                $this->nombreProducto,
                 $this->cantidad,
                 $this->precioUnitario,
                 $this->iva,
@@ -293,7 +305,7 @@ class Devolucion
     {
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
-            $sql = "SELECT d.*, p.nombre as producto_nombre, u.nombre as usuario_nombre 
+            $sql = "SELECT d.*, COALESCE(d.nombreProducto, p.nombre) as producto_nombre, u.nombre as usuario_nombre 
                     FROM devoluciones d
                     LEFT JOIN productos p ON d.idProducto = p.id
                     LEFT JOIN usuarios u ON d.idUsuario = u.id
@@ -317,7 +329,7 @@ class Devolucion
     {
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
-            $sql = "SELECT d.*, p.nombre as producto_nombre, u.nombre as usuario_nombre 
+            $sql = "SELECT d.*, COALESCE(d.nombreProducto, p.nombre) as producto_nombre, u.nombre as usuario_nombre 
                     FROM devoluciones d
                     LEFT JOIN productos p ON d.idProducto = p.id
                     LEFT JOIN usuarios u ON d.idUsuario = u.id
@@ -400,7 +412,7 @@ class Devolucion
         $stmtCount->execute();
         $total = (int)$stmtCount->fetchColumn();
 
-        $sql = "SELECT d.*, p.nombre as producto_nombre, u.nombre as usuario_nombre, vi.serie, vi.numero
+        $sql = "SELECT d.*, COALESCE(d.nombreProducto, p.nombre) as producto_nombre, u.nombre as usuario_nombre, vi.serie, vi.numero
                 FROM devoluciones d
                 LEFT JOIN productos p ON d.idProducto = p.id
                 LEFT JOIN usuarios u ON d.idUsuario = u.id

@@ -16,13 +16,26 @@ const TEMA_DEFAULTS = {
     header_bg: '#1a1a2e', header_color: '#ffffff', header_font: 'Inter',
     footer_bg: '#1a1a2e', footer_color: '#e5e7eb', footer_font: 'Inter',
     header_icon: '',
-    favicon: ''
+    favicon: '',
+    // Valores predeterminados para tamaño de tarjetas de productos
+    producto_card_width: '200px',
+    producto_card_height: '380px',
+    producto_card_max_width: '250px',
+    producto_card_max_height: '450px',
+    // Grid y spacing
+    producto_grid_columns: '4',
+    producto_grid_gap: '10px',
+    // Tamaños de fuente
+    producto_nombre_font_size: '1.1rem',
+    producto_precio_font_size: '1.15rem',
+    producto_stock_font_size: '0.9rem'
 };
 
 const SECCIONES_TEMA = [
     { id: 'header', titulo: 'Header (Cabecera)', icono: 'fa-heading', bgKey: 'header_bg', colorKey: 'header_color', fontKey: 'header_font' },
     { id: 'footer', titulo: 'Footer (Pie de página)', icono: 'fa-shoe-prints', bgKey: 'footer_bg', colorKey: 'footer_color', fontKey: 'footer_font' },
-    { id: 'iconos', titulo: 'Iconos', icono: 'fa-icons', tipo: 'iconos' }
+    { id: 'iconos', titulo: 'Iconos', icono: 'fa-icons', tipo: 'iconos' },
+    { id: 'tamano_productos', titulo: 'Tamaño de Productos', icono: 'fa-th-large', tipo: 'tamano_productos' }
 ];
 
 // ── CARGA Y RENDER ────────────────────────────────────────────────────────────
@@ -58,10 +71,14 @@ function renderEditorTema(subseccion = 'todas') {
     let html = '<div class="tema-editor">';
 
     if (subseccion === 'todas' || subseccion === 'tema') {
+        // Filtrar las secciones que no son de tamaño de productos para el grid principal
+        const seccionesPrincipales = SECCIONES_TEMA.filter(s => s.tipo !== 'tamano_productos');
+        const seccionTamanoProductos = SECCIONES_TEMA.find(s => s.tipo === 'tamano_productos');
+
         html += `
             <div class="config-section">
                 <div class="tema-secciones-grid">
-                    ${SECCIONES_TEMA.map(s => generarSeccionTema(s)).join('')}
+                    ${seccionesPrincipales.map(s => generarSeccionTema(s)).join('')}
                 </div>
                 <div class="tema-botones" style="margin-top:25px;border-top:1px solid var(--border-main);padding-top:20px;">
                     <button class="btn-modal-cancelar tema-btn-reset" onclick="restaurarTemaDefault()">
@@ -72,6 +89,14 @@ function renderEditorTema(subseccion = 'todas') {
                     </button>
                 </div>
             </div>`;
+
+        // Agregar la sección de tamaño de productos como una sección separada
+        if (seccionTamanoProductos) {
+            html += `
+                <div class="config-section" style="margin-top: 20px;">
+                    ${generarSeccionTema(seccionTamanoProductos)}
+                </div>`;
+        }
     }
 
     if (subseccion === 'todas' || subseccion === 'acciones') {
@@ -101,6 +126,9 @@ function renderEditorTema(subseccion = 'todas') {
 
     html += '</div>';
     contenedor.innerHTML = html;
+
+    // Inicializar preview de tamaño de productos si existe
+    setTimeout(() => previsualizarTamanoProductos(), 100);
 }
 
 // ── HELPERS DE SECCIÓN TEMA ───────────────────────────────────────────────────
@@ -113,6 +141,148 @@ function generarSelectFuente(id, valorActual) {
 }
 
 function generarSeccionTema(seccion) {
+    if (seccion.tipo === 'tamano_productos') {
+        const widthVal = temaActual['producto_card_width'] || TEMA_DEFAULTS.producto_card_width;
+        const heightVal = temaActual['producto_card_height'] || TEMA_DEFAULTS.producto_card_height;
+        const maxWidthVal = temaActual['producto_card_max_width'] || TEMA_DEFAULTS.producto_card_max_width;
+        const maxHeightVal = temaActual['producto_card_max_height'] || TEMA_DEFAULTS.producto_card_max_height;
+        const columnsVal = temaActual['producto_grid_columns'] || TEMA_DEFAULTS.producto_grid_columns;
+        const gapVal = temaActual['producto_grid_gap'] || TEMA_DEFAULTS.producto_grid_gap;
+        const nombreFontVal = temaActual['producto_nombre_font_size'] || TEMA_DEFAULTS.producto_nombre_font_size;
+        const precioFontVal = temaActual['producto_precio_font_size'] || TEMA_DEFAULTS.producto_precio_font_size;
+        const stockFontVal = temaActual['producto_stock_font_size'] || TEMA_DEFAULTS.producto_stock_font_size;
+
+        return `
+            <div class="tema-seccion-card">
+                <div class="tema-seccion-header">
+                    <i class="fas ${seccion.icono} tema-seccion-icono"></i>
+                    <h4 class="tema-seccion-titulo">${seccion.titulo}</h4>
+                </div>
+                <div class="tema-seccion-body">
+                    <div class="tamano-productos-grid">
+                        <div class="tamano-productos-controles">
+                            <h5 style="margin:0 0 15px 0;color:var(--text-main);font-weight:600;">Tamaño de tarjetas</h5>
+                            <div class="tema-campo">
+                                <label class="tema-label">Ancho (min-width)</label>
+                                <div class="tamano-input-wrapper">
+                                    <input type="range" id="tema_producto_card_width" min="100" max="300" value="${parseInt(widthVal)}" oninput="previsualizarTamanoProductos()">
+                                    <span class="tamano-value" id="val_producto_card_width">${widthVal}</span>
+                                </div>
+                            </div>
+                            <div class="tema-campo">
+                                <label class="tema-label">Alto (height)</label>
+                                <div class="tamano-input-wrapper">
+                                    <input type="range" id="tema_producto_card_height" min="200" max="500" value="${parseInt(heightVal)}" oninput="previsualizarTamanoProductos()">
+                                    <span class="tamano-value" id="val_producto_card_height">${heightVal}</span>
+                                </div>
+                            </div>
+                            <div class="tema-campo">
+                                <label class="tema-label">Ancho máximo (max-width)</label>
+                                <div class="tamano-input-wrapper">
+                                    <input type="range" id="tema_producto_card_max_width" min="150" max="400" value="${parseInt(maxWidthVal)}" oninput="previsualizarTamanoProductos()">
+                                    <span class="tamano-value" id="val_producto_card_max_width">${maxWidthVal}</span>
+                                </div>
+                            </div>
+                            <div class="tema-campo">
+                                <label class="tema-label">Alto máximo (max-height)</label>
+                                <div class="tamano-input-wrapper">
+                                    <input type="range" id="tema_producto_card_max_height" min="250" max="600" value="${parseInt(maxHeightVal)}" oninput="previsualizarTamanoProductos()">
+                                    <span class="tamano-value" id="val_producto_card_max_height">${maxHeightVal}</span>
+                                </div>
+                            </div>
+                            
+                            <h5 style="margin:20px 0 15px 0;color:var(--text-main);font-weight:600;">Grid y espaciado</h5>
+                            <div class="tema-campo">
+                                <label class="tema-label">Cajas por fila</label>
+                                <div class="tamano-input-wrapper">
+                                    <input type="range" id="tema_producto_grid_columns" min="2" max="8" value="${parseInt(columnsVal)}" oninput="previsualizarTamanoProductos()">
+                                    <span class="tamano-value" id="val_producto_grid_columns">${columnsVal}</span>
+                                </div>
+                            </div>
+                            <div class="tema-campo">
+                                <label class="tema-label">Espacio entre cajas (gap)</label>
+                                <div class="tamano-input-wrapper">
+                                    <input type="range" id="tema_producto_grid_gap" min="5" max="30" value="${parseInt(gapVal)}" oninput="previsualizarTamanoProductos()">
+                                    <span class="tamano-value" id="val_producto_grid_gap">${gapVal}</span>
+                                </div>
+                            </div>
+                            
+                            <h5 style="margin:20px 0 15px 0;color:var(--text-main);font-weight:600;">Tamaños de fuente</h5>
+                            <div class="tema-campo">
+                                <label class="tema-label">Tamaño del nombre</label>
+                                <div class="tamano-input-wrapper">
+                                    <input type="range" id="tema_producto_nombre_font_size" min="0.7" max="2" step="0.1" value="${parseFloat(nombreFontVal)}" oninput="previsualizarTamanoProductos()">
+                                    <span class="tamano-value" id="val_producto_nombre_font_size">${nombreFontVal}</span>
+                                </div>
+                            </div>
+                            <div class="tema-campo">
+                                <label class="tema-label">Tamaño del precio</label>
+                                <div class="tamano-input-wrapper">
+                                    <input type="range" id="tema_producto_precio_font_size" min="0.7" max="2" step="0.1" value="${parseFloat(precioFontVal)}" oninput="previsualizarTamanoProductos()">
+                                    <span class="tamano-value" id="val_producto_precio_font_size">${precioFontVal}</span>
+                                </div>
+                            </div>
+                            <div class="tema-campo">
+                                <label class="tema-label">Tamaño del stock</label>
+                                <div class="tamano-input-wrapper">
+                                    <input type="range" id="tema_producto_stock_font_size" min="0.6" max="1.5" step="0.1" value="${parseFloat(stockFontVal)}" oninput="previsualizarTamanoProductos()">
+                                    <span class="tamano-value" id="val_producto_stock_font_size">${stockFontVal}</span>
+                                </div>
+                            </div>
+                            
+                            <button class="btn-restablecer-tamano" onclick="restablecerTamanoProductos()">
+                                <i class="fas fa-undo"></i> Restablecer valores predeterminados
+                            </button>
+                        </div>
+                        <div class="tamano-productos-preview">
+                            <h5 style="margin-bottom:10px;color:var(--text-muted);font-size:0.9rem;">Vista previa</h5>
+                            <div class="preview-grid-container" id="preview_grid_container">
+                                <div class="preview-producto-card-preview">
+                                    <div class="preview-producto-nombre">Producto 1</div>
+                                    <div class="preview-producto-imagen">
+                                        <i class="fas fa-image" style="color:#9ca3af;"></i>
+                                    </div>
+                                    <div class="preview-producto-info">
+                                        <span class="preview-producto-precio">99,99 €</span>
+                                        <select class="preview-tarifa-selector">
+                                            <option>General</option>
+                                        </select>
+                                        <span class="preview-producto-stock">Stock: 50</span>
+                                    </div>
+                                </div>
+                                <div class="preview-producto-card-preview">
+                                    <div class="preview-producto-nombre">Producto 2</div>
+                                    <div class="preview-producto-imagen">
+                                        <i class="fas fa-image" style="color:#9ca3af;"></i>
+                                    </div>
+                                    <div class="preview-producto-info">
+                                        <span class="preview-producto-precio">49,99 €</span>
+                                        <select class="preview-tarifa-selector">
+                                            <option>General</option>
+                                        </select>
+                                        <span class="preview-producto-stock">Stock: 25</span>
+                                    </div>
+                                </div>
+                                <div class="preview-producto-card-preview">
+                                    <div class="preview-producto-nombre">Producto 3</div>
+                                    <div class="preview-producto-imagen">
+                                        <i class="fas fa-image" style="color:#9ca3af;"></i>
+                                    </div>
+                                    <div class="preview-producto-info">
+                                        <span class="preview-producto-precio">149,99 €</span>
+                                        <select class="preview-tarifa-selector">
+                                            <option>General</option>
+                                        </select>
+                                        <span class="preview-producto-stock">Stock: 10</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    }
+
     if (seccion.tipo === 'iconos') {
         const headerIconVal = temaActual['header_icon'] || '';
         const faviconVal = temaActual['favicon'] || '';
@@ -275,6 +445,27 @@ function guardarTema() {
         if (seccion.fontKey) { const el = document.getElementById('tema_' + seccion.fontKey); if (el) datos[seccion.fontKey] = el.value; }
     });
 
+    // Guardar configuración de tamaño de productos
+    const widthInput = document.getElementById('tema_producto_card_width');
+    const heightInput = document.getElementById('tema_producto_card_height');
+    const maxWidthInput = document.getElementById('tema_producto_card_max_width');
+    const maxHeightInput = document.getElementById('tema_producto_card_max_height');
+    const columnsInput = document.getElementById('tema_producto_grid_columns');
+    const gapInput = document.getElementById('tema_producto_grid_gap');
+    const nombreFontInput = document.getElementById('tema_producto_nombre_font_size');
+    const precioFontInput = document.getElementById('tema_producto_precio_font_size');
+    const stockFontInput = document.getElementById('tema_producto_stock_font_size');
+
+    if (widthInput) datos['producto_card_width'] = widthInput.value + 'px';
+    if (heightInput) datos['producto_card_height'] = heightInput.value + 'px';
+    if (maxWidthInput) datos['producto_card_max_width'] = maxWidthInput.value + 'px';
+    if (maxHeightInput) datos['producto_card_max_height'] = maxHeightInput.value + 'px';
+    if (columnsInput) datos['producto_grid_columns'] = columnsInput.value;
+    if (gapInput) datos['producto_grid_gap'] = gapInput.value + 'px';
+    if (nombreFontInput) datos['producto_nombre_font_size'] = nombreFontInput.value + 'rem';
+    if (precioFontInput) datos['producto_precio_font_size'] = precioFontInput.value + 'rem';
+    if (stockFontInput) datos['producto_stock_font_size'] = stockFontInput.value + 'rem';
+
     const headerIconInput = document.getElementById('tema_header_icon');
     if (headerIconInput && headerIconInput.value.trim()) datos['header_icon'] = headerIconInput.value;
 
@@ -329,6 +520,27 @@ function restaurarTemaDefault() {
         if (fontSelect) fontSelect.value = TEMA_DEFAULTS[seccion.fontKey];
     });
 
+    // Restablecer tamaño de productos
+    const widthInput = document.getElementById('tema_producto_card_width');
+    const heightInput = document.getElementById('tema_producto_card_height');
+    const maxWidthInput = document.getElementById('tema_producto_card_max_width');
+    const maxHeightInput = document.getElementById('tema_producto_card_max_height');
+    const columnsInput = document.getElementById('tema_producto_grid_columns');
+    const gapInput = document.getElementById('tema_producto_grid_gap');
+    const nombreFontInput = document.getElementById('tema_producto_nombre_font_size');
+    const precioFontInput = document.getElementById('tema_producto_precio_font_size');
+    const stockFontInput = document.getElementById('tema_producto_stock_font_size');
+
+    if (widthInput) widthInput.value = parseInt(TEMA_DEFAULTS.producto_card_width);
+    if (heightInput) heightInput.value = parseInt(TEMA_DEFAULTS.producto_card_height);
+    if (maxWidthInput) maxWidthInput.value = parseInt(TEMA_DEFAULTS.producto_card_max_width);
+    if (maxHeightInput) maxHeightInput.value = parseInt(TEMA_DEFAULTS.producto_card_max_height);
+    if (columnsInput) columnsInput.value = parseInt(TEMA_DEFAULTS.producto_grid_columns);
+    if (gapInput) gapInput.value = parseInt(TEMA_DEFAULTS.producto_grid_gap);
+    if (nombreFontInput) nombreFontInput.value = parseFloat(TEMA_DEFAULTS.producto_nombre_font_size);
+    if (precioFontInput) precioFontInput.value = parseFloat(TEMA_DEFAULTS.producto_precio_font_size);
+    if (stockFontInput) stockFontInput.value = parseFloat(TEMA_DEFAULTS.producto_stock_font_size);
+
     previsualizarTema();
 
     const header = document.querySelector('header');
@@ -372,6 +584,20 @@ function aplicarTemaGuardado() {
         if (tema.favicon) {
             const faviconLink = document.getElementById('favicon-link');
             if (faviconLink) faviconLink.href = tema.favicon;
+        }
+
+        // Aplicar tamaño de tarjetas de productos
+        if (tema.producto_card_width || tema.producto_card_height || tema.producto_card_max_width || tema.producto_card_max_height || tema.producto_grid_columns || tema.producto_grid_gap || tema.producto_nombre_font_size || tema.producto_precio_font_size || tema.producto_stock_font_size) {
+            const root = document.documentElement;
+            if (tema.producto_card_width) root.style.setProperty('--producto-card-width', tema.producto_card_width);
+            if (tema.producto_card_height) root.style.setProperty('--producto-card-height', tema.producto_card_height);
+            if (tema.producto_card_max_width) root.style.setProperty('--producto-card-max-width', tema.producto_card_max_width);
+            if (tema.producto_card_max_height) root.style.setProperty('--producto-card-max-height', tema.producto_card_max_height);
+            if (tema.producto_grid_columns) root.style.setProperty('--producto-grid-columns', tema.producto_grid_columns);
+            if (tema.producto_grid_gap) root.style.setProperty('--producto-grid-gap', tema.producto_grid_gap);
+            if (tema.producto_nombre_font_size) root.style.setProperty('--producto-nombre-font-size', tema.producto_nombre_font_size);
+            if (tema.producto_precio_font_size) root.style.setProperty('--producto-precio-font-size', tema.producto_precio_font_size);
+            if (tema.producto_stock_font_size) root.style.setProperty('--producto-stock-font-size', tema.producto_stock_font_size);
         }
 
         const fuentes = new Set();
@@ -496,6 +722,150 @@ async function exportarSemanal(tipo, formato) {
 // ── VERIFICACIÓN DE CAMBIOS PROGRAMADOS ───────────────────────────────────────
 
 /**
+ * Previsualiza los cambios de tamaño de productos en tiempo real.
+ */
+function previsualizarTamanoProductos() {
+    const widthInput = document.getElementById('tema_producto_card_width');
+    const heightInput = document.getElementById('tema_producto_card_height');
+    const maxWidthInput = document.getElementById('tema_producto_card_max_width');
+    const maxHeightInput = document.getElementById('tema_producto_card_max_height');
+    const columnsInput = document.getElementById('tema_producto_grid_columns');
+    const gapInput = document.getElementById('tema_producto_grid_gap');
+    const nombreFontInput = document.getElementById('tema_producto_nombre_font_size');
+    const precioFontInput = document.getElementById('tema_producto_precio_font_size');
+    const stockFontInput = document.getElementById('tema_producto_stock_font_size');
+
+    if (!widthInput || !heightInput || !maxWidthInput || !maxHeightInput) return;
+
+    const width = widthInput.value + 'px';
+    const height = heightInput.value + 'px';
+    const maxWidth = maxWidthInput.value + 'px';
+    const maxHeight = maxHeightInput.value + 'px';
+    const columns = columnsInput ? columnsInput.value : '4';
+    const gap = gapInput ? gapInput.value + 'px' : '10px';
+    const nombreFont = nombreFontInput ? nombreFontInput.value + 'rem' : '1.1rem';
+    const precioFont = precioFontInput ? precioFontInput.value + 'rem' : '1.15rem';
+    const stockFont = stockFontInput ? stockFontInput.value + 'rem' : '0.9rem';
+
+    // Actualizar los valores mostrados
+    const valWidth = document.getElementById('val_producto_card_width');
+    const valHeight = document.getElementById('val_producto_card_height');
+    const valMaxWidth = document.getElementById('val_producto_card_max_width');
+    const valMaxHeight = document.getElementById('val_producto_card_max_height');
+    const valColumns = document.getElementById('val_producto_grid_columns');
+    const valGap = document.getElementById('val_producto_grid_gap');
+    const valNombreFont = document.getElementById('val_producto_nombre_font_size');
+    const valPrecioFont = document.getElementById('val_producto_precio_font_size');
+    const valStockFont = document.getElementById('val_producto_stock_font_size');
+
+    if (valWidth) valWidth.textContent = width;
+    if (valHeight) valHeight.textContent = height;
+    if (valMaxWidth) valMaxWidth.textContent = maxWidth;
+    if (valMaxHeight) valMaxHeight.textContent = maxHeight;
+    if (valColumns) valColumns.textContent = columns;
+    if (valGap) valGap.textContent = gap;
+    if (valNombreFont) valNombreFont.textContent = nombreFont;
+    if (valPrecioFont) valPrecioFont.textContent = precioFont;
+    if (valStockFont) valStockFont.textContent = stockFont;
+
+    // Aplicar al preview de la tarjeta
+    const preview = document.getElementById('preview_tamano_producto');
+    const allPreviews = document.querySelectorAll('.preview-producto-card-preview');
+
+    if (preview) {
+        preview.style.width = width;
+        preview.style.height = height;
+        preview.style.maxWidth = maxWidth;
+        preview.style.maxHeight = maxHeight;
+    }
+
+    // Aplicar el mismo tamaño a todas las tarjetas de preview
+    allPreviews.forEach(card => {
+        card.style.width = width;
+        card.style.height = height;
+        card.style.maxWidth = maxWidth;
+        card.style.maxHeight = maxHeight;
+    });
+
+    // Ajustar el tamaño del container según el tamaño de las tarjetas
+    const gridContainer = document.getElementById('preview_grid_container');
+    if (gridContainer) {
+        const columns = columnsInput ? columnsInput.value : '4';
+        gridContainer.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+        gridContainer.style.gap = gap;
+        // Calcular ancho total basado en el tamaño de las tarjetas
+        const cardWidth = parseInt(maxWidth) || 250;
+        const totalWidth = cardWidth * parseInt(columns) + (parseInt(gap) * (parseInt(columns) - 1));
+        gridContainer.style.maxWidth = (totalWidth + 20) + 'px';
+    }
+
+    // Aplicar tamaños de fuente al preview
+    const previewNombre = preview ? preview.querySelector('.preview-producto-nombre') : null;
+    const previewPrecio = preview ? preview.querySelector('.preview-producto-precio') : null;
+    const previewStock = preview ? preview.querySelector('.preview-producto-stock') : null;
+
+    if (previewNombre) previewNombre.style.fontSize = nombreFont;
+    if (previewPrecio) previewPrecio.style.fontSize = precioFont;
+    if (previewStock) previewStock.style.fontSize = stockFont;
+
+    // Aplicar variables CSS para previsualización en tiempo real
+    const root = document.documentElement;
+    root.style.setProperty('--preview-producto-width', width);
+    root.style.setProperty('--preview-producto-height', height);
+    root.style.setProperty('--preview-producto-max-width', maxWidth);
+    root.style.setProperty('--preview-producto-max-height', maxHeight);
+    root.style.setProperty('--preview-producto-columns', columns);
+    root.style.setProperty('--preview-producto-gap', gap);
+    root.style.setProperty('--preview-nombre-font', nombreFont);
+    root.style.setProperty('--preview-precio-font', precioFont);
+    root.style.setProperty('--preview-stock-font', stockFont);
+}
+
+/**
+ * Restablece los valores de tamaño de productos a los predeterminados.
+ */
+function restablecerTamanoProductos() {
+    if (!confirm('¿Restablecer el tamaño de las tarjetas de productos a los valores predeterminados?')) return;
+
+    const defaults = TEMA_DEFAULTS;
+
+    // Actualizar inputs
+    const widthInput = document.getElementById('tema_producto_card_width');
+    const heightInput = document.getElementById('tema_producto_card_height');
+    const maxWidthInput = document.getElementById('tema_producto_card_max_width');
+    const maxHeightInput = document.getElementById('tema_producto_card_max_height');
+    const columnsInput = document.getElementById('tema_producto_grid_columns');
+    const gapInput = document.getElementById('tema_producto_grid_gap');
+    const nombreFontInput = document.getElementById('tema_producto_nombre_font_size');
+    const precioFontInput = document.getElementById('tema_producto_precio_font_size');
+    const stockFontInput = document.getElementById('tema_producto_stock_font_size');
+
+    if (widthInput) widthInput.value = parseInt(defaults.producto_card_width);
+    if (heightInput) heightInput.value = parseInt(defaults.producto_card_height);
+    if (maxWidthInput) maxWidthInput.value = parseInt(defaults.producto_card_max_width);
+    if (maxHeightInput) maxHeightInput.value = parseInt(defaults.producto_card_max_height);
+    if (columnsInput) columnsInput.value = parseInt(defaults.producto_grid_columns);
+    if (gapInput) gapInput.value = parseInt(defaults.producto_grid_gap);
+    if (nombreFontInput) nombreFontInput.value = parseFloat(defaults.producto_nombre_font_size);
+    if (precioFontInput) precioFontInput.value = parseFloat(defaults.producto_precio_font_size);
+    if (stockFontInput) stockFontInput.value = parseFloat(defaults.producto_stock_font_size);
+
+    // Guardar en temaActual
+    temaActual['producto_card_width'] = defaults.producto_card_width;
+    temaActual['producto_card_height'] = defaults.producto_card_height;
+    temaActual['producto_card_max_width'] = defaults.producto_card_max_width;
+    temaActual['producto_card_max_height'] = defaults.producto_card_max_height;
+    temaActual['producto_grid_columns'] = defaults.producto_grid_columns;
+    temaActual['producto_grid_gap'] = defaults.producto_grid_gap;
+    temaActual['producto_nombre_font_size'] = defaults.producto_nombre_font_size;
+    temaActual['producto_precio_font_size'] = defaults.producto_precio_font_size;
+    temaActual['producto_stock_font_size'] = defaults.producto_stock_font_size;
+
+    // Actualizar preview
+    previsualizarTamanoProductos();
+}
+
+/**
  * Verifica y aplica cambios de IVA programados.
  */
 function verificarCambiosIvaProgramados() {
@@ -524,3 +894,6 @@ function verificarAjustesPreciosProgramados() {
         })
         .catch(err => console.error('Error verificando ajustes de precios programados:', err));
 }
+
+
+

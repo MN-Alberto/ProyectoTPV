@@ -130,7 +130,7 @@ function generarFilaRetiro(retiro, index) {
             <td class="col-id">${retiro.id}</td>
             <td>${fecha}</td>
             <td>${retiro.usuario_nombre || '—'}</td>
-            <td style="font-weight: 700; color: #dc2626;">${importe} €</td>
+            <td style="text-align:right;font-weight: 700; color: #dc2626;">${importe} €</td>
             <td>${retiro.motivo || '—'}</td>
             <td>${retiro.idCajaSesion || '—'}</td>
         </tr>`;
@@ -176,8 +176,8 @@ function getCajaSesionesTablaHeader(orden = 'fecha_desc') {
             <table class="admin-tabla">
                 <thead>
                     <tr>
-                        <th style="width:3%;text-align:center;">#</th>
-                        <th style="width:10%;">Usuario</th>
+                        <th style="width:9%;">U. Apertura</th>
+                        <th style="width:9%;">U. Cierre</th>
                         <th style="width:10%;text-align:center;">Apertura</th>
                         <th style="width:12%;text-align:center;">Cierre</th>
                         <th style="width:7%;text-align:center;">Importe</th>
@@ -292,18 +292,18 @@ function generarFilaSesion(sesion, index) {
 
     return `
         <tr>
-            <td style="text-align:center;">${sesion.id}</td>
-            <td>${sesion.usuario_nombre || '—'}</td>
+            <td style="width:120px; font-size: 0.9em;">${sesion.usuario_nombre || 'Usuario #' + sesion.idUsuario}</td>
+            <td style="width:120px; font-size: 0.9em;">${sesion.usuario_cierre_nombre || '—'}</td>
             <td style="text-align:center;">${fmtFecha(sesion.fechaApertura)}</td>
             <td style="text-align:center;">${fmtFecha(sesion.fechaCierre)}</td>
-            <td style="text-align:center;">${fmtEur(sesion.importeInicial)}</td>
-            <td style="text-align:center;">${fmtEur(sesion.importeActual)}</td>
-            <td style="text-align:center;">${fmtEur(sesion.cambio)}</td>
+            <td style="text-align:right;">${fmtEur(sesion.importeInicial)}</td>
+            <td style="text-align:right;">${fmtEur(sesion.importeActual)}</td>
+            <td style="text-align:right;">${fmtEur(sesion.cambio)}</td>
             <td style="text-align:center;">${sesion.totalVentas ?? '—'}</td>
             <td style="text-align:center;">${sesion.totalProductos ?? '—'}</td>
-            <td style="text-align:center;">${fmtEur(sesion.totalRetiros)}</td>
-            <td style="text-align:center;">${fmtEur(sesion.totalDevoluciones)}</td>
-            <td style="text-align:center;${desajusteColor}">${desajuste !== null ? fmtEur(desajuste) : '—'}</td>
+            <td style="text-align:right;">${fmtEur(sesion.totalRetiros)}</td>
+            <td style="text-align:right;">${fmtEur(sesion.totalDevoluciones)}</td>
+            <td style="text-align:right;${desajusteColor}">${desajuste !== null ? fmtEur(desajuste) : '—'}</td>
         </tr>`;
 }
 
@@ -433,7 +433,7 @@ function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fech
                     <td class="col-usuario">${dev.usuario_nombre || '—'}</td>
                     <td class="col-producto">${dev.producto_nombre || '—'}</td>
                     <td class="col-cantidad">${dev.cantidad}</td>
-                    <td class="col-total" style="font-weight:700;color:#dc2626;">-${total} €</td>
+                    <td class="col-total" style="text-align:right;font-weight:700;color:#dc2626;">-${total} €</td>
                     <td class="col-pago">${dev.metodoPago}</td>
                     <td class="col-acciones">
                         <button class="btn-admin-accion btn-ver" onclick="verDetalleDevolucion(${dev.id})" title="Ver Detalles">
@@ -568,7 +568,7 @@ function verTicketDevolucion() {
             NIF: B12345678<br>
             C/ Falsa 123, 23000 León<br>
             <div style="margin-top: 10px;">
-                <p><strong>Ticket Original:</strong> #${dev.idVenta || '—'}</p>
+                <p><strong>Ticket Original:</strong> ${(dev.serie || 'T') + String(dev.numero || dev.idVenta || '—').padStart(5, '0')}</p>
                 <p><strong>Fecha:</strong> ${fecha}</p>
                 <p><strong>Empleado:</strong> ${dev.usuario_nombre || '—'}</p>
                 <p><strong>Método Reembolso:</strong> ${dev.metodoPago}</p>

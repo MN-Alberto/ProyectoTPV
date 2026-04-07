@@ -208,25 +208,27 @@ function renderProductos(productos) {
                     </div>
                     <div class="producto-info-inferior" style="display: flex; flex-direction: column; gap: 2px;">
                         <span class="producto-precio">${precioFmt} €</span>
-                        <input type="number"
-                            class="precio-editable"
-                            value="${round2(precioPVP).toFixed(2)}"
-                            step="0.01"
-                            min="0"
-                            onclick="event.stopPropagation()"
-                            onchange="actualizarPrecioDesdeInput(this)"
-                            onkeyup="if(event.key === 'Enter') agregarAlCarrito(this.closest('.producto-card'))"
-                            placeholder="PVP"
-                            style="width: 70px; padding: 4px; font-size: 11px; border: 1px solid #ccc; border-radius: 4px; margin: 2px 0;"
-                            title="Edita el precio PVP y pulsa Enter para añadir">
                         ${selectorTarifas}
                         <span class="producto-stock" ${prod.stock <= 0 ? 'style="color: red; text-decoration: underline;"' : ''}>Stock: ${prod.stock}</span>
                     </div>
                 </div>`;
     });
 
-    // Insertar todo el HTML generado en la cuadrícula de productos.
-    grid.innerHTML = html;
+    // Insertar todo el HTML generado en la cuadrícula de productos, preceded by the Producto Comodín card
+    const comodinCard = `
+        <div class="producto-card producto-comodin" onclick="abrirModalProductoComodin()"
+             style="cursor: pointer; border: 2px dashed #6366f1; background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);">
+            <div class="producto-nombre" style="color: #6366f1; font-weight: 700;">
+                <i class="fas fa-plus-circle"></i> Producto Comodín
+            </div>
+            <div class="producto-imagen" style="display: flex; align-items: center; justify-content: center; height: 120px;">
+                <i class="fas fa-tag" style="font-size: 3rem; color: #6366f1;"></i>
+            </div>
+            <div class="producto-info-inferior" style="text-align: center;">
+                <span class="producto-precio" style="color: #6366f1;">Crear producto</span>
+            </div>
+        </div>`;
+    grid.innerHTML = comodinCard + html;
 }
 
 /**
@@ -503,9 +505,10 @@ function abrirModalNuevoProducto() {
 document.addEventListener('DOMContentLoaded', function () {
     verificarPermisoCrearProductos();
     cargarTarifasCajero().then(() => {
-        // Si ya hay productos cargados (por PHP), podríamos querer refrescarlos o confiar en la carga inicial de PHP
-        // Pero para que el selector funcione con los productos iniciales de PHP, PHP también debe generarlo.
+        // Cargar productos al inicio para que aparezca el Producto Comodín
+        buscarProductos();
     });
+    initCarouselBotones();
 });
 
 // ======================== FUNCIONES DE MODAL (necesarias para el modal de nuevo producto) ========================
@@ -555,4 +558,444 @@ function abrirImagenGrande(src, alt = '') {
     };
 
     document.body.appendChild(overlay);
+}
+
+// ======================== CARRUSEL DE BOTONES ========================
+
+/**
+ * Inicializa el carrusel de botones de la barra de opciones.
+ * Muestra/oculta la flecha según si hay desbordamiento.
+ */
+function initCarouselBotones() {
+    const track = document.getElementById('cajeroCarouselTrack');
+    const arrowRight = document.getElementById('cajeroCarouselArrow');
+    const arrowLeft = document.getElementById('cajeroCarouselArrowLeft');
+    if (!track) return;
+
+    function actualizarFlechasCarousel() {
+        const hayOverflow = track.scrollWidth > track.clientWidth + 5;
+        const alFinal = track.scrollLeft + track.clientWidth >= track.scrollWidth - 5;
+        const alInicio = track.scrollLeft <= 5;
+
+        if (arrowRight) {
+            if (!hayOverflow || alFinal) {
+                arrowRight.style.opacity = '0.3';
+                arrowRight.style.pointerEvents = 'none';
+            } else {
+                arrowRight.style.opacity = '1';
+                arrowRight.style.pointerEvents = 'auto';
+            }
+        }
+
+        if (arrowLeft) {
+            if (!hayOverflow || alInicio) {
+                arrowLeft.style.opacity = '0.3';
+                arrowLeft.style.pointerEvents = 'none';
+            } else {
+                arrowLeft.style.opacity = '1';
+                arrowLeft.style.pointerEvents = 'auto';
+            }
+        }
+    }
+
+    track.addEventListener('scroll', actualizarFlechasCarousel);
+    window.addEventListener('resize', actualizarFlechasCarousel);
+
+    // Esperar a que se rendericen los botones (alguno puede estar hidden)
+    setTimeout(actualizarFlechasCarousel, 300);
+}
+
+/**
+ * Desplaza el carrusel de botones hacia la derecha.
+ */
+function scrollCarouselBotones() {
+    const track = document.getElementById('cajeroCarouselTrack');
+    if (!track) return;
+    track.scrollBy({ left: 200, behavior: 'smooth' });
+}
+
+/**
+ * Desplaza el carrusel de botones hacia la izquierda.
+ */
+function scrollCarouselBotonesIzquierda() {
+    const track = document.getElementById('cajeroCarouselTrack');
+    if (!track) return;
+    track.scrollBy({ left: -200, behavior: 'smooth' });
+}
+
+// ======================== MODAL CAMBIAR PRECIOS ========================
+
+let cambiarPreciosTodosProductos = [];
+let cambiarPreciosProductosFiltrados = [];
+let cambiarPreciosTarifas = [];
+let cambiarPreciosPaginaActual = 1;
+const CAMBIAR_PRECIOS_POR_PAGINA = 10;
+let cambiarPreciosDebounce = null;
+let cambiarPreciosMostrarConIva = false;
+let cambiosPendientesCajero = {};
+
+/**
+ * Actualiza el estado del botón "Aplicar Cambios".
+ */
+function actualizarBotonAplicarCambios() {
+    const btn = document.getElementById('btnAplicarCambiosPrecios');
+    if (!btn) return;
+
+    const numCambios = Object.keys(cambiosPendientesCajero).length;
+    if (numCambios > 0) {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Aplicar Cambios (${numCambios})`;
+    } else {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Aplicar Cambios`;
+    }
+}
+
+/**
+ * Abre el modal de Cambiar Precios y carga los datos.
+ */
+function mostrarModalCambiarPrecios() {
+    document.getElementById('modalCambiarPrecios').style.display = 'flex';
+    document.getElementById('buscarProductoCambiarPrecio').value = '';
+    cambiarPreciosPaginaActual = 1;
+    cambiosPendientesCajero = {};
+    actualizarBotonAplicarCambios();
+    cargarDatosCambiarPrecios();
+}
+
+/**
+ * Carga productos y tarifas desde la API para el modal de cambiar precios.
+ */
+function cargarDatosCambiarPrecios() {
+    const tbody = document.getElementById('bodyTablaCambiarPrecios');
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-muted);">Cargando productos...</td></tr>';
+
+    Promise.all([
+        fetch('api/tarifas.php').then(r => r.json()),
+        fetch('api/productos.php').then(r => r.json())
+    ])
+        .then(([tarifas, productos]) => {
+            cambiarPreciosTarifas = tarifas;
+            cambiarPreciosTodosProductos = productos;
+            cambiarPreciosProductosFiltrados = [...productos];
+            cambiarPreciosPaginaActual = 1;
+            renderizarCabecerasCambiarPrecios();
+            renderizarTablaCambiarPrecios();
+        })
+        .catch(err => {
+            console.error('Error cargando datos para cambiar precios:', err);
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--accent-danger);">Error al cargar los datos</td></tr>';
+        });
+}
+
+/**
+ * Genera las cabeceras dinámicas de la tabla de cambiar precios.
+ */
+function renderizarCabecerasCambiarPrecios() {
+    const thead = document.getElementById('cabeceraCambiarPrecios');
+    const thStyle = 'padding:12px 8px;text-align:left;font-weight:600;font-size:12px;text-transform:uppercase;color:var(--text-main);border-bottom:2px solid var(--border-main);background:var(--bg-panel);white-space:nowrap;';
+
+    let html = `<th style="${thStyle}">Producto</th>`;
+    html += `<th style="${thStyle}text-align:right;">Precio Base</th>`;
+
+    cambiarPreciosTarifas.forEach(tarifa => {
+        html += `<th style="${thStyle}">${tarifa.nombre}</th>`;
+    });
+
+    thead.innerHTML = html;
+}
+
+/**
+ * Renderiza la tabla paginada de productos y tarifas.
+ */
+function renderizarTablaCambiarPrecios() {
+    const tbody = document.getElementById('bodyTablaCambiarPrecios');
+    const prods = cambiarPreciosProductosFiltrados;
+    const totalPaginas = Math.max(1, Math.ceil(prods.length / CAMBIAR_PRECIOS_POR_PAGINA));
+
+    if (cambiarPreciosPaginaActual > totalPaginas) cambiarPreciosPaginaActual = totalPaginas;
+
+    const inicio = (cambiarPreciosPaginaActual - 1) * CAMBIAR_PRECIOS_POR_PAGINA;
+    const productosPagina = prods.slice(inicio, inicio + CAMBIAR_PRECIOS_POR_PAGINA);
+
+    if (!productosPagina.length) {
+        tbody.innerHTML = `<tr><td colspan="${2 + cambiarPreciosTarifas.length}" style="text-align:center;padding:40px;color:var(--text-muted);">No se encontraron productos</td></tr>`;
+        renderizarPaginacionCambiarPrecios(totalPaginas);
+        return;
+    }
+
+    let html = '';
+    productosPagina.forEach(prod => {
+        const ivaProd = parseFloat(prod.iva) || 21;
+        const precioBase = parseFloat(prod.precio) || 0;
+
+        html += `<tr style="border-bottom:1px solid var(--border-main);">`;
+        html += `<td style="padding:8px 6px;font-weight:500;color:var(--text-main);white-space:nowrap;">${prod.nombre}</td>`;
+
+        let precioBaseAMostrar = precioBase;
+        if (cambiarPreciosMostrarConIva) precioBaseAMostrar = precioBase * (1 + ivaProd / 100);
+        html += `<td style="padding:8px 6px;font-weight:600;text-align:right;">${precioBaseAMostrar.toFixed(2)} €</td>`;
+
+        cambiarPreciosTarifas.forEach(tarifa => {
+            const dataTarifa = prod.preciosTarifas && prod.preciosTarifas[tarifa.id];
+            let precioFinal = 0;
+            let esManual = false;
+
+            if (dataTarifa) {
+                precioFinal = parseFloat(dataTarifa.precio);
+                esManual = dataTarifa.es_manual == 1;
+            } else {
+                const descuento = parseFloat(tarifa.descuento_porcentaje) || 0;
+                precioFinal = precioBase * (1 - descuento / 100);
+            }
+
+            const claveCambio = `${prod.id}_${tarifa.id}`;
+            const tieneCambioPendiente = cambiosPendientesCajero.hasOwnProperty(claveCambio);
+
+            if (tieneCambioPendiente) {
+                precioFinal = cambiosPendientesCajero[claveCambio].precioModificado;
+            }
+
+            let precioAMostrar = precioFinal;
+            if (cambiarPreciosMostrarConIva) precioAMostrar = precioFinal * (1 + ivaProd / 100);
+
+            let manualStyle = esManual
+                ? 'border:1px solid var(--accent-success);background:var(--bg-accent-success);color:var(--accent-success);'
+                : 'border:1px solid var(--border-main);background:var(--bg-input);color:var(--accent-success);';
+
+            if (tieneCambioPendiente) {
+                manualStyle = 'border:2px solid var(--accent-warning);background:var(--bg-accent-warning);color:var(--accent-warning);';
+            }
+
+            const disabledAttr = cambiarPreciosMostrarConIva ? 'disabled' : '';
+            const disabledStyle = cambiarPreciosMostrarConIva ? 'opacity:0.6;cursor:not-allowed;' : '';
+
+            html += `<td style="padding:8px 6px;">
+                <div style="display:flex;align-items:center;gap:4px;">
+                    <input type="number" step="0.01" value="${precioAMostrar.toFixed(2)}"
+                        data-precio-original="${precioFinal.toFixed(4)}"
+                        onchange="estacionarCambioPrecioCajero(${prod.id},${tarifa.id},this,${ivaProd})"
+                        style="width:70px;padding:4px 6px;border-radius:4px;font-weight:600;text-align:right;${manualStyle}${disabledStyle}"
+                        onclick="event.stopPropagation()" ${disabledAttr}>
+                    <span style="font-size:14px;font-weight:600;color:var(--accent-success);">€</span>
+                    ${esManual ? '<i class="fas fa-hand-paper" title="Precio manual" style="color:#10b981;font-size:12px;"></i>' : ''}
+                </div>
+            </td>`;
+        });
+
+        html += '</tr>';
+    });
+
+    tbody.innerHTML = html;
+    renderizarPaginacionCambiarPrecios(totalPaginas);
+}
+
+/**
+ * Renderiza la paginación del modal de cambiar precios usando el estilo del panel admin.
+ */
+function renderizarPaginacionCambiarPrecios(totalPaginas) {
+    const container = document.getElementById('paginacionCambiarPrecios');
+    if (totalPaginas <= 1) {
+        container.innerHTML = `<span style="color:var(--text-muted);font-size:0.85rem;">${cambiarPreciosProductosFiltrados.length} producto(s)</span>`;
+        return;
+    }
+
+    let botones = '';
+
+    if (cambiarPreciosPaginaActual > 1) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaCambiarPrecios(1)" title="Primera página">
+            <i class="fas fa-angle-double-left"></i></button>`;
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaCambiarPrecios(${cambiarPreciosPaginaActual - 1})" title="Página anterior">
+            <i class="fas fa-chevron-left"></i></button>`;
+    }
+
+    botones += `<div class="input-paginacion">
+        <input type="number" id="inputPaginaCambiarPrecios" class="input-numero-pagina"
+            value="${cambiarPreciosPaginaActual}" min="1" max="${totalPaginas}"
+            onchange="irAPaginaCambiarPrecios()"
+            onkeypress="if(event.key==='Enter') irAPaginaCambiarPrecios()">
+        <span class="info-paginacion"> de ${totalPaginas}</span>
+    </div>`;
+
+    if (cambiarPreciosPaginaActual < totalPaginas) {
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaCambiarPrecios(${cambiarPreciosPaginaActual + 1})" title="Siguiente página">
+            <i class="fas fa-chevron-right"></i></button>`;
+        botones += `<button class="btn-paginacion" onclick="cambiarPaginaCambiarPrecios(${totalPaginas})" title="Última página">
+            <i class="fas fa-angle-double-right"></i></button>`;
+    }
+
+    container.innerHTML = `<div class="admin-paginacion-wrapper" style="padding:0; position:static;">
+                <div class="admin-paginacion">${botones}</div>
+            </div>`;
+}
+
+/**
+ * Ir a una página específica desde el input de paginación del modal.
+ */
+function irAPaginaCambiarPrecios() {
+    const input = document.getElementById('inputPaginaCambiarPrecios');
+    if (!input) return;
+    let p = parseInt(input.value);
+    const totalPaginas = Math.ceil(cambiarPreciosProductosFiltrados.length / CAMBIAR_PRECIOS_POR_PAGINA);
+    if (isNaN(p) || p < 1) p = 1;
+    else if (p > totalPaginas) p = totalPaginas;
+    cambiarPaginaCambiarPrecios(p);
+}
+
+/**
+ * Cambia la página de la tabla de cambiar precios.
+ */
+function cambiarPaginaCambiarPrecios(pagina) {
+    const totalPaginas = Math.ceil(cambiarPreciosProductosFiltrados.length / CAMBIAR_PRECIOS_POR_PAGINA);
+    if (pagina < 1 || pagina > totalPaginas) return;
+    cambiarPreciosPaginaActual = pagina;
+    renderizarTablaCambiarPrecios();
+}
+
+/**
+ * Filtra productos en el modal de cambiar precios por nombre (con debounce).
+ */
+function buscarProductosCambiarPrecio() {
+    clearTimeout(cambiarPreciosDebounce);
+    cambiarPreciosDebounce = setTimeout(() => {
+        const texto = document.getElementById('buscarProductoCambiarPrecio').value.trim().toLowerCase();
+        if (texto) {
+            cambiarPreciosProductosFiltrados = cambiarPreciosTodosProductos.filter(p =>
+                p.nombre.toLowerCase().includes(texto)
+            );
+        } else {
+            cambiarPreciosProductosFiltrados = [...cambiarPreciosTodosProductos];
+        }
+        cambiarPreciosPaginaActual = 1;
+        renderizarTablaCambiarPrecios();
+    }, 300);
+}
+
+/**
+ * Alterna la vista de precios con o sin IVA en el modal.
+ */
+function toggleIvaCambiarPrecios() {
+    cambiarPreciosMostrarConIva = !cambiarPreciosMostrarConIva;
+    const btn = document.getElementById('btnToggleIvaCambiarPrecios');
+    if (btn) {
+        if (cambiarPreciosMostrarConIva) {
+            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> Ver Sin IVA`;
+            btn.style.background = '#10b981';
+        } else {
+            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg> Ver Con IVA`;
+            btn.style.background = '#4b5563';
+        }
+    }
+    renderizarTablaCambiarPrecios();
+}
+
+/**
+ * Estaciona un cambio de precio localmente en cambiosPendientesCajero.
+ * Modifica el estilo visual del input.
+ */
+function estacionarCambioPrecioCajero(idProducto, idTarifa, input, iva) {
+    const nuevoPrecio = parseFloat(input.value) || 0;
+
+    // Si la vista está en IVA, no debería disparar el onchange por estar disabled, 
+    // pero por si acaso, si sucede, no hacemos nada o lo revertimos.
+    if (cambiarPreciosMostrarConIva || nuevoPrecio < 0) {
+        input.value = parseFloat(input.getAttribute('data-precio-original') || 0).toFixed(2);
+        return;
+    }
+
+    const clave = `${idProducto}_${idTarifa}`;
+
+    cambiosPendientesCajero[clave] = {
+        idProducto: idProducto,
+        idTarifa: idTarifa,
+        precioModificado: nuevoPrecio
+    };
+
+    // Estilo visual de "cambio pendiente" (naranja) - adaptativo para modo oscuro
+    const isDark = document.body.classList.contains('dark-mode');
+    if (isDark) {
+        input.style.border = '2px solid var(--accent-warning)';
+        input.style.background = 'var(--bg-accent-warning)';
+        input.style.color = 'var(--text-main)';
+    } else {
+        input.style.border = '2px solid #f59e0b';
+        input.style.background = '#fffbeb';
+        input.style.color = '#92400e';
+    }
+
+    actualizarBotonAplicarCambios();
+}
+
+/**
+ * Aplica todos los cambios de precios pendientes realizando peticiones secuenciales o paralelas a la API.
+ */
+function aplicarCambiosPreciosCajero() {
+    const claves = Object.keys(cambiosPendientesCajero);
+    if (claves.length === 0) return;
+
+    const btn = document.getElementById('btnAplicarCambiosPrecios');
+    const textoOriginal = btn.innerHTML;
+
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'wait';
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Aplicando...`;
+
+    const promesas = claves.map(clave => {
+        const cambio = cambiosPendientesCajero[clave];
+        const fd = new FormData();
+        fd.append('actualizarPrecioIndividual', '1');
+        fd.append('idTarifa', cambio.idTarifa);
+        fd.append('idProducto', cambio.idProducto);
+        fd.append('precio', cambio.precioModificado.toFixed(4));
+        fd.append('esManual', '1');
+
+        return fetch('api/tarifas.php', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    // Actualizar memoria
+                    const prod = cambiarPreciosTodosProductos.find(p => p.id == cambio.idProducto);
+                    if (prod) {
+                        if (!prod.preciosTarifas) prod.preciosTarifas = {};
+                        prod.preciosTarifas[cambio.idTarifa] = { precio: cambio.precioModificado, es_manual: 1 };
+                    }
+                    return { ok: true };
+                }
+                return { ok: false, error: data.error };
+            })
+            .catch(err => ({ ok: false, error: err.message }));
+    });
+
+    Promise.all(promesas).then(resultados => {
+        const errores = resultados.filter(r => !r.ok);
+
+        if (errores.length > 0) {
+            alert(`Hubo errores al aplicar ${errores.length} cambios.`);
+            cambiosPendientesCajero = {};
+            actualizarBotonAplicarCambios();
+            renderizarTablaCambiarPrecios();
+            cargarTarifasCajero().then(() => buscarProductos());
+        } else {
+            btn.innerHTML = `<i class="fas fa-check"></i> ¡Guardado!`;
+            btn.style.background = '#059669';
+            btn.style.opacity = '1';
+
+            setTimeout(() => {
+                cambiosPendientesCajero = {};
+                actualizarBotonAplicarCambios();
+                renderizarTablaCambiarPrecios();
+                cargarTarifasCajero().then(() => buscarProductos());
+            }, 1500);
+        }
+
+    }).catch(err => {
+        console.error('Error aplicando cambios:', err);
+        alert('Error grave de conexión al aplicar los cambios.');
+        actualizarBotonAplicarCambios();
+    });
 }

@@ -1143,10 +1143,17 @@
 
             // Toggle modo configuración para ganar espacio
             const dashboard = document.querySelector('.admin-dashboard');
+            const panel = document.querySelector('.admin-content-panel');
             if (seccion.startsWith('config-') || seccion === 'configuracion') {
                 dashboard.classList.add('admin-mode-config');
             } else {
                 dashboard.classList.remove('admin-mode-config');
+            }
+
+            if (seccion.startsWith('informe-')) {
+                panel.classList.add('informes-view');
+            } else {
+                panel.classList.remove('informes-view');
             }
 
             switch (seccion) {

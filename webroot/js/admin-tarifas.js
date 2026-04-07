@@ -22,7 +22,7 @@ function generarFilaCategoria(cat) {
                 <i class="fas fa-eye"></i></button>
             <button class="btn-admin-accion btn-editar"
                 onclick="abrirModalEditarCategoria(${cat.id},'${cat.nombre}','${cat.descripcion || ''}')" title="Editar">
-                <i class="fas fa-edit"></i></button>
+                <i class="fas fa-pen"></i></button>
             <button class="btn-admin-accion btn-eliminar"
                 onclick="confirmarEliminarCategoria(${cat.id},'${cat.nombre}')" title="Eliminar">
                 <i class="fas fa-trash"></i></button>
@@ -431,45 +431,68 @@ function mostrarPanelCambiarIVA() {
             <td>${t.nombre}</td>
             <td style="text-align:center;font-weight:600;width:80px;">${t.porcentaje}%</td>
             <td style="text-align:center;width:100px;">
-                <button class="btn-admin-accion" onclick="editarIva(${t.id},'${t.nombre}',${t.porcentaje})"><i class="fas fa-edit"></i></button>
+                <button class="btn-admin-accion" onclick="editarIva(${t.id},'${t.nombre}',${t.porcentaje})"><i class="fas fa-pen"></i></button>
                 <button class="btn-admin-accion btn-eliminar" onclick="eliminarIva(${t.id})"><i class="fas fa-trash"></i></button>
             </td>
         </tr>`).join('');
 
     contenedor.innerHTML = `
-        <div class="admin-tabla-header">
-            <h2 style="margin:0;font-size:24px;font-weight:600;">Cambiar IVA General</h2>
-        </div>
-        <div style="display:flex;gap:20px;align-items:flex-start;">
-            <div class="tarifa-panel-inputs" style="min-width:350px;">
-                <p class="tarifa-panel-desc">Esta opción cambiará el IVA de todos los productos.</p>
-                <div class="tarifa-input-group">
-                    <label>Nuevo tipo de IVA:</label>
-                    <select id="nuevoIVA" class="tarifa-input" onchange="actualizarPrevisualizacionIVAAuto()">
-                        ${opcionesIva}
-                    </select>
-                </div>
-                <button onclick="aplicarCambioIVA()" class="tarifa-btn-aplicar"><i class="fas fa-save"></i> Aplicar Cambio de IVA</button>
-                <button onclick="abrirModalProgramarIVA()" class="tarifa-btn-programar" style="margin-top:10px;"><i class="fas fa-clock"></i> Programar Cambio</button>
-                <button onclick="abrirModalVerCambiosProgramados()" class="tarifa-btn-programar" style="margin-top:10px;"><i class="fas fa-list"></i> Ver Cambios Programados</button>
+        <div class="iva-panel-container">
+            <div class="iva-panel-header">
+                <h2><i class="fas fa-percentage"></i> Cambiar IVA General</h2>
+                <p class="iva-panel-subtitle">Cambia el IVA de todos los productos de forma masiva</p>
             </div>
-            <div style="flex:1;max-width:550px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                    <h3 style="margin:0;font-size:16px;font-weight:600;">Tipos de IVA</h3>
-                    <button onclick="abrirModalNuevoIva()" class="btn-admin-accion btn-nuevo" style="padding:4px 10px;font-size:.8rem;">
-                        <i class="fas fa-plus"></i> Añadir
-                    </button>
+            
+            <div class="iva-panel-content">
+                <div class="iva-panel-left">
+                    <div class="iva-panel-card">
+                        <h3><i class="fas fa-cog"></i> Configuración</h3>
+                        <div class="iva-form-group">
+                            <label for="nuevoIVA">Nuevo tipo de IVA:</label>
+                            <select id="nuevoIVA" class="iva-select" onchange="actualizarPrevisualizacionIVAAuto()">
+                                ${opcionesIva}
+                            </select>
+                        </div>
+                        <div class="iva-actions">
+                            <button onclick="aplicarCambioIVA()" class="iva-btn-aplicar">
+                                <i class="fas fa-check"></i> Aplicar Cambio
+                            </button>
+                            <button onclick="abrirModalProgramarIVA()" class="iva-btn-secondary">
+                                <i class="fas fa-clock"></i> Programar
+                            </button>
+                            <button onclick="abrirModalVerCambiosProgramados()" class="iva-btn-secondary">
+                                <i class="fas fa-list"></i> Ver Programados
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="iva-panel-card">
+                        <div class="iva-tipos-header">
+                            <h3><i class="fas fa-tags"></i> Tipos de IVA</h3>
+                            <button onclick="abrirModalNuevoIva()" class="btn-admin-accion btn-nuevo">
+                                <i class="fas fa-plus"></i> Añadir
+                            </button>
+                        </div>
+                        <div class="iva-tipos-table-wrapper">
+                            <table class="iva-tipos-tabla">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Nombre</th>
+                                        <th>%</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${filasTablaIva}</tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
-                <div style="max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:4px;">
-                    <table class="admin-tabla" style="width:100%;font-size:.85rem;">
-                        <thead style="position:sticky;top:0;background:#f9fafb;z-index:1;">
-                            <tr><th style="width:40px;">ID</th><th>Nombre</th><th style="width:80px;text-align:center;">%</th><th style="width:100px;text-align:center;">Acción</th></tr>
-                        </thead>
-                        <tbody>${filasTablaIva}</tbody>
-                    </table>
+
+                <div class="iva-panel-right">
+                    <div id="previsualizacionCambios"></div>
                 </div>
             </div>
-            <div id="previsualizacionCambios" style="flex:1;"></div>
         </div>`;
 }
 
@@ -747,7 +770,7 @@ function actualizarTablaTarifas() {
         let fila = `
             <tr style="border-bottom:1px solid ${tableRowBorder};">
                 <td style="padding:8px 6px;font-weight:500;color:${textColor};">${prod.nombre}</td>
-                <td style="padding:8px 6px;font-weight:600;">${precioBase.toFixed(2)} €</td>`;
+                <td style="padding:8px 6px;font-weight:600;text-align:right;">${precioBase.toFixed(2)} €</td>`;
 
         tarifas.forEach(tarifa => {
             const dataTarifa = prod.preciosTarifas && prod.preciosTarifas[tarifa.id];
@@ -957,7 +980,7 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
                 let fila = `
                 <tr style="border-bottom: 1px solid ${tableRowBorder};">
                     <td style="padding: 8px 6px; font-weight: 500; color: ${textColor};">${prod.nombre}</td>
-                    <td style="padding: 8px 6px; color: ${isDark ? '#f3f4f6' : '#1f2937'}; font-weight: 600;">${precioBaseAMostrar.toFixed(2)} €</td>`;
+                    <td style="padding: 8px 6px; color: ${isDark ? '#f3f4f6' : '#1f2937'}; font-weight: 600; text-align: right;">${precioBaseAMostrar.toFixed(2)} €</td>`;
 
                 tarifas.forEach(tarifa => {
                     const idTarifa = tarifa.id;
@@ -1028,7 +1051,7 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
                     <td style="padding: 12px;">${descuentoBadge}</td>
                     <td style="padding: 12px; color: ${tarifa.requiere_cliente ? '#10b981' : subTextColor};">${requiereCliente}</td>
                     <td style="padding: 12px;">
-                        <button onclick="abrirModalEditarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}', '${(tarifa.descripcion || '').replace(/'/g, "\\'")}', ${tarifa.descuento_porcentaje}, ${tarifa.requiere_cliente ? 1 : 0})" style="padding: 6px 12px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 5px;"><i class="fas fa-edit"></i> Editar</button>
+                        <button onclick="abrirModalEditarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}', '${(tarifa.descripcion || '').replace(/'/g, "\\'")}', ${tarifa.descuento_porcentaje}, ${tarifa.requiere_cliente ? 1 : 0})" style="padding: 6px 12px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 5px;"><i class="fas fa-pen"></i> Editar</button>
                         <button onclick="eliminarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}')" style="padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;"><i class="fas fa-trash"></i> Eliminar</button>
                     </td>
                 </tr>`;

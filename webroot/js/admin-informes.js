@@ -11,6 +11,8 @@
 function mostrarSeccionInformes(periodo = 'diario') {
     seccionActual = 'informe-' + periodo;
     const contenedor = document.getElementById('adminContenido');
+    const panel = document.querySelector('.admin-content-panel');
+    if (panel) panel.classList.add('informes-view');
 
     const titulos = {
         'diario': 'Informe Diario (Hoy)',
@@ -406,7 +408,7 @@ function cargarGraficoDashboard() {
 
             document.getElementById('dashTotalSemana').textContent =
                 totalVentas.toFixed(2).replace('.', ',') + ' €';
-            document.getElementById('dashTotalPedidos').textContent = totalPedidos + ' pedidos';
+            document.getElementById('dashTotalPedidos').textContent = totalPedidos + ' ventas';
 
             const isDark = document.body.classList.contains('dark-mode');
             const gridColor = isDark ? '#374151' : '#f0f2f5';

@@ -135,6 +135,35 @@ if (isset($_GET['historialCaja'])) {
 }
 
 /**
+ * ENDPOINT: Próximos números de ticket y factura.
+ * Devuelve el siguiente número correlativo para cada serie (T y F).
+ */
+if (isset($_GET['accion']) && $_GET['accion'] === 'proximos_numeros') {
+    try {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        
+        // Ticket (Serie T)
+        $stmtT = $conexion->prepare("SELECT COALESCE(MAX(numero), 0) + 1 as siguiente FROM ventas_ids WHERE serie = 'T'");
+        $stmtT->execute();
+        $nextT = $stmtT->fetch(PDO::FETCH_ASSOC)['siguiente'];
+        
+        // Factura (Serie F)
+        $stmtF = $conexion->prepare("SELECT COALESCE(MAX(numero), 0) + 1 as siguiente FROM ventas_ids WHERE serie = 'F'");
+        $stmtF->execute();
+        $nextF = $stmtF->fetch(PDO::FETCH_ASSOC)['siguiente'];
+        
+        echo json_encode([
+            'status' => 'success',
+            'proximo_ticket' => 'T' . str_pad($nextT, 5, '0', STR_PAD_LEFT),
+            'proximo_factura' => 'F' . str_pad($nextF, 5, '0', STR_PAD_LEFT)
+        ]);
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit();
+}
+
+/**
  * ENDPOINT: Detalle de una venta.
  * Devuelve la información completa de una transacción, incluyendo sus líneas de detalle y descuentos.
  * @param int $_GET['detalleVenta'] Identificador de la venta.
@@ -198,7 +227,7 @@ if (isset($_GET['detalleVenta'])) {
 
         // Obtener las líneas de venta
         $stmtLineas = $conexion->prepare("
-            SELECT lv.*, p.nombre as producto_nombre, i.porcentaje as iva_producto
+            SELECT lv.*, COALESCE(lv.nombreProducto, p.nombre) as producto_nombre, i.porcentaje as iva_producto
             FROM lineasVenta lv
             LEFT JOIN productos p ON lv.idProducto = p.id
             LEFT JOIN iva i ON p.idIva = i.id

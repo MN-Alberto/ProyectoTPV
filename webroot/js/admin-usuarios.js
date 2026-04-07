@@ -302,7 +302,7 @@ function getClientesTablaHeader(textoBusqueda = '', totalCli = 0, totalInactivos
             <table class="admin-tabla">
                 <thead>
                     <tr>
-                        <th>#</th><th>DNI</th><th>Nombre</th><th>Apellidos</th><th>Fecha Alta</th>
+                        <th>DNI</th><th>Nombre</th><th>Apellidos</th><th>Fecha Alta</th>
                         <th>Productos</th><th>Compras</th><th>Puntos</th><th>Estado</th><th>Acciones</th>
                     </tr>
                 </thead>
@@ -324,7 +324,7 @@ function cargarClientesAdmin(textoBusqueda = '', resetPagina = true) {
         contenedor.innerHTML = '<div style="text-align:center;padding:60px 20px;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--color-primary);"></i></div>';
     } else {
         const tbody = contenedor.querySelector('tbody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="sin-productos" style="text-align:center;"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="sin-productos" style="text-align:center;"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>';
     }
 
     return fetch('api/clientes.php?' + params)
@@ -359,10 +359,10 @@ function renderClientesAdmin(respuesta, esPrimeraVez = true) {
         if (esPrimeraVez || !adminTablaHeaderHTML) {
             adminTablaHeaderHTML = getClientesTablaHeader(busquedaClienteActual, totalTodos, totalInactivos);
             contenedor.innerHTML = adminTablaHeaderHTML +
-                '<tr><td colspan="10" class="sin-productos">No hay clientes disponibles.</td></tr></tbody></table></div>';
+                '<tr><td colspan="9" class="sin-productos">No hay clientes disponibles.</td></tr></tbody></table></div>';
         } else {
             const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="sin-productos">No hay clientes disponibles.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="sin-productos">No hay clientes disponibles.</td></tr>';
         }
         actualizarContador();
         const pag = contenedor.querySelector('.admin-paginacion-wrapper');
@@ -384,7 +384,6 @@ function renderClientesAdmin(respuesta, esPrimeraVez = true) {
                 data-apellidos="${(cli.apellidos || '').replace(/"/g, '&quot;')}"
                 data-fecha-alta="${cli.fecha_alta || ''}"
                 data-puntos="${cli.puntos || 0}" data-activo="${cli.activo}">
-                <td class="col-id">${cli.id}</td>
                 <td class="col-nombre">${cli.dni}</td>
                 <td>${cli.nombre || '—'}</td>
                 <td>${cli.apellidos || '—'}</td>

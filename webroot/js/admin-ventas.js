@@ -78,7 +78,7 @@ function generarFilaVenta(venta) {
             <td class="col-tarifa">${venta.tarifa_nombre || 'Cliente'}</td>
             <td class="col-documento">${doc}</td>
             <td class="col-pago">${pago}</td>
-            <td class="col-total" style="font-weight:700;color:#059669;">${total} €</td>
+            <td class="col-total" style="text-align:right;font-weight:700;color:#059669;">${total} €</td>
             <td class="col-acciones">
                 <button class="btn-admin-accion btn-ver" onclick="verDetalleVenta(${venta.id})" title="Ver Detalles">
                     <i class="fas fa-eye"></i></button>
@@ -253,7 +253,7 @@ function verDetalleVenta(idVenta) {
                     <thead><tr style="background:#374151;color:white;">
                         <th style="padding:10px;text-align:left;">Producto</th>
                         <th style="padding:10px;text-align:center;">Cant.</th>
-                        <th style="padding:10px;text-align:right;">P.U.</th>
+                        <th style="padding:10px;text-align:right;">Base</th>
                         <th style="padding:10px;text-align:center;">IVA</th>
                         <th style="padding:10px;text-align:right;">Subtotal</th>
                     </tr></thead>
@@ -266,7 +266,7 @@ function verDetalleVenta(idVenta) {
                 html += `<tr>
                     <td style="padding:10px;border-bottom:1px solid ${border};color:${text};">${l.producto_nombre || 'Producto #' + l.idProducto}</td>
                     <td style="padding:10px;border-bottom:1px solid ${border};text-align:center;">${l.cantidad}</td>
-                    <td style="padding:10px;border-bottom:1px solid ${border};text-align:right;">${pvp.toFixed(2).replace('.', ',')} €</td>
+                    <td style="padding:10px;border-bottom:1px solid ${border};text-align:right;">${parseFloat(l.precioUnitario).toFixed(2).replace('.', ',')} €</td>
                     <td style="padding:10px;border-bottom:1px solid ${border};text-align:center;">${iva}%</td>
                     <td style="padding:10px;border-bottom:1px solid ${border};text-align:right;font-weight:600;">${sub.toFixed(2).replace('.', ',')} €</td>
                 </tr>`;
@@ -384,7 +384,7 @@ function renderDevolucionesAdmin(devoluciones, esPrimeraVez = true, orden = 'fec
                 <td class="col-usuario">${dev.usuario_nombre || '—'}</td>
                 <td class="col-producto">${dev.producto_nombre || '—'}</td>
                 <td class="col-cantidad">${dev.cantidad}</td>
-                <td class="col-total" style="font-weight:700;color:#dc2626;">-${parseFloat(dev.importeTotal).toFixed(2).replace('.', ',')} €</td>
+                <td class="col-total" style="text-align:right;font-weight:700;color:#dc2626;">-${parseFloat(dev.importeTotal).toFixed(2).replace('.', ',')} €</td>
                 <td class="col-pago">${dev.metodoPago}</td>
                 <td class="col-acciones">
                     <button class="btn-admin-accion btn-ver" onclick="verDetalleDevolucion(${dev.id})" title="Ver Detalles">
@@ -493,7 +493,7 @@ function generarFilaRetiro(retiro, index) {
             <td>${index + 1}</td>
             <td>${fecha}</td>
             <td>${usuario}</td>
-            <td style="color:#dc2626;font-weight:bold;">-${parseFloat(retiro.importe).toFixed(2)} €</td>
+            <td style="text-align:right;color:#dc2626;font-weight:bold;">-${parseFloat(retiro.importe).toFixed(2)} €</td>
             <td>${retiro.motivo || 'Sin motivo'}</td>
             <td>${cajaSesion}</td>
         </tr>`;
@@ -586,8 +586,8 @@ function getCajaSesionesTablaHeader(orden = 'fecha_desc') {
         <div class="admin-tabla-wrapper sin-scroll">
             <table class="admin-tabla">
                 <thead><tr>
-                    <th style="width:3%;text-align:center;">#</th>
-                    <th style="width:10%;">Usuario</th>
+                    <th style="width:9%;">U. Apertura</th>
+                    <th style="width:9%;">U. Cierre</th>
                     <th style="width:10%;text-align:center;">Apertura</th>
                     <th style="width:12%;text-align:center;">Cierre</th>
                     <th style="width:7%;text-align:center;">Importe</th>
@@ -615,18 +615,18 @@ function generarFilaSesion(sesion, index) {
 
     return `
         <tr>
-            <td style="text-align:center;width:40px;">${index + 1}</td>
-            <td style="width:120px;">${sesion.usuario_nombre || 'Usuario #' + sesion.idUsuario}</td>
+            <td style="width:120px; font-size: 0.9em;">${sesion.usuario_nombre || 'Usuario #' + sesion.idUsuario}</td>
+            <td style="width:120px; font-size: 0.9em;">${sesion.usuario_cierre_nombre || '—'}</td>
             <td style="text-align:center;">${fmt(sesion.fechaApertura)}</td>
             <td style="text-align:center;">${fmt(sesion.fechaCierre)}</td>
-            <td style="text-align:center;">${parseFloat(sesion.importeInicial).toFixed(2)} €</td>
-            <td style="text-align:center;">${importeActual.toFixed(2)} €</td>
-            <td style="text-align:center;color:#0284c7;font-weight:bold;">${parseFloat(sesion.cambio || 0).toFixed(2)} €</td>
+            <td style="text-align:right;">${parseFloat(sesion.importeInicial).toFixed(2)} €</td>
+            <td style="text-align:right;">${importeActual.toFixed(2)} €</td>
+            <td style="text-align:right;color:#0284c7;font-weight:bold;">${parseFloat(sesion.cambio || 0).toFixed(2)} €</td>
             <td style="text-align:center;font-weight:bold;">${parseInt(sesion.total_ventas || 0)}</td>
             <td style="text-align:center;font-weight:bold;">${parseInt(sesion.total_productos || 0)}</td>
-            <td style="text-align:center;color:#ea580c;font-weight:bold;">-${retiros.toFixed(2)} €</td>
-            <td style="text-align:center;color:#dc2626;font-weight:bold;">-${devoluciones.toFixed(2)} €</td>
-            <td style="text-align:center;font-weight:bold;color:${diffColor};">
+            <td style="text-align:right;color:#ea580c;font-weight:bold;">-${retiros.toFixed(2)} €</td>
+            <td style="text-align:right;color:#dc2626;font-weight:bold;">-${devoluciones.toFixed(2)} €</td>
+            <td style="text-align:right;font-weight:bold;color:${diffColor};">
                 ${diff !== null ? `${diff.toFixed(2).replace('.', ',')} € <small>${diffLabel}</small>` : '—'}
             </td>
         </tr>`;

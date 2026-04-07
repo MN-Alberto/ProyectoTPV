@@ -161,16 +161,16 @@ try {
      */
     $stmtProdTop = $pdo->prepare("
         SELECT 
-            p.nombre,
+            COALESCE(lv.nombreProducto, p.nombre) as nombre,
             SUM(lv.cantidad) as unidades,
             SUM(lv.subtotal) as ingresos,
             SUM(lv.cantidad * COALESCE(pp.precioProveedor, 0)) as coste
         FROM lineasVenta lv
         JOIN ventas v ON lv.idVenta = v.id
-        JOIN productos p ON lv.idProducto = p.id
+        LEFT JOIN productos p ON lv.idProducto = p.id
         LEFT JOIN (SELECT idProducto, MAX(precioProveedor) as precioProveedor FROM proveedor_producto GROUP BY idProducto) pp ON p.id = pp.idProducto
         WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
-        GROUP BY lv.idProducto
+        GROUP BY COALESCE(lv.nombreProducto, p.nombre)
         ORDER BY unidades DESC
         LIMIT 10
     ");
@@ -198,16 +198,16 @@ try {
     // 3. Márgenes y Ventas por Categoría
     $stmtCat = $pdo->prepare("
         SELECT 
-            c.nombre as categoria,
+            COALESCE(c.nombre, 'Producto propio sin categoría') as categoria,
             SUM(lv.subtotal) as ingresos,
             SUM(lv.cantidad * COALESCE(pp.precioProveedor, 0)) as coste
         FROM lineasVenta lv
         JOIN ventas v ON lv.idVenta = v.id
-        JOIN productos p ON lv.idProducto = p.id
-        JOIN categorias c ON p.idCategoria = c.id
+        LEFT JOIN productos p ON lv.idProducto = p.id
+        LEFT JOIN categorias c ON p.idCategoria = c.id
         LEFT JOIN (SELECT idProducto, MAX(precioProveedor) as precioProveedor FROM proveedor_producto GROUP BY idProducto) pp ON p.id = pp.idProducto
         WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
-        GROUP BY c.id
+        GROUP BY c.id, COALESCE(c.nombre, 'Producto propio sin categoría')
         ORDER BY ingresos DESC
     ");
     $stmtCat->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
@@ -224,7 +224,7 @@ try {
             SUM(lv.cantidad * COALESCE(pp.precioProveedor, 0)) as coste
         FROM lineasVenta lv
         JOIN ventas v ON lv.idVenta = v.id
-        JOIN productos p ON lv.idProducto = p.id
+        LEFT JOIN productos p ON lv.idProducto = p.id
         LEFT JOIN (SELECT idProducto, MAX(precioProveedor) as precioProveedor FROM proveedor_producto GROUP BY idProducto) pp ON p.id = pp.idProducto
         WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
     ");
@@ -310,13 +310,13 @@ try {
 
     $stmtDevoProds = $pdo->prepare("
         SELECT 
-            p.nombre,
+            COALESCE(d.nombreProducto, p.nombre) as nombre,
             COUNT(*) as veces,
             SUM(d.importeTotal) as total
         FROM devoluciones d
-        JOIN productos p ON d.idProducto = p.id
+        LEFT JOIN productos p ON d.idProducto = p.id
         WHERE d.fecha BETWEEN :inicio AND :fin
-        GROUP BY d.idProducto
+        GROUP BY COALESCE(d.nombreProducto, p.nombre)
         ORDER BY veces DESC
         LIMIT 5
     ");

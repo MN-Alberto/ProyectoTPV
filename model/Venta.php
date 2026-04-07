@@ -108,6 +108,11 @@ class Venta
     private $serie;
     private $numero;
 
+    // Campos de puntos
+    private $puntosGanados;
+    private $puntosCanjeados;
+    private $puntosBalance;
+
     // ======================== GETTERS ========================
 
     /** 
@@ -198,6 +203,21 @@ class Venta
             return '';
         }
         return $this->serie . str_pad($this->numero, 5, '0', STR_PAD_LEFT);
+    }
+
+    public function getClienteNombre()
+    {
+        return $this->clienteNombre;
+    }
+
+    public function getClienteDireccion()
+    {
+        return $this->clienteDireccion;
+    }
+
+    public function getClienteObservaciones()
+    {
+        return $this->clienteObservaciones;
     }
 
     // ======================== SETTERS ========================
@@ -316,6 +336,21 @@ class Venta
         $this->numero = $numero;
     }
 
+    public function setClienteNombre($v)
+    {
+        $this->clienteNombre = $v;
+    }
+
+    public function setClienteDireccion($v)
+    {
+        $this->clienteDireccion = $v;
+    }
+
+    public function setClienteObservaciones($v)
+    {
+        $this->clienteObservaciones = $v;
+    }
+
     public function getImporteEntregado()
     {
         return $this->importeEntregado;
@@ -420,6 +455,33 @@ class Venta
     public function setDescuentoManualCupon($v)
     {
         $this->descuentoManualCupon = $v;
+    }
+
+    public function getPuntosGanados()
+    {
+        return $this->puntosGanados;
+    }
+    public function setPuntosGanados($v)
+    {
+        $this->puntosGanados = $v;
+    }
+
+    public function getPuntosCanjeados()
+    {
+        return $this->puntosCanjeados;
+    }
+    public function setPuntosCanjeados($v)
+    {
+        $this->puntosCanjeados = $v;
+    }
+
+    public function getPuntosBalance()
+    {
+        return $this->puntosBalance;
+    }
+    public function setPuntosBalance($v)
+    {
+        $this->puntosBalance = $v;
     }
 
     // ======================== MÉTODOS AUXILIARES DE TABLA ========================
@@ -601,12 +663,12 @@ class Venta
             // Obtenemos el ID generado
             $this->id = $conexion->lastInsertId();
 
-            // 2. Insertar en la tabla real correspondiente (tickets o facturas) con el ID obtenido
+            // 4. Insertar en la tabla real correspondiente (tickets o facturas) con el ID obtenido
             $tabla = $this->getTabla();
-            $stmt = $conexion->prepare(
-                "INSERT INTO {$tabla} (id, idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni, idSesionCaja) 
-                 VALUES (:id, :idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni, :idSesionCaja)"
-            );
+            $sql = "INSERT INTO {$tabla} (id, idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni, cliente_nombre, cliente_direccion, cliente_observaciones, idSesionCaja, puntos_ganados, puntos_canjeados, puntos_balance) 
+                  VALUES (:id, :idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni, :clienteNombre, :clienteDireccion, :clienteObservaciones, :idSesionCaja, :puntosGanados, :puntosCanjeados, :puntosBalance)";
+            
+            $stmt = $conexion->prepare($sql);
             
             // Vinculamos los parámetros
             $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
@@ -631,10 +693,40 @@ class Venta
             $stmt->bindParam(':descuentoManualCupon', $this->descuentoManualCupon);
             $stmt->bindParam(':idTarifa', $this->idTarifa, PDO::PARAM_INT);
             $stmt->bindParam(':clienteDni', $this->clienteDni, PDO::PARAM_STR);
+            $stmt->bindParam(':clienteNombre', $this->clienteNombre, PDO::PARAM_STR);
+            $stmt->bindParam(':clienteDireccion', $this->clienteDireccion, PDO::PARAM_STR);
+            $stmt->bindParam(':clienteObservaciones', $this->clienteObservaciones, PDO::PARAM_STR);
             $stmt->bindParam(':idSesionCaja', $this->idSesionCaja, PDO::PARAM_INT);
+            $stmt->bindParam(':puntosGanados', $this->puntosGanados, PDO::PARAM_INT);
+            $stmt->bindParam(':puntosCanjeados', $this->puntosCanjeados, PDO::PARAM_INT);
+            $stmt->bindParam(':puntosBalance', $this->puntosBalance, PDO::PARAM_INT);
             
             // Ejecutamos la consulta de inserción
-            $stmt->execute();
+            try {
+                $stmt->execute();
+            } catch (Exception $e) {
+                // Si falla por columna inexistente, intentar añadirla y repetir UNA vez
+                if (strpos($e->getMessage(), 'Unknown column') !== false || strpos($e->getMessage(), 'column') !== false) {
+                    $conexion->rollBack();
+                    $conexion->beginTransaction();
+                    // Aseguramos que AMBAS tablas (tickets y facturas) tengan las columnas para que la vista UNION ALL funcione
+                    foreach (['tickets', 'facturas'] as $t) {
+                        $conexion->exec("ALTER TABLE {$t} ADD COLUMN IF NOT EXISTS puntos_ganados INT DEFAULT 0");
+                        $conexion->exec("ALTER TABLE {$t} ADD COLUMN IF NOT EXISTS puntos_canjeados INT DEFAULT 0");
+                        $conexion->exec("ALTER TABLE {$t} ADD COLUMN IF NOT EXISTS puntos_balance INT DEFAULT 0");
+                    }
+                    
+                    // Refrescar la vista 'ventas' usando columnas explícitas para evitar desalineación (ej: puntos_canjeados y puntos_balance)
+                    $conexion->exec("DROP VIEW IF EXISTS ventas");
+                    $cols = "id,idUsuario,fecha,total,descuentoTipo,descuentoValor,descuentoCupon,descuentoTarifaTipo,descuentoTarifaValor,descuentoTarifaCupon,descuentoManualTipo,descuentoManualValor,descuentoManualCupon,metodoPago,estado,tipoDocumento,importeEntregado,cambioDevuelto,cerrada,idSesionCaja,idTarifa,cliente_dni,cliente_nombre,cliente_direccion,cliente_observaciones,puntos_ganados,puntos_canjeados,puntos_balance";
+                    $conexion->exec("CREATE VIEW ventas AS SELECT $cols FROM tickets UNION ALL SELECT $cols FROM facturas");
+                    
+                    // Re-intentar la inserción
+                    $stmt->execute();
+                } else {
+                    throw $e;
+                }
+            }
 
             // Confirmamos la transacción
             $conexion->commit();
@@ -924,6 +1016,15 @@ class Venta
         }
         if (isset($fila['numero'])) {
             $venta->setNumero($fila['numero']);
+        }
+        if (isset($fila['puntos_ganados'])) {
+            $venta->setPuntosGanados($fila['puntos_ganados']);
+        }
+        if (isset($fila['puntos_canjeados'])) {
+            $venta->setPuntosCanjeados($fila['puntos_canjeados']);
+        }
+        if (isset($fila['puntos_balance'])) {
+            $venta->setPuntosBalance($fila['puntos_balance']);
         }
         return $venta;
     }

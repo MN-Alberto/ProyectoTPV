@@ -25,6 +25,10 @@ class LineaVenta
      */
     private $idProducto;
     /** 
+     * @var string|null Nombre del producto (especialmente útil para comodines). 
+     */
+    private $nombreProducto;
+    /** 
      * @var int|null Unidades vendidas del producto. 
      */
     private $cantidad;
@@ -76,6 +80,15 @@ class LineaVenta
     public function getIdProducto()
     {
         return $this->idProducto;
+    }
+
+    /** 
+     * Obtiene el nombre del producto de la línea.
+     * @return string|null 
+     */
+    public function getNombreProducto()
+    {
+        return $this->nombreProducto;
     }
 
     /** 
@@ -152,11 +165,19 @@ class LineaVenta
     }
     /** 
      * Establece el producto que se está vendiendo.
-     * @param int $idProducto 
+     * @param int|null $idProducto 
      */
     public function setIdProducto($idProducto)
     {
         $this->idProducto = $idProducto;
+    }
+    /** 
+     * Establece el nombre del producto de la línea.
+     * @param string|null $nombreProducto 
+     */
+    public function setNombreProducto($nombreProducto)
+    {
+        $this->nombreProducto = $nombreProducto;
     }
     /** 
      * Establece el número de unidades vendidas.
@@ -220,11 +241,11 @@ class LineaVenta
     {
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Consulta que une las líneas de venta con la suma de devoluciones ya realizadas para este ticket
-        $sql = "SELECT lv.*, p.nombre as producto_nombre,
+        $sql = "SELECT lv.*, COALESCE(lv.nombreProducto, p.nombre) as producto_nombre,
                        IFNULL((SELECT SUM(d.cantidad) FROM devoluciones d 
-                               WHERE d.idVenta = lv.idVenta AND d.idProducto = lv.idProducto), 0) as cantidad_devuelta
+                               WHERE d.idVenta = lv.idVenta AND (d.idProducto = lv.idProducto OR (lv.idProducto IS NULL AND d.idProducto IS NULL AND d.nombreProducto COLLATE utf8mb4_unicode_ci = lv.nombreProducto COLLATE utf8mb4_unicode_ci))), 0) as cantidad_devuelta
                 FROM lineasVenta lv
-                JOIN productos p ON lv.idProducto = p.id
+                LEFT JOIN productos p ON lv.idProducto = p.id
                 WHERE lv.idVenta = :idVenta";
 
         $stmt = $conexion->prepare($sql);
@@ -307,14 +328,21 @@ class LineaVenta
         $this->subtotal = $this->cantidad * $this->precioUnitario;
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta (ahora incluye IVA)
+        // Preparamos la consulta (ahora incluye IVA y nombreProducto)
         $stmt = $conexion->prepare(
-            "INSERT INTO lineasVenta (idVenta, idProducto, cantidad, precioUnitario, precioOriginal, tarifaNombre, iva, subtotal) 
-             VALUES (:idVenta, :idProducto, :cantidad, :precioUnitario, :precioOriginal, :tarifaNombre, :iva, :subtotal)"
+            "INSERT INTO lineasVenta (idVenta, idProducto, nombreProducto, cantidad, precioUnitario, precioOriginal, tarifaNombre, iva, subtotal) 
+             VALUES (:idVenta, :idProducto, :nombreProducto, :cantidad, :precioUnitario, :precioOriginal, :tarifaNombre, :iva, :subtotal)"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':idVenta', $this->idVenta, PDO::PARAM_INT);
-        $stmt->bindParam(':idProducto', $this->idProducto, PDO::PARAM_INT);
+        
+        if ($this->idProducto === null) {
+            $stmt->bindValue(':idProducto', null, PDO::PARAM_NULL);
+        } else {
+            $stmt->bindParam(':idProducto', $this->idProducto, PDO::PARAM_INT);
+        }
+        
+        $stmt->bindParam(':nombreProducto', $this->nombreProducto);
         $stmt->bindParam(':cantidad', $this->cantidad, PDO::PARAM_INT);
         $stmt->bindParam(':precioUnitario', $this->precioUnitario);
         $stmt->bindParam(':precioOriginal', $this->precioOriginal);
@@ -341,13 +369,20 @@ class LineaVenta
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "UPDATE lineasVenta SET idVenta = :idVenta, idProducto = :idProducto, 
+            "UPDATE lineasVenta SET idVenta = :idVenta, idProducto = :idProducto, nombreProducto = :nombreProducto,
              cantidad = :cantidad, precioUnitario = :precioUnitario, precioOriginal = :precioOriginal, 
              tarifaNombre = :tarifaNombre, iva = :iva, subtotal = :subtotal WHERE id = :id"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':idVenta', $this->idVenta, PDO::PARAM_INT);
-        $stmt->bindParam(':idProducto', $this->idProducto, PDO::PARAM_INT);
+        
+        if ($this->idProducto === null) {
+            $stmt->bindValue(':idProducto', null, PDO::PARAM_NULL);
+        } else {
+            $stmt->bindParam(':idProducto', $this->idProducto, PDO::PARAM_INT);
+        }
+        
+        $stmt->bindParam(':nombreProducto', $this->nombreProducto);
         $stmt->bindParam(':cantidad', $this->cantidad, PDO::PARAM_INT);
         $stmt->bindParam(':precioUnitario', $this->precioUnitario);
         $stmt->bindParam(':precioOriginal', $this->precioOriginal);
@@ -406,7 +441,8 @@ class LineaVenta
         // Asignamos los valores
         $linea->setId($fila['id']);
         $linea->setIdVenta($fila['idVenta']);
-        $linea->setIdProducto($fila['idProducto']);
+        $linea->setIdProducto($fila['idProducto'] ?? null);
+        $linea->setNombreProducto($fila['nombreProducto'] ?? null);
         $linea->setCantidad($fila['cantidad']);
         $linea->setPrecioUnitario($fila['precioUnitario']);
         $linea->setPrecioOriginal($fila['precioOriginal'] ?? $fila['precioUnitario']);

@@ -94,7 +94,7 @@ function generarFilaProducto(prod) {
             </td>
             <td class="col-nombre">${prod.nombre}</td>
             <td class="col-categoria">${prod.categoria ?? '—'}</td>
-            <td class="col-precio">${precioFmt} €</td>
+            <td class="col-precio" style="text-align:right;">${precioFmt} €</td>
             <td class="col-stock"><span class="admin-badge ${stockBadge}">${prod.stock}</span></td>
             <td class="col-estado">${estadoHtml}</td>
             <td class="col-iva">${prod.iva}% (${prod.ivaNombre || 'General'})</td>
@@ -810,7 +810,7 @@ function cargarHistorialPrecios(filtros = {}) {
 
                 html += `
                     <tr>
-                        <td style="font-weight: 600;">${item.precio.toFixed(2)} €</td>
+                        <td style="font-weight: 600; text-align: right;">${item.precio.toFixed(2)} €</td>
                         <td>${fechaDesde}</td>
                         <td style="color: var(--text-muted);">${fechaHasta}</td>
                         <td style="color: var(--text-muted);">${item.tarifa || 'Precio Base'}</td>
