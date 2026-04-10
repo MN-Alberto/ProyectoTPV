@@ -96,18 +96,16 @@ function getPaginacionVentasHTML(totalPaginas) {
         'cambiarPaginaVentas', 'irAPaginaVentas', 'inputPaginaVentas');
 }
 function cambiarPaginaVentas(nuevaPagina) {
-    const total = Math.ceil(ventasData.length / ventasPorPagina);
-    if (nuevaPagina < 1 || nuevaPagina > total) return;
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginasVentas) return;
     paginaActualVentas = nuevaPagina;
-    renderizarVentasPagina();
+    cargarVentasAdmin(false);
 }
 function irAPaginaVentas() {
     const input = document.getElementById('inputPaginaVentas');
     if (!input) return;
     let p = parseInt(input.value);
-    const total = Math.ceil(ventasData.length / ventasPorPagina);
     if (isNaN(p) || p < 1) p = 1;
-    else if (p > total) p = total;
+    else if (p > totalPaginasVentas) p = totalPaginasVentas;
     cambiarPaginaVentas(p);
 }
 

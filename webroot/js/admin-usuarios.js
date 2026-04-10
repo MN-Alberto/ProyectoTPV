@@ -29,7 +29,7 @@ function getUsuariosTablaHeader(textoBusqueda = '', totalUsuarios = 0) {
             <table class="admin-tabla">
                 <thead>
                     <tr>
-                        <th>#</th><th>Nombre</th><th>Email</th><th>Rol</th>
+                        <th>Nombre</th><th>Email</th><th>Rol</th>
                         <th>Fecha de Alta</th><th>Estado</th><th>Acciones</th>
                     </tr>
                 </thead>
@@ -55,7 +55,6 @@ function generarFilaUsuario(usr) {
 
     return `
         <tr>
-            <td class="col-id">${usr.id}</td>
             <td class="col-nombre">${usr.nombre}</td>
             <td class="col-email">${usr.email}</td>
             <td class="col-rol">${rolBadge}</td>
@@ -91,10 +90,10 @@ function renderUsuariosAdmin(respuesta, esPrimeraVez = true, busquedaActual = ''
         if (esPrimeraVez || !adminTablaHeaderHTML) {
             adminTablaHeaderHTML = getUsuariosTablaHeader('', totalUsuariosData);
             contenedor.innerHTML = adminTablaHeaderHTML +
-                '<tr><td colspan="7" class="sin-productos">No hay usuarios disponibles.</td></tr></tbody></table></div>';
+                '<tr><td colspan="6" class="sin-productos">No hay usuarios disponibles.</td></tr></tbody></table></div>';
         } else {
             const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="sin-productos">No hay usuarios disponibles.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="sin-productos">No hay usuarios disponibles.</td></tr>';
         }
         return;
     }
@@ -467,7 +466,7 @@ async function eliminarCliente(id) {
 function verCliente(id) {
     const fila = document.querySelector(`tr [onclick="verCliente(${id})"]`).closest('tr');
     const celdas = fila.querySelectorAll('td');
-    const estado = celdas[8].querySelector('.admin-badge')?.textContent.trim() || 'Activo';
+    const estado = celdas[7].querySelector('.admin-badge')?.textContent.trim() || 'Activo';
 
     const modal = document.createElement('div');
     modal.id = 'modalVerCliente';
@@ -477,9 +476,9 @@ function verCliente(id) {
         <div class="modal-content" style="max-width:450px;text-align:left;">
             <h3 style="margin-bottom:20px;">Detalles del Cliente</h3>
             <div style="display:grid;gap:12px;">
-                ${[['DNI', celdas[1].textContent.trim()], ['Nombre', celdas[2].textContent.trim()],
-        ['Apellidos', celdas[3].textContent.trim()], ['Fecha de Alta', celdas[4].textContent.trim()],
-        ['Productos Comprados', celdas[5].textContent.trim()], ['Compras Realizadas', celdas[6].textContent.trim()]]
+                ${[['DNI', celdas[0].textContent.trim()], ['Nombre', celdas[1].textContent.trim()],
+        ['Apellidos', celdas[2].textContent.trim()], ['Fecha de Alta', celdas[3].textContent.trim()],
+        ['Productos Comprados', celdas[4].textContent.trim()], ['Compras Realizadas', celdas[5].textContent.trim()]]
             .map(([k, v]) => `<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border-main);padding-bottom:8px;">
                         <span style="font-weight:500;">${k}:</span><span>${v}</span></div>`).join('')}
                 <div style="display:flex;justify-content:space-between;padding-bottom:8px;">
@@ -489,7 +488,7 @@ function verCliente(id) {
             </div>
             <div style="display:flex;justify-content:center;gap:15px;margin-top:25px;">
                 <button class="btn-admin-accion btn-ver"
-                    onclick="cerrarModal('modalVerCliente');document.getElementById('modalVerCliente').remove();verComprasCliente('${celdas[1].textContent.trim()}')"
+                    onclick="cerrarModal('modalVerCliente');document.getElementById('modalVerCliente').remove();verComprasCliente('${celdas[0].textContent.trim()}')"
                     style="min-width:180px;"><i class="fas fa-shopping-bag"></i> Ver Compras</button>
                 <button class="btn-modal-cancelar"
                     onclick="cerrarModal('modalVerCliente');document.getElementById('modalVerCliente').remove();"
@@ -505,15 +504,15 @@ function editarCliente(id) {
     const fila = document.querySelector(`tr [onclick="editarCliente(${id})"]`).closest('tr');
     const celdas = fila.querySelectorAll('td');
     const form = document.getElementById('modalEditarCliente');
-    form.dataset.originalDni = celdas[1].textContent.trim();
-    form.dataset.originalNombre = celdas[2].textContent.trim();
-    form.dataset.originalApellidos = celdas[3].textContent.trim();
+    form.dataset.originalDni = celdas[0].textContent.trim();
+    form.dataset.originalNombre = celdas[1].textContent.trim();
+    form.dataset.originalApellidos = celdas[2].textContent.trim();
     form.dataset.originalPuntos = fila.dataset.puntos || 0;
 
     document.getElementById('editarClienteId').value = id;
-    document.getElementById('editarClienteDni').value = celdas[1].textContent.trim();
-    document.getElementById('editarClienteNombre').value = celdas[2].textContent.trim() === '—' ? '' : celdas[2].textContent.trim();
-    document.getElementById('editarClienteApellidos').value = celdas[3].textContent.trim() === '—' ? '' : celdas[3].textContent.trim();
+    document.getElementById('editarClienteDni').value = celdas[0].textContent.trim();
+    document.getElementById('editarClienteNombre').value = celdas[1].textContent.trim() === '—' ? '' : celdas[1].textContent.trim();
+    document.getElementById('editarClienteApellidos').value = celdas[2].textContent.trim() === '—' ? '' : celdas[2].textContent.trim();
     document.getElementById('editarClientePuntos').value = fila.dataset.puntos || 0;
     form.style.display = 'flex';
 }
@@ -521,7 +520,7 @@ function editarCliente(id) {
 async function guardarClienteEditado() {
     const id = document.getElementById('editarClienteId').value;
     const fila = document.querySelector(`tr [onclick="editarCliente(${id})"]`).closest('tr');
-    const fecha_alta = fila.querySelectorAll('td')[4].textContent.trim();
+    const fecha_alta = fila.querySelectorAll('td')[3].textContent.trim();
     const form = document.getElementById('modalEditarCliente');
 
     let dni = document.getElementById('editarClienteDni').value.trim() || form.dataset.originalDni;

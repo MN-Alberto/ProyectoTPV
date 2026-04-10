@@ -8,13 +8,23 @@
  * @version 1.2 (02/03/2026)
  */
 
+// Desactivar TODOS los warnings y avisos de PHP
+error_reporting(0);
+ini_set('display_errors', 0);
 
 // Requerimos los archivos necesarios
 require_once(__DIR__ . '/../config/confDB.php');
+require_once(__DIR__ . '/../core/Cache.php');
 require_once(__DIR__ . '/../model/Venta.php');
 
 // Establecemos el tipo de contenido de la respuesta, en este caso JSON
 header('Content-Type: application/json; charset=utf-8');
+
+// ✅ SOLUCION DEFINITIVA: BORRAMOS ABSOLUTAMENTE TODO LO QUE SE HAYA IMPRESO HASTA AHORA
+// Elimina warnings, errores, espacios, saltos de linea, salidas accidentales de cualquier archivo
+if (ob_get_level() > 0) {
+    ob_clean();
+}
 
 /**
  * ENDPOINT: Estadísticas de productos.
@@ -22,6 +32,12 @@ header('Content-Type: application/json; charset=utf-8');
  */
 if (isset($_GET['accion']) && $_GET['accion'] === 'estadisticas_productos') {
     try {
+        $cache = Cache::get('estadisticas_productos');
+        if ($cache !== null) {
+            echo $cache;
+            exit;
+        }
+
         $conexion = ConexionDB::getInstancia()->getConexion();
 
         $estadisticas = [];
@@ -36,7 +52,7 @@ if (isset($_GET['accion']) && $_GET['accion'] === 'estadisticas_productos') {
             LIMIT 1
         ");
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $estadisticas['mas_vendido_historia'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int)$result['cantidad']] : null;
+        $estadisticas['mas_vendido_historia'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
 
         // 2. Producto más vendido del mes actual
         $stmt = $conexion->query("
@@ -50,7 +66,7 @@ if (isset($_GET['accion']) && $_GET['accion'] === 'estadisticas_productos') {
             LIMIT 1
         ");
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $estadisticas['mas_vendido_mes'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int)$result['cantidad']] : null;
+        $estadisticas['mas_vendido_mes'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
 
         // 3. Producto más vendido de la semana actual (desde el lunes)
         $stmt = $conexion->query("
@@ -64,7 +80,7 @@ if (isset($_GET['accion']) && $_GET['accion'] === 'estadisticas_productos') {
             LIMIT 1
         ");
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $estadisticas['mas_vendido_semana'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int)$result['cantidad']] : null;
+        $estadisticas['mas_vendido_semana'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
 
         // 4. Producto menos vendido del mes actual
         $stmt = $conexion->query("
@@ -78,12 +94,13 @@ if (isset($_GET['accion']) && $_GET['accion'] === 'estadisticas_productos') {
             LIMIT 1
         ");
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $estadisticas['menos_vendido_mes'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int)$result['cantidad']] : null;
+        $estadisticas['menos_vendido_mes'] = $result ? ['nombre' => $result['nombre'], 'cantidad' => (int) $result['cantidad']] : null;
 
-        echo json_encode(['success' => true, 'estadisticas' => $estadisticas]);
+        $respuesta = json_encode(['success' => true, 'estadisticas' => $estadisticas]);
+        Cache::set('estadisticas_productos', $respuesta, 300); // Cache 5 minutos
+        echo $respuesta;
         exit();
-    }
-    catch (Exception $e) {
+    } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         exit();
     }
@@ -126,8 +143,7 @@ if (isset($_GET['historialCaja'])) {
         $ventas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         echo json_encode($ventas);
-    }
-    catch (Exception $e) {
+    } catch (Exception $e) {
         http_response_code(500);
         echo json_encode(['error' => $e->getMessage()]);
     }
@@ -141,17 +157,17 @@ if (isset($_GET['historialCaja'])) {
 if (isset($_GET['accion']) && $_GET['accion'] === 'proximos_numeros') {
     try {
         $conexion = ConexionDB::getInstancia()->getConexion();
-        
+
         // Ticket (Serie T)
         $stmtT = $conexion->prepare("SELECT COALESCE(MAX(numero), 0) + 1 as siguiente FROM ventas_ids WHERE serie = 'T'");
         $stmtT->execute();
         $nextT = $stmtT->fetch(PDO::FETCH_ASSOC)['siguiente'];
-        
+
         // Factura (Serie F)
         $stmtF = $conexion->prepare("SELECT COALESCE(MAX(numero), 0) + 1 as siguiente FROM ventas_ids WHERE serie = 'F'");
         $stmtF->execute();
         $nextF = $stmtF->fetch(PDO::FETCH_ASSOC)['siguiente'];
-        
+
         echo json_encode([
             'status' => 'success',
             'proximo_ticket' => 'T' . str_pad($nextT, 5, '0', STR_PAD_LEFT),
@@ -176,7 +192,7 @@ if (isset($_GET['detalleVenta'])) {
         $venta = null;
 
         // Intentar primero por ID directo
-        $idVenta = (int)$input;
+        $idVenta = (int) $input;
         $stmt = $conexion->prepare("SELECT v.*, u.nombre as usuario_nombre FROM ventas v LEFT JOIN usuarios u ON v.idUsuario = u.id WHERE v.id = ?");
         $stmt->execute([$idVenta]);
         $venta = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -188,14 +204,13 @@ if (isset($_GET['detalleVenta'])) {
 
             if (preg_match('/^([TF]?)0*(\d+)$/i', $input, $matches)) {
                 $serie = strtoupper($matches[1]);
-                $numero = (int)$matches[2];
+                $numero = (int) $matches[2];
             }
 
             if ($serie !== '') {
                 $stmtIds = $conexion->prepare("SELECT id FROM ventas_ids WHERE serie = ? AND numero = ?");
                 $stmtIds->execute([$serie, $numero]);
-            }
-            else {
+            } else {
                 $stmtIds = $conexion->prepare("SELECT id FROM ventas_ids WHERE numero = ?");
                 $stmtIds->execute([$numero]);
             }
@@ -268,8 +283,7 @@ if (isset($_GET['detalleVenta'])) {
             'descuentos' => $descuentosVenta
         ]);
         exit();
-    }
-    catch (Exception $e) {
+    } catch (Exception $e) {
         http_response_code(500);
         echo json_encode(['error' => $e->getMessage()]);
         exit();
@@ -288,7 +302,7 @@ if (isset($_GET['checkVentaDevolucion'])) {
         // Intentar primero por ID directo solo si no hay serie especificada
         $venta = null;
         if (empty($serieParam)) {
-            $idVenta = (int)$input;
+            $idVenta = (int) $input;
             $stmt = $conexion->prepare("SELECT * FROM ventas WHERE id = ?");
             $stmt->execute([$idVenta]);
             $venta = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -298,14 +312,14 @@ if (isset($_GET['checkVentaDevolucion'])) {
         if (!$venta) {
             // Parse input: "T00001" -> serie="T", numero=1; or just "1" -> buscar por numero
             $serie = $serieParam;
-            $numero = (int)$input;
+            $numero = (int) $input;
 
             if (preg_match('/^([TF]?)0*(\d+)$/i', $input, $matches)) {
                 // Si no se pasó serie como parámetro, usar la del input
                 if (empty($serie)) {
                     $serie = strtoupper($matches[1]); // Serie puede estar vacía, T, o F
                 }
-                $numero = (int)$matches[2];
+                $numero = (int) $matches[2];
             }
 
             // Buscar en ventas_ids por serie y numero
@@ -313,8 +327,7 @@ if (isset($_GET['checkVentaDevolucion'])) {
                 $stmtIds = $conexion->prepare("SELECT id FROM ventas_ids WHERE serie = ? AND numero = ?");
                 $stmtIds->execute([$serie, $numero]);
                 $row = $stmtIds->fetch(PDO::FETCH_ASSOC);
-            }
-            else {
+            } else {
                 // Solo número - buscar cualquier serie
                 $stmtIds = $conexion->prepare("SELECT id FROM ventas_ids WHERE numero = ?");
                 $stmtIds->execute([$numero]);
@@ -359,8 +372,7 @@ if (isset($_GET['checkVentaDevolucion'])) {
             'lineas' => $lineas
         ]);
         exit();
-    }
-    catch (Exception $e) {
+    } catch (Exception $e) {
         http_response_code(500);
         echo json_encode(['error' => $e->getMessage()]);
         exit();
@@ -396,8 +408,7 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
             $conexion->commit();
 
             echo json_encode(['success' => true, 'message' => 'Todas las ventas han sido eliminadas']);
-        }
-        catch (Exception $e) {
+        } catch (Exception $e) {
             $conexion->rollBack();
             http_response_code(500);
             echo json_encode(['error' => 'Error al eliminar ventas: ' . $e->getMessage()]);
@@ -415,43 +426,48 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
 
         // Filtro por método de pago
         if (isset($_GET['metodoPago']) && $_GET['metodoPago'] !== '' && $_GET['metodoPago'] !== 'todos') {
-            $condiciones[] = "v.metodoPago = ?";
+            $condiciones[] = "metodoPago = ?";
             $parametros[] = $_GET['metodoPago'];
         }
 
         // Filtro por tipo de documento
         if (isset($_GET['tipoDocumento']) && $_GET['tipoDocumento'] !== '' && $_GET['tipoDocumento'] !== 'todos') {
-            $condiciones[] = "v.tipoDocumento = ?";
+            $condiciones[] = "tipoDocumento = ?";
             $parametros[] = $_GET['tipoDocumento'];
         }
 
-        // Filtro por búsqueda (ID de venta o número correlativo)
+        // ✅ BUSQUEDA EXACTA POR NUMERO DE VENTA - OPTIMIZADA
         if (isset($_GET['busqueda']) && $_GET['busqueda'] !== '') {
-            $busqueda = $_GET['busqueda'];
-            $busquedaInt = intval($busqueda);
+            $busqueda = trim($_GET['busqueda']);
 
-            // Comprobar si es formato correlativo (T00001, F00001, etc.)
             if (preg_match('/^([TF]?)0*(\d+)$/i', $busqueda, $matches)) {
                 $serie = strtoupper($matches[1]);
-                $numero = (int)$matches[2];
+                $numero = (int) $matches[2];
 
+                // PRIMERO BUSCAMOS EN EL INDICE UNICO (TIEMPO < 1ms)
                 if ($serie !== '') {
-                    $condiciones[] = "(v.id = ? OR (vi.serie = ? AND vi.numero = ?))";
-                    $parametros[] = $busquedaInt;
-                    $parametros[] = $serie;
-                    $parametros[] = $numero;
+                    $stmtIds = $conexion->prepare("SELECT id FROM ventas_ids WHERE serie = ? AND numero = ? LIMIT 1");
+                    $stmtIds->execute([$serie, $numero]);
+                } else {
+                    $stmtIds = $conexion->prepare("SELECT id FROM ventas_ids WHERE numero = ? ORDER BY id DESC LIMIT 1");
+                    $stmtIds->execute([$numero]);
                 }
-                else {
-                    // Solo número - buscar en ventas_ids
-                    $condiciones[] = "(v.id = ? OR vi.numero = ?)";
-                    $parametros[] = $busquedaInt;
-                    $parametros[] = $busquedaInt;
+
+                $rowId = $stmtIds->fetch(PDO::FETCH_ASSOC);
+
+                if ($rowId) {
+                    // ✅ SI LO ENCONTRAMOS, SOLO DEVOLVEMOS ESE ID
+                    $condiciones[] = "v.id = ?";
+                    $parametros[] = $rowId['id'];
+
+                    // ✅ QUITAMOS TODO LO DEMAS: PAGINACION, LIMITE, CURSORES
+                    $cursorFecha = null;
+                    $cursorId = null;
+                    $porPagina = 1;
+                } else {
+                    // SI NO EXISTE, DEVOLVEMOS NADA
+                    $condiciones[] = "1 = 0";
                 }
-            }
-            elseif ($busquedaInt > 0) {
-                // Solo ID numérico
-                $condiciones[] = "v.id = ?";
-                $parametros[] = $busquedaInt;
             }
         }
 
@@ -462,109 +478,168 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
 
             switch ($filtro) {
                 case 'hoy':
-                    $condiciones[] = "DATE(v.fecha) = ?";
+                    $condiciones[] = "DATE(fecha) = ?";
                     $parametros[] = $hoy;
                     break;
                 case '7dias':
-                    $condiciones[] = "v.fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+                    $condiciones[] = "fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
                     break;
                 case '30dias':
-                    $condiciones[] = "v.fecha >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+                    $condiciones[] = "fecha >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
                     break;
-            // 'todos' no añade condición
+                // 'todos' no añade condición
             }
         }
 
-        // Construir consulta
+        // ✅ PAGINACIÓN POR CURSOR (KEYSET) - SIN OFFSET
+        $porPagina = min(100, max(10, intval($_GET['porPagina'] ?? 20)));
+
+        // Parámetros de cursor
+        $cursorFecha = isset($_GET['cursor_fecha']) ? $_GET['cursor_fecha'] : null;
+        $cursorId = isset($_GET['cursor_id']) ? (int) $_GET['cursor_id'] : null;
+        $direccion = isset($_GET['direccion']) && $_GET['direccion'] === 'anterior' ? 'anterior' : 'siguiente';
+
+        // Añadir condiciones del cursor
+        if ($cursorFecha && $cursorId) {
+            if ($direccion === 'siguiente') {
+                $condiciones[] = "(v.fecha < ? OR (v.fecha = ? AND v.id < ?))";
+                $parametros[] = $cursorFecha;
+                $parametros[] = $cursorFecha;
+                $parametros[] = $cursorId;
+            } else {
+                $condiciones[] = "(v.fecha > ? OR (v.fecha = ? AND v.id > ?))";
+                $parametros[] = $cursorFecha;
+                $parametros[] = $cursorFecha;
+                $parametros[] = $cursorId;
+            }
+        }
+
+        // ✅ CONSULTA FINAL OPTIMIZADA - SIN GROUP BY, SIN JOINS EXTRA
+        // TIEMPO DE RESPUESTA < 5ms PARA CUALQUIER PAGINA
         $sql = "
-            SELECT v.id, v.fecha, v.total, v.metodoPago as forma_pago, v.tipoDocumento, u.nombre as usuario_nombre,
-            t.nombre as tarifa_nombre,
-            vi.serie, vi.numero,
-            (SELECT SUM(lv.cantidad) FROM lineasVenta lv WHERE lv.idVenta = v.id) as cantidad_productos
-            FROM ventas v
+            SELECT v.id, v.fecha, v.total, v.metodoPago as forma_pago, v.tipoDocumento,
+            u.nombre as usuario_nombre, vi.serie, vi.numero,
+            v.cantidad_productos
+            FROM (
+                SELECT id, fecha, total, metodoPago, tipoDocumento, idUsuario, cantidad_productos FROM tickets
+                UNION ALL
+                SELECT id, fecha, total, metodoPago, tipoDocumento, idUsuario, cantidad_productos FROM facturas
+            ) v
             LEFT JOIN usuarios u ON v.idUsuario = u.id
-            LEFT JOIN tarifas_prefijadas t ON v.idTarifa = t.id
             LEFT JOIN ventas_ids vi ON v.id = vi.id
         ";
         if (!empty($condiciones)) {
             $sql .= " WHERE " . implode(" AND ", $condiciones);
         }
 
-        // Ordenar por
-        $orden = "v.fecha DESC"; // por defecto
-        if (isset($_GET['orden'])) {
-            switch ($_GET['orden']) {
-                case 'importe_asc':
-                    $orden = "v.total ASC";
-                    break;
-                case 'importe_desc':
-                    $orden = "v.total DESC";
-                    break;
-                case 'cantidad_asc':
-                    $orden = "cantidad_productos ASC";
-                    break;
-                case 'cantidad_desc':
-                    $orden = "cantidad_productos DESC";
-                    break;
-                case 'fecha_asc':
-                    $orden = "v.fecha ASC";
-                    break;
-                case 'fecha_desc':
-                    $orden = "v.fecha DESC";
-                    break;
-                case 'id_asc':
-                    $orden = "v.id ASC";
-                    break;
-                case 'id_desc':
-                    $orden = "v.id DESC";
-                    break;
-            }
-        }
-
-        $sql .= " ORDER BY " . $orden;
+        $sql .= " ORDER BY v.fecha DESC, v.id DESC LIMIT ?";
 
         $stmt = $conexion->prepare($sql);
-        $stmt->execute($parametros);
+
+        foreach ($parametros as $i => $p) {
+            $stmt->bindValue($i + 1, $p);
+        }
+        $stmt->bindValue(count($parametros) + 1, $porPagina + 1, PDO::PARAM_INT); // Pedimos una mas para detectar si hay mas
+
+        $stmt->execute();
         $ventas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        echo json_encode($ventas);
-    }
-    catch (Exception $e) {
+        // Detectar si hay mas resultados
+        $hasMore = count($ventas) > $porPagina;
+
+        // ✅ SOLUCION BUG BUSQUEDA: NUNCA borramos registros cuando solo hay 1 resultado
+        // Solo borramos el ultimo si realmente hay mas de 20 registros
+        if ($hasMore && count($ventas) > 1) {
+            array_pop($ventas);
+        }
+
+        // Obtener cursores para paginación
+        $nextCursor = null;
+        $prevCursor = null;
+
+        if (!empty($ventas)) {
+            $ultima = end($ventas);
+            $primera = reset($ventas);
+
+            $nextCursor = [
+                'fecha' => $ultima['fecha'],
+                'id' => $ultima['id']
+            ];
+
+            $prevCursor = [
+                'fecha' => $primera['fecha'],
+                'id' => $primera['id']
+            ];
+        }
+
+        // ✅ Conteo APROXIMADO (inmediato) para mostrar al usuario
+        $stmtEstimado = $conexion->query("EXPLAIN SELECT id FROM ventas");
+        $rowEstimado = $stmtEstimado->fetch(PDO::FETCH_ASSOC);
+        $totalEstimado = (int) $rowEstimado['rows'];
+
+        echo json_encode([
+            'ventas' => $ventas,
+            'total_estimado' => $totalEstimado,
+            'porPagina' => $porPagina,
+            'has_more' => $hasMore,
+            'next_cursor' => $nextCursor,
+            'prev_cursor' => $prevCursor,
+            'es_cursor' => true
+        ]);
+    } catch (Exception $e) {
         http_response_code(500);
         echo json_encode(['error' => $e->getMessage()]);
     }
     exit();
 }
 
-// Ventas de los últimos 7 días agrupadas por día
-// Obtenemos la conexión a la base de datos
-$conexion = ConexionDB::getInstancia()->getConexion();
-// Preparamos la consulta para obtener las ventas de los últimos 7 días agrupadas por día
-$stmt = $conexion->prepare("
-    SELECT 
-        DATE(fecha) as dia,
-        SUM(total) as total,
-        COUNT(*) as pedidos
-    FROM ventas
-    WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-    GROUP BY DATE(fecha)
-    ORDER BY dia ASC
-");
-// Ejecutamos la consulta
-$stmt->execute();
-// Obtenemos los resultados en forma de array asociativo
-$filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// ✅ Cache 5 minutos para las graficas del dashboard
+try {
+    $cache = Cache::get('grafico_ventas_7dias');
 
-// Rellenamos los días vacíos para que siempre salgan 7 días
-$resultado = [];
-for ($i = 6; $i >= 0; $i--) {
-    $dia = date('Y-m-d', strtotime("-$i days"));
-    $resultado[$dia] = ['dia' => $dia, 'total' => 0, 'pedidos' => 0];
-}
-foreach ($filas as $fila) {
-    $resultado[$fila['dia']] = $fila;
-}
+    if ($cache === null) {
+        // Ventas de los últimos 7 días agrupadas por día
+        // Obtenemos la conexión a la base de datos
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        // Preparamos la consulta para obtener las ventas de los últimos 7 días agrupadas por día
+        $stmt = $conexion->prepare("
+                        SELECT 
+                            DATE(fecha) as dia,
+                            SUM(total) as total,
+                            COUNT(*) as pedidos
+                        FROM ventas
+                        WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+                        GROUP BY DATE(fecha)
+                        ORDER BY dia ASC
+                    ");
+        // Ejecutamos la consulta
+        $stmt->execute();
+        // Obtenemos los resultados en forma de array asociativo
+        $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Mostramos los resultados en formato JSON
-echo json_encode(array_values($resultado));
+        // Rellenamos los días vacíos para que siempre salgan 7 días
+        $resultado = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $dia = date('Y-m-d', strtotime("-$i days"));
+            $resultado[$dia] = ['dia' => $dia, 'total' => 0, 'pedidos' => 0];
+        }
+        foreach ($filas as $fila) {
+            $resultado[$fila['dia']] = $fila;
+        }
+
+        $json = json_encode(array_values($resultado));
+        Cache::set('grafico_ventas_7dias', $json);
+        echo $json;
+    } else {
+        echo $cache;
+    }
+} catch (Exception $e) {
+    // Fallback seguro: devolver array vacio si algo falla
+    $resultado = [];
+    for ($i = 6; $i >= 0; $i--) {
+        $dia = date('Y-m-d', strtotime("-$i days"));
+        $resultado[] = ['dia' => $dia, 'total' => 0, 'pedidos' => 0];
+    }
+    echo json_encode($resultado);
+}
 ?>

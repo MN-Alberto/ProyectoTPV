@@ -117,6 +117,9 @@ $puntosGanados = (int) ($datos['puntos_ganados'] ?? 0);
 $puntosCanjeados = (int) ($datos['puntos_canjeados'] ?? 0);
 $puntosBalance = (int) ($datos['puntos_balance'] ?? 0);
 
+// Mensaje personalizado
+$mensajePersonalizado = $datos['mensajePersonalizado'] ?? '';
+
 // Determinamos el título principal del documento según la elección del usuario
 $isFactura = ($tipoDocumento === 'factura');
 $isDevolucion = ($tipoDocumento === 'devolucion');
@@ -165,12 +168,12 @@ $importeDescuentoTarifaTotal = 0;
 
 foreach ($lineas as $linea) {
     $cantidad = (float) ($linea['cantidad'] ?? 1);
-    
+
     // Usamos el PVP unitario real (con descuento aplicado) si viene en el JSON
     // Si no, lo calculamos de la forma tradicional (precioBase + IVA)
-    $pvpUnitarioReal = isset($linea['pvpUnitario']) ? (float)$linea['pvpUnitario'] : null;
-    $pvpOriginalUnitario = isset($linea['pvpOriginalUnitario']) ? (float)$linea['pvpOriginalUnitario'] : null;
-    
+    $pvpUnitarioReal = isset($linea['pvpUnitario']) ? (float) $linea['pvpUnitario'] : null;
+    $pvpOriginalUnitario = isset($linea['pvpOriginalUnitario']) ? (float) $linea['pvpOriginalUnitario'] : null;
+
     $precioBase = (float) ($linea['precio'] ?? 0);
     $ivaPorc = (int) ($linea['iva'] ?? 21);
 
@@ -321,14 +324,14 @@ if ($puntosGanados > 0 || $puntosCanjeados > 0 || $puntosBalance > 0) {
     <div style='margin-top: 20px; padding: 15px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 0.9rem;'>
         <div style='color: #d97706; font-weight: bold; margin-bottom: 8px;'>★ Programa de Puntos</div>
         <table style='width:100%; border:none; margin: 0;'>";
-        
+
     if ($puntosGanados > 0) {
         $puntosHtml .= "<tr><td style='padding:3px 0; color:#16a34a;'>Puntos ganados en esta compra:</td><td style='padding:3px 0; text-align:right; color:#16a34a;'>+ " . number_format($puntosGanados, 0, ',', '.') . "</td></tr>";
     }
     if ($puntosCanjeados > 0) {
         $puntosHtml .= "<tr><td style='padding:3px 0; color:#ef4444;'>Puntos canjeados en esta compra:</td><td style='padding:3px 0; text-align:right; color:#ef4444;'>- " . number_format($puntosCanjeados, 0, ',', '.') . "</td></tr>";
     }
-    
+
     $puntosHtml .= "
             <tr>
                 <td style='padding-top: 8px; border-top: 1px solid #fde68a;'><strong>Saldo disponible:</strong></td>
@@ -421,6 +424,13 @@ if ($isFactura) {
     
     {$obsHtml}
 
+    " . (!empty($mensajePersonalizado) ? "
+    <div style='margin-top: 20px; padding: 12px; background: #f0f9ff; border-left: 4px solid #3b82f6; border-radius: 4px; font-size: 0.9rem;'>
+        <strong>✉️ Mensaje personalizado:</strong><br>
+        " . nl2br(htmlspecialchars($mensajePersonalizado)) . "
+    </div>
+    " : "") . "
+
     <div class=\"nota\">
         <p>Los precios incluyen IVA. Esta factura está sujeta a las condiciones generales de venta.</p>
     </div>
@@ -489,6 +499,13 @@ if ($isFactura) {
         ") . "
         
         {$obsHtml}
+
+        " . (!empty($mensajePersonalizado) ? "
+        <div style='margin-top: 15px; padding: 10px; background: #f0f9ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px;'>
+            <strong>✉️ Mensaje personalizado:</strong><br>
+            " . nl2br(htmlspecialchars($mensajePersonalizado)) . "
+        </div>
+        " : "") . "
 
         <div class='footer'>
             <p style='font-weight:bold;'>GRACIAS POR SU COMPRA</p>

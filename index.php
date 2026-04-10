@@ -4,21 +4,34 @@
  * Fecha de actualización: 24/02/2026
  */
 
-require_once("./config/confAPP.php"); //Incluimos el ficheo de configuración de la APP.
-require_once("./config/confDB.php"); //Incluimos el ficheo de configuración de la BD.
+// 1. CARGA LOS MODELOS PRIMERO (Importante para que la sesión reconozca los objetos)
+require_once("./model/Usuario.php");
+// Añade aquí otros modelos si guardas objetos de ellos en la sesión
 
-date_default_timezone_set('Europe/Madrid'); //Asignamos la zona horaria por defecto a 'Europa/Madrid'.
-session_start(); //Iniciamos o recuperamos la sesión.
+// 2. CONFIGURACIÓN
+require_once("./config/confAPP.php");
+require_once("./config/confDB.php");
 
-// Si se especifica un controlador en la URL, cambiar la página en curso
+date_default_timezone_set('Europe/Madrid');
+
+// 3. INICIAR SESIÓN (Después de cargar los modelos)
+session_start();
+
+// 4. LÓGICA DE NAVEGACIÓN
 if (isset($_GET['ctl']) && isset($controller[$_GET['ctl']])) {
     $_SESSION['paginaEnCurso'] = $_GET['ctl'];
 }
 
-if (!isset($_SESSION['paginaEnCurso'])) { //Si la página en curso no existe.
-    $_SESSION['paginaEnCurso'] = 'login'; //La crea y le asigna el login.
+if (!isset($_SESSION['paginaEnCurso'])) {
+    $_SESSION['paginaEnCurso'] = 'login';
 }
 
-require_once($controller[$_SESSION['paginaEnCurso']]); //Añade el ficheo del controlador en base a la página en curso.
-
+// 5. CARGA DEL CONTROLADOR
+// Verificamos que el archivo existe antes de cargarlo para evitar errores fatales
+if (isset($controller[$_SESSION['paginaEnCurso']]) && file_exists($controller[$_SESSION['paginaEnCurso']])) {
+    require_once($controller[$_SESSION['paginaEnCurso']]);
+} else {
+    // Si algo falla, forzamos login
+    require_once($controller['login']);
+}
 ?>

@@ -381,6 +381,7 @@ class Devolucion
         $conexion = ConexionDB::getInstancia()->getConexion();
 
         $condiciones = [];
+        $parametros = [];
         if ($filtroFecha) {
             switch ($filtroFecha) {
                 case 'hoy':
@@ -398,18 +399,36 @@ class Devolucion
         // Búsqueda por número de ticket
         if ($busqueda && $busqueda !== '') {
             $busquedaInt = intval($busqueda);
-            if ($busquedaInt > 0) {
-                $condiciones[] = "d.idVenta = " . $busquedaInt;
+            
+            // Comprobar si es formato correlativo (T00001, F00001, etc.)
+            if (preg_match('/^([TF]?)0*(\d+)$/i', $busqueda, $matches)) {
+                $serie = strtoupper($matches[1]);
+                $numero = (int)$matches[2];
+
+                if ($serie !== '') {
+                    $condiciones[] = "(d.idVenta = ? OR (vi.serie = ? AND vi.numero = ?))";
+                    $parametros[] = $busquedaInt;
+                    $parametros[] = $serie;
+                    $parametros[] = $numero;
+                } else {
+                    $condiciones[] = "(d.idVenta = ? OR vi.numero = ?)";
+                    $parametros[] = $busquedaInt;
+                    $parametros[] = $busquedaInt;
+                }
+            } elseif ($busquedaInt > 0) {
+                $condiciones[] = "(d.idVenta = ? OR vi.numero = ?)";
+                $parametros[] = $busquedaInt;
+                $parametros[] = $busquedaInt;
             }
         }
 
         // Contar total de resultados
-        $sqlCount = "SELECT COUNT(*) FROM devoluciones d";
+        $sqlCount = "SELECT COUNT(*) FROM devoluciones d LEFT JOIN ventas_ids vi ON d.idVenta = vi.id";
         if (!empty($condiciones)) {
             $sqlCount .= " WHERE " . implode(" AND ", $condiciones);
         }
         $stmtCount = $conexion->prepare($sqlCount);
-        $stmtCount->execute();
+        $stmtCount->execute($parametros);
         $total = (int)$stmtCount->fetchColumn();
 
         $sql = "SELECT d.*, COALESCE(d.nombreProducto, p.nombre) as producto_nombre, u.nombre as usuario_nombre, vi.serie, vi.numero
@@ -441,7 +460,7 @@ class Devolucion
         $sql .= " LIMIT $porPagina OFFSET $offset";
 
         $stmt = $conexion->prepare($sql);
-        $stmt->execute();
+        $stmt->execute($parametros);
         $devoluciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         return [

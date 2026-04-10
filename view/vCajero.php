@@ -32,8 +32,8 @@
             <div style="display: flex; gap: 10px; align-items: center; flex: 1;">
                 <label for="inputBuscarProducto" style="font-weight: 600; white-space: nowrap;">Buscar:</label>
                 <input type="text" id="inputBuscarProducto" class="input-buscarProducto"
-                    placeholder="Escribe el nombre del producto a buscar..." oninput="buscarProductos()" autocomplete="off"
-                    style="width: 100%;" />
+                    placeholder="Escribe el nombre del producto a buscar..." oninput="buscarProductos()"
+                    autocomplete="off" style="width: 100%;" />
             </div>
 
             <!-- INDICADOR DE EFECTIVO EN CAJA -->
@@ -42,13 +42,13 @@
                     <span class="label">Efectivo en caja:</span>
                     <span class="amount"><?php echo number_format($sesionCaja->getImporteActual(), 2, ',', '.'); ?> €</span>
                 </div>
-            <?php
-else: ?>
+                <?php
+            else: ?>
                 <div class="indicador-efectivo caja-cerrada">
                     <span class="label">Caja Cerrada</span>
                 </div>
-            <?php
-endif; ?>
+                <?php
+            endif; ?>
         </div>
 
         <!-- ==================== FILTROS DE CATEGORÍA ==================== -->
@@ -65,8 +65,8 @@ endif; ?>
                     onclick="seleccionarCategoria(this, <?php echo $cat->getId(); ?>)">
                     <?php echo htmlspecialchars($cat->getNombre()); ?>
                 </button>
-            <?php
-endforeach; ?>
+                <?php
+            endforeach; ?>
         </div>
 
         <!-- ==================== BARRA DE OPCIONES EXTRA ==================== -->
@@ -74,7 +74,8 @@ endforeach; ?>
         <div class="cajero-opciones-extra">
 
             <!-- Flecha izquierda del carrusel -->
-            <button type="button" class="cajero-carousel-arrow cajero-carousel-arrow-left" id="cajeroCarouselArrowLeft" onclick="scrollCarouselBotonesIzquierda()" title="Ver opciones anteriores">
+            <button type="button" class="cajero-carousel-arrow cajero-carousel-arrow-left" id="cajeroCarouselArrowLeft"
+                onclick="scrollCarouselBotonesIzquierda()" title="Ver opciones anteriores">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="15 18 9 12 15 6"></polyline>
@@ -90,8 +91,9 @@ endforeach; ?>
                         <input type="hidden" name="accion" value="previsualizarCaja">
                         <button type="submit" class="btn-hacerCaja" id="btnHacerCaja" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
                             style="<?php echo !$sesionCaja ? 'opacity: 0.3; background: red; cursor: not-allowed;' : ''; ?>">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
                                 <line x1="12" y1="1" x2="12" y2="23"></line>
                                 <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                             </svg>
@@ -100,7 +102,8 @@ endforeach; ?>
                     </form>
 
                     <!-- Botón ABRIR CAJA -->
-                    <button type="button" class="btn-abrirCaja" id="btnAbrirCaja" onclick="mostrarModalAbrirCaja()" <?php echo $sesionCaja ? 'disabled' : ''; ?>
+                    <button type="button" class="btn-abrirCaja" id="btnAbrirCaja" onclick="mostrarModalAbrirCaja()"
+                        <?php echo $sesionCaja ? 'disabled' : ''; ?>
                         style="<?php echo $sesionCaja ? 'opacity: 0.3; background: red; cursor: not-allowed;' : ''; ?>">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -111,7 +114,8 @@ endforeach; ?>
                     </button>
 
                     <!-- Botón DEVOLUCIÓN -->
-                    <button type="button" class="btn-devolucion" id="btnDevolucion" onclick="mostrarModalDevolucion()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                    <button type="button" class="btn-devolucion" id="btnDevolucion" onclick="mostrarModalDevolucion()"
+                        <?php echo !$sesionCaja ? 'disabled' : ''; ?>
                         style="<?php echo !$sesionCaja ? 'opacity: 0.3; background: #991b1b; cursor: not-allowed;' : ''; ?>">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -134,7 +138,8 @@ endforeach; ?>
                     </button>
 
                     <!-- Botón HISTORIAL DE VENTAS -->
-                    <button type="button" class="btn-historial" id="btnHistorial" onclick="mostrarHistorialVentas()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                    <button type="button" class="btn-historial" id="btnHistorial" onclick="mostrarHistorialVentas()"
+                        <?php echo !$sesionCaja ? 'disabled' : ''; ?>
                         style="<?php echo !$sesionCaja ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -197,7 +202,8 @@ endforeach; ?>
             </div>
 
             <!-- Flecha de scroll del carrusel -->
-            <button type="button" class="cajero-carousel-arrow" id="cajeroCarouselArrow" onclick="scrollCarouselBotones()" title="Ver más opciones">
+            <button type="button" class="cajero-carousel-arrow" id="cajeroCarouselArrow"
+                onclick="scrollCarouselBotones()" title="Ver más opciones">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="9 18 15 12 9 6"></polyline>
@@ -213,31 +219,31 @@ endforeach; ?>
             <?php if (empty($productos)): ?>
                 <!-- Mensaje cuando no hay productos disponibles -->
                 <p class="sin-productos">No hay productos disponibles.</p>
-            <?php
-else: ?>
+                <?php
+            else: ?>
                 <!-- Bucle PHP: genera una tarjeta por cada producto -->
                 <?php foreach ($productos as $prod): ?>
                     <?php
-        // 1. Encontrar la tarifa 'Cliente' (por defecto)
-        $tarifaClienteId = null;
-        foreach ($tarifas as $t) {
-            if ($t['nombre'] === 'Cliente') {
-                $tarifaClienteId = $t['id'];
-                break;
-            }
-        }
+                    // 1. Encontrar la tarifa 'Cliente' (por defecto)
+                    $tarifaClienteId = null;
+                    foreach ($tarifas as $t) {
+                        if ($t['nombre'] === 'Cliente') {
+                            $tarifaClienteId = $t['id'];
+                            break;
+                        }
+                    }
 
-        // 2. Comprobar si hay precio para esa tarifa (ya sea manual o calculado)
-        $preciosManuales = $prod->getPreciosTarifas();
-        $precioBaseEfectivo = $prod->getPrecio();
-        if ($tarifaClienteId && isset($preciosManuales[$tarifaClienteId])) {
-            $precioBaseEfectivo = $preciosManuales[$tarifaClienteId]['precio'];
-        }
+                    // 2. Comprobar si hay precio para esa tarifa (ya sea manual o calculado)
+                    $preciosManuales = $prod->getPreciosTarifas();
+                    $precioBaseEfectivo = $prod->getPrecio();
+                    if ($tarifaClienteId && isset($preciosManuales[$tarifaClienteId])) {
+                        $precioBaseEfectivo = $preciosManuales[$tarifaClienteId]['precio'];
+                    }
 
-        // 3. Calcular PVP inicial
-        $precioPVP = $precioBaseEfectivo * (1 + ($prod->getIvaPorcentaje() / 100));
-        $precioPVP_fmt = number_format($precioPVP, 2, '.', '');
-?>
+                    // 3. Calcular PVP inicial
+                    $precioPVP = $precioBaseEfectivo * (1 + ($prod->getIvaPorcentaje() / 100));
+                    $precioPVP_fmt = number_format($precioPVP, 2, '.', '');
+                    ?>
                     <!-- Tarjeta de producto con atributos data-* para el carrito JS -->
                     <!-- data-id: ID del producto -->
                     <!-- data-nombre: nombre del producto (escapado con htmlspecialchars) -->
@@ -251,8 +257,8 @@ else: ?>
                         data-iva="<?php echo $prod->getIvaPorcentaje(); ?>"
                         data-precios-tarifas='<?php echo htmlspecialchars(json_encode($prod->getPreciosTarifas()), ENT_QUOTES, 'UTF-8'); ?>'
                         data-stock="<?php echo $prod->getStock(); ?>" onclick="agregarAlCarrito(this)" style="<?php if ($prod->getStock() <= 0) {
-            echo 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);';
-        }?>">
+                               echo 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);';
+                           } ?>">
 
                         <!-- Nombre del producto -->
                         <div class="producto-nombre">
@@ -262,9 +268,9 @@ else: ?>
                         <!-- Imagen del producto (usa logo.PNG como fallback si no tiene imagen) -->
                         <div class="producto-imagen">
                             <?php
-        $imgSrc = !empty($prod->getImagen()) ? $prod->getImagen() : 'webroot/img/logo.PNG';
-        echo '<img src="' . htmlspecialchars($imgSrc) . '" alt="' . htmlspecialchars($prod->getNombre()) . '">';
-?>
+                            $imgSrc = !empty($prod->getImagen()) ? $prod->getImagen() : 'webroot/img/logo.PNG';
+                            echo '<img src="' . htmlspecialchars($imgSrc) . '" alt="' . htmlspecialchars($prod->getNombre()) . '">';
+                            ?>
                         </div>
 
                         <!-- Precio y stock del producto -->
@@ -279,22 +285,22 @@ else: ?>
                                 <?php foreach ($tarifas as $tarifa): ?>
                                     <option value="<?php echo $tarifa['descuento_porcentaje']; ?>"
                                         data-requiere-cliente="<?php echo $tarifa['requiere_cliente']; ?>"
-                                        data-tarifa-id="<?php echo $tarifa['id']; ?>" <?php echo($tarifa['nombre'] === 'Cliente') ? 'selected' : ''; ?>>
+                                        data-tarifa-id="<?php echo $tarifa['id']; ?>" <?php echo ($tarifa['nombre'] === 'Cliente') ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($tarifa['nombre']); ?>
                                     </option>
-                                <?php
-        endforeach; ?>
+                                    <?php
+                                endforeach; ?>
                             </select>
 
                             <span class="producto-stock" <?php if ($prod->getStock() <= 0) {
-            echo 'style="color: red; text-decoration: underline;"';
-        }?>>Stock: <?php echo $prod->getStock(); ?></span>
+                                echo 'style="color: red; text-decoration: underline;"';
+                            } ?>>Stock: <?php echo $prod->getStock(); ?></span>
                         </div>
                     </div>
+                    <?php
+                endforeach; ?>
                 <?php
-    endforeach; ?>
-            <?php
-endif; ?>
+            endif; ?>
         </div>
     </div>
 
@@ -341,12 +347,15 @@ endif; ?>
         </div>
 
         <!-- Indicador de cliente identificado (DNI) - se muestra al acumular puntos o aplicar descuento -->
-        <div id="indicadorClienteDni" style="display: none; background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #3b82f6; border-radius: 8px; padding: 8px 14px; margin: 0 10px 8px 10px; align-items: center; gap: 8px; font-size: 0.85rem;">
+        <div id="indicadorClienteDni"
+            style="display: none; background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #3b82f6; border-radius: 8px; padding: 8px 14px; margin: 0 10px 8px 10px; align-items: center; gap: 8px; font-size: 0.85rem;">
             <span style="font-size: 1.1rem;">👤</span>
-            <span id="indicadorClienteNombre" style="color: #1e40af; font-weight: 600; font-size: 0.75rem; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title=""></span>
+            <span id="indicadorClienteNombre"
+                style="color: #1e40af; font-weight: 600; font-size: 0.75rem; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                title=""></span>
             <span style="color: #1e40af; font-weight: 600; opacity: 0.6;">-</span>
             <span id="indicadorClienteDniValor" style="color: #1e3a8a; font-weight: 700; letter-spacing: 0.5px;"></span>
-            <button type="button" onclick="desvincularCliente()" 
+            <button type="button" onclick="desvincularCliente()"
                 style="background: #eff6ff; border: 1px solid #3b82f6; color: #ef4444; font-size: 1rem; cursor: pointer; padding: 2px 8px; border-radius: 4px; line-height: 1; margin-left: auto; font-weight: bold; transition: all 0.2s;"
                 onmouseover="this.style.background='#ef4444'; this.style.color='white'"
                 onmouseout="this.style.background='#eff6ff'; this.style.color='#ef4444'"
@@ -413,14 +422,14 @@ endif; ?>
 
                 <!-- Selector de tarifa: ahora gestionado por producto, mantenemos el ID occulto para compatibilidad JS -->
                 <?php
-$idTarifaCliente = 1;
-foreach ($tarifas as $t) {
-    if ($t['nombre'] === 'Cliente') {
-        $idTarifaCliente = $t['id'];
-        break;
-    }
-}
-?>
+                $idTarifaCliente = 1;
+                foreach ($tarifas as $t) {
+                    if ($t['nombre'] === 'Cliente') {
+                        $idTarifaCliente = $t['id'];
+                        break;
+                    }
+                }
+                ?>
                 <input type="hidden" id="tarifaVenta" value="<?php echo $idTarifaCliente; ?>">
 
                 <!-- Aviso legal: no se permite pago en efectivo superior a 1.000€ -->
@@ -477,6 +486,7 @@ foreach ($tarifas as $t) {
         <input type="hidden" name="puntosBalance" id="inputPuntosBalance">
         <input type="hidden" name="clienteIdentificadoPuntos" id="inputClienteIdentificadoPuntos">
         <input type="hidden" name="clienteIdentificadoPuntos" id="inputClienteIdentificadoPuntos" value="false">
+        <input type="hidden" name="mensajePersonalizado" id="inputMensajePersonalizado">
     </form>
 </section>
 
@@ -484,36 +494,49 @@ foreach ($tarifas as $t) {
 <!-- Modal que aparece cuando el método de pago es "efectivo" -->
 <!-- Permite al cajero introducir la cantidad entregada por el cliente y calcula el cambio -->
 <div class="modal-overlay" id="modalCambio" style="display:none;">
-    <div class="modal-content" style="max-width: 440px; padding: 40px; border-radius: 24px; background: var(--bg-card); border: 1px solid var(--border-main); text-align: left; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
-        
+    <div class="modal-content"
+        style="max-width: 440px; padding: 40px; border-radius: 24px; background: var(--bg-card); border: 1px solid var(--border-main); text-align: left; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+
         <!-- Cabecera Minimalista -->
         <div style="margin-bottom: 32px;">
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                <div style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: var(--bg-main); border-radius: 10px; color: var(--text-muted);">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <div
+                    style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: var(--bg-main); border-radius: 10px; color: var(--text-muted);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="2" y="6" width="20" height="12" rx="2"></rect>
                         <circle cx="12" cy="12" r="2"></circle>
                     </svg>
                 </div>
-                <h3 style="margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.01em;">Cobro en efectivo</h3>
+                <h3
+                    style="margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.01em;">
+                    Cobro en efectivo</h3>
             </div>
-            <p style="margin: 0; color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">Calcula el cambio y registra la transacción final</p>
+            <p style="margin: 0; color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">Calcula el cambio y
+                registra la transacción final</p>
         </div>
 
         <div style="display: grid; gap: 28px;">
             <!-- Display de Total -->
             <div style="padding-bottom: 12px; border-bottom: 1px solid var(--border-main);">
-                <span style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;">Total a cobrar</span>
-                <span id="cambioTotalPagar" style="font-size: 3rem; font-weight: 950; color: var(--text-main); letter-spacing: -0.04em; line-height: 1;">0,00 €</span>
+                <span
+                    style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;">Total
+                    a cobrar</span>
+                <span id="cambioTotalPagar"
+                    style="font-size: 3rem; font-weight: 950; color: var(--text-main); letter-spacing: -0.04em; line-height: 1;">0,00
+                    €</span>
             </div>
 
             <!-- Fila de Entrada -->
             <div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <label for="inputDineroEntregado" style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">Dinero recibido</label>
-                    <button type="button" onclick="fijarImporteExacto()" 
+                    <label for="inputDineroEntregado"
+                        style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">Dinero
+                        recibido</label>
+                    <button type="button" onclick="fijarImporteExacto()"
                         style="background: none; border: none; color: var(--accent); font-size: 0.8rem; font-weight: 700; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 4px; transition: color 0.2s;"
-                        onmouseover="this.style.color='var(--accent-hover)'" onmouseout="this.style.color='var(--accent)'">
+                        onmouseover="this.style.color='var(--accent-hover)'"
+                        onmouseout="this.style.color='var(--accent)'">
                         Importe exacto
                     </button>
                 </div>
@@ -521,29 +544,46 @@ foreach ($tarifas as $t) {
                     <input type="number" id="inputDineroEntregado" step="0.01" min="0" placeholder="0.00"
                         style="width: 100%; padding: 14px 45px 14px 20px; font-size: 1.8rem; font-weight: 700; border: 2px solid var(--border-main); border-radius: 14px; background: var(--bg-input); color: var(--text-main); outline: none; transition: border-color 0.2s, box-shadow 0.2s;"
                         oninput="calcularCambio()" onkeypress="if(event.key === 'Enter') confirmarCambio()"
-                        onfocus="this.style.borderColor='var(--accent)'; this.style.boxShadow='0 0 0 4px rgba(37, 99, 235, 0.1)'" 
+                        onfocus="this.style.borderColor='var(--accent)'; this.style.boxShadow='0 0 0 4px rgba(37, 99, 235, 0.1)'"
                         onblur="this.style.borderColor='var(--border-main)'; this.style.boxShadow='none'">
-                    <span style="position: absolute; right: 20px; font-size: 1.5rem; font-weight: 700; color: var(--text-muted); pointer-events: none;">€</span>
+                    <span
+                        style="position: absolute; right: 20px; font-size: 1.5rem; font-weight: 700; color: var(--text-muted); pointer-events: none;">€</span>
                 </div>
-                <p id="cambioError" style="color: var(--accent-danger); font-size: 0.85rem; margin-top: 10px; font-weight: 700; display: none; align-items: center; gap: 5px;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                <p id="cambioError"
+                    style="color: var(--accent-danger); font-size: 0.85rem; margin-top: 10px; font-weight: 700; display: none; align-items: center; gap: 5px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
                     Cantidad insuficiente
                 </p>
             </div>
 
             <!-- Resultado de Cambio -->
-            <div style="margin-top: 4px; padding: 24px; border-radius: 18px; background: var(--bg-accent-success); border: 2px solid transparent; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease;">
+            <div
+                style="margin-top: 4px; padding: 24px; border-radius: 18px; background: var(--bg-accent-success); border: 2px solid transparent; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease;">
                 <div>
-                    <span style="display: block; font-size: 0.85rem; font-weight: 800; color: var(--accent-success); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">Cambio</span>
+                    <span
+                        style="display: block; font-size: 0.85rem; font-weight: 800; color: var(--accent-success); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">Cambio</span>
                     <span style="font-size: 0.8rem; color: var(--accent-success); opacity: 0.7;">Para el cliente</span>
                 </div>
-                <span id="cambioDevolver" style="font-size: 2.2rem; font-weight: 900; color: var(--accent-success); letter-spacing: -0.02em;">0,00 €</span>
+                <span id="cambioDevolver"
+                    style="font-size: 2.2rem; font-weight: 900; color: var(--accent-success); letter-spacing: -0.02em;">0,00
+                    €</span>
             </div>
         </div>
 
         <div style="display: flex; gap: 12px; margin-top: 40px;">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalCambio')" style="flex: 1; padding: 16px; border-radius: 14px; font-weight: 700; font-size: 0.95rem; border: 1px solid var(--border-main); background: var(--bg-card); color: var(--text-muted); cursor: pointer; transition: all 0.15s;" onmouseover="this.style.background='var(--bg-main)'; this.style.color='var(--text-main)'" onmouseout="this.style.background='var(--bg-card)'; this.style.color='var(--text-muted)'">Cerrar</button>
-            <button class="btn-exito" onclick="confirmarCambio()" style="flex: 2; padding: 16px; border-radius: 14px; font-weight: 800; font-size: 1.05rem; margin: 0; cursor: pointer; transition: transform 0.1s, opacity 0.2s;" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'">Confirmar pago</button>
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalCambio')"
+                style="flex: 1; padding: 16px; border-radius: 14px; font-weight: 700; font-size: 0.95rem; border: 1px solid var(--border-main); background: var(--bg-card); color: var(--text-muted); cursor: pointer; transition: all 0.15s;"
+                onmouseover="this.style.background='var(--bg-main)'; this.style.color='var(--text-main)'"
+                onmouseout="this.style.background='var(--bg-card)'; this.style.color='var(--text-muted)'">Cerrar</button>
+            <button class="btn-exito" onclick="confirmarCambio()"
+                style="flex: 2; padding: 16px; border-radius: 14px; font-weight: 800; font-size: 1.05rem; margin: 0; cursor: pointer; transition: transform 0.1s, opacity 0.2s;"
+                onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'">Confirmar
+                pago</button>
         </div>
     </div>
 </div>
@@ -596,12 +636,20 @@ foreach ($tarifas as $t) {
             <div class="previsualizacion-col">
                 <div class="previsualizacion-header">
                     <div class="control-section-title" style="margin-bottom: 0; display: flex; align-items: center;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            style="margin-right: 5px;">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
                         Vista Previa Real
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <button id="btnZoomTicket" onclick="toggleZoomTicket()" class="btn-zoom-ticket" title="Ampliar vista previa" style="display: none;">
-                            <svg id="iconZoom" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <button id="btnZoomTicket" onclick="toggleZoomTicket()" class="btn-zoom-ticket"
+                            title="Ampliar vista previa" style="display: none;">
+                            <svg id="iconZoom" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                                stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="11" cy="11" r="8"></circle>
                                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                                 <line x1="11" y1="8" x2="11" y2="14" class="icon-plus"></line>
@@ -609,14 +657,17 @@ foreach ($tarifas as $t) {
                                 <line x1="8" y1="11" x2="14" y2="11" class="icon-minus" style="display: none;"></line>
                             </svg>
                         </button>
-                        <div id="tipoDocBadgeCheckout" style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; background: var(--bg-accent-success); color: var(--accent-success); letter-spacing: 0.05em;">TICKET</div>
+                        <div id="tipoDocBadgeCheckout"
+                            style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; background: var(--bg-accent-success); color: var(--accent-success); letter-spacing: 0.05em;">
+                            TICKET</div>
                     </div>
                 </div>
-                
+
                 <div class="ticket-preview-viewport">
                     <!-- El contenedor que simula el papel físico -->
                     <div id="ticketPreviewContent" class="paper-simulation tipo-ticket">
-                        <div style="text-align:center; padding-top:100px; color:#cbd5e1; font-family: sans-serif;">Generando comprobante...</div>
+                        <div style="text-align:center; padding-top:100px; color:#cbd5e1; font-family: sans-serif;">
+                            Generando comprobante...</div>
                     </div>
                 </div>
             </div>
@@ -626,22 +677,41 @@ foreach ($tarifas as $t) {
             <div class="controles-col">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
-                        <h3 style="margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--text-main);">Finalizar Venta</h3>
-                        <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 0.85rem;">Configura el comprobante y método de entrega</p>
+                        <h3 style="margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--text-main);">Finalizar
+                            Venta</h3>
+                        <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 0.85rem;">Configura el
+                            comprobante y método de entrega</p>
                     </div>
-                    <button onclick="cerrarModal('modalFinalizarVenta')" style="background: var(--bg-main); border: 1px solid var(--border-main); color: var(--text-muted); font-size: 1.1rem; cursor: pointer; padding: 6px 10px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='var(--bg-accent-danger)'; this.style.color='var(--accent-danger)'" onmouseout="this.style.background='var(--bg-main)'; this.style.color='var(--text-muted)'">✕</button>
+                    <button onclick="cerrarModal('modalFinalizarVenta')"
+                        style="background: var(--bg-main); border: 1px solid var(--border-main); color: var(--text-muted); font-size: 1.1rem; cursor: pointer; padding: 6px 10px; border-radius: 8px; transition: all 0.2s;"
+                        onmouseover="this.style.background='var(--bg-accent-danger)'; this.style.color='var(--accent-danger)'"
+                        onmouseout="this.style.background='var(--bg-main)'; this.style.color='var(--text-muted)'">✕</button>
                 </div>
 
                 <!-- Sección: Tipo de Documento -->
                 <div class="control-group">
                     <div class="control-section-title">Tipo de Documento</div>
                     <div class="opciones-grid">
-                        <div class="checkout-option-card active" id="optTicket" onclick="cambiarTipoDocumentoCheckout('ticket')">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                        <div class="checkout-option-card active" id="optTicket"
+                            onclick="cambiarTipoDocumentoCheckout('ticket')">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                            </svg>
                             <span>Ticket</span>
                         </div>
-                        <div class="checkout-option-card" id="optFactura" onclick="cambiarTipoDocumentoCheckout('factura')">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                        <div class="checkout-option-card" id="optFactura"
+                            onclick="cambiarTipoDocumentoCheckout('factura')">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                            </svg>
                             <span>Factura</span>
                         </div>
                     </div>
@@ -650,11 +720,13 @@ foreach ($tarifas as $t) {
                 <!-- Sección: Datos del Cliente -->
                 <div class="control-group" id="seccionDatosReceptor">
                     <div class="control-section-title">Datos del Receptor</div>
-                    <div id="clientDataSummaryCheckout" style="background: var(--bg-card); border: 2px solid var(--border-main); border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; transition: border-color 0.2s;">
+                    <div id="clientDataSummaryCheckout"
+                        style="background: var(--bg-card); border: 2px solid var(--border-main); border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; transition: border-color 0.2s;">
                         <div id="clientDataTextCheckout" style="font-size: 0.85rem; color: var(--text-muted);">
                             Sin datos de cliente asignados
                         </div>
-                        <button class="btn-descuento" onclick="abrirDatosClienteDesdeCheckout()" style="padding: 7px 14px; font-size: 0.75rem; white-space: nowrap;">
+                        <button class="btn-descuento" onclick="abrirDatosClienteDesdeCheckout()"
+                            style="padding: 7px 14px; font-size: 0.75rem; white-space: nowrap;">
                             Editar
                         </button>
                     </div>
@@ -664,12 +736,26 @@ foreach ($tarifas as $t) {
                 <div class="control-group">
                     <div class="control-section-title">Método de Entrega</div>
                     <div class="opciones-grid">
-                        <div class="checkout-option-card active" id="optImprimir" onclick="cambiarMetodoEntregaCheckout('imprimir')">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                        <div class="checkout-option-card active" id="optImprimir"
+                            onclick="cambiarMetodoEntregaCheckout('imprimir')">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2">
+                                </path>
+                                <rect x="6" y="14" width="12" height="8"></rect>
+                            </svg>
                             <span>Imprimir</span>
                         </div>
                         <div class="checkout-option-card" id="optEmail" onclick="cambiarMetodoEntregaCheckout('email')">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z">
+                                </path>
+                                <polyline points="22,6 12,13 2,6"></polyline>
+                            </svg>
                             <span>Email</span>
                         </div>
                     </div>
@@ -677,16 +763,32 @@ foreach ($tarifas as $t) {
 
                 <!-- Campo Email (oculto por defecto) -->
                 <div id="emailContainerCheckout" class="email-delivery-container" style="display: none;">
-                    <label style="display: block; font-size: 0.78rem; margin-bottom: 6px; font-weight: 600; color: var(--text-muted);">Dirección de Correo Electrónico</label>
+                    <label
+                        style="display: block; font-size: 0.78rem; margin-bottom: 6px; font-weight: 600; color: var(--text-muted);">Dirección
+                        de Correo Electrónico</label>
                     <input type="email" id="emailCheckout" placeholder="ejemplo@correo.com">
                 </div>
 
                 <!-- Información de Impresora -->
                 <div class="email-delivery-container" id="infoImpresoraCheckout">
                     <div style="display: flex; align-items: center; gap: 10px; color: #16a34a; font-size: 0.82rem;">
-                        <span style="width: 8px; height: 8px; background: #16a34a; border-radius: 50%; flex-shrink: 0; animation: pulse 2s infinite;"></span>
+                        <span
+                            style="width: 8px; height: 8px; background: #16a34a; border-radius: 50%; flex-shrink: 0; animation: pulse 2s infinite;"></span>
                         Impresora de tickets lista (Térmica 80mm)
                     </div>
+                </div>
+
+                <!-- Sección: Mensaje Personalizado -->
+                <div class="control-group">
+                    <div class="control-section-title">Mensaje Personalizado (Opcional)</div>
+                    <textarea id="mensajePersonalizadoVenta"
+                        placeholder="Escribe un mensaje personalizado que aparecerá en la parte inferior del ticket/factura..."
+                        style="width: 100%; min-height: 80px; padding: 12px; border: 2px solid var(--border-main); border-radius: 12px; 
+                           background: var(--bg-input); color: var(--text-main); font-size: 0.9rem; resize: vertical;
+                           outline: none; transition: border-color 0.2s, box-shadow 0.2s;"
+                        onfocus="this.style.borderColor='var(--accent)'; this.style.boxShadow='0 0 0 4px rgba(37, 99, 235, 0.1)'"
+                        onblur="this.style.borderColor='var(--border-main)'; this.style.boxShadow='none'"
+                        oninput="renderizarVistaPreviaTicket()"></textarea>
                 </div>
 
                 <!-- Total resumen -->
@@ -697,7 +799,10 @@ foreach ($tarifas as $t) {
 
                 <!-- Botón de acción final -->
                 <button class="btn-realizar-venta" onclick="procesarVentaFinal()">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
                     Confirmar y Realizar Venta
                 </button>
             </div>
@@ -752,7 +857,8 @@ foreach ($tarifas as $t) {
 
         <!-- Botones: Cancelar y Aplicar Descuento -->
         <div class="modal-footer-premium" style="display: flex; gap: 10px; align-items: center;">
-            <button id="btnQuitarDescuento" class="btn-cancel-flat" onclick="quitarDescuento()" style="display: none; background: #fee2e2; color: #dc2626;">Quitar Descuento</button>
+            <button id="btnQuitarDescuento" class="btn-cancel-flat" onclick="quitarDescuento()"
+                style="display: none; background: #fee2e2; color: #dc2626;">Quitar Descuento</button>
             <div style="flex-grow: 1;"></div>
             <button class="btn-cancel-flat" onclick="cerrarModal('modalDescuento')">Cancelar</button>
             <button class="btn-apply-premium" onclick="procesarDescuento()">Aplicar Descuento</button>
@@ -888,16 +994,19 @@ foreach ($tarifas as $t) {
 <div class="modal-overlay" id="modalPuntos" style="display:none;">
     <div class="modal-content" style="max-width: 400px; text-align: left;">
         <h3 style="margin-bottom: 5px;">¡Gana puntos!</h3>
-        <p class="modal-subtitulo" style="margin-bottom: 20px;">Esta compra es elegible para acumular puntos de fidelidad.</p>
-        
-        <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: center;">
+        <p class="modal-subtitulo" style="margin-bottom: 20px;">Esta compra es elegible para acumular puntos de
+            fidelidad.</p>
+
+        <div
+            style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: center;">
             <span style="font-size: 1.2rem; color: #166534;">El cliente podría ganar </span>
             <span id="puntosPosibles" style="font-size: 1.5rem; font-weight: bold; color: #15803d;">0</span>
             <span style="font-size: 1.2rem; color: #166534;"> puntos</span>
         </div>
 
         <p style="color: #6b7280; font-size: 0.9rem; margin-bottom: 20px;">
-            ¿Desea introducir el DNI del cliente para registrar la compra y acumular puntos? Los puntos se pueden canjear en futuras compras.
+            ¿Desea introducir el DNI del cliente para registrar la compra y acumular puntos? Los puntos se pueden
+            canjear en futuras compras.
         </p>
 
         <div style="display: flex; gap: 10px;">
@@ -917,14 +1026,19 @@ foreach ($tarifas as $t) {
     <div class="modal-content" style="max-width: 450px; text-align: left;">
         <h3 style="margin-bottom: 5px;">Puntos del Cliente</h3>
         <p class="modal-subtitulo" style="margin-bottom: 20px;">Consulta los puntos y canjéalos por descuento</p>
-        
+
         <!-- Buscar cliente por DNI -->
         <div id="puntosClienteBusqueda">
             <div>
-                <label for="dniPuntosCliente" style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">DNI del Cliente <span style="color: #ef4444;">*</span></label>
-                <input type="text" id="dniPuntosCliente" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" placeholder="12345678A" maxlength="20" onkeypress="if(event.key==='Enter') buscarPuntosCliente()">
+                <label for="dniPuntosCliente"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">DNI del Cliente
+                    <span style="color: #ef4444;">*</span></label>
+                <input type="text" id="dniPuntosCliente"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="12345678A" maxlength="20" onkeypress="if(event.key==='Enter') buscarPuntosCliente()">
             </div>
-            <div id="mensajePuntosCliente" style="margin-top: 15px; padding: 10px; border-radius: 6px; display: none;"></div>
+            <div id="mensajePuntosCliente" style="margin-top: 15px; padding: 10px; border-radius: 6px; display: none;">
+            </div>
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button class="btn-modal-cancelar" onclick="cerrarModal('modalPuntosCliente')" style="flex: 1;">
                     Cerrar
@@ -934,27 +1048,34 @@ foreach ($tarifas as $t) {
                 </button>
             </div>
         </div>
-        
+
         <!-- Mostrar puntos del cliente (se muestra después de buscar) -->
         <div id="puntosClienteInfo" style="display: none;">
-            <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 20px; margin-bottom: 20px; text-align: center;">
+            <div
+                style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 20px; margin-bottom: 20px; text-align: center;">
                 <p style="color: #6b7280; margin-bottom: 5px;">Puntos disponibles</p>
-                <span id="puntosDisponiblesCliente" style="font-size: 2.5rem; font-weight: bold; color: #15803d;">0</span>
+                <span id="puntosDisponiblesCliente"
+                    style="font-size: 2.5rem; font-weight: bold; color: #15803d;">0</span>
                 <p style="color: #6b7280; margin-top: 5px;">1€ = 10 puntos | 1.000 puntos = 5€</p>
             </div>
-            
+
             <!-- Información de puntos que se pueden usar y ganar -->
-            <div id="infoPointsPanel" style="background: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 15px; margin-bottom: 15px; font-size: 0.9rem;">
+            <div id="infoPointsPanel"
+                style="background: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 15px; margin-bottom: 15px; font-size: 0.9rem;">
                 <p id="puntosQueSePuedenUsar" style="color: #1e40af; margin-bottom: 5px;"></p>
                 <p id="puntosQueSeGanaran" style="color: #059669; margin-bottom: 0;"></p>
             </div>
-            
+
             <div>
-                <label for="puntosACanjeer" style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Puntos a canjear (múltiplos de 1000)</label>
-                <input type="number" id="puntosACanjeer" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" placeholder="0" min="0" step="1000" oninput="calcularDescuentoPuntos()">
+                <label for="puntosACanjeer"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Puntos a canjear
+                    (múltiplos de 1000)</label>
+                <input type="number" id="puntosACanjeer"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" placeholder="0"
+                    min="0" step="1000" oninput="calcularDescuentoPuntos()">
                 <p id="descuentoPuntosPreview" style="color: #10b981; font-weight: 600; margin-top: 10px;"></p>
             </div>
-            
+
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button class="btn-modal-cancelar" onclick="cerrarYLimpiarClientePuntos()" style="flex: 1;">
                     Cancelar
@@ -962,7 +1083,8 @@ foreach ($tarifas as $t) {
                 <button class="btn-exito" onclick="acumularPuntosSolamente()" style="flex: 1; background: #3b82f6;">
                     Acumular Puntos
                 </button>
-                <button class="btn-exito" id="btnAplicarDescuentoPuntos" onclick="aplicarDescuentoPuntos()" style="flex: 1;">
+                <button class="btn-exito" id="btnAplicarDescuentoPuntos" onclick="aplicarDescuentoPuntos()"
+                    style="flex: 1;">
                     Aplicar Descuento
                 </button>
             </div>
@@ -1006,7 +1128,7 @@ foreach ($tarifas as $t) {
 <?php if (isset($_SESSION['ventaExito']) && $_SESSION['ventaExito']): ?>
     <?php
     $styleVentaExito = (isset($_SESSION['mostrarModalPuntosPostVenta']) && $_SESSION['mostrarModalPuntosPostVenta']) ? 'display: none;' : '';
-?>
+    ?>
     <div class="modal-overlay" id="ventaExito" style="<?php echo $styleVentaExito; ?>">
         <div class="modal-content modal-exito">
             <!-- Icono de check/éxito animado -->
@@ -1019,30 +1141,38 @@ foreach ($tarifas as $t) {
 
             <!-- Detalle de la venta: tipo de documento, número y total -->
             <p class="exito-detalle">
-                <?php echo($_SESSION['ultimaVentaTipo'] === 'factura') ? 'Factura' : 'Ticket'; ?>
+                <?php echo ($_SESSION['ultimaVentaTipo'] === 'factura') ? 'Factura' : 'Ticket'; ?>
                 #<?php
-                    $serie = $_SESSION['ultimaVentaSerie'] ?? 'T';
-                    $numero = $_SESSION['ultimaVentaNumero'] ?? $_SESSION['ultimaVentaId'];
-                    echo $serie . str_pad($numero, 5, '0', STR_PAD_LEFT);
+                $serie = $_SESSION['ultimaVentaSerie'] ?? 'T';
+                $numero = $_SESSION['ultimaVentaNumero'] ?? $_SESSION['ultimaVentaId'];
+                echo $serie . str_pad($numero, 5, '0', STR_PAD_LEFT);
                 ?> — Total:
                 <?php echo number_format($_SESSION['ultimaVentaTotal'] ?? 0, 2, ',', '.'); ?> €
             </p>
 
             <!-- Puntos ganados (si el cliente estaba registrado y ganó puntos) -->
             <?php if (isset($_SESSION['ultimaVentaPuntosGanados']) && $_SESSION['ultimaVentaPuntosGanados'] > 0): ?>
-                <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center;">
+                <div
+                    style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center;">
                     <span style="font-size: 1.1rem; color: #166534;">El cliente ha ganado </span>
-                    <span style="font-size: 1.4rem; font-weight: bold; color: #15803d;"><?php echo number_format($_SESSION['ultimaVentaPuntosGanados'], 0, ',', '.'); ?> puntos</span>
+                    <span
+                        style="font-size: 1.4rem; font-weight: bold; color: #15803d;"><?php echo number_format($_SESSION['ultimaVentaPuntosGanados'], 0, ',', '.'); ?>
+                        puntos</span>
                     <br><small style="color: #166534;">(1€ = 10 puntos)</small>
                 </div>
             <?php endif; ?>
 
             <!-- Puntos canjeados (si el cliente usó puntos para descuento) -->
             <?php if (isset($_SESSION['ultimaVentaPuntosCanjeados']) && $_SESSION['ultimaVentaPuntosCanjeados'] > 0): ?>
-                <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center;">
+                <div
+                    style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center;">
                     <span style="font-size: 1.1rem; color: #92400e;">El cliente ha canjeado </span>
-                    <span style="font-size: 1.4rem; font-weight: bold; color: #b45309;"><?php echo number_format($_SESSION['ultimaVentaPuntosCanjeados'], 0, ',', '.'); ?> puntos</span>
-                    <span style="font-size: 1rem; color: #92400e;"> (<?php echo number_format($_SESSION['ultimaVentaDescuentoValor'] ?? 0, 2, ',', '.'); ?>€ de descuento)</span>
+                    <span
+                        style="font-size: 1.4rem; font-weight: bold; color: #b45309;"><?php echo number_format($_SESSION['ultimaVentaPuntosCanjeados'], 0, ',', '.'); ?>
+                        puntos</span>
+                    <span style="font-size: 1rem; color: #92400e;">
+                        (<?php echo number_format($_SESSION['ultimaVentaDescuentoValor'] ?? 0, 2, ',', '.'); ?>€ de
+                        descuento)</span>
                 </div>
             <?php endif; ?>
 
@@ -1118,11 +1248,12 @@ foreach ($tarifas as $t) {
             descuentoManualCupon: '<?php echo addslashes($_SESSION['ultimaVentaDescuentoManualCupon'] ?? ''); ?>',
             puntosGanados: <?php echo $_SESSION['ultimaVentaPuntosGanados'] ?? 0; ?>,
             puntosBalance: <?php echo $_SESSION['ultimaVentaPuntosBalance'] ?? 0; ?>,
-            puntosCanjeados: <?php echo (isset($_SESSION['ultimaVentaPuntosCanjeados']) && $_SESSION['ultimaVentaPuntosCanjeados'] > 0) ? '{ puntos: '.($_SESSION['ultimaVentaPuntosCanjeados']).', descuento: '.($_SESSION['ultimaVentaDescuentoValor'] ?? 0).' }' : 'null'; ?>
+            puntosCanjeados: <?php echo (isset($_SESSION['ultimaVentaPuntosCanjeados']) && $_SESSION['ultimaVentaPuntosCanjeados'] > 0) ? '{ puntos: ' . ($_SESSION['ultimaVentaPuntosCanjeados']) . ', descuento: ' . ($_SESSION['ultimaVentaDescuentoValor'] ?? 0) . ' }' : 'null'; ?>,
+            mensajePersonalizado: '<?php echo addslashes($_SESSION['ultimaVentaMensajePersonalizado'] ?? ''); ?>'
         };
     </script>
 
-        <script>
+    <script>
         // EJECUCIÓN AUTOMÁTICA POST-VENTA (Impresión o Email según checkout)
         window.addEventListener('DOMContentLoaded', () => {
             const postSaleConfig = localStorage.getItem('tpv_post_sale_action');
@@ -1147,7 +1278,7 @@ foreach ($tarifas as $t) {
             }
         });
     </script>
-<?php
+    <?php
     // Limpiar todas las variables de sesión de la última venta para evitar que se muestren de nuevo
     unset($_SESSION['ventaExito']);
     unset($_SESSION['ultimaVentaId']);
@@ -1217,19 +1348,19 @@ endif; ?>
                             <span>✨ Introducir nuevo cambio</span>
                         </label>
                     </div>
-                <?php
-else: ?>
+                    <?php
+                else: ?>
                     <input type="radio" name="opcionCambio" value="nuevo" checked style="display:none;">
-                <?php
-endif; ?>
+                    <?php
+                endif; ?>
 
                 <!-- Input para el importe inicial (fondo de caja) -->
                 <div class="form-group-premium" id="divImporteInicial"
-                    style="<?php echo($cambioAnterior > 0) ? 'opacity: 0.5;' : ''; ?>">
+                    style="<?php echo ($cambioAnterior > 0) ? 'opacity: 0.5;' : ''; ?>">
                     <label for="importeInicial">Fondo de caja inicial (€)</label>
                     <div class="input-cupon">
                         <input type="number" name="importeInicial" id="importeInicial" step="0.01" min="0"
-                            placeholder="0,00" <?php echo($cambioAnterior > 0) ? '' : 'required'; ?>
+                            placeholder="0,00" <?php echo ($cambioAnterior > 0) ? '' : 'required'; ?>
                             style="text-align: center; padding-right: 15px;">
                     </div>
                 </div>
@@ -1395,7 +1526,9 @@ endif; ?>
 
                 <div class="form-group-premium" style="margin-top: 20px;">
                     <label style="font-size: 1rem;">Motivo de la Devolución</label>
-                    <textarea id="motivoDevolucionDev" placeholder="Opcional. Ej: Producto defectuoso, cambio de opinión..." style="width: 100%; border-radius: 8px; border: 1px solid var(--border-main); padding: 12px; background: var(--bg-input); color: var(--text-main); height: 80px; resize: vertical; margin-top: 5px; font-family: inherit; font-size: 0.9rem;"></textarea>
+                    <textarea id="motivoDevolucionDev"
+                        placeholder="Opcional. Ej: Producto defectuoso, cambio de opinión..."
+                        style="width: 100%; border-radius: 8px; border: 1px solid var(--border-main); padding: 12px; background: var(--bg-input); color: var(--text-main); height: 80px; resize: vertical; margin-top: 5px; font-family: inherit; font-size: 0.9rem;"></textarea>
                 </div>
             </div>
         </div>
@@ -1464,8 +1597,10 @@ endif; ?>
                     </svg>
                 </div>
             </div>
-            <h3 style="text-align: center; margin: 10px 0; font-size: 1.4rem;" class="devolucion-titulo">Devolución Realizada</h3>
-            <p style="text-align: center; margin: 10px 0;" class="devolucion-subtitulo">La devolución se ha procesado correctamente.</p>
+            <h3 style="text-align: center; margin: 10px 0; font-size: 1.4rem;" class="devolucion-titulo">Devolución
+                Realizada</h3>
+            <p style="text-align: center; margin: 10px 0;" class="devolucion-subtitulo">La devolución se ha procesado
+                correctamente.</p>
             <?php if (isset($_SESSION['devolucionDetalles']) && is_array($_SESSION['devolucionDetalles'])): ?>
                 <div class="devolucion-detalles" style="border-radius: 8px; padding: 15px; margin: 15px 0; text-align: left;">
                     <p style="margin: 5px 0; font-size: 0.9rem;"><strong>Ticket:</strong>
@@ -1473,10 +1608,10 @@ endif; ?>
                     <p style="margin: 5px 0; font-size: 0.9rem;"><strong>Productos devueltos:</strong>
                         <?php echo htmlspecialchars($_SESSION['devolucionDetalles']['productos'] ?? ''); ?></p>
                     <?php if (!empty($_SESSION['devolucionDetalles']['motivo'])): ?>
-                    <p style="margin: 5px 0; font-size: 0.9rem;"><strong>Motivo:</strong>
-                        <?php echo htmlspecialchars($_SESSION['devolucionDetalles']['motivo']); ?></p>
-                    <?php
-        endif; ?>
+                        <p style="margin: 5px 0; font-size: 0.9rem;"><strong>Motivo:</strong>
+                            <?php echo htmlspecialchars($_SESSION['devolucionDetalles']['motivo']); ?></p>
+                        <?php
+                    endif; ?>
                     <p style="margin: 5px 0; font-size: 0.9rem;"><strong>Importe devuelto:</strong> <span
                             style="color: #f87171; font-weight: bold;">-<?php echo number_format($_SESSION['devolucionDetalles']['total'] ?? 0, 2, ',', '.'); ?>
                             €</span></p>
@@ -1493,9 +1628,11 @@ endif; ?>
                     </button>
                 </div>
 
-                <div id="formEmailDev" class="devolucion-email-form" style="display: none; margin-bottom: 15px; padding: 15px; border-radius: 8px;">
+                <div id="formEmailDev" class="devolucion-email-form"
+                    style="display: none; margin-bottom: 15px; padding: 15px; border-radius: 8px;">
                     <input type="email" id="inputEmailDev" placeholder="Correo del cliente"
-                        style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid; margin-bottom: 10px;" class="devolucion-email-input">
+                        style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid; margin-bottom: 10px;"
+                        class="devolucion-email-input">
                     <button onclick="enviarPorCorreoDevolucion()"
                         style="width: 100%; background: #10b981; color: white; padding: 8px; border: none; border-radius: 6px; cursor: pointer;">
                         Enviar Ticket
@@ -1516,8 +1653,8 @@ endif; ?>
                     };
                 </script>
                 <?php unset($_SESSION['devolucionDetalles']); ?>
-            <?php
-    endif; ?>
+                <?php
+            endif; ?>
             <div style="text-align: center; margin-top: 15px;">
                 <button onclick="document.getElementById('devolucionExito').remove()"
                     style="background: #dc2626; color: white; padding: 10px 30px; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; width: 100%;">Aceptar</button>
@@ -1672,8 +1809,10 @@ endif; ?>
         <div class="modal-content modal-exito" style="max-width: 450px;">
             <!-- Icono de regalo -->
             <div style="text-align: center; margin-bottom: 15px;">
-                <div style="background: var(--bg-accent-success); width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--accent-success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <div
+                    style="background: var(--bg-accent-success); width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
+                        stroke="var(--accent-success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 12 20 22 4 22 4 12"></polyline>
                         <rect x="2" y="7" width="20" height="5"></rect>
                         <line x1="12" y1="22" x2="12" y2="7"></line>
@@ -1682,30 +1821,40 @@ endif; ?>
                     </svg>
                 </div>
             </div>
-            <h3 style="text-align: center; margin: 10px 0; font-size: 1.4rem; color: var(--text-header);">¡Puntos Acumulados!</h3>
-            <p style="text-align: center; margin: 10px 0; color: var(--text-muted);">El cliente ha ganado y/o usado puntos en esta compra.</p>
-            
-            <div style="background: var(--bg-main); border: 1px solid var(--border-main); border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center;">
-                <p style="margin: 5px 0; font-size: 1rem; color: var(--text-main);"><strong>Puntos ganados ahora:</strong> <span style="color: var(--accent-success); font-size: 1.2rem;">+<?php echo number_format($_SESSION['postVentaPuntosGanados'] ?? 0, 0, ',', '.'); ?></span></p>
-                <p style="margin: 10px 0 5px 0; font-size: 1rem; color: var(--text-main);"><strong>Total acumulado disponible:</strong> <span style="font-weight: bold; font-size: 1.5rem; color: var(--accent);"><?php echo number_format($_SESSION['puntosActualesAcumulados'] ?? 0, 0, ',', '.'); ?></span></p>
+            <h3 style="text-align: center; margin: 10px 0; font-size: 1.4rem; color: var(--text-header);">¡Puntos
+                Acumulados!</h3>
+            <p style="text-align: center; margin: 10px 0; color: var(--text-muted);">El cliente ha ganado y/o usado puntos
+                en esta compra.</p>
+
+            <div
+                style="background: var(--bg-main); border: 1px solid var(--border-main); border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center;">
+                <p style="margin: 5px 0; font-size: 1rem; color: var(--text-main);"><strong>Puntos ganados ahora:</strong>
+                    <span
+                        style="color: var(--accent-success); font-size: 1.2rem;">+<?php echo number_format($_SESSION['postVentaPuntosGanados'] ?? 0, 0, ',', '.'); ?></span>
+                </p>
+                <p style="margin: 10px 0 5px 0; font-size: 1rem; color: var(--text-main);"><strong>Total acumulado
+                        disponible:</strong> <span
+                        style="font-weight: bold; font-size: 1.5rem; color: var(--accent);"><?php echo number_format($_SESSION['puntosActualesAcumulados'] ?? 0, 0, ',', '.'); ?></span>
+                </p>
             </div>
-            
+
             <div style="text-align: center; margin-top: 15px;">
-                <button onclick="cerrarPuntosPostVenta()" style="background: var(--accent-success); color: white; padding: 10px 30px; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; width: 100%; font-weight: 600;">Aceptar</button>
+                <button onclick="cerrarPuntosPostVenta()"
+                    style="background: var(--accent-success); color: white; padding: 10px 30px; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; width: 100%; font-weight: 600;">Aceptar</button>
             </div>
         </div>
     </div>
-    
+
     <script>
-    function cerrarPuntosPostVenta() {
-        document.getElementById('puntosPostVentaExito').remove();
-        const modalVenta = document.getElementById('ventaExito');
-        if (modalVenta) {
-            modalVenta.style.display = 'flex';
+        function cerrarPuntosPostVenta() {
+            document.getElementById('puntosPostVentaExito').remove();
+            const modalVenta = document.getElementById('ventaExito');
+            if (modalVenta) {
+                modalVenta.style.display = 'flex';
+            }
         }
-    }
     </script>
-    
+
     <?php
     unset($_SESSION['mostrarModalPuntosPostVenta']);
     unset($_SESSION['postVentaPuntosGanados']);
@@ -1748,8 +1897,8 @@ endif; ?>
                                 style="width: 50px; padding: 4px; text-align: center; border: 1px solid var(--border-main); border-radius: 4px; font-size: 0.8rem; background: var(--bg-input); color: var(--text-main);"
                                 onchange="calcularArqueo()" oninput="calcularArqueo()">
                         </div>
-                    <?php
-    endforeach; ?>
+                        <?php
+                    endforeach; ?>
                 </div>
             </div>
 
@@ -1765,8 +1914,8 @@ endif; ?>
                                 style="width: 50px; padding: 4px; text-align: center; border: 1px solid var(--border-main); border-radius: 4px; font-size: 0.8rem; background: var(--bg-input); color: var(--text-main);"
                                 onchange="calcularArqueo()" oninput="calcularArqueo()">
                         </div>
-                    <?php
-    endforeach; ?>
+                        <?php
+                    endforeach; ?>
                 </div>
             </div>
 
@@ -1834,14 +1983,14 @@ endif; ?>
                             <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev:
                                 -<?php echo number_format($_SESSION['resumenCaja']['efectivo']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
-                        <?php
-    endif; ?>
+                            <?php
+                        endif; ?>
                         <?php if (isset($_SESSION['resumenCaja']['totalRetiros']) && $_SESSION['resumenCaja']['totalRetiros'] > 0): ?>
                             <br><span style="font-size: 0.75rem; color: #ea580c;">(Retiros:
                                 -<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'], 2, ',', '.'); ?>
                                 €)</span>
-                        <?php
-    endif; ?>
+                            <?php
+                        endif; ?>
                     </div>
                 </div>
 
@@ -1857,8 +2006,8 @@ endif; ?>
                             <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev:
                                 -<?php echo number_format($_SESSION['resumenCaja']['tarjeta']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
-                        <?php
-    endif; ?>
+                            <?php
+                        endif; ?>
                     </div>
                 </div>
 
@@ -1874,8 +2023,8 @@ endif; ?>
                             <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev:
                                 -<?php echo number_format($_SESSION['resumenCaja']['bizum']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
-                        <?php
-    endif; ?>
+                            <?php
+                        endif; ?>
                     </div>
                 </div>
 
@@ -2017,16 +2166,16 @@ endif; ?>
                                 -<?php echo number_format($_SESSION['resumenCaja']['efectivo']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
                         </p>
-                    <?php
-    endif; ?>
+                        <?php
+                    endif; ?>
                     <?php if (isset($_SESSION['resumenCaja']['totalRetiros']) && $_SESSION['resumenCaja']['totalRetiros'] > 0): ?>
                         <p style="margin: 0px 0 5px 0; display:flex; justify-content:flex-end; font-size: 0.8rem;">
                             <span>(Retiros:
                                 -<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'], 2, ',', '.'); ?>
                                 €)</span>
                         </p>
-                    <?php
-    endif; ?>
+                        <?php
+                    endif; ?>
 
                     <!-- Tarjeta -->
                     <p style="margin: 5px 0; display:flex; justify-content:space-between;">
@@ -2040,8 +2189,8 @@ endif; ?>
                                 -<?php echo number_format($_SESSION['resumenCaja']['tarjeta']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
                         </p>
-                    <?php
-    endif; ?>
+                        <?php
+                    endif; ?>
 
                     <!-- Bizum -->
                     <p style="margin: 5px 0; display:flex; justify-content:space-between;">
@@ -2054,8 +2203,8 @@ endif; ?>
                                 -<?php echo number_format($_SESSION['resumenCaja']['bizum']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
                         </p>
-                    <?php
-    endif; ?>
+                        <?php
+                    endif; ?>
                 </div>
 
                 <!-- Total general de ventas para impresión -->
@@ -2139,9 +2288,9 @@ endif; ?>
     }
 </script>
 <?php
-    // Limpiar las variables de sesión del cierre de caja
-    unset($_SESSION['cajaConfirmacion']);
-    unset($_SESSION['resumenCaja']);
+        // Limpiar las variables de sesión del cierre de caja
+        unset($_SESSION['cajaConfirmacion']);
+        unset($_SESSION['resumenCaja']);
 ?>
 <?php
 endif; ?>
@@ -2159,7 +2308,8 @@ endif; ?>
             </svg>
         </div>
         <h3 style="color: var(--text-main); margin-top: 15px;">¡Bienvenido de nuevo!</h3>
-        <p style="color: var(--text-muted); margin-bottom: 20px;">Tu descanso ha terminado. La sesión de caja sigue activa y lista para trabajar.</p>
+        <p style="color: var(--text-muted); margin-bottom: 20px;">Tu descanso ha terminado. La sesión de caja sigue
+            activa y lista para trabajar.</p>
         <button class="btn-cerrar-exito" style="background: #2563eb; width: 100%;"
             onclick="cerrarModalBienvenida('modalDescansoTerminado')">Continuar</button>
     </div>
@@ -2171,7 +2321,7 @@ endif; ?>
      */
     function cerrarModalBienvenida(idModal) {
         document.getElementById(idModal).style.display = 'none';
-        
+
         // Llamada AJAX para limpiar la interrupción en la base de datos y sesión
         fetch('api/caja.php?accion=limpiarInterrupcion')
             .then(response => response.json())
@@ -2184,35 +2334,35 @@ endif; ?>
     }
 
     // Comprobar si hay datos de recuperación al cargar la página
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         <?php if (isset($_SESSION['interrupcionRecuperada'])): ?>
-            const datos = <?php echo json_encode($_SESSION['interrupcionRecuperada']); ?>;
-            
-            if (datos.tipo === 'pausa') {
-                // Si es pausa, solo mostramos el modal si es el mismo usuario
-                if (datos.usuarioId == <?php echo $_SESSION['idUsuario']; ?>) {
-                    document.getElementById('modalDescansoTerminado').style.display = 'flex';
-                } else {
-                    // Si entró otro usuario después de una pausa, limpiar silenciosamente
-                    fetch('api/caja.php?accion=limpiarInterrupcion');
-                }
-            } else if (datos.tipo === 'turno') {
-                // Si es cambio de turno, siempre lo mostramos
-                document.getElementById('welcomeOldUser').textContent = datos.usuarioNombre;
-                
-                // Formatear fecha/hora de cierre
-                try {
-                    const fechaCierre = new Date(datos.fecha);
-                    document.getElementById('welcomeCloseTime').textContent = 'Cerrado a las ' + 
-                        fechaCierre.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                } catch(e) {
-                    document.getElementById('welcomeCloseTime').textContent = 'Cerrado recientemente';
-                }
-                
-                document.getElementById('modalNuevoTurno').style.display = 'flex';
+        const datos = <?php echo json_encode($_SESSION['interrupcionRecuperada']); ?>;
+
+        if (datos.tipo === 'pausa') {
+            // Si es pausa, solo mostramos el modal si es el mismo usuario
+            if (datos.usuarioId == <?php echo $_SESSION['idUsuario']; ?>) {
+                document.getElementById('modalDescansoTerminado').style.display = 'flex';
+            } else {
+                // Si entró otro usuario después de una pausa, limpiar silenciosamente
+                fetch('api/caja.php?accion=limpiarInterrupcion');
             }
+        } else if (datos.tipo === 'turno') {
+            // Si es cambio de turno, siempre lo mostramos
+            document.getElementById('welcomeOldUser').textContent = datos.usuarioNombre;
+
+            // Formatear fecha/hora de cierre
+            try {
+                const fechaCierre = new Date(datos.fecha);
+                document.getElementById('welcomeCloseTime').textContent = 'Cerrado a las ' +
+                    fechaCierre.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } catch (e) {
+                document.getElementById('welcomeCloseTime').textContent = 'Cerrado recientemente';
+            }
+
+            document.getElementById('modalNuevoTurno').style.display = 'flex';
+        }
         <?php
-endif; ?>
+        endif; ?>
     });
 </script>
 <?php unset($_SESSION['interrupcionRecuperada']); ?>
@@ -2623,12 +2773,12 @@ endif; ?>
                 const venta = data.venta;
                 const lineas = data.lineas;
                 const fecha = new Date(venta.fecha).toLocaleString('es-ES');
-                
+
                 // Update header info
                 const serie = venta.serie || (venta.tipoDocumento === 'factura' ? 'F' : 'T');
                 const numero = venta.numero || venta.id;
                 document.getElementById('detalleVentaId').textContent = serie + String(numero).padStart(5, '0') + ' - ' + fecha;
-                
+
                 const tipoIcono = venta.tipoDocumento === 'factura' ? '📄' : '🧾';
                 const tipoLabel = venta.tipoDocumento === 'factura' ? 'Factura' : 'Ticket';
                 const pagoIcono = venta.metodoPago && venta.metodoPago.toLowerCase().includes('tarjeta') ? '💳' : '💵';
@@ -2636,7 +2786,7 @@ endif; ?>
 
                 // Simple style matching other modals
                 let html = '';
-                
+
                 // Info row
                 html += '<div style="display: flex; gap: 15px; margin-bottom: 20px;">';
                 html += '<div style="flex: 1; background: var(--bg-secondary); padding: 12px; border-radius: 8px;">';
@@ -2674,12 +2824,12 @@ endif; ?>
 
                 html += '</tbody></table>';
                 html += '</div>';
-                
+
                 // Total
                 html += '<div style="background: var(--accent); color: white; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px;">';
                 html += 'TOTAL: ' + parseFloat(venta.total).toFixed(2).replace('.', ',') + ' €';
                 html += '</div>';
-                
+
                 // Close button
                 html += '<div style="margin-top: 20px; text-align: right;">';
                 html += '<button class="btn-modal-cancelar" onclick="cerrarModal(\'modalDetalleVenta\')">Cerrar</button>';
@@ -2745,34 +2895,35 @@ endif; ?>
                 const venta = data.venta;
                 const lineas = data.lineas;
                 ultimaVenta = {
-                    id: venta.id, 
-                    serie: venta.serie, 
+                    id: venta.id,
+                    serie: venta.serie,
                     numero: venta.numero,
-                    tipo: venta.tipoDocumento, 
+                    tipo: venta.tipoDocumento,
                     total: parseFloat(venta.total),
-                    fecha: venta.fecha, 
+                    fecha: venta.fecha,
                     metodoPago: venta.metodoPago,
                     entregado: parseFloat(venta.importeEntregado) || 0,
                     cambio: parseFloat(venta.cambioDevuelto) || 0,
-                    descuentoTipo: venta.descuentoTipo || 'ninguno', 
+                    descuentoTipo: venta.descuentoTipo || 'ninguno',
                     descuentoValor: parseFloat(venta.descuentoValor) || 0,
                     descuentoCupon: venta.descuentoCupon || '',
-                    clienteNif: venta.cliente_dni || '', 
-                    clienteNombre: venta.cliente_nombre || '', 
-                    clienteDir: venta.cliente_direccion || '', 
+                    clienteNif: venta.cliente_dni || '',
+                    clienteNombre: venta.cliente_nombre || '',
+                    clienteDir: venta.cliente_direccion || '',
                     clienteObs: venta.cliente_observaciones || '',
                     puntosGanados: parseInt(venta.puntos_ganados) || 0,
-                    puntosCanjeados: (parseInt(venta.puntos_canjeados) > 0) ? { 
-                        puntos: parseInt(venta.puntos_canjeados), 
-                        descuento: parseFloat(venta.descuentoValor) || 0 
+                    puntosCanjeados: (parseInt(venta.puntos_canjeados) > 0) ? {
+                        puntos: parseInt(venta.puntos_canjeados),
+                        descuento: parseFloat(venta.descuentoValor) || 0
                     } : null,
                     puntosBalance: parseInt(venta.puntos_balance) || 0,
-                    carrito: lineas.map(l => ({ 
-                        idProducto: l.idProducto, 
-                        nombre: l.producto_nombre, 
-                        precio: parseFloat(l.precioUnitario), 
-                        iva: (l.iva !== undefined && l.iva !== null && l.iva !== "") ? parseInt(l.iva) : 21, 
-                        cantidad: l.cantidad 
+                    mensajePersonalizado: venta.mensaje_personalizado || '',
+                    carrito: lineas.map(l => ({
+                        idProducto: l.idProducto,
+                        nombre: l.producto_nombre,
+                        precio: parseFloat(l.precioUnitario),
+                        iva: (l.iva !== undefined && l.iva !== null && l.iva !== "") ? parseInt(l.iva) : 21,
+                        cantidad: l.cantidad
                     }))
                 };
                 imprimirDocumento();
@@ -2797,34 +2948,34 @@ endif; ?>
                 const venta = data.venta;
                 const lineas = data.lineas;
                 ventaHistorialTemporal = {
-                    id: venta.id, 
-                    serie: venta.serie, 
+                    id: venta.id,
+                    serie: venta.serie,
                     numero: venta.numero,
-                    tipo: venta.tipoDocumento, 
+                    tipo: venta.tipoDocumento,
                     total: parseFloat(venta.total),
-                    fecha: venta.fecha, 
+                    fecha: venta.fecha,
                     metodoPago: venta.metodoPago,
                     entregado: parseFloat(venta.importeEntregado) || 0,
                     cambio: parseFloat(venta.cambioDevuelto) || 0,
-                    descuentoTipo: venta.descuentoTipo || 'ninguno', 
+                    descuentoTipo: venta.descuentoTipo || 'ninguno',
                     descuentoValor: parseFloat(venta.descuentoValor) || 0,
                     descuentoCupon: venta.descuentoCupon || '',
-                    clienteNif: venta.cliente_dni || '', 
-                    clienteNombre: venta.cliente_nombre || '', 
-                    clienteDir: venta.cliente_direccion || '', 
+                    clienteNif: venta.cliente_dni || '',
+                    clienteNombre: venta.cliente_nombre || '',
+                    clienteDir: venta.cliente_direccion || '',
                     clienteObs: venta.cliente_observaciones || '',
                     puntosGanados: parseInt(venta.puntos_ganados) || 0,
-                    puntosCanjeados: (parseInt(venta.puntos_canjeados) > 0) ? { 
-                        puntos: parseInt(venta.puntos_canjeados), 
-                        descuento: parseFloat(venta.descuentoValor) || 0 
+                    puntosCanjeados: (parseInt(venta.puntos_canjeados) > 0) ? {
+                        puntos: parseInt(venta.puntos_canjeados),
+                        descuento: parseFloat(venta.descuentoValor) || 0
                     } : null,
                     puntosBalance: parseInt(venta.puntos_balance) || 0,
-                    carrito: lineas.map(l => ({ 
-                        idProducto: l.idProducto, 
-                        nombre: l.producto_nombre, 
-                        precio: parseFloat(l.precioUnitario), 
-                        iva: (l.iva !== undefined && l.iva !== null && l.iva !== "") ? parseInt(l.iva) : 21, 
-                        cantidad: l.cantidad 
+                    carrito: lineas.map(l => ({
+                        idProducto: l.idProducto,
+                        nombre: l.producto_nombre,
+                        precio: parseFloat(l.precioUnitario),
+                        iva: (l.iva !== undefined && l.iva !== null && l.iva !== "") ? parseInt(l.iva) : 21,
+                        cantidad: l.cantidad
                     }))
                 };
                 ultimaVenta = ventaHistorialTemporal;
@@ -2954,7 +3105,7 @@ endif; ?>
 
                 const primera = data[0];
                 const fecha = new Date(primera.fecha).toLocaleString('es-ES');
-                
+
                 // Update header info
                 const serie = primera.serie || 'T';
                 const numero = primera.numero || primera.idVenta || idVenta;
@@ -2962,7 +3113,7 @@ endif; ?>
 
                 // Simple style matching other modals
                 let html = '';
-                
+
                 // Info row
                 html += '<div style="display: flex; gap: 15px; margin-bottom: 20px;">';
                 html += '<div style="flex: 1; background: var(--bg-secondary); padding: 12px; border-radius: 8px;">';
@@ -2999,7 +3150,7 @@ endif; ?>
 
                 html += '</tbody></table>';
                 html += '</div>';
-                
+
                 // Total
                 html += '<div style="background: #ef4444; color: white; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px;">';
                 html += 'TOTAL DEVUELTO: -' + totalDevolucion.toFixed(2).replace('.', ',') + ' €';
@@ -3017,7 +3168,12 @@ endif; ?>
      * Reimprime un ticket de devolución desde el historial
      */
     function reimprimirTicketDevolucionDesdeHistorial(idVenta) {
-        fetch('api/devoluciones.php?detalleVenta=' + idVenta)
+        console.log('🔴 reimprimirTicketDevolucionDesdeHistorial llamada para idVenta: ', idVenta);
+
+        fetch('api/devoluciones.php?detalleVenta=' + idVenta + '&_=' + Date.now(), {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' }
+        })
             .then(res => res.json())
             .then(data => {
                 if (data.error) { alert('Error: ' + data.error); return; }
@@ -3043,22 +3199,23 @@ endif; ?>
                         iva: (l.iva !== undefined && l.iva !== null && l.iva !== "") ? parseInt(l.iva) : 21
                     }))
                 };
-                ultimaDevolucion = devolucionHistorialTemporal;
-                imprimirDocumentoDevolucion();
+                // ✅ CORREGIDO: No sobrescribimos variable const, pasamos objeto directamente
+                imprimirDocumentoDevolucionConDatos(devolucionHistorialTemporal);
             })
             .catch(err => { console.error('Error:', err); alert('Error al obtener los datos del ticket'); });
     }
 
     /**
-     * Función para imprimir el documento de devolución
+     * ✅ NUEVA FUNCION: Imprime ticket de devolucion SIN USAR VARIABLES GLOBALES
+     * Recibe el objeto de devolucion directamente como parametro
+     * Usada desde el historial de devoluciones
      */
-    function imprimirDocumentoDevolucion() {
-        if (!ultimaDevolucion) {
-            alert('No hay devolución para imprimir');
+    function imprimirDocumentoDevolucionConDatos(devolucion) {
+        if (!devolucion) {
+            alert('No hay datos de devolución para imprimir');
             return;
         }
 
-        const devolucion = ultimaDevolucion;
         const fecha = new Date(devolucion.fecha).toLocaleString('es-ES');
 
         let lineasHtml = '';
@@ -3094,7 +3251,7 @@ endif; ?>
             obsHtml = `<div style="margin-top: 15px; font-size: 0.8rem;"><strong>Motivo:</strong> ${devolucion.motivo}</div>`;
         }
 
-        const ticketOriginal = (devolucion.serie || 'T') + String(devolucion.numero || devolucion.id || '').padStart(5, '0');
+        const ticketOriginal = (devolucion.serie || '') + String(devolucion.numero || devolucion.id || '').padStart(5, '0');
 
         const contenido = `
         <html>
@@ -3156,6 +3313,18 @@ endif; ?>
         printWindow.document.write(contenido);
         printWindow.document.close();
         printWindow.print();
+    }
+
+    /**
+     * Función para imprimir el documento de devolución (MANTENIDA PARA COMPATIBILIDAD)
+     * Sigue funcionando normalmente para cuando se hace una devolución nueva
+     */
+    function imprimirDocumentoDevolucion() {
+        if (!ultimaDevolucion) {
+            alert('No hay devolución para imprimir');
+            return;
+        }
+        imprimirDocumentoDevolucionConDatos(ultimaDevolucion);
     }
 
     /**
@@ -3317,19 +3486,19 @@ endif; ?>
         if (carrito.length === 0) return;
         if (confirm('¿Estás seguro de que quieres vaciar el carrito?')) {
             carrito = [];
-            
+
             // Desvincular cliente y resetar descuentos
             descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
             descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
             desvincularCliente();
-            
+
             // Resetear también el select de tarifa global a Cliente
             const tarifaCliente = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
             if (tarifaCliente) {
                 const selectTarifa = document.getElementById('tarifaVenta');
                 if (selectTarifa) selectTarifa.value = tarifaCliente.id;
             }
-            
+
             actualizarTicket();
         }
     }
@@ -3362,7 +3531,7 @@ endif; ?>
         }
 
         // Obtener puntos canjeados si existen
-        const puntosCanjeadosData = (typeof puntosCanjeados !== 'undefined' && puntosCanjeados) 
+        const puntosCanjeadosData = (typeof puntosCanjeados !== 'undefined' && puntosCanjeados)
             ? { dni: puntosCanjeados.dni, puntos: puntosCanjeados.puntos }
             : null;
 
@@ -3401,7 +3570,7 @@ endif; ?>
         carrito = [];
         descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
         puntosCanjeados = null;
-        
+
         // Limpiar datos del cliente para que no se mezclen con otras ventas
         const clienteNifInput = document.getElementById('clienteNif');
         if (clienteNifInput) clienteNifInput.value = '';
@@ -3410,7 +3579,7 @@ endif; ?>
         // Ocultar indicador de cliente
         const indicador = document.getElementById('indicadorClienteDni');
         if (indicador) indicador.style.display = 'none';
-        
+
         const tarifaCliente2 = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
         if (tarifaCliente2) {
             document.getElementById('tarifaVenta').value = tarifaCliente2.id;
@@ -3434,7 +3603,7 @@ endif; ?>
     function mostrarModalVentasPospuestas() {
         const ventasJson = sessionStorage.getItem('ventasPospuestas');
         let ventasPospuestas = [];
-        
+
         if (ventasJson) {
             try {
                 ventasPospuestas = JSON.parse(ventasJson);
@@ -3454,7 +3623,7 @@ endif; ?>
         const textColor = isDark ? '#e5e7eb' : '#1a1a2e';
         const borderColor = isDark ? '#374151' : '#e5e7eb';
         const subTextColor = isDark ? '#9ca3af' : '#6b7280';
-        
+
         const modalHtml = `
             <div id="modalVentasPospuestas" class="modal-overlay" style="display: flex;">
                 <div class="modal-content" style="background: ${bgColor}; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); max-width: 500px; width: 90%; max-height: 80vh; overflow: hidden;">
@@ -3464,9 +3633,9 @@ endif; ?>
                     </div>
                     <div style="padding: 20px; overflow-y: auto; max-height: 60vh;">
                         ${ventasPospuestas.map((venta, index) => {
-                            const totalVenta = venta.carrito.reduce((sum, item) => sum + (item.pvpUnitario * item.cantidad), 0);
-                            const numProductos = venta.carrito.reduce((sum, item) => sum + item.cantidad, 0);
-                            return `
+            const totalVenta = venta.carrito.reduce((sum, item) => sum + (item.pvpUnitario * item.cantidad), 0);
+            const numProductos = venta.carrito.reduce((sum, item) => sum + item.cantidad, 0);
+            return `
                                 <div style="border: 1px solid ${borderColor}; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: ${isDark ? '#111827' : '#f9fafb'};">
                                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
                                         <div>
@@ -3491,7 +3660,7 @@ endif; ?>
                                     </div>
                                 </div>
                             `;
-                        }).join('')}
+        }).join('')}
                     </div>
                 </div>
             </div>
@@ -3523,7 +3692,7 @@ endif; ?>
 
         const ventasJson = sessionStorage.getItem('ventasPospuestas');
         let ventasPospuestas = [];
-        
+
         if (ventasJson) {
             try {
                 ventasPospuestas = JSON.parse(ventasJson);
@@ -3564,7 +3733,7 @@ endif; ?>
     function recuperarVenta(id) {
         const ventasJson = sessionStorage.getItem('ventasPospuestas');
         let ventasPospuestas = [];
-        
+
         if (ventasJson) {
             try {
                 ventasPospuestas = JSON.parse(ventasJson);
@@ -3586,11 +3755,11 @@ endif; ?>
         // Sobrescribir el carrito directamente con los productos de la venta pospuesta
         // Primero vaciamos el carrito actual
         carrito = [];
-        
+
         // Restaurar el carrito y descuento directamente
         carrito = ventaPospuesta.carrito;
         descuento = ventaPospuesta.descuento || { tipo: 'ninguno', valor: 0, cupon: '' };
-        
+
         // Restaurar la tarifa seleccionada en el selector global
         if (ventaPospuesta.tarifa) {
             document.getElementById('tarifaVenta').value = ventaPospuesta.tarifa;
@@ -3652,10 +3821,10 @@ endif; ?>
      */
     function actualizarBotonesPospuestos() {
         const btnVerPospuestas = document.getElementById('btnVerPospuestas');
-        
+
         const ventasJson = sessionStorage.getItem('ventasPospuestas');
         let ventasPospuestas = [];
-        
+
         if (ventasJson) {
             try {
                 ventasPospuestas = JSON.parse(ventasJson);
@@ -3665,7 +3834,7 @@ endif; ?>
         }
 
         const tieneVentas = ventasPospuestas && ventasPospuestas.length > 0;
-        
+
         if (btnVerPospuestas) {
             if (tieneVentas) {
                 btnVerPospuestas.disabled = false;
@@ -4149,7 +4318,7 @@ endif; ?>
         // Verificar si el total es mayor a 20€ y no hay cliente registrado para preguntar por puntos
         const total = obtenerTotalCalculado();
         const clienteNif = document.getElementById('clienteNif').value.trim();
-        
+
         if (total >= 20 && !clienteNif) {
             // Mostrar modal de puntos antes del tipo de documento
             mostrarModalPuntos();
@@ -4169,11 +4338,11 @@ endif; ?>
      */
     function abrirModalFinalizarVenta() {
         if (carrito.length === 0) return;
-        
+
         // Resetear selecciones
         tipoDocumentoActual = 'ticket';
         metodoEntregaActual = 'imprimir';
-        
+
         // Fetch de los próximos números para la vista previa
         fetch('api/ventas.php?accion=proximos_numeros')
             .then(res => res.json())
@@ -4190,16 +4359,16 @@ endif; ?>
         document.querySelectorAll('.checkout-option-card').forEach(c => c.classList.remove('active'));
         document.getElementById('optTicket').classList.add('active');
         document.getElementById('optImprimir').classList.add('active');
-        
+
         document.getElementById('emailContainerCheckout').style.display = 'none';
         document.getElementById('infoImpresoraCheckout').style.display = 'block';
-        
+
         // Actualizar resumen de cliente
         actualizarResumenClienteCheckout();
-        
+
         // Renderizar vista previa inicial
         renderizarVistaPreviaTicket();
-        
+
         // Mostrar modal principal
         document.getElementById('modalFinalizarVenta').style.display = 'flex';
     }
@@ -4212,7 +4381,7 @@ endif; ?>
         const nif = document.getElementById('clienteNif').value.trim();
         const nombre = document.getElementById('clienteNombre').value.trim();
         const textEl = document.getElementById('clientDataTextCheckout');
-        
+
         if (nif || nombre) {
             textEl.innerHTML = `<div style="color:var(--text-main); font-weight:600;">${nombre || 'Sin nombre'}</div><div style="font-size:0.8rem;">${nif || 'Sin NIF'}</div>`;
         } else {
@@ -4251,11 +4420,11 @@ endif; ?>
      */
     function cambiarTipoDocumentoCheckout(tipo) {
         tipoDocumentoActual = tipo;
-        
+
         // Actualizar botones
         document.getElementById('optTicket').classList.toggle('active', tipo === 'ticket');
         document.getElementById('optFactura').classList.toggle('active', tipo === 'factura');
-        
+
         // Si elige factura y no hay datos de cliente, abrir modal de datos ANTES de permitir finalizar
         // Pero primero actualizamos la vista previa
         renderizarVistaPreviaTicket();
@@ -4267,15 +4436,15 @@ endif; ?>
      */
     function cambiarMetodoEntregaCheckout(metodo) {
         metodoEntregaActual = metodo;
-        
+
         // Actualizar botones
         document.getElementById('optImprimir').classList.toggle('active', metodo === 'imprimir');
         document.getElementById('optEmail').classList.toggle('active', metodo === 'email');
-        
+
         // Mostrar/ocultar contenedores específicos
         document.getElementById('emailContainerCheckout').style.display = (metodo === 'email') ? 'block' : 'none';
         document.getElementById('infoImpresoraCheckout').style.display = (metodo === 'imprimir') ? 'block' : 'none';
-        
+
         if (metodo === 'email') {
             document.getElementById('emailCheckout').focus();
         }
@@ -4292,7 +4461,8 @@ endif; ?>
         const nombre = document.getElementById('clienteNombre').value.trim();
         const direccion = document.getElementById('clienteDireccion').value.trim();
         const observaciones = document.getElementById('clienteObservaciones').value.trim();
-        
+        const mensajePersonalizado = document.getElementById('mensajePersonalizadoVenta').value.trim();
+
         // Clonar y preparar líneas de carrito
         const lineas = carrito.map(item => ({
             ...item,
@@ -4303,10 +4473,10 @@ endif; ?>
         }));
 
         return {
-            id: proximosNumeros[tipoDoc], 
+            id: proximosNumeros[tipoDoc],
             numero: proximosNumeros[tipoDoc].replace(/\D/g, ''),
             serie: proximosNumeros[tipoDoc].replace(/\d/g, ''),
-            fecha: new Date().toLocaleDateString('es-ES') + ' ' + new Date().toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'}),
+            fecha: new Date().toLocaleDateString('es-ES') + ' ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
             tipo: tipoDoc,
             metodoPago: document.getElementById('metodoPago').value,
             entregado: totalPVP,
@@ -4322,7 +4492,8 @@ endif; ?>
             descuentoValor: descuento.valor,
             descuentoCupon: descuento.cupon,
             puntosGanados: totalPVP >= 20 ? Math.round(totalPVP * 10) : 0,
-            puntosCanjeados: puntosCanjeados
+            puntosCanjeados: puntosCanjeados,
+            mensajePersonalizado: mensajePersonalizado
         };
     }
 
@@ -4352,34 +4523,34 @@ endif; ?>
     function generarHTMLComprobante(datosVenta) {
         const isFactura = (datosVenta.tipo === 'factura');
         const tipoTitulo = isFactura ? 'FACTURA' : 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
-        
+
         // --- LÓGICA DE CÁLCULO ---
         let lineasHtmlTicket = '';
         let lineasHtmlFactura = '';
         let sumaTotalesNumeric = 0;
         let desgloseIva = {};
-        
+
         datosVenta.carrito.forEach(item => {
             const cantidad = parseFloat(item.cantidad) || 0;
             const precioBaseUnitario = parseFloat(item.precio) || 0; // Precio sin IVA
             const ivaPorc = (item.iva !== undefined && item.iva !== null && item.iva !== "") ? parseInt(item.iva) : 21;
-            
+
             // Si pvpUnitario no viene (ej: historial), lo calculamos del base + iva
             let pvpUnitario = parseFloat(item.pvpUnitario) || 0;
             if (pvpUnitario === 0 && precioBaseUnitario > 0) {
                 pvpUnitario = round2(precioBaseUnitario * (1 + (ivaPorc / 100)));
             }
-            
+
             // Cálculos
             const subtotalPVP = (item.importeTotal !== undefined) ? parseFloat(item.importeTotal) : round2(pvpUnitario * cantidad);
             const subtotalBase = round2(subtotalPVP / (1 + (ivaPorc / 100)));
             const subtotalIva = round2(subtotalPVP - subtotalBase);
-            
+
             sumaTotalesNumeric += subtotalPVP;
             if (!desgloseIva[ivaPorc]) desgloseIva[ivaPorc] = { base: 0, cuota: 0 };
             desgloseIva[ivaPorc].base += subtotalBase;
             desgloseIva[ivaPorc].cuota += subtotalIva;
-            
+
             // Fila para TICKET: 5 columnas (Art, Ud, Base, IVA%, Total)
             lineasHtmlTicket += `<tr>
                 <td style="padding: 6px 4px; font-size: 11px;">${item.nombre}</td>
@@ -4447,13 +4618,13 @@ endif; ?>
 
         const paddedNum = (datosVenta.numero && !isNaN(datosVenta.numero)) ? String(datosVenta.numero).padStart(5, '0') : (datosVenta.numero || datosVenta.id);
         const numComprobante = (datosVenta.serie || '') + paddedNum;
-        
+
         // Priorizar el balance guardado en la venta (historial) o calcularlo (para preview)
         let finalPuntosBalance = parseInt(datosVenta.puntosBalance);
         if (isNaN(finalPuntosBalance)) {
             finalPuntosBalance = (parseInt(datosVenta.clientePuntos) || 0) - (parseInt(datosVenta.puntosCanjeados?.puntos) || 0) + (parseInt(datosVenta.puntosGanados) || 0);
         }
-        
+
         const puntosFooterHtml = datosVenta.clienteNif ? `
             <div style="margin-top:10px; border-top:1px dashed #ccc; padding-top:5px; font-size:10px;">
                 ${datosVenta.puntosGanados > 0 ? `<div>Puntos ganados: <strong>+${datosVenta.puntosGanados}</strong></div>` : ''}
@@ -4484,9 +4655,16 @@ endif; ?>
                 </div>
                 <table><thead><tr><th>Descripción</th><th style="text-align:center">Cant</th><th style="text-align:right">Base/Ud</th><th style="text-align:center">IVA</th><th style="text-align:right">Importe</th></tr></thead>
                 <tbody>${lineasHtmlFactura}</tbody></table>
-                <div style="float:right; width: 45%;">${totalesHtml}</div>
-                <p style="clear:both; margin-top:30px; font-size:12px; color:#666;">Método de pago: ${datosVenta.metodoPago.toUpperCase()}</p>
-            </body></html>`;
+                 <div style="float:right; width: 45%;">${totalesHtml}</div>
+                 <p style="clear:both; margin-top:30px; font-size:12px; color:#666;">Método de pago: ${datosVenta.metodoPago.toUpperCase()}</p>
+                 
+        ${datosVenta.mensajePersonalizado ? `
+            <div style="clear:both; margin-top:20px; padding:12px; border-top:1px dashed #ccc; border-bottom:1px dashed #ccc; text-align:center; font-style:italic; color:#444; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.5;">
+                ${datosVenta.mensajePersonalizado.replace(/(.{45})/g, "$1<br>")}
+            </div>
+        ` : ''}
+                 
+             </body></html>`;
         } else {
             return `<html><head><style>
                 @page { size: 80mm auto; margin: 0; }
@@ -4521,8 +4699,15 @@ endif; ?>
                         <tbody>${lineasHtmlTicket}</tbody>
                     </table>
                     ${totalesHtml}
-                    ${puntosFooterHtml}
-                    <div class="footer"><p>GRACIAS POR SU COMPRA</p></div>
+        ${puntosFooterHtml}
+
+        ${datosVenta.mensajePersonalizado ? `
+            <div style="margin-top:15px; padding:10px; border-top:1px dashed #ccc; border-bottom:1px dashed #ccc; text-align:center; font-style:italic; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.4;">
+                ${datosVenta.mensajePersonalizado.replace(/(.{45})/g, "$1<br>")}
+            </div>
+        ` : ''}
+
+        <div class="footer"><p>GRACIAS POR SU COMPRA</p></div>
                 </div>
             </body></html>`;
         }
@@ -4572,25 +4757,25 @@ endif; ?>
         // Si el ticket es grande para el viewport actual
         if (ticketEsGrandeLocal) {
             btnZoom.style.display = 'flex';
-            
+
             if (ticketZoomed) {
                 // MODO ZOOM: Tamaño real con scroll
                 viewport.classList.add('is-zoomed');
                 btnZoom.classList.add('active');
-                if(iconMinus) iconMinus.style.display = 'block';
+                if (iconMinus) iconMinus.style.display = 'block';
                 iconPlusElements.forEach(el => el.style.display = 'none');
                 previewContainer.style.transform = 'none'; // Asegurar tamaño real
             } else {
                 // MODO AJUSTADO: Escalado para que quepa totalmente
                 viewport.classList.remove('is-zoomed');
                 btnZoom.classList.remove('active');
-                if(iconMinus) iconMinus.style.display = 'none';
+                if (iconMinus) iconMinus.style.display = 'none';
                 iconPlusElements.forEach(el => el.style.display = 'block');
-                
+
                 // Recalculamos escala basada en altura real
                 const viewportHeight = viewport.clientHeight - 32;
                 const ticketFullHeight = previewContainer.offsetHeight;
-                
+
                 if (ticketFullHeight > 0) {
                     const scale = viewportHeight / ticketFullHeight;
                     previewContainer.style.transform = `scale(${scale})`;
@@ -4622,43 +4807,43 @@ endif; ?>
             clearTimeout(timeoutEscalaTicket);
             timeoutEscalaTicket = null;
         }
-        
+
         const datosMock = construirObjetoVentaTemporal(tipoDocumentoActual);
         const fullHTML = generarHTMLComprobante(datosMock);
-        
+
         previewContainer.className = 'paper-simulation ' + (isFactura ? 'tipo-factura' : 'tipo-ticket');
         badge.textContent = isFactura ? 'FACTURA A4' : 'TICKET TÉRMICO';
         badge.style.background = isFactura ? 'var(--bg-accent)' : 'var(--bg-accent-success)';
         badge.style.color = isFactura ? 'var(--accent)' : 'var(--accent-success)';
-        
+
         previewContainer.innerHTML = '';
         const iframe = document.createElement('iframe');
         iframe.style.width = '100%';
-        iframe.style.height = '1px'; 
+        iframe.style.height = '1px';
         iframe.style.border = 'none';
         iframe.style.background = 'white';
         iframe.scrolling = 'no';
         previewContainer.appendChild(iframe);
-        
+
         const doc = iframe.contentWindow ? iframe.contentWindow.document : null;
         if (doc) {
             doc.open();
             doc.write(fullHTML);
             doc.close();
         }
-        
-        iframe.onload = function() {
+
+        iframe.onload = function () {
             if (timeoutEscalaTicket) clearTimeout(timeoutEscalaTicket);
-            
+
             timeoutEscalaTicket = setTimeout(() => {
                 // Comprobación defensiva antes de acceder al iframe (puede haber sido eliminado del DOM)
                 if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) return;
-                
+
                 const body = iframe.contentWindow.document.body;
                 if (!body) return;
 
                 iframe.style.height = body.scrollHeight + 'px';
-                
+
                 // Aplicamos el ajuste de escala/zoom con medición nueva
                 ajustarEscalaTicket(previewContainer, true);
             }, 180);
@@ -4674,10 +4859,14 @@ endif; ?>
      * Realiza las comprobaciones finales y dispara el envío de la venta.
      */
     function procesarVentaFinal() {
+        // Obtener mensaje personalizado
+        const mensajePersonalizado = document.getElementById('mensajePersonalizadoVenta').value.trim();
+        document.getElementById('inputMensajePersonalizado').value = mensajePersonalizado;
+
         const nif = document.getElementById('clienteNif').value.trim();
         const nombre = document.getElementById('clienteNombre').value.trim();
         const direccion = document.getElementById('clienteDireccion').value.trim();
-        
+
         // 1. Validar Factura
         if (tipoDocumentoActual === 'factura') {
             if (!nif || !nombre || !direccion) {
@@ -4689,7 +4878,7 @@ endif; ?>
                 return;
             }
         }
-        
+
         // 2. Validar Email si está seleccionado
         if (metodoEntregaActual === 'email') {
             const email = document.getElementById('emailCheckout').value.trim();
@@ -4711,9 +4900,9 @@ endif; ?>
 
         // 4. Proceder con el registro
         const observaciones = document.getElementById('clienteObservaciones').value.trim();
-        
+
         cerrarModal('modalFinalizarVenta');
-        confirmarVenta(tipoDocumentoActual, nif, nombre, direccion, observaciones);
+        confirmarVenta(tipoDocumentoActual, nif, nombre, direccion, observaciones, mensajePersonalizado);
     }
 
     /** Variable que almacena el tipo de documento seleccionado ('ticket' o 'factura') */
@@ -4785,7 +4974,7 @@ endif; ?>
 
         // Cerrar modal de datos del cliente y proceder con la venta o volver al checkout
         cerrarModal('modalDatosCliente');
-        
+
         if (window.retornarAlCheckout) {
             window.retornarAlCheckout = false;
             // Actualizar resumen y vista previa antes de volver
@@ -4927,7 +5116,7 @@ endif; ?>
 
         // Enviar el formulario al servidor
         document.getElementById('formVenta').submit();
-        
+
         // Resetear puntos canjeados después de enviar (para la próxima venta)
         if (typeof puntosCanjeados !== 'undefined') puntosCanjeados = null;
         if (typeof clienteIdentificadoEnModalPuntos !== 'undefined') clienteIdentificadoEnModalPuntos = false;
@@ -5052,6 +5241,9 @@ endif; ?>
         statusEl.className = 'email-status email-enviando';
 
         // Petición AJAX al endpoint de envío de correo
+        // Añadir mensaje personalizado a los datos
+        ultimaVenta.mensajePersonalizado = ultimaVenta.mensajePersonalizado || '';
+
         fetch('api/enviarCorreo.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -5080,7 +5272,8 @@ endif; ?>
                 descuentoManualCupon: ultimaVenta.descuentoManualCupon,
                 puntos_ganados: ultimaVenta.puntosGanados || 0,
                 puntos_canjeados: ultimaVenta.puntosCanjeados ? ultimaVenta.puntosCanjeados.puntos : 0,
-                puntos_balance: ultimaVenta.puntosBalance || 0
+                puntos_balance: ultimaVenta.puntosBalance || 0,
+                mensajePersonalizado: ultimaVenta.mensajePersonalizado || ''
             })
         })
             .then(res => res.json())
@@ -5180,11 +5373,11 @@ endif; ?>
                 const cant = linea.cantidad || 0;
                 const prec = linea.precio || 0;
                 const imp = linea.importe || 0;
-                
+
                 // Formatear precios (asegurar que es numérico y usar replace para la coma)
                 const precFmt = parseFloat(prec).toFixed(2).replace('.', ',');
                 const impFmt = parseFloat(imp).toFixed(2).replace('.', ',');
-                
+
                 lineasHtml += `
                     <tr>
                         <td>${linea.nombre || 'Producto'}</td>
@@ -5213,7 +5406,7 @@ endif; ?>
         const contenido = `
         <html>
         <head>
-            <title>TICKET DE DEVOLUCIÓN ${(ultimaDevolucion.serie || 'T') + String(ultimaDevolucion.numero || ultimaDevolucion.id || '').padStart(5, '0')}</title>
+            <title>TICKET DE DEVOLUCIÓN ${ultimaDevolucion.serie || 'T'}${String(ultimaDevolucion.numero || ultimaDevolucion.id || '').padStart(5, '0')}</title>
             <style>
                 body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #1a1a1a; max-width: 80mm; margin: 0 auto; line-height: 1.4; }
                 .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
@@ -5237,7 +5430,7 @@ endif; ?>
                 NIF: B12345678<br>
                 C/ Falsa 123, 23000 León<br>
                 <div style="margin-top: 10px;">
-                    <p><strong>Nº Ticket Original:</strong> ${(ultimaDevolucion.serie || 'T') + String(ultimaDevolucion.numero || ultimaDevolucion.id || '').padStart(5, '0')}</p>
+<p><strong>Nº Ticket Original:</strong> ${ultimaDevolucion.serie || 'T'}${String(ultimaDevolucion.numero || ultimaDevolucion.id || '').padStart(5, '0')}</p>
                     <p><strong>Fecha Operación:</strong> ${ultimaDevolucion.fecha}</p>
                     <p><strong>Método de pago:</strong> ${ultimaDevolucion.metodoPago}</p>
                 </div>
@@ -5409,7 +5602,7 @@ endif; ?>
         // Parse correlative number format (e.g., "T00001" -> serie="T", numero=1)
         let serie = '';
         let numero = input;
-        
+
         const match = input.match(/^([TF]?)0*(\d+)$/i);
         if (match) {
             serie = match[1].toUpperCase(); // Serie: T, F, o vacio
@@ -5715,13 +5908,13 @@ endif; ?>
         // Calcular factor de descuento para asegurar que el reembolso no exceda lo pagado
         const venta = ticketActualDevolucion;
         const ventaTotal = parseFloat(venta.total);
-        
+
         let sumaBruta = 0;
         lineasVentaDevolucion.forEach(linea => {
             const precioBase = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
             sumaBruta += parseInt(linea.cantidad) * precioBase;
         });
-        
+
         const factorDescuento = sumaBruta > 0 ? ventaTotal / sumaBruta : 1;
 
         // Recalcular importes aplicando el factor de descuento
@@ -5833,7 +6026,7 @@ endif; ?>
         const precioBase = parseFloat(document.getElementById('comodinPrecio').value) || 0;
         const iva = parseFloat(document.getElementById('comodinIva').value) || 0;
         const total = precioBase * (1 + (iva / 100));
-        
+
         document.getElementById('comodinPrecioTotal').textContent = total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
     }
 
@@ -5846,14 +6039,14 @@ endif; ?>
         const descripcion = document.getElementById('comodinDescripcion').value.trim();
         const precioBase = parseFloat(document.getElementById('comodinPrecio').value);
         const ivaPorcentaje = parseFloat(document.getElementById('comodinIva').value);
-        
+
         // Validaciones
         if (!nombre) {
             alert('Por favor, introduce un nombre para el producto.');
             document.getElementById('comodinNombre').focus();
             return;
         }
-        
+
         if (isNaN(precioBase) || precioBase < 0) {
             alert('Por favor, introduce un precio base válido.');
             document.getElementById('comodinPrecio').focus();
@@ -5865,10 +6058,10 @@ endif; ?>
             document.getElementById('comodinIva').focus();
             return;
         }
-        
+
         // Calcular precio con IVA
         const precioConIva = Math.round(precioBase * (1 + (ivaPorcentaje / 100)) * 100) / 100;
-        
+
         // Crear objeto producto comodín
         const productoComodin = {
             idProducto: 'comodin_' + Date.now(), // ID único temporal
@@ -5883,17 +6076,17 @@ endif; ?>
             stockMax: 999, // Sin límite real de stock
             esComodin: true // Flag para identificar como producto comodín
         };
-        
+
         // Añadir al carrito usando la función existente
         if (typeof carrito !== 'undefined') {
             // Buscar si ya existe un producto comodín con el mismo nombre, precio e IVA
             const indiceExistente = carrito.findIndex(item =>
-                item.esComodin && 
+                item.esComodin &&
                 item.nombre.toLowerCase() === nombre.toLowerCase() &&
                 parseFloat(item.precio) === precioBase &&
                 parseFloat(item.iva) === ivaPorcentaje
             );
-            
+
             if (indiceExistente >= 0) {
                 // Incrementar cantidad
                 carrito[indiceExistente].cantidad += 1;
@@ -5901,13 +6094,13 @@ endif; ?>
                 // Añadir nuevo
                 carrito.push(productoComodin);
             }
-            
+
             // Actualizar ticket
             actualizarTicket();
-            
+
             // Cerrar modal
             cerrarModal('modalProductoComodin');
-            
+
             // Feedback visual
             console.log('Producto comodín añadido:', productoComodin);
         } else {
@@ -6036,7 +6229,7 @@ endif; ?>
         document.getElementById('mensajePuntosCliente').style.display = 'none';
         document.getElementById('puntosClienteBusqueda').style.display = 'block';
         document.getElementById('puntosClienteInfo').style.display = 'none';
-        
+
         // Habilitar o deshabilitar el botón de canjear según si hay productos en el carrito
         const btnCanjear = document.getElementById('btnAplicarDescuentoPuntos');
         if (carrito.length === 0) {
@@ -6050,7 +6243,7 @@ endif; ?>
             btnCanjear.style.opacity = '1';
             btnCanjear.style.cursor = 'pointer';
         }
-        
+
         document.getElementById('modalPuntosCliente').style.display = 'flex';
         document.getElementById('dniPuntosCliente').focus();
     }
@@ -6066,7 +6259,7 @@ endif; ?>
         const valorDni = document.getElementById('indicadorClienteDniValor');
         const valorNombre = document.getElementById('indicadorClienteNombre');
         const nombreInput = document.getElementById('clienteNombre');
-        
+
         if (indicador && valorDni && dni) {
             valorDni.textContent = dni.toUpperCase();
             if (valorNombre && nombreInput) {
@@ -6092,45 +6285,45 @@ endif; ?>
      */
     function desvincularCliente() {
         clienteIdentificadoEnModalPuntos = false;
-        
+
         // Limpiar campos de datos del cliente
-        const ids = ['clienteNif', 'clienteNombre', 'clienteDireccion', 'clienteObservaciones', 
-                     'inputClienteNifFinal', 'inputClienteNombreFinal', 'inputClienteDireccionFinal', 
-                     'inputObservacionesFinal', 'inputPuntosCanjeadosDni', 'inputPuntosCanjeadosCantidad',
-                     'dniPuntosCliente', 'dniBusquedaCliente'];
-        
+        const ids = ['clienteNif', 'clienteNombre', 'clienteDireccion', 'clienteObservaciones',
+            'inputClienteNifFinal', 'inputClienteNombreFinal', 'inputClienteDireccionFinal',
+            'inputObservacionesFinal', 'inputPuntosCanjeadosDni', 'inputPuntosCanjeadosCantidad',
+            'dniPuntosCliente', 'dniBusquedaCliente'];
+
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = (id === 'clientePuntos') ? '0' : '';
         });
-        
+
         // Resetear flag de puntos
         const identificadorPuntos = document.getElementById('inputClienteIdentificadoPuntos');
         if (identificadorPuntos) identificadorPuntos.value = 'false';
-        
+
         // Resetear variables globales
         puntosCanjeados = null;
-        
+
         // Ocultar indicador en UI
         ocultarDniEnTicket();
-        
+
         // Si el descuento actual era por puntos (ej: PUNTOS_1000), lo quitamos también
         if (descuento.cupon && descuento.cupon.startsWith('PUNTOS_')) {
             descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
         }
-        
+
         // Actualizar ticket para reflejar que ya no hay cliente (puntos previstos, etc)
         actualizarTicket();
     }
 
     function cerrarYLimpiarClientePuntos() {
         desvincularCliente();
-        
-        cerrarModal('modalPuntosCliente'); 
-        document.getElementById('puntosClienteBusqueda').style.display='block'; 
-        document.getElementById('puntosClienteInfo').style.display='none';
+
+        cerrarModal('modalPuntosCliente');
+        document.getElementById('puntosClienteBusqueda').style.display = 'block';
+        document.getElementById('puntosClienteInfo').style.display = 'none';
     }
-    
+
     /**
      * Solo acumula puntos sin aplicar descuento, y cierra el modal
      */
@@ -6138,14 +6331,14 @@ endif; ?>
         puntosCanjeados = null;
         // El cajero confirmó identificar al cliente → activar el modal de puntos post-venta
         clienteIdentificadoEnModalPuntos = true;
-        
+
         // Mostrar el DNI del cliente identificado en el ticket
         const dniCliente = document.getElementById('dniPuntosCliente').value.trim();
         mostrarDniEnTicket(dniCliente);
-        
-        cerrarModal('modalPuntosCliente'); 
-        document.getElementById('puntosClienteBusqueda').style.display='block'; 
-        document.getElementById('puntosClienteInfo').style.display='none';
+
+        cerrarModal('modalPuntosCliente');
+        document.getElementById('puntosClienteBusqueda').style.display = 'block';
+        document.getElementById('puntosClienteInfo').style.display = 'none';
         actualizarTicket();
     }
 
@@ -6155,7 +6348,7 @@ endif; ?>
     async function buscarPuntosCliente() {
         const dni = document.getElementById('dniPuntosCliente').value.trim();
         const mensajeDiv = document.getElementById('mensajePuntosCliente');
-        
+
         if (!dni) {
             mensajeDiv.textContent = 'Por favor, introduce un DNI';
             mensajeDiv.className = 'mensaje-error';
@@ -6165,14 +6358,14 @@ endif; ?>
 
         try {
             const response = await fetch('api/clientes.php?dni=' + encodeURIComponent(dni));
-            
+
             if (!response.ok) {
                 mensajeDiv.textContent = 'No se encuentra ningún cliente con ese DNI';
                 mensajeDiv.className = 'mensaje-error';
                 mensajeDiv.style.display = 'block';
                 return;
             }
-            
+
             const data = await response.json();
             // La API devuelve un array de clientes (búsqueda parcial con LIKE)
             const cliente = Array.isArray(data) ? data[0] : data;
@@ -6192,19 +6385,19 @@ endif; ?>
                 document.getElementById('puntosACanjeer').value = '';
                 document.getElementById('puntosACanjeer').max = puntosDisponibles;
                 document.getElementById('descuentoPuntosPreview').textContent = '';
-                
+
                 // Calcular y mostrar información de puntos
                 const totalTicket = obtenerTotalCalculado();
                 const infoPanel = document.getElementById('infoPointsPanel');
                 const puntosUsarMsg = document.getElementById('puntosQueSePuedenUsar');
                 const puntosGanadosMsg = document.getElementById('puntosQueSeGanaran');
-                
+
                 if (totalTicket > 0) {
                     const puntosQueSeGanaran = Math.round(totalTicket * 10);
                     const maxDescuento = totalTicket * 0.30;
                     const maxPuntosCanjeables = Math.floor(maxDescuento / 5) * 1000;
                     const puntosParaSiguienteDescuento = Math.max(0, 1000 - (puntosDisponibles % 1000));
-                    
+
                     // Mensajes informativos
                     let mensajeUsar = '';
                     if (puntosDisponibles >= 1000) {
@@ -6215,7 +6408,7 @@ endif; ?>
                     } else {
                         mensajeUsar = `Te faltan ${puntosParaSiguienteDescuento.toLocaleString('es-ES')} puntos para tu próximo descuento`;
                     }
-                    
+
                     puntosUsarMsg.textContent = mensajeUsar;
                     puntosGanadosMsg.textContent = `Con esta compra ganarás ${puntosQueSeGanaran.toLocaleString('es-ES')} puntos (1€ = 10 puntos)`;
                     infoPanel.style.display = 'block';
@@ -6244,15 +6437,15 @@ endif; ?>
         const preview = document.getElementById('descuentoPuntosPreview');
         const puntosGanadosMsg = document.getElementById('puntosQueSeGanaran');
         const totalTicket = obtenerTotalCalculado();
-        
+
         let nuevoTotal = totalTicket;
-        
+
         // Solo forzar múltiplos de 1000 al aplicar, no mientras escribe
         // Guardamos el valor original sin redondear para no molestar al usuario mientras escribe
         const esMultiploDeMil = puntos % 1000 === 0;
-        
+
         const descuento = Math.floor(puntos / 1000) * 5;
-        
+
         if (puntos >= 1000) {
             preview.textContent = `Descuento: ${descuento.toFixed(2)}€ (${puntos.toLocaleString('es-ES')} puntos)`;
             preview.style.color = '';
@@ -6284,61 +6477,61 @@ endif; ?>
         const puntosRedondeados = Math.floor(puntosInput / 1000) * 1000; // Redondear a múltiplos de 1000
         const dni = document.getElementById('dniPuntosCliente').value.trim();
         const puntosDisponibles = parseInt(document.getElementById('puntosDisponiblesCliente').textContent.replace(/\./g, '')) || 0;
-        
+
         if (!dni) {
             alert('Error: No se ha especificado el DNI del cliente');
             return;
         }
-        
+
         if (puntosRedondeados < 1000) {
             alert('Mínimo 1000 puntos para canjear');
             return;
         }
-        
+
         // Validar que no canjee más puntos de los que tiene
         if (puntosRedondeados > puntosDisponibles) {
             alert(`No puedes canjear más puntos de los que tienes. Tienes ${puntosDisponibles.toLocaleString('es-ES')} puntos.`);
             return;
         }
-        
+
         // Calcular el total actual del ticket
         const totalTicket = obtenerTotalCalculado();
         const maxDescuento = totalTicket * 0.30; // Máximo 30%
         const maxPuntos = Math.floor(maxDescuento / 5) * 1000;
-        
+
         // Limitar los puntos al máximo permitido
         let puntosFinales = puntosRedondeados;
         if (puntosRedondeados > maxPuntos) {
             alert(`Has superado el máximo permitido (30% del ticket = ${maxDescuento.toFixed(2)}€). Se usarán ${maxPuntos.toLocaleString('es-ES')} puntos.`);
             puntosFinales = maxPuntos;
         }
-        
+
         const descuentoEuros = Math.floor(puntosFinales / 1000) * 5;
-        
+
         // Verificar que el total no sea 0
         if (totalTicket - descuentoEuros <= 0) {
             alert('El descuento no puede hacer el ticket 0. Reduce los puntos a canjear.');
             return;
         }
-        
+
         // Aplicar descuento como descuento manual
         descuento.tipo = 'fijo';
         descuento.valor = descuentoEuros;
         descuento.cupon = 'PUNTOS_' + puntosFinales;
-        
+
         // Calcular puntos que se ganarán
         const puntosGanados = Math.round((totalTicket - descuentoEuros) * 10);
-        
+
         actualizarTicket();
-        
+
         // Mostrar el DNI del cliente identificado en el ticket
         mostrarDniEnTicket(dni);
-        
+
         // Cerrar modal
         cerrarModal('modalPuntosCliente');
         document.getElementById('puntosClienteBusqueda').style.display = 'block';
         document.getElementById('puntosClienteInfo').style.display = 'none';
-        
+
         // Guardar los puntos canjeados para procesarlos al confirmar la venta
         // El cajero confirmó identificar al cliente → activar el modal de puntos post-venta
         clienteIdentificadoEnModalPuntos = true;
@@ -6347,9 +6540,9 @@ endif; ?>
             puntos: puntosFinales,
             descuento: descuentoEuros
         };
-        
+
         alert(`Descuento de ${descuentoEuros.toFixed(2)}€ aplicado (${puntosFinales.toLocaleString('es-ES')} puntos canjeados)\n` +
-              `Con esta compra ganarás ${puntosGanados.toLocaleString('es-ES')} puntos`);
+            `Con esta compra ganarás ${puntosGanados.toLocaleString('es-ES')} puntos`);
     }
 
     /**
@@ -6479,7 +6672,7 @@ endif; ?>
      */
     function cerrarModalBuscarClienteRegistrado() {
         const modal = document.getElementById('modalBuscarClienteRegistrado');
-        
+
         // Si estaba en modo puntos y se cancela, continuar sin puntos
         if (modal.dataset.modo === 'puntos') {
             modal.dataset.modo = '';
@@ -6489,7 +6682,7 @@ endif; ?>
             confirmarSinPuntos();
             return;
         }
-        
+
         if (productoPendienteTarifa) {
             revertirTarifaCard(productoPendienteTarifa.card.dataset.id);
             productoPendienteTarifa = null;
@@ -6654,18 +6847,24 @@ endif; ?>
 <!-- ##=========================== MODAL: CAMBIAR PRECIOS ===========================## -->
 <!-- Modal para cambiar precios base y tarifas desde el cajero -->
 <div class="modal-overlay" id="modalCambiarPrecios" style="display:none;">
-    <div class="modal-content" style="max-width: 900px; width: 95%; max-height: 85vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; background: var(--bg-modal); color: var(--text-main);">
+    <div class="modal-content"
+        style="max-width: 900px; width: 95%; max-height: 85vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; background: var(--bg-modal); color: var(--text-main);">
         <!-- Cabecera del modal -->
-        <div style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white; padding: 20px 25px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; position: relative;">
+        <div
+            style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white; padding: 20px 25px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; position: relative;">
             <div style="text-align: center;">
                 <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700;">Cambiar Precios</h3>
-                <p style="margin: 4px 0 0 0; font-size: 0.85rem; opacity: 0.9;">Modifica los precios base y tarifas de cualquier producto</p>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; opacity: 0.9;">Modifica los precios base y tarifas de
+                    cualquier producto</p>
             </div>
-            <button onclick="cerrarModal('modalCambiarPrecios')" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1; opacity: 0.8; transition: opacity 0.2s; position: absolute; right: 20px;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">&times;</button>
+            <button onclick="cerrarModal('modalCambiarPrecios')"
+                style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1; opacity: 0.8; transition: opacity 0.2s; position: absolute; right: 20px;"
+                onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">&times;</button>
         </div>
 
         <!-- Barra de búsqueda y botón IVA -->
-        <div style="padding: 15px 25px; border-bottom: 1px solid var(--border-main); flex-shrink: 0; display: flex; gap: 10px; align-items: center;">
+        <div
+            style="padding: 15px 25px; border-bottom: 1px solid var(--border-main); flex-shrink: 0; display: flex; gap: 10px; align-items: center;">
             <input type="text" id="buscarProductoCambiarPrecio" placeholder="Buscar producto por nombre..."
                 oninput="buscarProductosCambiarPrecio()"
                 style="flex: 1; padding: 10px 15px; border: 1px solid var(--border-main); border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; box-sizing: border-box; background: var(--bg-input); color: var(--text-main);"
@@ -6694,20 +6893,25 @@ endif; ?>
 
         <!-- Tabla de productos y tarifas -->
         <div style="flex: 1; overflow-y: auto; padding: 0 25px 15px 25px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-main);" id="tablaCambiarPrecios">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-main);"
+                id="tablaCambiarPrecios">
                 <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-panel);">
                     <tr id="cabeceraCambiarPrecios">
                         <!-- Se genera dinámicamente -->
                     </tr>
                 </thead>
                 <tbody id="bodyTablaCambiarPrecios">
-                    <tr><td colspan="10" style="text-align: center; padding: 40px; color: var(--text-muted);">Cargando productos...</td></tr>
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-muted);">Cargando
+                            productos...</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
 
         <!-- Paginación -->
-        <div id="paginacionCambiarPrecios" style="padding: 10px 25px 15px 25px; border-top: 1px solid var(--border-main); display: flex; justify-content: center; align-items: center; gap: 10px; flex-shrink: 0; color: var(--text-muted);">
+        <div id="paginacionCambiarPrecios"
+            style="padding: 10px 25px 15px 25px; border-top: 1px solid var(--border-main); display: flex; justify-content: center; align-items: center; gap: 10px; flex-shrink: 0; color: var(--text-muted);">
         </div>
     </div>
 </div>
@@ -6717,60 +6921,81 @@ endif; ?>
 <div class="modal-overlay" id="modalProductoComodin" style="display:none;">
     <div class="modal-content" style="max-width: 400px; padding: 0;">
         <!-- Cabecera -->
-        <div style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white; padding: 20px 25px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700;">Producto Comodín</h3>
-                <p style="margin: 4px 0 0 0; font-size: 0.85rem; opacity: 0.9;">Crea un producto temporal para añadir al carrito</p>
+        <div class="modal-header-premium modal-header-blue">
+            <div class="icon-container-discount">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon
+                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
+                    </polygon>
+                </svg>
             </div>
-            <button onclick="cerrarModal('modalProductoComodin')" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1; opacity: 0.8; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">&times;</button>
+            <h3>Producto Comodín</h3>
+            <p>Crea un producto temporal para añadir al carrito</p>
         </div>
-        
+
         <!-- Formulario -->
         <div style="padding: 25px;">
             <div style="margin-bottom: 20px;">
-                <label for="comodinNombre" style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);">Nombre del producto *</label>
+                <label for="comodinNombre"
+                    style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);">Nombre del
+                    producto *</label>
                 <input type="text" id="comodinNombre" placeholder="Ej: Servicio de reparaciones"
                     style="width: 100%; padding: 12px 15px; border: 1px solid var(--border-main); border-radius: 8px; font-size: 14px; box-sizing: border-box; background: var(--bg-input); color: var(--text-main);"
                     onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='var(--border-main)'">
             </div>
-            
+
             <div style="margin-bottom: 20px;">
-                <label for="comodinDescripcion" style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);">Descripción (opcional)</label>
+                <label for="comodinDescripcion"
+                    style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);">Descripción
+                    (opcional)</label>
                 <textarea id="comodinDescripcion" placeholder="Descripción adicional del producto..."
                     style="width: 100%; padding: 12px 15px; border: 1px solid var(--border-main); border-radius: 8px; font-size: 14px; box-sizing: border-box; background: var(--bg-input); color: var(--text-main); resize: vertical; min-height: 80px;"
-                    onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='var(--border-main)'"></textarea>
+                    onfocus="this.style.borderColor='#6366f1'"
+                    onblur="this.style.borderColor='var(--border-main)'"></textarea>
             </div>
-            
+
             <div style="display: flex; gap: 15px; margin-bottom: 20px;">
                 <div style="flex: 1;">
-                    <label for="comodinIva" style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);">IVA (%) *</label>
-                    <input type="number" id="comodinIva" value="21" step="1" min="0" oninput="actualizarComodinPrecioTotal()"
+                    <label for="comodinIva"
+                        style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);">IVA (%)
+                        *</label>
+                    <input type="number" id="comodinIva" value="21" step="1" min="0"
+                        oninput="actualizarComodinPrecioTotal()"
                         style="width: 100%; padding: 12px 15px; border: 1px solid var(--border-main); border-radius: 8px; font-size: 14px; box-sizing: border-box; background: var(--bg-input); color: var(--text-main);"
                         onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='var(--border-main)'">
                 </div>
                 <div style="flex: 2;">
-                    <label for="comodinPrecio" style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);">Precio (Base) *</label>
+                    <label for="comodinPrecio"
+                        style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);">Precio
+                        (Base) *</label>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="number" id="comodinPrecio" placeholder="0,00" step="0.01" min="0" oninput="actualizarComodinPrecioTotal()"
+                        <input type="number" id="comodinPrecio" placeholder="0,00" step="0.01" min="0"
+                            oninput="actualizarComodinPrecioTotal()"
                             style="flex: 1; padding: 12px 15px; border: 1px solid var(--border-main); border-radius: 8px; font-size: 14px; box-sizing: border-box; background: var(--bg-input); color: var(--text-main);"
-                            onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='var(--border-main)'">
+                            onfocus="this.style.borderColor='#6366f1'"
+                            onblur="this.style.borderColor='var(--border-main)'">
                         <span style="font-size: 16px; font-weight: 600; color: var(--text-main);">€</span>
                     </div>
                 </div>
             </div>
-            
-            <div id="comodinTotalContainer" style="margin-bottom: 25px; padding: 15px; background: rgba(99, 102, 241, 0.1); border-radius: 10px; border: 1px dashed #6366f1; text-align: center;">
-                <span style="display: block; font-size: 0.85rem; color: #6366f1; font-weight: 600; margin-bottom: 4px;">PRECIO TOTAL CON IVA</span>
-                <span id="comodinPrecioTotal" style="font-size: 1.5rem; font-weight: 800; color: #6366f1;">0,00 €</span>
+
+            <div id="comodinTotalContainer"
+                style="margin-bottom: 25px; padding: 15px; background: var(--bg-panel); border-radius: 10px; border: 1px dashed var(--border-main); text-align: center;">
+                <span
+                    style="display: block; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-bottom: 4px;">PRECIO
+                    TOTAL CON IVA</span>
+                <span id="comodinPrecioTotal" style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">0,00
+                    €</span>
             </div>
-            
-            <div style="display: flex; gap: 10px;">
-                <button onclick="cerrarModal('modalProductoComodin')"
-                    style="flex: 1; padding: 12px; border: 1px solid var(--border-main); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; background: var(--bg-input); color: var(--text-main);">
+
+            <div style="display: flex; gap: 10px; margin-top: 30px;">
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalProductoComodin')"
+                    style="flex: 1; padding: 14px;">
                     Cancelar
                 </button>
-                <button onclick="agregarProductoComodin()"
-                    style="flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; background: #6366f1; color: white;">
+                <button class="btn-apply-premium" onclick="agregarProductoComodin()"
+                    style="flex: 1; background: var(--accent); color: white; padding: 14px;">
                     Añadir al Carrito
                 </button>
             </div>

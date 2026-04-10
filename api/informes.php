@@ -11,11 +11,22 @@ require_once(__DIR__ . '/../model/Venta.php');
 require_once(__DIR__ . '/../model/Producto.php');
 require_once(__DIR__ . '/../model/Caja.php');
 require_once(__DIR__ . '/../config/confDB.php');
+require_once(__DIR__ . '/../core/Cache.php');
 
 header('Content-Type: application/json');
 
 // Parámetro de segmentación temporal (diario, semanal, mensual, anual)
-$periodo = $_GET['periodo'] ?? 'diario'; 
+$periodo = $_GET['periodo'] ?? 'diario';
+
+// CACHE: Devolver directamente si existe
+$claveCache = "informes_$periodo";
+$cache = Cache::get($claveCache);
+
+if ($cache !== null && !isset($_GET['refresh'])) {
+    header('X-Cache: HIT');
+    echo $cache;
+    exit;
+}
 
 /**
  * DETERMINACIÓN DEL RANGO DE TIEMPO
@@ -48,7 +59,7 @@ try {
     // Calcular periodo anterior para comparativa
     $fechaInicioAnt = '';
     $fechaFinAnt = date('Y-m-d 23:59:59', strtotime($fechaInicio . ' -1 second'));
-    
+
     switch ($periodo) {
         case 'diario':
             $fechaInicioAnt = date('Y-m-d 00:00:00', strtotime('-1 day'));
@@ -74,7 +85,8 @@ try {
      * @param string $fin Fecha de fin (Y-m-d H:i:s).
      * @return array Desglose indexado de estadísticas.
      */
-    function getVentasRango($pdo, $ini, $fin) {
+    function getVentasRango($pdo, $ini, $fin)
+    {
         $stmt = $pdo->prepare("
             SELECT 
                 SUM(total) as bruto,
@@ -91,7 +103,7 @@ try {
 
     $ventasActual = getVentasRango($pdo, $fechaInicio, $fechaFin);
     $ventasAnterior = getVentasRango($pdo, $fechaInicioAnt, $fechaFinAnt);
-    
+
     // Desglose de IVA
     $stmtIva = $pdo->prepare("
         SELECT 
@@ -342,7 +354,13 @@ try {
     ");
     $respuesta['stock'] = $stmtStock->fetch(PDO::FETCH_ASSOC);
 
-    echo json_encode($respuesta);
+    $jsonRespuesta = json_encode($respuesta);
+
+    // Guardar en cache
+    Cache::set($claveCache, $jsonRespuesta);
+
+    header('X-Cache: MISS');
+    echo $jsonRespuesta;
 
 } catch (Exception $e) {
     http_response_code(500);
