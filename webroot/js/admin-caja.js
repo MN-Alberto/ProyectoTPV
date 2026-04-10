@@ -343,7 +343,6 @@ function getDevolucionesTablaHeader(orden = 'fecha_desc', busquedaTicket = '', t
             <table class="admin-tabla">
                 <thead>
                     <tr>
-                        <th>#</th>
                         <th>Ticket</th>
                         <th>Fecha</th>
                         <th>Empleado</th>
@@ -404,7 +403,7 @@ function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fech
                 '<tr><td colspan="8" class="sin-productos">No hay devoluciones registradas.</td></tr></tbody></table></div>';
         } else {
             const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="sin-productos">No hay devoluciones registradas.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="sin-productos">No hay devoluciones registradas.</td></tr>';
             const contador = document.getElementById('totalDevolucionesAviso');
             if (contador) contador.textContent = '0 Devoluciones';
         }
@@ -427,7 +426,6 @@ function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fech
 
             filasHtml += `
                 <tr>
-                    <td class="col-id">${dev.id}</td>
                     <td class="col-ticket" style="font-weight:600;color:#1e40af;">${dev.serie || 'T'}${String(dev.numero || dev.idVenta || '—').padStart(5, '0')}</td>
                     <td class="col-fecha">${fecha}</td>
                     <td class="col-usuario">${dev.usuario_nombre || '—'}</td>
@@ -480,6 +478,7 @@ function verDetalleDevolucion(id) {
 
             // Guardar para el botón "Ver Ticket"
             window._ultimaDevAdmin = dev;
+            window._todasDevolucionesAdmin = lista;
 
             const fecha = new Date(dev.fecha).toLocaleString('es-ES', {
                 day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -508,40 +507,69 @@ function verDetalleDevolucion(id) {
  * Genera y abre un ticket de devolución completo agrupando todos los productos
  * devueltos en el mismo lote (mismo idVenta y misma fecha).
  */
-function verTicketDevolucion() {
-    const dev = window._ultimaDevAdmin;
-    const todas = window._todasDevolucionesAdmin || [];
-    if (!dev) { alert('No hay datos de devolución'); return; }
+function verTicketDevolucion(idDevolucion) {
+    console.log('🔴 verTicketDevolucion llamada para id: ', idDevolucion);
 
-    // Agrupar todas las devoluciones del mismo lote (mismo idVenta y misma fecha)
-    const lote = todas.filter(d => d.idVenta == dev.idVenta && d.fecha === dev.fecha);
-    if (lote.length === 0) lote.push(dev); // fallback
+    // Cargamos TODOS los datos directamente desde la API, NO DEPENDEMOS DE NINGUNA VARIABLE GLOBAL
+    fetch('api/devoluciones.php?todas=1&_=' + Date.now(), {
+        cache: 'no-store',
+        headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+        }
+    })
+        .then(res => res.json())
+        .then(data => {
+            console.log('✅ Datos devoluciones recibidos: ', data);
 
-    const fecha = new Date(dev.fecha).toLocaleString('es-ES', {
-        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
+            const todas = data.devoluciones || data || [];
+            console.log('✅ Lista completa devoluciones: ', todas.length);
 
-    // Generar filas de productos
-    let filasHtml = '';
-    let totalGeneral = 0;
-    lote.forEach(linea => {
-        const importe = parseFloat(linea.importeTotal) || 0;
-        const precioBase = linea.precioUnitario ? parseFloat(linea.precioUnitario).toFixed(2).replace('.', ',') : '—';
-        const importeFmt = importe.toFixed(2).replace('.', ',');
-        totalGeneral += importe;
-        filasHtml += `
+            let dev;
+
+            if (idDevolucion) {
+                dev = todas.find(d => d.id == idDevolucion);
+                console.log('✅ Buscando devolucion id ' + idDevolucion + ' -> ', dev);
+            } else {
+                dev = window._ultimaDevAdmin;
+                console.log('✅ Usando variable global dev: ', dev);
+            }
+
+            if (!dev) {
+                console.log('❌ No se encontro devolucion');
+                alert('No hay datos de devolución');
+                return;
+            }
+
+            // Agrupar todas las devoluciones del mismo lote (mismo idVenta y misma fecha)
+            const loteFiltrado = todas.filter(d => d.idVenta == dev.idVenta && d.fecha === dev.fecha);
+            const lote = loteFiltrado.length > 0 ? loteFiltrado : [dev];
+
+            const fecha = new Date(dev.fecha).toLocaleString('es-ES', {
+                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+
+            // Generar filas de productos
+            let filasHtml = '';
+            let totalGeneral = 0;
+            lote.forEach(linea => {
+                const importe = parseFloat(linea.importeTotal) || 0;
+                const precioBase = linea.precioUnitario ? parseFloat(linea.precioUnitario).toFixed(2).replace('.', ',') : '—';
+                const importeFmt = importe.toFixed(2).replace('.', ',');
+                totalGeneral += importe;
+                filasHtml += `
             <tr>
                 <td>${linea.producto_nombre || '—'}</td>
                 <td style="text-align:center">${linea.cantidad}</td>
                 <td style="text-align:right">${precioBase} €</td>
                 <td style="text-align:right">${importeFmt} €</td>
             </tr>`;
-    });
+            });
 
-    const totalFmt = totalGeneral.toFixed(2).replace('.', ',');
-    const motivo = dev.motivo || '';
+            const totalFmt = totalGeneral.toFixed(2).replace('.', ',');
+            const motivo = dev.motivo || '';
 
-    const contenido = `
+            const contenido = `
     <html>
     <head>
         <title>TICKET DE DEVOLUCIÓN - Ticket #${dev.idVenta}</title>
@@ -568,7 +596,7 @@ function verTicketDevolucion() {
             NIF: B12345678<br>
             C/ Falsa 123, 23000 León<br>
             <div style="margin-top: 10px;">
-                <p><strong>Ticket Original:</strong> ${(dev.serie || 'T') + String(dev.numero || dev.idVenta || '—').padStart(5, '0')}</p>
+                <p><strong>Ticket Original:</strong> ${(dev.serie ? dev.serie : 'T') + String(dev.numero || dev.idVenta || '—').padStart(5, '0')}</p>
                 <p><strong>Fecha:</strong> ${fecha}</p>
                 <p><strong>Empleado:</strong> ${dev.usuario_nombre || '—'}</p>
                 <p><strong>Método Reembolso:</strong> ${dev.metodoPago}</p>
@@ -591,9 +619,10 @@ function verTicketDevolucion() {
     </body>
     </html>`;
 
-    const ventana = window.open('', '_blank', 'width=400,height=600');
-    ventana.document.write(contenido);
-    ventana.document.close();
+            const ventana = window.open('', '_blank', 'width=400,height=600');
+            ventana.document.write(contenido);
+            ventana.document.close();
+        });
 }
 
 /**

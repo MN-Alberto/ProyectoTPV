@@ -85,18 +85,23 @@ if ($method === 'GET') {
             SELECT cs.id, cs.idUsuario, cs.fechaApertura, cs.fechaCierre, 
                    cs.importeInicial, cs.importeActual, cs.cambio, cs.estado,
                    u.nombre as usuario_nombre,
-                   COALESCE((SELECT SUM(importe) FROM retiros WHERE idCajaSesion = cs.id), 0) as total_retiros,
-                   COALESCE((SELECT SUM(importeTotal) FROM devoluciones WHERE idSesionCaja = cs.id OR (idSesionCaja IS NULL AND fecha >= cs.fechaApertura AND (cs.fechaCierre IS NULL OR fecha <= cs.fechaCierre))), 0) as total_devoluciones,
-                   COALESCE((SELECT SUM(lv.cantidad) FROM ventas v 
-                             JOIN lineasVenta lv ON v.id = lv.idVenta 
-                             WHERE v.idSesionCaja = cs.id OR (v.idSesionCaja IS NULL AND v.fecha >= cs.fechaApertura AND (cs.fechaCierre IS NULL OR v.fecha <= cs.fechaCierre))), 0) as total_productos,
-                   COALESCE((SELECT COUNT(*) FROM ventas v 
-                             WHERE v.idSesionCaja = cs.id OR (v.idSesionCaja IS NULL AND v.fecha >= cs.fechaApertura AND (cs.fechaCierre IS NULL OR v.fecha <= cs.fechaCierre))), 0) as total_ventas,
-                   (SELECT diferencia FROM arqueos_caja WHERE idCajaSesion = cs.id AND tipoArqueo = 'cierre' ORDER BY fechaArqueo DESC LIMIT 1) as diferencia,
-                   (SELECT efectivoContado FROM arqueos_caja WHERE idCajaSesion = cs.id AND tipoArqueo = 'cierre' ORDER BY fechaArqueo DESC LIMIT 1) as efectivoContado,
-                   (SELECT u2.nombre FROM arqueos_caja ac JOIN usuarios u2 ON ac.idUsuario = u2.id WHERE ac.idCajaSesion = cs.id AND ac.tipoArqueo = 'cierre' ORDER BY ac.fechaArqueo DESC LIMIT 1) as usuario_cierre_nombre
+                   COALESCE(r.total, 0) as total_retiros,
+                   COALESCE(d.total, 0) as total_devoluciones,
+                   COALESCE(ac.diferencia, 0) as diferencia,
+                   COALESCE(ac.efectivoContado, 0) as efectivoContado,
+                   COALESCE(u2.nombre, '') as usuario_cierre_nombre
             FROM caja_sesiones cs
             LEFT JOIN usuarios u ON cs.idUsuario = u.id
+            LEFT JOIN (SELECT idCajaSesion, SUM(importe) as total FROM retiros GROUP BY idCajaSesion) r ON r.idCajaSesion = cs.id
+            LEFT JOIN (SELECT idSesionCaja, SUM(importeTotal) as total FROM devoluciones GROUP BY idSesionCaja) d ON d.idSesionCaja = cs.id
+            LEFT JOIN (
+                SELECT idCajaSesion, diferencia, efectivoContado, idUsuario 
+                FROM arqueos_caja 
+                WHERE tipoArqueo = 'cierre' 
+                GROUP BY idCajaSesion 
+                ORDER BY fechaArqueo DESC
+            ) ac ON ac.idCajaSesion = cs.id
+            LEFT JOIN usuarios u2 ON ac.idUsuario = u2.id
         ";
 
         if (!empty($condiciones)) {

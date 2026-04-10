@@ -22,6 +22,20 @@ function mostrarSeccionInformes(periodo = 'diario') {
     };
 
     document.getElementById('adminTitulo').textContent = titulos[periodo];
+    contenedor.innerHTML = `
+        <div style="text-align:center;padding:60px 20px">
+            <i class="fas fa-chart-bar" style="font-size:4rem;color:#cbd5e1;margin-bottom:20px"></i>
+            <h3 style="color:#64748b;margin-bottom:10px">${titulos[periodo]}</h3>
+            <p style="color:#94a3b8;margin-bottom:30px">Haz click en el botón para generar el informe</p>
+            <button class="btn-tpv" onclick="cargarInforme('${periodo}')" style="padding:15px 30px;font-size:1.1rem">
+                <i class="fas fa-play"></i> Generar Informe
+            </button>
+        </div>
+    `;
+}
+
+function cargarInforme(periodo) {
+    const contenedor = document.getElementById('adminContenido');
     contenedor.innerHTML = `<div class="reports-loading"><i class="fas fa-spinner fa-spin"></i> Generando informes...</div>`;
 
     fetch('api/informes.php?periodo=' + periodo)

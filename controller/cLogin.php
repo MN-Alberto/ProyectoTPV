@@ -32,9 +32,8 @@ function registrarLog($pdo, $tipo, $descripcion, $detalles = null)
             ':descripcion' => $descripcion,
             ':detalles' => $detalles ? json_encode($detalles) : null
         ]);
-    }
-    catch (Exception $e) {
-    // Silenciamos los errores de auditoría para priorizar la disponibilidad de la aplicación.
+    } catch (Exception $e) {
+        // Silenciamos los errores de auditoría para priorizar la disponibilidad de la aplicación.
     }
 }
 
@@ -50,8 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['usuario'], $_POST['pa
     if (empty($nombre) || empty($password)) {
         // Añadimos un error a la variable para almacenar los errores
         $error = 'Por favor, rellena todos los campos.';
-    }
-    else {
+    } else {
         // Intento de autenticación mediante el modelo Usuario
         $usuario = Usuario::login($nombre, $password);
 
@@ -67,8 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['usuario'], $_POST['pa
             if ($usuario->getRol() === 'admin') {
                 $_SESSION['paginaEnCurso'] = 'admin';
                 $tipoLog = 'acceso_admin';
-            }
-            else {
+            } else {
                 $_SESSION['paginaEnCurso'] = 'cajero';
                 $tipoLog = 'acceso_cajero';
             }
@@ -95,16 +92,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['usuario'], $_POST['pa
                     ':usuario_nombre' => $usuario->getNombre(),
                     ':descripcion' => 'Acceso a ' . ($usuario->getRol() === 'admin' ? 'panel de administración' : 'panel de cajero')
                 ]);
-            }
-            catch (Exception $e) {
-            // Silenciar errores de logging
+            } catch (Exception $e) {
+                // Silenciar errores de logging
             }
 
             // Recargamos la página para mostrar así la vista del usuario
             header('Location: index.php');
             exit();
-        }
-        else {
+        } else {
             // Si el usuario no existe o las credenciales no son correctas indicamos un error
             $error = 'Usuario o contraseña incorrectos.';
 
@@ -120,9 +115,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['usuario'], $_POST['pa
                     ':usuario_nombre' => $nombre,
                     ':descripcion' => 'Intento de inicio de sesión fallido'
                 ]);
-            }
-            catch (Exception $e) {
-            // Silenciar errores de logging
+            } catch (Exception $e) {
+                // Silenciar errores de logging
             }
         }
     }
@@ -130,8 +124,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['usuario'], $_POST['pa
 
 // Si el usuario solicita cerrar sesión (por GET o POST).
 if (
-(isset($_GET['accion']) && $_GET['accion'] === 'cerrarSesion') ||
-(isset($_POST['cerrarSesion']))
+    (isset($_GET['accion']) && $_GET['accion'] === 'cerrarSesion') ||
+    (isset($_POST['cerrarSesion']))
 ) {
     $nombreUsuario = $_SESSION['nombreUsuario'] ?? 'Desconocido';
     $idUsuario = $_SESSION['idUsuario'] ?? null;
@@ -148,9 +142,8 @@ if (
             ':usuario_nombre' => $nombreUsuario,
             ':descripcion' => 'Usuario cerró sesión'
         ]);
-    }
-    catch (Exception $e) {
-    // Silenciar errores de logging
+    } catch (Exception $e) {
+        // Silenciar errores de logging
     }
 
     // Destruimos la sesión

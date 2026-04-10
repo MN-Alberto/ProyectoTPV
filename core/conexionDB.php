@@ -6,8 +6,15 @@
  * optimizando el uso de recursos y centralizando la configuración de codificación.
  * 
  * @author Alberto Méndez
- * @version 1.2 (02/03/2026)
+ * @version 1.3 (09/04/2026)
  */
+
+// ✅ SOLUCIÓN BLOQUEO DE SESIONES PHP
+// Se cierra el bloqueo de sesion inmediatamente para permitir peticiones paralelas
+// Esto soluciona que las peticiones se queden en estado PENDING indefinidamente
+if (session_status() == PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
 
 class ConexionDB
 {

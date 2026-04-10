@@ -103,7 +103,7 @@ class Venta
      * @var string|null Justificación o código del descuento manual. 
      */
     private $descuentoManualCupon;
-    
+
     // Campos de número correlativo
     private $serie;
     private $numero;
@@ -112,6 +112,9 @@ class Venta
     private $puntosGanados;
     private $puntosCanjeados;
     private $puntosBalance;
+
+    // Mensaje personalizado
+    private $mensajePersonalizado;
 
     // ======================== GETTERS ========================
 
@@ -218,6 +221,11 @@ class Venta
     public function getClienteObservaciones()
     {
         return $this->clienteObservaciones;
+    }
+
+    public function getMensajePersonalizado()
+    {
+        return $this->mensajePersonalizado;
     }
 
     // ======================== SETTERS ========================
@@ -349,6 +357,11 @@ class Venta
     public function setClienteObservaciones($v)
     {
         $this->clienteObservaciones = $v;
+    }
+
+    public function setMensajePersonalizado($v)
+    {
+        $this->mensajePersonalizado = $v;
     }
 
     public function getImporteEntregado()
@@ -639,37 +652,37 @@ class Venta
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        
+
         try {
             // Iniciamos transacción para asegurar consistencia entre tablas
             $conexion->beginTransaction();
 
             // 1. Determinar serie según tipo de documento: ticket -> T, factura -> F
             $serie = ($this->tipoDocumento === 'factura') ? 'F' : 'T';
-            
+
             // 2. Obtener el siguiente número correlativo para esta serie
             $stmtMax = $conexion->prepare("SELECT COALESCE(MAX(numero), 0) + 1 as siguiente FROM ventas_ids WHERE serie = ?");
             $stmtMax->execute([$serie]);
             $rowMax = $stmtMax->fetch(PDO::FETCH_ASSOC);
             $siguienteNumero = $rowMax['siguiente'];
-            
+
             // 3. Generar un nuevo ID único en la tabla ventas_ids con el correlativo
             $stmtId = $conexion->prepare("INSERT INTO ventas_ids (tipo, serie, numero) VALUES (:tipo, :serie, :numero)");
             $stmtId->bindParam(':tipo', $this->tipoDocumento);
             $stmtId->bindParam(':serie', $serie);
             $stmtId->bindParam(':numero', $siguienteNumero, PDO::PARAM_INT);
             $stmtId->execute();
-            
+
             // Obtenemos el ID generado
             $this->id = $conexion->lastInsertId();
 
             // 4. Insertar en la tabla real correspondiente (tickets o facturas) con el ID obtenido
             $tabla = $this->getTabla();
-            $sql = "INSERT INTO {$tabla} (id, idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni, cliente_nombre, cliente_direccion, cliente_observaciones, idSesionCaja, puntos_ganados, puntos_canjeados, puntos_balance) 
-                  VALUES (:id, :idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni, :clienteNombre, :clienteDireccion, :clienteObservaciones, :idSesionCaja, :puntosGanados, :puntosCanjeados, :puntosBalance)";
-            
+            $sql = "INSERT INTO {$tabla} (id, idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni, cliente_nombre, cliente_direccion, cliente_observaciones, mensaje_personalizado, idSesionCaja, puntos_ganados, puntos_canjeados, puntos_balance) 
+                  VALUES (:id, :idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni, :clienteNombre, :clienteDireccion, :clienteObservaciones, :mensajePersonalizado, :idSesionCaja, :puntosGanados, :puntosCanjeados, :puntosBalance)";
+
             $stmt = $conexion->prepare($sql);
-            
+
             // Vinculamos los parámetros
             $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
             $stmt->bindParam(':idUsuario', $this->idUsuario, PDO::PARAM_INT);
@@ -696,11 +709,12 @@ class Venta
             $stmt->bindParam(':clienteNombre', $this->clienteNombre, PDO::PARAM_STR);
             $stmt->bindParam(':clienteDireccion', $this->clienteDireccion, PDO::PARAM_STR);
             $stmt->bindParam(':clienteObservaciones', $this->clienteObservaciones, PDO::PARAM_STR);
+            $stmt->bindParam(':mensajePersonalizado', $this->mensajePersonalizado, PDO::PARAM_STR);
             $stmt->bindParam(':idSesionCaja', $this->idSesionCaja, PDO::PARAM_INT);
             $stmt->bindParam(':puntosGanados', $this->puntosGanados, PDO::PARAM_INT);
             $stmt->bindParam(':puntosCanjeados', $this->puntosCanjeados, PDO::PARAM_INT);
             $stmt->bindParam(':puntosBalance', $this->puntosBalance, PDO::PARAM_INT);
-            
+
             // Ejecutamos la consulta de inserción
             try {
                 $stmt->execute();
@@ -714,13 +728,14 @@ class Venta
                         $conexion->exec("ALTER TABLE {$t} ADD COLUMN IF NOT EXISTS puntos_ganados INT DEFAULT 0");
                         $conexion->exec("ALTER TABLE {$t} ADD COLUMN IF NOT EXISTS puntos_canjeados INT DEFAULT 0");
                         $conexion->exec("ALTER TABLE {$t} ADD COLUMN IF NOT EXISTS puntos_balance INT DEFAULT 0");
+                        $conexion->exec("ALTER TABLE {$t} ADD COLUMN IF NOT EXISTS mensaje_personalizado TEXT DEFAULT NULL");
                     }
-                    
+
                     // Refrescar la vista 'ventas' usando columnas explícitas para evitar desalineación (ej: puntos_canjeados y puntos_balance)
                     $conexion->exec("DROP VIEW IF EXISTS ventas");
-                    $cols = "id,idUsuario,fecha,total,descuentoTipo,descuentoValor,descuentoCupon,descuentoTarifaTipo,descuentoTarifaValor,descuentoTarifaCupon,descuentoManualTipo,descuentoManualValor,descuentoManualCupon,metodoPago,estado,tipoDocumento,importeEntregado,cambioDevuelto,cerrada,idSesionCaja,idTarifa,cliente_dni,cliente_nombre,cliente_direccion,cliente_observaciones,puntos_ganados,puntos_canjeados,puntos_balance";
+                    $cols = "id,idUsuario,fecha,total,descuentoTipo,descuentoValor,descuentoCupon,descuentoTarifaTipo,descuentoTarifaValor,descuentoTarifaCupon,descuentoManualTipo,descuentoManualValor,descuentoManualCupon,metodoPago,estado,tipoDocumento,importeEntregado,cambioDevuelto,cerrada,idSesionCaja,idTarifa,cliente_dni,cliente_nombre,cliente_direccion,cliente_observaciones,mensaje_personalizado,puntos_ganados,puntos_canjeados,puntos_balance";
                     $conexion->exec("CREATE VIEW ventas AS SELECT $cols FROM tickets UNION ALL SELECT $cols FROM facturas");
-                    
+
                     // Re-intentar la inserción
                     $stmt->execute();
                 } else {
@@ -1025,6 +1040,9 @@ class Venta
         }
         if (isset($fila['puntos_balance'])) {
             $venta->setPuntosBalance($fila['puntos_balance']);
+        }
+        if (isset($fila['mensaje_personalizado'])) {
+            $venta->setMensajePersonalizado($fila['mensaje_personalizado']);
         }
         return $venta;
     }

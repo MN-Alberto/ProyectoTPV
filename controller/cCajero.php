@@ -156,11 +156,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             foreach ($carrito as $item) {
                 // Skip stock validation for comodin products
                 if (isset($item['esComodin']) && $item['esComodin'] === true) {
-                    $precioUnitarioConIva = isset($item['pvpUnitario']) ? (float)$item['pvpUnitario'] : (float)$item['precio'];
+                    $precioUnitarioConIva = isset($item['pvpUnitario']) ? (float) $item['pvpUnitario'] : (float) $item['precio'];
                     $total += round($precioUnitarioConIva * $item['cantidad'], 2);
                     continue;
                 }
-                
+
                 // Buscamos el producto por id para asegurar datos frescos
                 $producto = Producto::buscarPorId($item['idProducto']);
 
@@ -172,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 
                 // Usar el PVP unitario redondeado enviado desde el carrito (garantiza precisión financiera)
                 // Si por algún motivo no viniera, lo calculamos como fallback
-                $precioUnitarioConIva = isset($item['pvpUnitario']) ? (float)$item['pvpUnitario'] : (float)$item['precio'] * (1 + ($producto->getIvaPorcentaje() / 100));
+                $precioUnitarioConIva = isset($item['pvpUnitario']) ? (float) $item['pvpUnitario'] : (float) $item['precio'] * (1 + ($producto->getIvaPorcentaje() / 100));
 
                 // Sumamos al total acumulado redondeado a 2 decimales para evitar arrastre de coma flotante
                 $total += round($precioUnitarioConIva * $item['cantidad'], 2);
@@ -259,19 +259,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $clienteNombre = $_POST['clienteNombre'] ?? '';
             $clienteDireccion = $_POST['clienteDireccion'] ?? '';
             $observaciones = $_POST['observaciones'] ?? '';
+            $mensajePersonalizado = trim($_POST['mensajePersonalizado'] ?? '');
 
             error_log("Datos del cliente recibidos: NIF='$clienteNif', Nombre='$clienteNombre'");
-            
+
             $venta->setClienteDni($clienteNif);
             $venta->setClienteNombre($clienteNombre);
             $venta->setClienteDireccion($clienteDireccion);
             $venta->setClienteObservaciones($observaciones);
-            
+            $venta->setMensajePersonalizado($mensajePersonalizado);
+
             // Guardar puntos en la venta para el historial
-            $venta->setPuntosGanados(isset($_POST['puntosGanados']) ? (int)$_POST['puntosGanados'] : 0);
-            $venta->setPuntosCanjeados(isset($_POST['puntosCanjeadosCantidad']) ? (int)$_POST['puntosCanjeadosCantidad'] : 0);
-            $venta->setPuntosBalance(isset($_POST['puntosBalance']) ? (int)$_POST['puntosBalance'] : 0);
-            
+            $venta->setPuntosGanados(isset($_POST['puntosGanados']) ? (int) $_POST['puntosGanados'] : 0);
+            $venta->setPuntosCanjeados(isset($_POST['puntosCanjeadosCantidad']) ? (int) $_POST['puntosCanjeadosCantidad'] : 0);
+            $venta->setPuntosBalance(isset($_POST['puntosBalance']) ? (int) $_POST['puntosBalance'] : 0);
+
             $venta->insertar();
 
             // Registrar la venta en el log del sistema
@@ -320,16 +322,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                             puntos = puntos - ? + ?
                         WHERE dni = ? AND activo = 1"
                     );
-                    
+
                     $stmtCliente->execute([$totalProductos, $puntosCanjeados, $puntosGanados, $clienteNif]);
-                    
+
                     // Comprobar si fue identificado en el modal de puntos antes de la venta
                     $clienteIdentificadoPuntos = isset($_POST['clienteIdentificadoPuntos']) && $_POST['clienteIdentificadoPuntos'] === 'true';
 
                     if ($clienteIdentificadoPuntos) {
                         $_SESSION['mostrarModalPuntosPostVenta'] = true;
                         $_SESSION['postVentaPuntosGanados'] = $puntosGanados;
-                        
+
                         // Consultar los puntos actuales del cliente para mostrarlos en el modal
                         $stmtPuntosActuales = $conexion->prepare("SELECT puntos FROM clientes WHERE dni = ? AND activo = 1 LIMIT 1");
                         $stmtPuntosActuales->execute([$clienteNif]);
@@ -342,55 +344,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 }
             }
 
-            
+
             // Insertamos las líneas de venta y actualizamos el stock
             $lineasVenta = [];
             // Recorremos los productos del carrito
             foreach ($carrito as $item) {
                 $esComodin = isset($item['esComodin']) && $item['esComodin'] === true;
-                
+
                 // Si no es comodín, re-buscamos el producto para obtener su IVA y stock individual
                 $producto = !$esComodin ? Producto::buscarPorId($item['idProducto']) : null;
-                
+
                 // Creamos una nueva línea de venta
                 $linea = new LineaVenta();
                 $linea->setIdVenta($venta->getId());
-                
+
                 // Indicamos el nombre y id del producto
                 if ($esComodin) {
                     $linea->setIdProducto(null);
                     $linea->setNombreProducto($item['nombre'] ?? 'Comodín');
-                    $ivaItem = isset($item['iva']) ? (float)$item['iva'] : 21;
+                    $ivaItem = isset($item['iva']) ? (float) $item['iva'] : 21;
                 } else {
                     $linea->setIdProducto($item['idProducto']);
-                    $ivaItem = $producto ? (float)$producto->getIvaPorcentaje() : 21;
+                    $ivaItem = $producto ? (float) $producto->getIvaPorcentaje() : 21;
                 }
-                
+
                 // Indicamos la cantidad
                 $linea->setCantidad($item['cantidad']);
-                
+
                 // Indicamos el precio unitario (Base sin IVA)
-                $pvpUnitarioItem = isset($item['pvpUnitario']) ? (float)$item['pvpUnitario'] : null;
-                
+                $pvpUnitarioItem = isset($item['pvpUnitario']) ? (float) $item['pvpUnitario'] : null;
+
                 if ($pvpUnitarioItem !== null) {
                     $precioBaseCalculado = $pvpUnitarioItem / (1 + ($ivaItem / 100));
                 } else {
-                    $precioBaseCalculado = isset($item['precio']) ? (float)$item['precio'] : 0;
+                    $precioBaseCalculado = isset($item['precio']) ? (float) $item['precio'] : 0;
                 }
-                
+
                 $linea->setPrecioUnitario($precioBaseCalculado);
-                
+
                 // Calculamos el precio original base (sin IVA) para guardarlo
-                $pvpOriginalUnitario = isset($item['pvpOriginalUnitario']) ? (float)$item['pvpOriginalUnitario'] : $pvpUnitarioItem;
+                $pvpOriginalUnitario = isset($item['pvpOriginalUnitario']) ? (float) $item['pvpOriginalUnitario'] : $pvpUnitarioItem;
                 $precioOriginalBase = $pvpOriginalUnitario / (1 + ($ivaItem / 100));
                 $linea->setPrecioOriginal($precioOriginalBase);
-                
+
                 // Guardamos el nombre de la tarifa aplicada
                 $linea->setTarifaNombre($item['tarifaNombre'] ?? null);
-                
+
                 // Indicamos el IVA aplicado
                 $linea->setIva($ivaItem);
-                
+
                 // Insertamos la línea de venta
                 $linea->insertar();
 
@@ -417,14 +419,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $_SESSION['ultimaVentaId'] = $venta->getId();
             $_SESSION['ultimaVentaTotal'] = $total;
             $_SESSION['ultimaVentaTipo'] = $_POST['tipoDocumento'] ?? 'ticket';
-            
+
             // Obtener serie y número correlativo de la venta desde ventas_ids
             require_once(__DIR__ . '/../core/conexionDB.php');
             $conexion = ConexionDB::getInstancia()->getConexion();
             $stmtIds = $conexion->prepare("SELECT serie, numero FROM ventas_ids WHERE id = ?");
             $stmtIds->execute([$venta->getId()]);
             $idsData = $stmtIds->fetch(PDO::FETCH_ASSOC);
-            
+
             if ($idsData) {
                 $_SESSION['ultimaVentaSerie'] = $idsData['serie'] ?: ($_POST['tipoDocumento'] === 'factura' ? 'F' : 'T');
                 $_SESSION['ultimaVentaNumero'] = $idsData['numero'] ?: $venta->getId();
@@ -432,7 +434,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 $_SESSION['ultimaVentaSerie'] = $_POST['tipoDocumento'] === 'factura' ? 'F' : 'T';
                 $_SESSION['ultimaVentaNumero'] = $venta->getId();
             }
-            
+
             $_SESSION['ultimaVentaCarrito'] = json_encode($lineasVenta);
             $_SESSION['ultimaVentaMetodoPago'] = $_POST['metodoPago'] ?? 'efectivo';
             $_SESSION['ultimaVentaFecha'] = date('d/m/Y H:i');
@@ -464,6 +466,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $_SESSION['ultimaVentaClienteNombre'] = $_POST['clienteNombre'] ?? '';
             $_SESSION['ultimaVentaClienteDir'] = $_POST['clienteDireccion'] ?? '';
             $_SESSION['ultimaVentaClienteObs'] = $_POST['observaciones'] ?? '';
+            $_SESSION['ultimaVentaMensajePersonalizado'] = $mensajePersonalizado;
             header('Location: index.php');
             exit();
         }
@@ -623,8 +626,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             foreach ($productos as $item) {
                 // Soportar comodines: idProducto puede ser null
                 $idProductoRaw = isset($item['idProducto']) ? $item['idProducto'] : null;
-                $idProducto = ($idProductoRaw === null || $idProductoRaw === '' || strpos((string)$idProductoRaw, 'comodin_') !== false)  ? null : (int) $idProductoRaw;
-                
+                $idProducto = ($idProductoRaw === null || $idProductoRaw === '' || strpos((string) $idProductoRaw, 'comodin_') !== false) ? null : (int) $idProductoRaw;
+
                 $idLineaOriginal = isset($item['idLineaOriginal']) ? (int) $item['idLineaOriginal'] : null;
                 $cantidadSolicitada = (int) $item['cantidad'];
 
@@ -638,7 +641,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                         }
                     } else {
                         // Fallback si no viene idLineaOriginal
-                        $detalleIdProd = $detalle['idProducto'] !== null ? (int)$detalle['idProducto'] : null;
+                        $detalleIdProd = $detalle['idProducto'] !== null ? (int) $detalle['idProducto'] : null;
                         if ($detalleIdProd === $idProducto) {
                             $lineaOriginal = $detalle;
                             break;
@@ -675,7 +678,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 $devolucion->setIdSesionCaja($sesionCaja ? $sesionCaja->getId() : null);
                 $devolucion->setMetodoPago($metodoPago);
                 $devolucion->setMotivo($motivo);
-                
+
                 $lineasReembolso[] = [
                     'nombre' => $lineaOriginal['producto_nombre'] ?? 'Producto ' . $idProducto,
                     'cantidad' => $cantidadSolicitada,
@@ -739,7 +742,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 $serie = !empty($idsData['serie']) ? $idsData['serie'] : 'T';
                 $num = !empty($idsData['numero']) ? $idsData['numero'] : $idVenta;
                 $numCompleto = $serie . str_pad($num, 5, '0', STR_PAD_LEFT);
-                
+
                 $_SESSION['devolucionDetalles'] = array(
                     'ticket' => $numCompleto,
                     'productos' => $cantidadTotalDevuelta,

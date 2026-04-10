@@ -4,6 +4,8 @@
  * Depende de: admin.state.js, admin.utils.js, admin.pagination.js
  */
 
+let totalPaginasVentas = 1;
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // VENTAS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -17,7 +19,8 @@ function getVentasTablaHeader(filtroFecha = 'todos', metodoPago = 'todos', tipoD
                 <div class="filtro-group" style="display:flex;align-items:center;gap:10px;">
                     <input type="text" id="busquedaVentaId" class="filtro-input"
                         placeholder="Buscar # venta..." value="${busqueda || ''}"
-                        oninput="buscarVentasPorId()" autocomplete="off"
+                        oninput="buscarVentasPorId()" onblur="buscarVentasPorId()"
+                        autocomplete="off"
                         style="padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem;width:140px;">
                 </div>
                 <div class="filtro-group">
@@ -86,23 +89,42 @@ function generarFilaVenta(venta) {
         </tr>`;
 }
 
-function renderizarVentasPagina() {
-    const contenedor = document.getElementById('adminContenido');
-    if (!contenedor) return;
-    const inicio = (paginaActualVentas - 1) * ventasPorPagina;
-    const ventasPagina = ventasData.slice(inicio, inicio + ventasPorPagina);
-    const totalPaginas = Math.ceil(ventasData.length / ventasPorPagina);
-    const tbody = contenedor.querySelector('tbody');
-    if (tbody) tbody.innerHTML = ventasPagina.map(generarFilaVenta).join('');
-    actualizarPaginacionDOM(contenedor, getPaginacionVentasHTML(totalPaginas));
+function irPaginaVentas(pagina) {
+    paginaActualVentas = pagina;
+    cargarVentasAdmin(
+        document.getElementById('ventasFiltroFecha')?.value || 'todos',
+        document.getElementById('ventasFiltroMetodo')?.value || 'todos',
+        document.getElementById('ventasFiltroDocumento')?.value || 'todos',
+        document.getElementById('ventasOrdenar')?.value || 'fecha_desc',
+        document.getElementById('busquedaVentaId')?.value || ''
+    );
 }
 
-function cargarVentasAdmin(filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc', busqueda = '') {
+function renderizarVentasPagina() {
+    // ✅ AHORA LLAMA A LA FUNCION QUE CARGA DEL SERVIDOR
+    irPaginaVentas(paginaActualVentas);
+}
+
+// Estado global para cursores
+let cursorActualVentas = null;
+let cursorAnteriorVentas = null;
+let hayMasVentas = false;
+
+function cargarVentasAdmin(filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc', busqueda = '', direccion = 'siguiente') {
     if (seccionActual !== 'ventas') { adminTablaHeaderHTML = ''; seccionActual = 'ventas'; }
     const contenedor = document.getElementById('adminContenido');
     const esPrimeraVez = !contenedor.querySelector('.admin-tabla') || !adminTablaHeaderHTML;
 
     let url = 'api/ventas.php?todas=1';
+    url += '&porPagina=' + ventasPorPagina;
+
+    // Añadir cursor si existe
+    if (direccion === 'siguiente' && cursorActualVentas) {
+        url += `&cursor_fecha=${encodeURIComponent(cursorActualVentas.fecha)}&cursor_id=${cursorActualVentas.id}&direccion=siguiente`;
+    } else if (direccion === 'anterior' && cursorAnteriorVentas) {
+        url += `&cursor_fecha=${encodeURIComponent(cursorAnteriorVentas.fecha)}&cursor_id=${cursorAnteriorVentas.id}&direccion=anterior`;
+    }
+
     if (filtroFecha !== 'todos') url += '&filtroFecha=' + filtroFecha;
     if (metodoPago !== 'todos') url += '&metodoPago=' + metodoPago;
     if (tipoDocumento !== 'todos') url += '&tipoDocumento=' + tipoDocumento;
@@ -111,13 +133,20 @@ function cargarVentasAdmin(filtroFecha = 'todos', metodoPago = 'todos', tipoDocu
 
     fetch(url)
         .then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Error al cargar ventas'); }); return r.json(); })
-        .then(data => renderVentasAdmin(data, esPrimeraVez, filtroFecha, metodoPago, tipoDocumento, orden, busqueda))
+        .then(data => {
+            // Actualizar estado de cursores
+            hayMasVentas = data.has_more;
+            cursorActualVentas = data.next_cursor;
+            cursorAnteriorVentas = data.prev_cursor;
+
+            renderVentasAdmin(data.ventas, esPrimeraVez, filtroFecha, metodoPago, tipoDocumento, orden, busqueda, data.total_estimado);
+        })
         .catch(err => { contenedor.innerHTML = '<p class="sin-productos">Error: ' + err.message + '</p>'; });
 }
 
-function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc', busqueda = '') {
+function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc', busqueda = '', totalReal = 0) {
     const contenedor = document.getElementById('adminContenido');
-    const total = ventas ? ventas.length : 0;
+    const total = totalReal || (ventas ? ventas.length : 0);
 
     if (!total) {
         if (esPrimeraVez || !adminTablaHeaderHTML) {
@@ -137,13 +166,14 @@ function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', m
         adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden, busqueda, total);
 
     ventasData = ventas;
-    paginaActualVentas = 1;
+    // NO HACEMOS NADA CON LA PAGINA, VIENE YA SELECCIONADA DEL BOTON
 
-    const ventasPagina = ventasData.slice(0, ventasPorPagina);
-    const totalPaginas = Math.ceil(ventasData.length / ventasPorPagina);
+    // ✅ Paginacion REAL del servidor
+    const totalPaginas = Math.ceil(total / ventasPorPagina);
+    totalPaginasVentas = totalPaginas;
 
     ejecutarCuandoIdle(
-        () => ventasPagina.map(generarFilaVenta).join(''),
+        () => ventas.map(generarFilaVenta).join(''),
         filasHtml => {
             const html = adminTablaHeaderHTML + filasHtml + '</tbody></table></div>' +
                 getPaginacionVentasHTML(totalPaginas);
@@ -167,6 +197,7 @@ function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', m
 
 function aplicarFiltrosVentas() {
     adminTablaHeaderHTML = '';
+    paginaActualVentas = 1;
     cargarVentasAdmin(
         document.getElementById('ventasFiltroFecha')?.value || 'todos',
         document.getElementById('ventasFiltroMetodo')?.value || 'todos',
@@ -179,6 +210,7 @@ function aplicarFiltrosVentas() {
 function buscarVentasPorId() {
     clearTimeout(debounceTimerVentas);
     debounceTimerVentas = setTimeout(() => {
+        paginaActualVentas = 1;
         const b = document.getElementById('busquedaVentaId')?.value || '';
         cargarVentasAdmin(
             document.getElementById('ventasFiltroFecha')?.value || 'todos',
@@ -232,7 +264,7 @@ function verDetalleVenta(idVenta) {
             let html = `<div style="border-radius:12px;overflow:hidden;background:${bg};">
                 <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:20px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <h3 style="margin:0;">${venta.serie || 'T'}${String(venta.numero || venta.id).padStart(5, '0')}</h3>
+            <h3 style="margin:0;">${venta.serie || 'T'}${String(venta.numero || venta.id).padStart(5, '0')}</h3>
                         <span style="font-size:14px;opacity:.9;">${fecha}</span>
                     </div>
                 </div>
@@ -324,7 +356,7 @@ function getDevolucionesTablaHeader(orden = 'fecha_desc', busquedaTicket = '', t
         <div class="admin-tabla-wrapper">
             <table class="admin-tabla">
                 <thead><tr>
-                    <th>#</th><th>Ticket</th><th>Fecha</th><th>Empleado</th>
+                    <th>Ticket</th><th>Fecha</th><th>Empleado</th>
                     <th>Producto</th><th>Cant.</th><th>Importe</th><th>Método</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>`;
@@ -361,7 +393,7 @@ function renderDevolucionesAdmin(devoluciones, esPrimeraVez = true, orden = 'fec
                 '<tr><td colspan="9" class="sin-productos">No hay devoluciones registradas.</td></tr></tbody></table></div>';
         } else {
             const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="sin-productos">No hay devoluciones registradas.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="sin-productos">No hay devoluciones registradas.</td></tr>';
             const c = document.getElementById('totalDevolucionesAviso');
             if (c) c.textContent = '0 Devoluciones';
         }
@@ -378,7 +410,6 @@ function renderDevolucionesAdmin(devoluciones, esPrimeraVez = true, orden = 'fec
             { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         return `
             <tr>
-                <td class="col-id">${dev.id}</td>
                 <td class="col-ticket" style="font-weight:600;color:#1e40af;">${dev.serie || 'T'}${String(dev.numero || dev.idVenta || '—').padStart(5, '0')}</td>
                 <td class="col-fecha">${fecha}</td>
                 <td class="col-usuario">${dev.usuario_nombre || '—'}</td>
@@ -449,6 +480,7 @@ function verDetalleDevolucion(id) {
         })
         .catch(() => alert('Error al cargar detalles'));
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // RETIROS DE CAJA

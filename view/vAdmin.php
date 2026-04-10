@@ -1,17 +1,16 @@
-<!-- <script src="webroot/js/admin.js"></script> -->
- <script src="webroot/js/admin-backups.js"></script>
- <script src="webroot/js/admin-caja.js?v=3"></script>
- <script src="webroot/js/admin-clientes.js"></script>
- <script src="webroot/js/admin-configuracion.js"></script>
- <script src="webroot/js/admin-informes.js"></script>
- <script src="webroot/js/admin-logs.js"></script>
- <script src="webroot/js/admin-pagination.js"></script>
- <script src="webroot/js/admin-productos.js"></script>
- <script src="webroot/js/admin-state.js"></script>
- <script src="webroot/js/admin-tarifas.js"></script>
- <script src="webroot/js/admin-usuarios.js"></script>
- <script src="webroot/js/admin-utils.js"></script>
- <script src="webroot/js/admin-ventas.js?v=3"></script>
+<script src="webroot/js/admin-backups.js"></script>
+<script src="webroot/js/admin-caja.js?v=3"></script>
+<script src="webroot/js/admin-clientes.js"></script>
+<script src="webroot/js/admin-configuracion.js"></script>
+<script src="webroot/js/admin-informes.js"></script>
+<script src="webroot/js/admin-logs.js"></script>
+<script src="webroot/js/admin-pagination.js"></script>
+<script src="webroot/js/admin-productos.js"></script>
+<script src="webroot/js/admin-state.js"></script>
+<script src="webroot/js/admin-tarifas.js"></script>
+<script src="webroot/js/admin-usuarios.js"></script>
+<script src="webroot/js/admin-utils.js"></script>
+<script src="webroot/js/admin-ventas.js?v=3"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -22,8 +21,7 @@
         <div id="formBuscarProducto" class="admin-sidebar-header" style="padding: 20px;">
             <h2 class="admin-view-title">Administración</h2>
         </div>
-        <div class="cajero-categorias admin-nav-buttons"
-            style="flex-direction: column; gap: 10px; padding: 20px;">
+        <div class="cajero-categorias admin-nav-buttons" style="flex-direction: column; gap: 10px; padding: 20px;">
             <button class="cat-btn activa" data-seccion="dashboard" style="width: 100%; text-align: left;">
                 <i class="fas fa-chart-line" style="margin-right: 10px;"></i> Dashboard
             </button>
@@ -114,6 +112,10 @@
                     style="width: 100%; text-align: left; font-size: 13px;">
                     <i class="fas fa-cogs" style="margin-right: 10px;"></i> Acciones
                 </button>
+                <button class="cat-btn submenu-btn" data-seccion="config-ajustes"
+                    style="width: 100%; text-align: left; font-size: 13px;">
+                    <i class="fas fa-sliders-h" style="margin-right: 10px;"></i> Ajustes
+                </button>
             </div>
         </div>
     </div>
@@ -168,7 +170,8 @@
             <div class="admin-stat-card">
                 <span class="admin-stat-label">Horas trabajadas (Semana)</span>
                 <span class="admin-stat-value"
-                    style="color: #059669;"><?php echo number_format($stats['horasTrabajadasSemana'] ?? 0, 1, ',', '.'); ?> h</span>
+                    style="color: #059669;"><?php echo number_format($stats['horasTrabajadasSemana'] ?? 0, 1, ',', '.'); ?>
+                    h</span>
             </div>
         </div>
 
@@ -213,42 +216,49 @@
         <div class="cat-prod-container">
             <div class="cat-prod-title">
                 <span>Productos vinculados</span>
-                <span id="verCategoriaCantProdBadge" class="admin-badge" style="background: #e0e7ff; color: #3730a3;">0</span>
+                <span id="verCategoriaCantProdBadge" class="admin-badge"
+                    style="background: #e0e7ff; color: #3730a3;">0</span>
             </div>
-            
+
             <div class="cat-carousel-wrapper">
                 <div style="display: flex; gap: 5px;">
-                    <button id="firstCatProd" class="cat-carousel-btn small" title="Primero" onclick="cambiarProductoCarrusel('first')">
+                    <button id="firstCatProd" class="cat-carousel-btn small" title="Primero"
+                        onclick="cambiarProductoCarrusel('first')">
                         <i class="fas fa-angle-double-left"></i>
                     </button>
-                    <button id="prevCatProd" class="cat-carousel-btn" title="Anterior" onclick="cambiarProductoCarrusel(-1)">
+                    <button id="prevCatProd" class="cat-carousel-btn" title="Anterior"
+                        onclick="cambiarProductoCarrusel(-1)">
                         <i class="fas fa-chevron-left"></i>
                     </button>
                 </div>
-                
+
                 <div id="verCategoriaListaProductos" class="cat-prod-card-wrapper">
                     <!-- Se carga un solo producto aquí -->
                     <div class="cat-prod-empty">Cargando...</div>
                 </div>
-                
+
                 <div style="display: flex; gap: 5px;">
-                    <button id="nextCatProd" class="cat-carousel-btn" title="Siguiente" onclick="cambiarProductoCarrusel(1)">
+                    <button id="nextCatProd" class="cat-carousel-btn" title="Siguiente"
+                        onclick="cambiarProductoCarrusel(1)">
                         <i class="fas fa-chevron-right"></i>
                     </button>
-                    <button id="lastCatProd" class="cat-carousel-btn small" title="Último" onclick="cambiarProductoCarrusel('last')">
+                    <button id="lastCatProd" class="cat-carousel-btn small" title="Último"
+                        onclick="cambiarProductoCarrusel('last')">
                         <i class="fas fa-angle-double-right"></i>
                     </button>
                 </div>
             </div>
-            
+
             <div id="catCarouselDots" class="cat-carousel-info" style="justify-content: center; margin-top: 15px;">
                 <span>Producto</span>
-                <input type="number" id="catCarouselInput" class="cat-carousel-input" min="1" onchange="saltarAProductoCarrusel(this.value)">
+                <input type="number" id="catCarouselInput" class="cat-carousel-input" min="1"
+                    onchange="saltarAProductoCarrusel(this.value)">
                 <span>de <span id="catCarouselTotal">0</span></span>
             </div>
         </div>
 
-        <div style="display: flex; justify-content: center; margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--border-main);">
+        <div
+            style="display: flex; justify-content: center; margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--border-main);">
             <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCategoria')" style="min-width: 120px;">
                 Cerrar
             </button>
@@ -790,8 +800,8 @@
                 <label for="editarClientePuntos"
                     style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Puntos</label>
                 <input type="number" id="editarClientePuntos"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="0" min="0" onchange="this.value = Math.max(0, this.value);">
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" placeholder="0"
+                    min="0" onchange="this.value = Math.max(0, this.value);">
             </div>
         </div>
 
@@ -1016,15 +1026,16 @@
 </div>
 
 <!-- ##=========================== MODAL: ESTADÍSTICAS DE PRODUCTOS ===========================## -->
-        </div>
-    </div>
+</div>
+</div>
 </div>
 
 <!-- ##=========================== MODAL: PROGRAMAR CAMBIOS EN TARIFAS ===========================## -->
 <div class="modal-overlay" id="modalProgramarCambiosTarifas"
     style="display:none; position: fixed; z-index: 10100; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
     <div class="modal-content" style="max-width: 500px; text-align: left;">
-        <h3 style="margin-bottom: 5px;"><i class="fas fa-clock" style="margin-right: 10px;"></i>Confirmar Programación</h3>
+        <h3 style="margin-bottom: 5px;"><i class="fas fa-clock" style="margin-right: 10px;"></i>Confirmar Programación
+        </h3>
         <p class="modal-subtitulo" style="margin-bottom: 15px;">
             Se van a programar <span id="countCambiosProgramar">0</span> cambios de precios.
         </p>
@@ -1035,7 +1046,8 @@
                 style="width: 100%; padding: 12px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-main); border-radius: 8px; font-size: 16px;">
         </div>
 
-        <div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
+        <div
+            style="background: var(--bg-secondary); padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
             <i class="fas fa-info-circle" style="color: #3b82f6; margin-right: 8px;"></i>
             Los precios cambiarán automáticamente en la fecha seleccionada cuando un administrador acceda al sistema.
         </div>
@@ -1054,19 +1066,23 @@
     style="display:none; position: fixed; z-index: 10100; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
     <div class="modal-content" style="max-width: 850px; text-align: left; max-height: 85vh; width: 90%;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h3 style="margin: 0;"><i class="fas fa-history" style="margin-right: 10px;"></i>Historial de Programaciones</h3>
-            <button onclick="cerrarModal('modalVerCambiosTarifasProgramados')" style="background:none; border:none; font-size: 24px; cursor:pointer; color: var(--text-secondary);">&times;</button>
+            <h3 style="margin: 0;"><i class="fas fa-history" style="margin-right: 10px;"></i>Historial de Programaciones
+            </h3>
+            <button onclick="cerrarModal('modalVerCambiosTarifasProgramados')"
+                style="background:none; border:none; font-size: 24px; cursor:pointer; color: var(--text-secondary);">&times;</button>
         </div>
         <p class="modal-subtitulo" style="margin-bottom: 20px;">
             Listado de lotes de cambios de precios programados. Los lotes 'Pendientes' pueden ser cancelados.
         </p>
 
-        <div id="listaBatchesTarifas" style="max-height: 450px; overflow-y: auto; border: 1px solid var(--border-main); border-radius: 8px; background: var(--bg-main);">
+        <div id="listaBatchesTarifas"
+            style="max-height: 450px; overflow-y: auto; border: 1px solid var(--border-main); border-radius: 8px; background: var(--bg-main);">
             <!-- La tabla se cargará dinámicamente -->
         </div>
 
         <div class="editar-prod-botones" style="margin-top: 20px;">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCambiosTarifasProgramados')">Cerrar</button>
+            <button class="btn-modal-cancelar"
+                onclick="cerrarModal('modalVerCambiosTarifasProgramados')">Cerrar</button>
         </div>
     </div>
 </div>
@@ -1078,7 +1094,8 @@
         <h3>Detalles del Lote #<span id="detalleBatchId"></span></h3>
         <p id="detalleBatchMeta" style="margin-bottom: 15px; color: var(--text-secondary); font-size: 14px;"></p>
 
-        <div id="tablaDetalleBatch" style="max-height: 350px; overflow-y: auto; border: 1px solid var(--border-main); border-radius: 8px; margin-bottom: 20px;">
+        <div id="tablaDetalleBatch"
+            style="max-height: 350px; overflow-y: auto; border: 1px solid var(--border-main); border-radius: 8px; margin-bottom: 20px;">
             <!-- Tabla dinámica -->
         </div>
 
@@ -1129,7 +1146,8 @@
         'tarifa-prefijadas': 'Tarifas Prefijadas',
         'historial-precios': 'Historial de Precios',
         'config-tema': 'Configuración: Tema',
-        'config-acciones': 'Configuración: Acciones'
+        'config-acciones': 'Configuración: Acciones',
+        'config-ajustes': 'Configuración: Ajustes'
     };
 
     document.querySelectorAll('.cat-btn[data-seccion]').forEach(btn => {
@@ -1188,6 +1206,9 @@
                 case 'config-acciones':
                     cargarConfiguracion('acciones');
                     break;
+                case 'config-ajustes':
+                    cargarConfiguracion('ajustes');
+                    break;
                 case 'logs':
                     cargarLogs();
                     break;
@@ -1236,7 +1257,7 @@
         e.stopPropagation();
         var submenu = document.getElementById('submenuConfig');
         submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
-        
+
         // Cerrar otros submenus
         document.getElementById('submenuTarifas').style.display = 'none';
         document.getElementById('submenuInformes').style.display = 'none';

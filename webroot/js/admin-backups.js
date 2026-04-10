@@ -12,11 +12,12 @@ function mostrarPanelBackups() {
     seccionActual = 'backups';
     adminTablaHeaderHTML = '';
 
-    const isDark = document.body.classList.contains('dark-mode');
-    const textColor = isDark ? '#e5e7eb' : '#374151';
-    const subTextColor = isDark ? '#9ca3af' : '#6b7280';
-    const cardBg = isDark ? '#1f2937' : 'white';
-    const borderColor = isDark ? '#374151' : '#e5e7eb';
+    // Usar variables CSS del tema globales en lugar de colores hardcodeados
+    const textColor = 'var(--text-main)';
+    const subTextColor = 'var(--text-muted)';
+    const cardBg = 'var(--bg-card)';
+    const borderColor = 'var(--border-main)';
+    const progressBg = 'var(--bg-input)';
 
     contenedor.innerHTML = `
         <div class="admin-tabla-header">
@@ -83,9 +84,8 @@ function mostrarPanelBackups() {
 function cargarListadoBackups() {
     const container = document.getElementById('tablaBackupsContainer');
     const paginationContainer = document.getElementById('backupPagination');
-    const isDark = document.body.classList.contains('dark-mode');
-    const textColor = isDark ? '#e5e7eb' : '#374151';
-    const borderColor = isDark ? '#374151' : '#e5e7eb';
+    const textColor = 'var(--text-main)';
+    const borderColor = 'var(--border-main)';
 
     console.log('Calling backup API...');
     fetch('api/backups.php', {
@@ -133,9 +133,9 @@ function cargarListadoBackups() {
 function renderBackupPage(page) {
     currentPage = page;
     const container = document.getElementById('tablaBackupsContainer');
-    const isDark = document.body.classList.contains('dark-mode');
-    const textColor = isDark ? '#e5e7eb' : '#374151';
-    const borderColor = isDark ? '#374151' : '#e5e7eb';
+    const textColor = 'var(--text-main)';
+    const borderColor = 'var(--border-main)';
+    const headerBg = 'var(--bg-secondary)';
 
     const start = (page - 1) * itemsPerPage;
     const end = start + itemsPerPage;
@@ -144,7 +144,7 @@ function renderBackupPage(page) {
 
     let html = `
         <table style="width: 100%; border-collapse: collapse;">
-            <thead style="background: ${isDark ? '#111827' : '#f9fafb'}; text-align: left;">
+            <thead style="background: ${headerBg}; text-align: left;">
                 <tr>
                     <th style="padding: 8px 15px; font-size: 13px; font-weight: 600; color: ${textColor}; border-bottom: 2px solid ${borderColor};">Tipo</th>
                     <th style="padding: 8px 15px; font-size: 13px; font-weight: 600; color: ${textColor}; border-bottom: 2px solid ${borderColor};">Archivo</th>
@@ -282,11 +282,11 @@ function crearBackupManual() {
     // Crear modal con barra de progreso
     const progressHtml = `
         <div id="backupProgressContainer" style="text-align: center; padding: 20px;">
-            <div style="font-size: 14px; color: #6b7280; margin-bottom: 15px;">Generando copia de seguridad completa...</div>
-            <div style="background: #e5e7eb; border-radius: 8px; height: 20px; overflow: hidden; margin-bottom: 10px;">
+            <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Generando copia de seguridad completa...</div>
+            <div style="background: var(--bg-input); border-radius: 8px; height: 20px; overflow: hidden; margin-bottom: 10px;">
                 <div id="backupProgressBar" style="background: linear-gradient(90deg, #6366f1, #8b5cf6); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
             </div>
-            <div id="backupProgressText" style="font-size: 13px; color: #6b7280;">Iniciando...</div>
+            <div id="backupProgressText" style="font-size: 13px; color: var(--text-muted);">Iniciando...</div>
         </div>
     `;
 
@@ -368,11 +368,11 @@ function crearBackupTabla(tabla) {
 
     const progressHtml = `
         <div id="backupProgressContainer" style="text-align: center; padding: 20px;">
-            <div style="font-size: 14px; color: #6b7280; margin-bottom: 15px;">Generando backup de ${nombreMostrar}...</div>
-            <div style="background: #e5e7eb; border-radius: 8px; height: 20px; overflow: hidden; margin-bottom: 10px;">
+            <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Generando backup de ${nombreMostrar}...</div>
+            <div style="background: var(--bg-input); border-radius: 8px; height: 20px; overflow: hidden; margin-bottom: 10px;">
                 <div id="backupProgressBar" style="background: linear-gradient(90deg, #059669, #10b981); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
             </div>
-            <div id="backupProgressText" style="font-size: 13px; color: #6b7280;">Iniciando...</div>
+            <div id="backupProgressText" style="font-size: 13px; color: var(--text-muted);">Iniciando...</div>
         </div>
     `;
 

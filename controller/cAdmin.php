@@ -36,9 +36,8 @@ if (isset($_REQUEST['cerrarSesion'])) {
             ':usuario_nombre' => $_SESSION['nombreUsuario'] ?? 'Desconocido',
             ':descripcion' => 'Usuario cerró sesión'
         ]);
-    }
-    catch (Exception $e) {
-    // Silenciar errores de logging
+    } catch (Exception $e) {
+        // Silenciar errores de logging
     }
 
     // Limpiar todas las variables de sesión
@@ -66,8 +65,7 @@ $tituloDevoluciones = "Devoluciones (Sesión Actual)";
 if ($sesionCaja) {
     // Caja abierta: recuperar estadísticas en tiempo real del turno en curso
     $resumenCaja = Venta::obtenerResumenCajaAbierta();
-}
-else {
+} else {
     // Caja cerrada: recuperar el último arqueo finalizado para consulta histórica
     $ultimaCaja = Caja::obtenerUltimaSesionCerrada();
     // Si la última caja está cerrada
@@ -79,8 +77,7 @@ else {
         $tituloPedidos = "Ventas realizadas (Sesión Anterior)";
         $tituloRetiros = "Retiros (Sesión Anterior)";
         $tituloDevoluciones = "Devoluciones (Sesión Anterior)";
-    }
-    else {
+    } else {
         // Fallback: inicializar valores a cero si el sistema no tiene registros previos
         $resumenCaja = [
             'totalGeneral' => 0,
@@ -91,16 +88,17 @@ else {
     }
 }
 
-// Obtenemos todos los productos
-$productosTotal = Producto::obtenerTodos();
-// Inicializamos el contador de alertas de stock
-$alertasStock = 0;
-// Recorremos todos los productos
-foreach ($productosTotal as $p) {
-    // Si el stock es menor o igual a 3, incrementamos el contador
-    if ($p->getStock() <= 3)
-        $alertasStock++;
-}
+// ✅ OPTIMIZACIÓN: NO CARGAR TODOS LOS PRODUCTOS SOLO PARA CONTAR
+$pdo = new PDO(RUTA, USUARIO, PASS);
+$stmt = $pdo->prepare("SELECT 
+    COUNT(*) as total_productos,
+    SUM(CASE WHEN stock <= 3 THEN 1 ELSE 0 END) as alertas_stock
+    FROM productos WHERE activo = 1");
+$stmt->execute();
+$resStock = $stmt->fetch(PDO::FETCH_ASSOC);
+
+$productosTotal = $resStock['total_productos'];
+$alertasStock = $resStock['alertas_stock'];
 
 /** 
  * Agregador de métricas principales para los indicadores del dashboard.
@@ -109,21 +107,19 @@ foreach ($productosTotal as $p) {
 $stats = [
     'ventasHoy' => $resumenCaja['totalGeneral'],
     'pedidosHoy' => $resumenCaja['efectivo']['cantidad'] + $resumenCaja['tarjeta']['cantidad'] + $resumenCaja['bizum']['cantidad'],
-    'productos' => count($productosTotal),
+    'productos' => $productosTotal,
     'alertasStock' => $alertasStock,
-    'efectivoCaja' => $sesionCaja ? $sesionCaja->getDatosArqueo()['efectivoEsperado'] : (isset($ultimaCaja) && $ultimaCaja ? $ultimaCaja->getCambio() : 0)
+    'efectivoCaja' => $sesionCaja ? $sesionCaja->getImporteActual() : (isset($ultimaCaja) && $ultimaCaja ? $ultimaCaja->getCambio() : 0)
 ];
 
 // Obtener el total de retiros según corresponda
 if ($sesionCaja) {
     // Caja abierta: obtener retiros de la sesión actual
     $stats['retirosHoy'] = $sesionCaja->getTotalRetiros();
-}
-elseif (isset($ultimaCaja) && $ultimaCaja) {
+} elseif (isset($ultimaCaja) && $ultimaCaja) {
     // Caja cerrada: obtener retiros de la última sesión
     $stats['retirosHoy'] = $ultimaCaja->getTotalRetiros();
-}
-else {
+} else {
     $stats['retirosHoy'] = 0;
 }
 
@@ -131,12 +127,10 @@ else {
 if ($sesionCaja) {
     // Caja abierta: obtener devoluciones de la sesión actual
     $stats['devolucionesHoy'] = Devolucion::obtenerTotalPorSesion($sesionCaja->getId());
-}
-elseif (isset($ultimaCaja) && $ultimaCaja) {
+} elseif (isset($ultimaCaja) && $ultimaCaja) {
     // Caja cerrada: obtener devoluciones de la última sesión
     $stats['devolucionesHoy'] = Devolucion::obtenerTotalPorSesion($ultimaCaja->getId());
-}
-else {
+} else {
     $stats['devolucionesHoy'] = 0;
 }
 
