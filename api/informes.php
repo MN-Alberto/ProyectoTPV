@@ -15,8 +15,46 @@ require_once(__DIR__ . '/../core/Cache.php');
 
 header('Content-Type: application/json');
 
+// ✅ GESTIÓN DE TAREAS EN SEGUNDO PLANO
+if (isset($_GET['get_tasks'])) {
+    try {
+        $pdo = new PDO(RUTA, USUARIO, PASS);
+        $stmt = $pdo->query("SELECT * FROM tareas_segundo_plano ORDER BY creado_en DESC LIMIT 10");
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+    } catch (Exception $e) { echo json_encode(['error' => $e->getMessage()]); }
+    exit;
+}
+
+if (isset($_GET['check_task'])) {
+    try {
+        $pdo = new PDO(RUTA, USUARIO, PASS);
+        $stmt = $pdo->prepare("SELECT * FROM tareas_segundo_plano WHERE id = ?");
+        $stmt->execute([$_GET['check_task']]);
+        echo json_encode($stmt->fetch(PDO::FETCH_ASSOC));
+    } catch (Exception $e) { echo json_encode(['error' => $e->getMessage()]); }
+    exit;
+}
+
 // Parámetro de segmentación temporal (diario, semanal, mensual, anual)
 $periodo = $_GET['periodo'] ?? 'diario';
+$background = isset($_GET['background']) && $_GET['background'] == '1';
+
+if ($background) {
+    try {
+        $pdo = new PDO(RUTA, USUARIO, PASS);
+        $params = json_encode(['periodo' => $periodo]);
+        $stmt = $pdo->prepare("INSERT INTO tareas_segundo_plano (tipo, parametros, estado) VALUES ('informe', ?, 'pendiente')");
+        $stmt->execute([$params]);
+        $taskId = $pdo->lastInsertId();
+
+        // Lanzar el worker en segundo plano (Windows)
+        $command = "start /B C:\\xampp\\php\\php.exe " . __DIR__ . "/informes_worker.php $taskId";
+        pclose(popen($command, "r"));
+
+        echo json_encode(['ok' => true, 'taskId' => $taskId, 'mensaje' => 'Generación iniciada en segundo plano']);
+    } catch (Exception $e) { echo json_encode(['error' => $e->getMessage()]); }
+    exit;
+}
 
 // CACHE: Devolver directamente si existe
 $claveCache = "informes_$periodo";
@@ -55,6 +93,8 @@ switch ($periodo) {
 try {
     $pdo = new PDO(RUTA, USUARIO, PASS);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    // Necesario para repetir parámetros con el mismo nombre en una sola query (UNION ALL)
+    $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);
 
     // Calcular periodo anterior para comparativa
     $fechaInicioAnt = '';
@@ -77,75 +117,156 @@ try {
 
     $respuesta = [];
 
+    // ✅ OPTIMIZACIÓN HÍBRIDA: Detectar hasta qué fecha tenemos sumarios
+    $stmtCutoff = $pdo->query("SELECT MAX(fecha) FROM informes_sumarios_diarios");
+    $cutoffDate = $stmtCutoff->fetchColumn() ?: '2000-01-01';
+
+    $usarSumarios = ($periodo !== 'diario');
+    $cutoffTimestamp = strtotime($cutoffDate);
+
     /**
      * Calcula los agregados de ventas (bruto, volumen, métodos de pago) para un intervalo.
      * 
      * @param PDO $pdo Conexión a la base de datos.
      * @param string $ini Fecha de inicio (Y-m-d H:i:s).
      * @param string $fin Fecha de fin (Y-m-d H:i:s).
+     * @param bool $usarSumarios Si se debe usar la tabla de sumarios diarios.
      * @return array Desglose indexado de estadísticas.
      */
-    function getVentasRango($pdo, $ini, $fin)
+    function getVentasRango($pdo, $ini, $fin, $usarSumarios, $cutoffDate)
     {
-        $stmt = $pdo->prepare("
+        if (!$usarSumarios) {
+            $sql = "SELECT SUM(total) as bruto, COUNT(*) as num_tickets,
+                           SUM(CASE WHEN metodoPago = 'efectivo' THEN total ELSE 0 END) as efectivo,
+                           SUM(CASE WHEN metodoPago = 'tarjeta' THEN total ELSE 0 END) as tarjeta,
+                           SUM(CASE WHEN metodoPago = 'bizum' THEN total ELSE 0 END) as bizum,
+                           0 as descuentos, 0 as devoluciones
+                    FROM ventas WHERE fecha BETWEEN :inicio AND :fin AND estado = 'completada'";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([':inicio' => $ini, ':fin' => $fin]);
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+
+        // Modo Híbrido: Unión de Sumarios + Raw (Post-Cutoff)
+        $sql = "SELECT SUM(bruto) as bruto, SUM(num_tickets) as num_tickets,
+                       SUM(efectivo) as efectivo, SUM(tarjeta) as tarjeta, SUM(bizum) as bizum,
+                       SUM(descuentos) as descuentos, SUM(devoluciones) as devoluciones
+                FROM (
+                    -- Parte 1: Sumarios
+                    SELECT SUM(total_ventas) as bruto, SUM(num_tickets) as num_tickets,
+                           0 as efectivo, 0 as tarjeta, 0 as bizum,
+                           SUM(descuentos) as descuentos, SUM(devoluciones) as devoluciones
+                    FROM informes_sumarios_diarios 
+                    WHERE fecha BETWEEN DATE(:inicio) AND DATE(LEAST(:fin, :cutoff))
+
+                    UNION ALL
+
+                    -- Parte 2: Live (Post-Cutoff)
+                    SELECT SUM(total) as bruto, COUNT(*) as num_tickets,
+                           SUM(CASE WHEN metodoPago = 'efectivo' THEN total ELSE 0 END) as efectivo,
+                           SUM(CASE WHEN metodoPago = 'tarjeta' THEN total ELSE 0 END) as tarjeta,
+                           SUM(CASE WHEN metodoPago = 'bizum' THEN total ELSE 0 END) as bizum,
+                           SUM(descuentoValor + descuentoTarifaValor + descuentoManualValor) as descuentos,
+                           0 as devoluciones -- Las devoluciones usan su propia tabla
+                    FROM ventas 
+                    WHERE fecha BETWEEN GREATEST(:inicio, DATE_ADD(:cutoff, INTERVAL 1 DAY)) AND :fin 
+                    AND estado = 'completada'
+                ) as hybrid";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':inicio' => $ini, ':fin' => $fin, ':cutoff' => $cutoffDate]);
+        $res = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Si hay periodo post-cutoff, sumar devoluciones live
+        if (strtotime($fin) > strtotime($cutoffDate)) {
+             $startLive = max($ini, date('Y-m-d 00:00:00', strtotime($cutoffDate . ' +1 day')));
+             $stmtDevoLive = $pdo->prepare("SELECT SUM(importeTotal) as total FROM devoluciones WHERE fecha BETWEEN :ini AND :fin");
+             $stmtDevoLive->execute(['ini' => $startLive, 'fin' => $fin]);
+             $res['devoluciones'] += floatval($stmtDevoLive->fetchColumn() ?: 0);
+        }
+
+        return $res;
+    }
+
+    $ventasActual = getVentasRango($pdo, $fechaInicio, $fechaFin, $usarSumarios, $cutoffDate);
+    $ventasAnterior = getVentasRango($pdo, $fechaInicioAnt, $fechaFinAnt, $usarSumarios, $cutoffDate);
+
+    // Desglose de IVA Híbrido
+    if ($usarSumarios) {
+        $sqlIva = "SELECT tipo, SUM(base) as base, SUM(cuota) as cuota
+                    FROM (
+                        SELECT iva as tipo, SUM(base) as base, SUM(cuota) as cuota
+                        FROM informes_iva_diario
+                        WHERE fecha BETWEEN DATE(:inicio) AND DATE(LEAST(:fin, :cutoff))
+                        GROUP BY iva
+                        
+                        UNION ALL
+                        
+                        SELECT lv.iva as tipo, 
+                               SUM(lv.subtotal / (1 + (lv.iva / 100))) as base,
+                               SUM(lv.subtotal - (lv.subtotal / (1 + (lv.iva / 100)))) as cuota
+                        FROM lineasVenta lv
+                        JOIN ventas v ON lv.idVenta = v.id
+                        WHERE v.fecha BETWEEN GREATEST(:inicio, DATE_ADD(:cutoff, INTERVAL 1 DAY)) AND :fin
+                        AND v.estado = 'completada'
+                        GROUP BY lv.iva
+                    ) as combined
+                    GROUP BY tipo";
+        $stmtIva = $pdo->prepare($sqlIva);
+        $stmtIva->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin, ':cutoff' => $cutoffDate]);
+        $desgloseIva = [];
+        foreach ($stmtIva->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $desgloseIva[] = [
+                'tipo' => floatval($row['tipo']),
+                'base' => floatval($row['base']),
+                'cuota' => floatval($row['cuota'])
+            ];
+        }
+    } else {
+        // ... (el bloque else ya tiene la lógica raw correcta)
+        $stmtIva = $pdo->prepare("
             SELECT 
-                SUM(total) as bruto,
-                COUNT(*) as num_tickets,
-                SUM(CASE WHEN metodoPago = 'efectivo' THEN total ELSE 0 END) as efectivo,
-                SUM(CASE WHEN metodoPago = 'tarjeta' THEN total ELSE 0 END) as tarjeta,
-                SUM(CASE WHEN metodoPago = 'bizum' THEN total ELSE 0 END) as bizum
-            FROM ventas 
-            WHERE fecha BETWEEN :inicio AND :fin AND estado = 'completada'
+                lv.iva,
+                SUM(lv.subtotal) as total_con_iva
+            FROM lineasVenta lv
+            JOIN ventas v ON lv.idVenta = v.id
+            WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
+            GROUP BY lv.iva
         ");
-        $stmt->execute([':inicio' => $ini, ':fin' => $fin]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmtIva->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+        $ivasRaw = $stmtIva->fetchAll(PDO::FETCH_ASSOC);
+        $desgloseIva = [];
+        foreach ($ivasRaw as $row) {
+            $porcentaje = floatval($row['iva']);
+            $totalConIva = floatval($row['total_con_iva']);
+            $base = $totalConIva / (1 + ($porcentaje / 100));
+            $cuota = $totalConIva - $base;
+            $desgloseIva[] = [
+                'tipo' => $porcentaje,
+                'base' => $base,
+                'cuota' => $cuota
+            ];
+        }
     }
 
-    $ventasActual = getVentasRango($pdo, $fechaInicio, $fechaFin);
-    $ventasAnterior = getVentasRango($pdo, $fechaInicioAnt, $fechaFinAnt);
+    // Devoluciones y Descuentos (Capturados del sumario si es posible)
+    $descuentosActual = $usarSumarios ? floatval($ventasActual['descuentos'] ?? 0) : null;
+    $devolucionesActual = $usarSumarios ? floatval($ventasActual['devoluciones'] ?? 0) : null;
 
-    // Desglose de IVA
-    $stmtIva = $pdo->prepare("
-        SELECT 
-            lv.iva,
-            SUM(lv.subtotal) as total_con_iva
-        FROM lineasVenta lv
-        JOIN ventas v ON lv.idVenta = v.id
-        WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
-        GROUP BY lv.iva
-    ");
-    $stmtIva->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
-    $ivasRaw = $stmtIva->fetchAll(PDO::FETCH_ASSOC);
-    $desgloseIva = [];
-    foreach ($ivasRaw as $row) {
-        $porcentaje = floatval($row['iva']);
-        $totalConIva = floatval($row['total_con_iva']);
-        $base = $totalConIva / (1 + ($porcentaje / 100));
-        $cuota = $totalConIva - $base;
-        $desgloseIva[] = [
-            'tipo' => $porcentaje,
-            'base' => $base,
-            'cuota' => $cuota
-        ];
+    if ($descuentosActual === null) {
+        $stmtDesc = $pdo->prepare("
+            SELECT SUM(descuentoValor + descuentoTarifaValor + descuentoManualValor) as total
+            FROM ventas WHERE fecha BETWEEN :inicio AND :fin AND estado = 'completada'
+        ");
+        $stmtDesc->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+        $descuentosActual = floatval($stmtDesc->fetchColumn() ?? 0);
     }
 
-    // Descuentos
-    $stmtDesc = $pdo->prepare("
-        SELECT 
-            SUM(descuentoValor) as desc_gen,
-            SUM(descuentoTarifaValor) as desc_tar,
-            SUM(descuentoManualValor) as desc_man
-        FROM ventas 
-        WHERE fecha BETWEEN :inicio AND :fin AND estado = 'completada'
-    ");
-    $stmtDesc->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
-    $rowDesc = $stmtDesc->fetch(PDO::FETCH_ASSOC);
-    $totalDescuentos = floatval($rowDesc['desc_gen'] ?? 0) + floatval($rowDesc['desc_tar'] ?? 0) + floatval($rowDesc['desc_man'] ?? 0);
-
-    // Devoluciones
-    $stmtDevo = $pdo->prepare("SELECT SUM(importeTotal) as total FROM devoluciones WHERE fecha BETWEEN :inicio AND :fin");
-    $stmtDevo->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
-    $devoluciones = $stmtDevo->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+    if ($devolucionesActual === null) {
+        $stmtDevo = $pdo->prepare("SELECT SUM(importeTotal) as total FROM devoluciones WHERE fecha BETWEEN :inicio AND :fin");
+        $stmtDevo->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+        $devolucionesActual = floatval($stmtDevo->fetchColumn() ?? 0);
+    }
 
     $respuesta['ventas'] = [
         'periodoActual' => [
@@ -157,8 +278,8 @@ try {
                 'tarjeta' => floatval($ventasActual['tarjeta'] ?? 0),
                 'bizum' => floatval($ventasActual['bizum'] ?? 0)
             ],
-            'devoluciones' => floatval($devoluciones),
-            'descuentos' => $totalDescuentos,
+            'devoluciones' => $devolucionesActual,
+            'descuentos' => $descuentosActual,
             'iva' => $desgloseIva
         ],
         'periodoAnterior' => [
@@ -171,22 +292,54 @@ try {
      * INFORME DE RENDIMIENTO DE PRODUCTOS
      * Genera un ranking de artículos basado en unidades vendidas, ingresos y márgenes.
      */
-    $stmtProdTop = $pdo->prepare("
-        SELECT 
-            COALESCE(lv.nombreProducto, p.nombre) as nombre,
-            SUM(lv.cantidad) as unidades,
-            SUM(lv.subtotal) as ingresos,
-            SUM(lv.cantidad * COALESCE(pp.precioProveedor, 0)) as coste
-        FROM lineasVenta lv
-        JOIN ventas v ON lv.idVenta = v.id
-        LEFT JOIN productos p ON lv.idProducto = p.id
-        LEFT JOIN (SELECT idProducto, MAX(precioProveedor) as precioProveedor FROM proveedor_producto GROUP BY idProducto) pp ON p.id = pp.idProducto
-        WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
-        GROUP BY COALESCE(lv.nombreProducto, p.nombre)
-        ORDER BY unidades DESC
-        LIMIT 10
-    ");
-    $stmtProdTop->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+    /**
+     * INFORME DE RENDIMIENTO DE PRODUCTOS HÍBRIDO
+     */
+    if ($usarSumarios) {
+        $sqlProd = "SELECT nombre, SUM(unidades) as unidades, SUM(ingresos) as ingresos, SUM(coste) as coste
+                    FROM (
+                        SELECT nombreProducto as nombre, SUM(unidades) as unidades, SUM(ingresos) as ingresos, SUM(coste) as coste
+                        FROM informes_productos_diarios
+                        WHERE fecha BETWEEN DATE(:inicio) AND DATE(LEAST(:fin, :cutoff))
+                        GROUP BY idProducto, nombreProducto
+
+                        UNION ALL
+
+                        SELECT COALESCE(lv.nombreProducto, p.nombre) as nombre,
+                               SUM(lv.cantidad) as unidades,
+                               SUM(lv.subtotal) as ingresos,
+                               SUM(lv.cantidad * COALESCE(pp.precioProveedor, 0)) as coste
+                        FROM lineasVenta lv
+                        JOIN ventas v ON lv.idVenta = v.id
+                        LEFT JOIN productos p ON lv.idProducto = p.id
+                        LEFT JOIN (SELECT idProducto, MAX(precioProveedor) as precioProveedor FROM proveedor_producto GROUP BY idProducto) pp ON lv.idProducto = pp.idProducto
+                        WHERE v.fecha BETWEEN GREATEST(:inicio, DATE_ADD(:cutoff, INTERVAL 1 DAY)) AND :fin
+                        AND v.estado = 'completada'
+                        GROUP BY COALESCE(lv.nombreProducto, p.nombre)
+                    ) as combined
+                    GROUP BY nombre
+                    ORDER BY unidades DESC
+                    LIMIT 10";
+        $stmtProdTop = $pdo->prepare($sqlProd);
+        $stmtProdTop->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin, ':cutoff' => $cutoffDate]);
+    } else {
+        $stmtProdTop = $pdo->prepare("
+            SELECT 
+                COALESCE(lv.nombreProducto, p.nombre) as nombre,
+                SUM(lv.cantidad) as unidades,
+                SUM(lv.subtotal) as ingresos,
+                SUM(lv.cantidad * COALESCE(pp.precioProveedor, 0)) as coste
+            FROM lineasVenta lv
+            JOIN ventas v ON lv.idVenta = v.id
+            LEFT JOIN productos p ON lv.idProducto = p.id
+            LEFT JOIN (SELECT idProducto, MAX(precioProveedor) as precioProveedor FROM proveedor_producto GROUP BY idProducto) pp ON p.id = pp.idProducto
+            WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
+            GROUP BY COALESCE(lv.nombreProducto, p.nombre)
+            ORDER BY unidades DESC
+            LIMIT 10
+        ");
+        $stmtProdTop->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+    }
     $prodsRanking = $stmtProdTop->fetchAll(PDO::FETCH_ASSOC);
     foreach ($prodsRanking as &$pr) {
         $pr['beneficio'] = floatval($pr['ingresos']) - floatval($pr['coste']);
@@ -194,35 +347,70 @@ try {
     }
     $respuesta['productos_ranking'] = $prodsRanking;
 
+    // Optimización del "Peor vendidos": Subconsulta para evitar el escaneo completo
     $stmtProdBottom = $pdo->prepare("
-        SELECT p.nombre, COALESCE(SUM(lv.cantidad), 0) as unidades
+        SELECT p.nombre, COALESCE(sold.unidades, 0) as unidades
         FROM productos p
-        LEFT JOIN lineasVenta lv ON p.id = lv.idProducto
-        LEFT JOIN ventas v ON lv.idVenta = v.id AND v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
+        LEFT JOIN (
+            SELECT lv.idProducto, SUM(lv.cantidad) as unidades
+            FROM lineasVenta lv
+            JOIN ventas v ON lv.idVenta = v.id
+            WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
+            GROUP BY lv.idProducto
+        ) sold ON p.id = sold.idProducto
         WHERE p.activo = 1
-        GROUP BY p.id
         ORDER BY unidades ASC
         LIMIT 5
     ");
     $stmtProdBottom->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
     $respuesta['productos_bottom'] = $stmtProdBottom->fetchAll(PDO::FETCH_ASSOC);
 
-    // 3. Márgenes y Ventas por Categoría
-    $stmtCat = $pdo->prepare("
-        SELECT 
-            COALESCE(c.nombre, 'Producto propio sin categoría') as categoria,
-            SUM(lv.subtotal) as ingresos,
-            SUM(lv.cantidad * COALESCE(pp.precioProveedor, 0)) as coste
-        FROM lineasVenta lv
-        JOIN ventas v ON lv.idVenta = v.id
-        LEFT JOIN productos p ON lv.idProducto = p.id
-        LEFT JOIN categorias c ON p.idCategoria = c.id
-        LEFT JOIN (SELECT idProducto, MAX(precioProveedor) as precioProveedor FROM proveedor_producto GROUP BY idProducto) pp ON p.id = pp.idProducto
-        WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
-        GROUP BY c.id, COALESCE(c.nombre, 'Producto propio sin categoría')
-        ORDER BY ingresos DESC
-    ");
-    $stmtCat->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+    if ($usarSumarios) {
+        $sqlCat = "SELECT categoria, SUM(ingresos) as ingresos, SUM(coste) as coste
+                   FROM (
+                       SELECT COALESCE(c.nombre, 'Producto propio sin categoría') as categoria,
+                              SUM(ipd.ingresos) as ingresos,
+                              SUM(ipd.coste) as coste
+                       FROM informes_productos_diarios ipd
+                       LEFT JOIN categorias c ON ipd.idCategoria = c.id
+                       WHERE ipd.fecha BETWEEN DATE(:inicio) AND DATE(LEAST(:fin, :cutoff))
+                       GROUP BY ipd.idCategoria
+
+                       UNION ALL
+
+                       SELECT COALESCE(c.nombre, 'Producto propio sin categoría') as categoria,
+                              SUM(lv.subtotal) as ingresos,
+                              SUM(lv.cantidad * COALESCE(pp.precioP, 0)) as coste
+                       FROM lineasVenta lv
+                       JOIN ventas v ON lv.idVenta = v.id
+                       LEFT JOIN productos p ON lv.idProducto = p.id
+                       LEFT JOIN categorias c ON p.idCategoria = c.id
+                       LEFT JOIN (SELECT idProducto, MAX(precioProveedor) as precioP FROM proveedor_producto GROUP BY idProducto) pp ON lv.idProducto = pp.idProducto
+                       WHERE v.fecha BETWEEN GREATEST(:inicio, DATE_ADD(:cutoff, INTERVAL 1 DAY)) AND :fin
+                       AND v.estado = 'completada'
+                       GROUP BY c.id
+                   ) as combined
+                   GROUP BY categoria
+                   ORDER BY ingresos DESC";
+        $stmtCat = $pdo->prepare($sqlCat);
+        $stmtCat->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin, ':cutoff' => $cutoffDate]);
+    } else {
+        $stmtCat = $pdo->prepare("
+            SELECT 
+                COALESCE(c.nombre, 'Producto propio sin categoría') as categoria,
+                SUM(lv.subtotal) as ingresos,
+                SUM(lv.cantidad * COALESCE(pp.precioProveedor, 0)) as coste
+            FROM lineasVenta lv
+            JOIN ventas v ON lv.idVenta = v.id
+            LEFT JOIN productos p ON lv.idProducto = p.id
+            LEFT JOIN categorias c ON p.idCategoria = c.id
+            LEFT JOIN (SELECT idProducto, MAX(precioProveedor) as precioProveedor FROM proveedor_producto GROUP BY idProducto) pp ON p.id = pp.idProducto
+            WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
+            GROUP BY c.id, COALESCE(c.nombre, 'Producto propio sin categoría')
+            ORDER BY ingresos DESC
+        ");
+        $stmtCat->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+    }
     $catsRanking = $stmtCat->fetchAll(PDO::FETCH_ASSOC);
     foreach ($catsRanking as &$cr) {
         $cr['beneficio'] = floatval($cr['ingresos']) - floatval($cr['coste']);
@@ -230,17 +418,46 @@ try {
     }
     $respuesta['categorias_ranking'] = $catsRanking;
 
-    $stmtMargen = $pdo->prepare("
-        SELECT 
-            SUM(lv.subtotal) as ingresos,
-            SUM(lv.cantidad * COALESCE(pp.precioProveedor, 0)) as coste
-        FROM lineasVenta lv
-        JOIN ventas v ON lv.idVenta = v.id
-        LEFT JOIN productos p ON lv.idProducto = p.id
-        LEFT JOIN (SELECT idProducto, MAX(precioProveedor) as precioProveedor FROM proveedor_producto GROUP BY idProducto) pp ON p.id = pp.idProducto
-        WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
-    ");
-    $stmtMargen->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+    // 3. Márgenes Globales Híbrido
+    if ($usarSumarios) {
+        $sqlMargen = "SELECT SUM(ingresos) as ingresos, SUM(coste) as coste
+                      FROM (
+                          SELECT SUM(total_ventas) as ingresos, SUM(total_coste) as coste
+                          FROM informes_sumarios_diarios
+                          WHERE fecha BETWEEN DATE(:inicio) AND DATE(LEAST(:fin, :cutoff))
+                          
+                          UNION ALL
+                          
+                          SELECT SUM(lv.subtotal) as ingresos,
+                                 SUM(lv.cantidad * COALESCE(pp.precioP, 0)) as coste
+                          FROM lineasVenta lv
+                          JOIN ventas v ON lv.idVenta = v.id
+                          LEFT JOIN (
+                              SELECT idProducto, MAX(precioProveedor) as precioP 
+                              FROM proveedor_producto 
+                              GROUP BY idProducto
+                          ) pp ON lv.idProducto = pp.idProducto
+                          WHERE v.fecha BETWEEN GREATEST(:inicio, DATE_ADD(:cutoff, INTERVAL 1 DAY)) AND :fin
+                          AND v.estado = 'completada'
+                      ) as combined";
+        $stmtMargen = $pdo->prepare($sqlMargen);
+        $stmtMargen->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin, ':cutoff' => $cutoffDate]);
+    } else {
+        $stmtMargen = $pdo->prepare("
+            SELECT 
+                SUM(lv.subtotal) as ingresos,
+                SUM(lv.cantidad * COALESCE(pp.precioP, 0)) as coste
+            FROM lineasVenta lv
+            JOIN ventas v ON lv.idVenta = v.id
+            LEFT JOIN (
+                SELECT idProducto, MAX(precioProveedor) as precioP 
+                FROM proveedor_producto 
+                GROUP BY idProducto
+            ) pp ON lv.idProducto = pp.idProducto
+            WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
+        ");
+        $stmtMargen->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+    }
     $margen = $stmtMargen->fetch(PDO::FETCH_ASSOC);
     $respuesta['margenes'] = [
         'ingresos' => floatval($margen['ingresos'] ?? 0),
@@ -249,37 +466,81 @@ try {
         'porcentaje' => ($margen['ingresos'] > 0) ? ((($margen['ingresos'] - $margen['coste']) / $margen['ingresos']) * 100) : 0
     ];
 
-    // 4. Empleados con Ticket Medio
-    $stmtEmp = $pdo->prepare("
-        SELECT 
-            u.nombre,
-            COUNT(v.id) as tickets,
-            SUM(v.total) as total
-        FROM ventas v
-        JOIN usuarios u ON v.idUsuario = u.id
-        WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
-        GROUP BY v.idUsuario
-        ORDER BY total DESC
-    ");
-    $stmtEmp->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+    if ($usarSumarios) {
+        $sqlEmp = "SELECT nombre, SUM(tickets) as tickets, SUM(total) as total
+                   FROM (
+                       SELECT u.nombre, SUM(ied.tickets) as tickets, SUM(ied.total) as total
+                       FROM informes_empleados_diario ied
+                       JOIN usuarios u ON ied.idUsuario = u.id
+                       WHERE ied.fecha BETWEEN DATE(:inicio) AND DATE(LEAST(:fin, :cutoff))
+                       GROUP BY ied.idUsuario
+
+                       UNION ALL
+
+                       SELECT u.nombre, COUNT(v.id) as tickets, SUM(v.total) as total
+                       FROM ventas v
+                       JOIN usuarios u ON v.idUsuario = u.id
+                       WHERE v.fecha BETWEEN GREATEST(:inicio, DATE_ADD(:cutoff, INTERVAL 1 DAY)) AND :fin
+                       AND v.estado = 'completada'
+                       GROUP BY v.idUsuario
+                   ) as combined
+                   GROUP BY nombre
+                   ORDER BY total DESC";
+        $stmtEmp = $pdo->prepare($sqlEmp);
+        $stmtEmp->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin, ':cutoff' => $cutoffDate]);
+    } else {
+        $stmtEmp = $pdo->prepare("
+            SELECT 
+                u.nombre,
+                COUNT(v.id) as tickets,
+                SUM(v.total) as total
+            FROM ventas v
+            JOIN usuarios u ON v.idUsuario = u.id
+            WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
+            GROUP BY v.idUsuario
+            ORDER BY total DESC
+        ");
+        $stmtEmp->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+    }
     $empleados = $stmtEmp->fetchAll(PDO::FETCH_ASSOC);
     foreach ($empleados as &$e) {
         $e['ticket_medio'] = $e['tickets'] > 0 ? ($e['total'] / $e['tickets']) : 0;
     }
     $respuesta['empleados'] = $empleados;
 
-    // 5. Franjas Horarias
-    $stmtHoras = $pdo->prepare("
-        SELECT 
-            HOUR(v.fecha) as hora,
-            COUNT(*) as tickets,
-            SUM(v.total) as total
-        FROM ventas v
-        WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
-        GROUP BY HOUR(v.fecha)
-        ORDER BY hora ASC
-    ");
-    $stmtHoras->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+    if ($usarSumarios) {
+        $sqlHoras = "SELECT hora, SUM(tickets) as tickets, SUM(total) as total
+                     FROM (
+                         SELECT hora, SUM(tickets) as tickets, SUM(total) as total
+                         FROM informes_horas_diario
+                         WHERE fecha BETWEEN DATE(:inicio) AND DATE(LEAST(:fin, :cutoff))
+                         GROUP BY hora
+
+                         UNION ALL
+
+                         SELECT HOUR(v.fecha) as hora, COUNT(*) as tickets, SUM(v.total) as total
+                         FROM ventas v
+                         WHERE v.fecha BETWEEN GREATEST(:inicio, DATE_ADD(:cutoff, INTERVAL 1 DAY)) AND :fin
+                         AND v.estado = 'completada'
+                         GROUP BY HOUR(v.fecha)
+                     ) as combined
+                     GROUP BY hora
+                     ORDER BY hora ASC";
+        $stmtHoras = $pdo->prepare($sqlHoras);
+        $stmtHoras->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin, ':cutoff' => $cutoffDate]);
+    } else {
+        $stmtHoras = $pdo->prepare("
+            SELECT 
+                HOUR(v.fecha) as hora,
+                COUNT(*) as tickets,
+                SUM(v.total) as total
+            FROM ventas v
+            WHERE v.fecha BETWEEN :inicio AND :fin AND v.estado = 'completada'
+            GROUP BY HOUR(v.fecha)
+            ORDER BY hora ASC
+        ");
+        $stmtHoras->execute([':inicio' => $fechaInicio, ':fin' => $fechaFin]);
+    }
     $respuesta['franjas'] = $stmtHoras->fetchAll(PDO::FETCH_ASSOC);
 
     // 6. Caja y Desajustes (Arqueos)

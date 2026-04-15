@@ -76,7 +76,8 @@ function generarFilaProducto(prod) {
         const iva = (prod.iva != null && prod.iva !== '') ? parseInt(prod.iva) : 21;
         precioMostrado *= (1 + iva / 100);
     }
-    const precioFmt = precioMostrado.toFixed(2).replace('.', ',');
+    const decimals = parseInt(prod.decimales ?? 2);
+    const precioFmt = precioMostrado.toFixed(decimals).replace('.', ',');
     const imgSrc = prod.imagen && prod.imagen !== '' ? prod.imagen : 'webroot/img/logo.PNG';
 
     let stockBadge = prod.stock <= 0 ? 'badge-agotado' : prod.stock <= 3 ? 'badge-bajo' : 'badge-ok';
@@ -87,7 +88,8 @@ function generarFilaProducto(prod) {
     return `
         <tr class="${prod.stock <= 0 ? 'fila-agotada' : ''}${prod.activo == 0 ? 'fila-inactiva' : ''}"
             data-precio-base="${prod.precio}" data-iva="${prod.iva}"
-            data-iva-id="${prod.idIva}" data-iva-nombre="${prod.ivaNombre || ''}">
+            data-iva-id="${prod.idIva}" data-iva-nombre="${prod.ivaNombre || ''}"
+            data-decimales="${prod.decimales ?? 2}">
             <td class="col-id">${prod.id}</td>
             <td class="col-img">
                 <img src="${imgSrc}" alt="${prod.nombre.replace(/"/g, '&quot;')}" class="admin-tabla-img">
@@ -244,6 +246,7 @@ function nuevoProducto() {
     document.getElementById('editProductoPrecio').value = '';
     document.getElementById('editProductoStock').value = '';
     document.getElementById('editProductoEstado').value = '1';
+    document.getElementById('editProductoDecimales').value = '2';
 
     const selectIva = document.getElementById('editProductoIva');
     selectIva.innerHTML = tiposIva.map(t =>
@@ -284,6 +287,7 @@ function editarProducto(id) {
     document.getElementById('editProductoPrecio').value = precio;
     document.getElementById('editProductoStock').value = stock;
     document.getElementById('editProductoEstado').value = activo;
+    document.getElementById('editProductoDecimales').value = fila.dataset.decimales ?? 2;
 
     const selectIva = document.getElementById('editProductoIva');
     selectIva.innerHTML = tiposIva.map(t =>
@@ -334,6 +338,7 @@ function guardarCambiosProducto() {
     fd.append('stock', stock);
     fd.append('activo', activo);
     fd.append('idIva', document.getElementById('editProductoIva').value);
+    fd.append('decimales', document.getElementById('editProductoDecimales').value);
     if (imgInput.files[0]) fd.append('imagen', imgInput.files[0]);
 
     fetch('api/productos.php', { method: 'POST', body: fd })
@@ -375,6 +380,7 @@ function verProducto(id) {
     const stock = celdas[5].textContent.trim();
     const estado = celdas[6].querySelector('.admin-badge')?.textContent.trim() ?? '—';
     const ivaNombre = fila.dataset.ivaNombre || 'General';
+    const decimals = parseInt(fila.dataset.decimales ?? 2);
     const imgSrc = celdas[1].querySelector('img')?.src ?? 'webroot/img/logo.PNG';
 
     const imgEl = document.getElementById('verProductoImagen');
@@ -384,9 +390,10 @@ function verProducto(id) {
     document.getElementById('verProductoNombre').textContent = nombre;
     document.getElementById('verProductoCategoria').textContent = categoria;
     document.getElementById('verProductoPrecio').textContent =
-        (mostrarConIva ? precioPVP : precioBase).toFixed(2).replace('.', ',') + ' €';
+        (mostrarConIva ? precioPVP : precioBase).toFixed(decimals).replace('.', ',') + ' €';
     document.getElementById('verProductoStock').textContent = stock;
     document.getElementById('verProductoIva').textContent = `${ivaValue}% (${ivaNombre})`;
+    document.getElementById('verProductoDecimales').textContent = decimals;
     document.getElementById('verProductoEstado').innerHTML = estado === 'Activo'
         ? '<span class="admin-badge badge-activo">Activo</span>'
         : '<span class="admin-badge badge-inactivo">Inactivo</span>';
@@ -502,7 +509,8 @@ function renderProductos(productos) {
         return;
     }
     grid.innerHTML = productos.map(prod => {
-        const precioFmt = parseFloat(prod.precio).toFixed(2).replace('.', ',');
+        const decimals = parseInt(prod.decimales ?? 2);
+        const precioFmt = parseFloat(prod.precio).toFixed(decimals).replace('.', ',');
         const imgSrc = prod.imagen && prod.imagen !== '' ? prod.imagen : 'webroot/img/logo.PNG';
         const agotado = prod.stock <= 0;
         return `<div class="producto-card" data-id="${prod.id}"
@@ -713,14 +721,15 @@ function mostrarTablaPrevisualizacionPrecios(productos, porcentaje) {
         const simboloDif = esSubida && !excluido ? '+' : '';
         const indicador = excluido ? '❌' : (index + 1);
 
+        const prec = parseInt(p.decimales ?? 2);
         html += `
             <tr class="${claseFila}" onclick="toggleExcluirProducto(${p.id}, 'precios')">
                 <td style="text-align: center;">${indicador}</td>
                 <td>${p.id}</td>
                 <td>${p.nombre}</td>
-                <td style="text-align: right;">${parseFloat(p.precio_actual).toFixed(2)} €</td>
-                <td style="text-align: right; font-weight: bold;">${parseFloat(precioNuevo).toFixed(2)} €</td>
-                <td style="text-align: right;" class="${claseDif}">${simboloDif}${diferencia.toFixed(2)} €</td>
+                <td style="text-align: right;">${parseFloat(p.precio_actual).toFixed(prec)} €</td>
+                <td style="text-align: right; font-weight: bold;">${parseFloat(precioNuevo).toFixed(prec)} €</td>
+                <td style="text-align: right;" class="${claseDif}">${simboloDif}${diferencia.toFixed(prec)} €</td>
             </tr>`;
     });
 

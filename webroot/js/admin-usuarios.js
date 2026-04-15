@@ -381,6 +381,7 @@ function renderClientesAdmin(respuesta, esPrimeraVez = true) {
             <tr class="${cli.activo == 0 ? 'fila-inactiva' : ''}"
                 data-nombre="${(cli.nombre || '').replace(/"/g, '&quot;')}"
                 data-apellidos="${(cli.apellidos || '').replace(/"/g, '&quot;')}"
+                data-direccion="${(cli.direccion || '').replace(/"/g, '&quot;')}"
                 data-fecha-alta="${cli.fecha_alta || ''}"
                 data-puntos="${cli.puntos || 0}" data-activo="${cli.activo}">
                 <td class="col-nombre">${cli.dni}</td>
@@ -434,6 +435,7 @@ async function guardarClienteHabitualAdmin() {
     const dni = document.getElementById('clienteHabitualDni').value.trim();
     const nombre = document.getElementById('clienteHabitualNombre').value.trim();
     const apellidos = document.getElementById('clienteHabitualApellidos').value.trim();
+    const direccion = document.getElementById('clienteHabitualDireccion').value.trim();
     if (!dni || !nombre || !apellidos) { alert('Por favor, complete todos los campos obligatorios.'); return; }
 
     const now = new Date();
@@ -444,7 +446,7 @@ async function guardarClienteHabitualAdmin() {
     try {
         const fd = new FormData();
         fd.append('dni', dni); fd.append('nombre', nombre);
-        fd.append('apellidos', apellidos); fd.append('fecha_alta', fecha_alta);
+        fd.append('apellidos', apellidos); fd.append('direccion', direccion); fd.append('fecha_alta', fecha_alta);
         const r = await fetch('api/clientes.php', { method: 'POST', body: fd });
         const data = await r.json();
         if (data.ok) { alert('Cliente guardado correctamente'); cerrarModal('modalClienteHabitual'); cargarClientesAdmin(); }
@@ -477,7 +479,7 @@ function verCliente(id) {
             <h3 style="margin-bottom:20px;">Detalles del Cliente</h3>
             <div style="display:grid;gap:12px;">
                 ${[['DNI', celdas[0].textContent.trim()], ['Nombre', celdas[1].textContent.trim()],
-        ['Apellidos', celdas[2].textContent.trim()], ['Fecha de Alta', celdas[3].textContent.trim()],
+        ['Apellidos', celdas[2].textContent.trim()], ['Dirección', fila.dataset.direccion || '—'], ['Fecha de Alta', celdas[3].textContent.trim()],
         ['Productos Comprados', celdas[4].textContent.trim()], ['Compras Realizadas', celdas[5].textContent.trim()]]
             .map(([k, v]) => `<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border-main);padding-bottom:8px;">
                         <span style="font-weight:500;">${k}:</span><span>${v}</span></div>`).join('')}
@@ -507,12 +509,14 @@ function editarCliente(id) {
     form.dataset.originalDni = celdas[0].textContent.trim();
     form.dataset.originalNombre = celdas[1].textContent.trim();
     form.dataset.originalApellidos = celdas[2].textContent.trim();
+    form.dataset.originalDireccion = fila.dataset.direccion || '';
     form.dataset.originalPuntos = fila.dataset.puntos || 0;
 
     document.getElementById('editarClienteId').value = id;
     document.getElementById('editarClienteDni').value = celdas[0].textContent.trim();
     document.getElementById('editarClienteNombre').value = celdas[1].textContent.trim() === '—' ? '' : celdas[1].textContent.trim();
     document.getElementById('editarClienteApellidos').value = celdas[2].textContent.trim() === '—' ? '' : celdas[2].textContent.trim();
+    document.getElementById('editarClienteDireccion').value = fila.dataset.direccion || '';
     document.getElementById('editarClientePuntos').value = fila.dataset.puntos || 0;
     form.style.display = 'flex';
 }
@@ -526,6 +530,7 @@ async function guardarClienteEditado() {
     let dni = document.getElementById('editarClienteDni').value.trim() || form.dataset.originalDni;
     let nombre = document.getElementById('editarClienteNombre').value.trim() || form.dataset.originalNombre;
     let apellidos = document.getElementById('editarClienteApellidos').value.trim() || form.dataset.originalApellidos;
+    let direccion = document.getElementById('editarClienteDireccion').value.trim() || form.dataset.originalDireccion;
     let puntos = document.getElementById('editarClientePuntos').value.trim();
     if (puntos === '') puntos = form.dataset.originalPuntos;
 
@@ -538,7 +543,7 @@ async function guardarClienteEditado() {
         const r = await fetch('api/clientes.php?actualizar=true', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `id=${encodeURIComponent(id)}&dni=${encodeURIComponent(dni)}&nombre=${encodeURIComponent(nombre)}&apellidos=${encodeURIComponent(apellidos)}&fecha_alta=${encodeURIComponent(fecha_alta)}&puntos=${encodeURIComponent(puntos)}`
+            body: `id=${encodeURIComponent(id)}&dni=${encodeURIComponent(dni)}&nombre=${encodeURIComponent(nombre)}&apellidos=${encodeURIComponent(apellidos)}&direccion=${encodeURIComponent(direccion)}&fecha_alta=${encodeURIComponent(fecha_alta)}&puntos=${encodeURIComponent(puntos)}`
         });
         const data = await r.json();
         if (data.ok) { alert('Cliente actualizado correctamente'); cerrarModal('modalEditarCliente'); cargarClientesAdmin(); }

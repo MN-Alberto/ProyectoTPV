@@ -35,6 +35,7 @@ function getVentasTablaHeader(filtroFecha = 'todos', metodoPago = 'todos', tipoD
                     <select id="ventasFiltroMetodo" class="filtro-select" onchange="aplicarFiltrosVentas()">
                         ${opt('todos', metodoPago, 'Todos')}${opt('efectivo', metodoPago, 'Efectivo')}
                         ${opt('tarjeta', metodoPago, 'Tarjeta')}${opt('bizum', metodoPago, 'Bizum')}
+                        ${opt('mixto', metodoPago, 'Mixto')}
                     </select>
                 </div>
                 <div class="filtro-group">
@@ -70,7 +71,7 @@ function generarFilaVenta(venta) {
     const fecha = new Date(venta.fecha).toLocaleString('es-ES',
         { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     const total = parseFloat(venta.total).toFixed(2).replace('.', ',');
-    const pago = { efectivo: '💵 Efectivo', tarjeta: '💳 Tarjeta', bizum: '📱 Bizum' }[venta.forma_pago] || (venta.forma_pago || '—');
+    const pago = { efectivo: '💵 Efectivo', tarjeta: '💳 Tarjeta', bizum: '📱 Bizum', mixto: '🔄 Mixto' }[venta.forma_pago] || (venta.forma_pago || '—');
     const doc = { ticket: '🧾 Ticket', factura: '📄 Factura' }[venta.tipoDocumento] || (venta.tipoDocumento || 'ticket');
     return `
         <tr>
@@ -83,47 +84,57 @@ function generarFilaVenta(venta) {
             <td class="col-pago">${pago}</td>
             <td class="col-total" style="text-align:right;font-weight:700;color:#059669;">${total} €</td>
             <td class="col-acciones">
-                <button class="btn-admin-accion btn-ver" onclick="verDetalleVenta(${venta.id})" title="Ver Detalles">
+                <button class="btn-admin-accion btn-ver" onclick="event.stopPropagation(); verDetalleVenta(${venta.id})" title="Ver Detalles">
                     <i class="fas fa-eye"></i></button>
             </td>
         </tr>`;
 }
 
-function irPaginaVentas(pagina) {
-    paginaActualVentas = pagina;
-    cargarVentasAdmin(
-        document.getElementById('ventasFiltroFecha')?.value || 'todos',
-        document.getElementById('ventasFiltroMetodo')?.value || 'todos',
-        document.getElementById('ventasFiltroDocumento')?.value || 'todos',
-        document.getElementById('ventasOrdenar')?.value || 'fecha_desc',
-        document.getElementById('busquedaVentaId')?.value || ''
-    );
-}
-
 function renderizarVentasPagina() {
-    // ✅ AHORA LLAMA A LA FUNCION QUE CARGA DEL SERVIDOR
-    irPaginaVentas(paginaActualVentas);
+    cargarVentasAdmin();
 }
 
-// Estado global para cursores
-let cursorActualVentas = null;
-let cursorAnteriorVentas = null;
+// Estado global
 let hayMasVentas = false;
 
-function cargarVentasAdmin(filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc', busqueda = '', direccion = 'siguiente') {
+function cargarVentasAdmin(resetPagina = false) {
     if (seccionActual !== 'ventas') { adminTablaHeaderHTML = ''; seccionActual = 'ventas'; }
     const contenedor = document.getElementById('adminContenido');
+
+    // ✅ Capturar filtros del DOM ANTES de mostrar el loader (el loader borra el DOM)
+    const filtroFecha = document.getElementById('ventasFiltroFecha')?.value || 'todos';
+    const metodoPago = document.getElementById('ventasFiltroMetodo')?.value || 'todos';
+    const tipoDocumento = document.getElementById('ventasFiltroDocumento')?.value || 'todos';
+    const orden = document.getElementById('ventasOrdenar')?.value || 'fecha_desc';
+    const busqueda = document.getElementById('busquedaVentaId')?.value || '';
+
+    if (resetPagina) paginaActualVentas = 1;
+
+    // ✅ Mostrar loader mientras carga
     const esPrimeraVez = !contenedor.querySelector('.admin-tabla') || !adminTablaHeaderHTML;
+    if (esPrimeraVez) {
+        contenedor.innerHTML = `
+            <div style="text-align:center;padding:80px 20px;">
+                <i class="fas fa-spinner fa-spin" style="font-size:3rem;color:var(--color-primary);opacity:0.6;"></i>
+                <p style="margin-top:20px;color:var(--text-muted);font-weight:500;">Cargando ventas...</p>
+            </div>`;
+    } else {
+        const tbody = contenedor.querySelector('tbody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted);">
+                        <i class="fas fa-spinner fa-spin"></i> Cargando datos...
+                    </td>
+                </tr>`;
+        }
+    }
+
+
 
     let url = 'api/ventas.php?todas=1';
+    url += '&pagina=' + paginaActualVentas;
     url += '&porPagina=' + ventasPorPagina;
-
-    // Añadir cursor si existe
-    if (direccion === 'siguiente' && cursorActualVentas) {
-        url += `&cursor_fecha=${encodeURIComponent(cursorActualVentas.fecha)}&cursor_id=${cursorActualVentas.id}&direccion=siguiente`;
-    } else if (direccion === 'anterior' && cursorAnteriorVentas) {
-        url += `&cursor_fecha=${encodeURIComponent(cursorAnteriorVentas.fecha)}&cursor_id=${cursorAnteriorVentas.id}&direccion=anterior`;
-    }
 
     if (filtroFecha !== 'todos') url += '&filtroFecha=' + filtroFecha;
     if (metodoPago !== 'todos') url += '&metodoPago=' + metodoPago;
@@ -134,19 +145,19 @@ function cargarVentasAdmin(filtroFecha = 'todos', metodoPago = 'todos', tipoDocu
     fetch(url)
         .then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Error al cargar ventas'); }); return r.json(); })
         .then(data => {
-            // Actualizar estado de cursores
-            hayMasVentas = data.has_more;
-            cursorActualVentas = data.next_cursor;
-            cursorAnteriorVentas = data.prev_cursor;
-
-            renderVentasAdmin(data.ventas, esPrimeraVez, filtroFecha, metodoPago, tipoDocumento, orden, busqueda, data.total_estimado);
+            renderVentasAdmin(data, esPrimeraVez, filtroFecha, metodoPago, tipoDocumento, orden, busqueda);
         })
         .catch(err => { contenedor.innerHTML = '<p class="sin-productos">Error: ' + err.message + '</p>'; });
 }
 
-function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc', busqueda = '', totalReal = 0) {
+function renderVentasAdmin(respuesta, esPrimeraVez = true, filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc', busqueda = '') {
+    const ventas = respuesta.ventas || [];
+    const total = respuesta.total || 0;
+    const totalPaginas = respuesta.totalPaginas || 1;
+    paginaActualVentas = respuesta.pagina || 1;
+    totalPaginasVentas = totalPaginas;
+
     const contenedor = document.getElementById('adminContenido');
-    const total = totalReal || (ventas ? ventas.length : 0);
 
     if (!total) {
         if (esPrimeraVez || !adminTablaHeaderHTML) {
@@ -166,11 +177,6 @@ function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', m
         adminTablaHeaderHTML = getVentasTablaHeader(filtroFecha, metodoPago, tipoDocumento, orden, busqueda, total);
 
     ventasData = ventas;
-    // NO HACEMOS NADA CON LA PAGINA, VIENE YA SELECCIONADA DEL BOTON
-
-    // ✅ Paginacion REAL del servidor
-    const totalPaginas = Math.ceil(total / ventasPorPagina);
-    totalPaginasVentas = totalPaginas;
 
     ejecutarCuandoIdle(
         () => ventas.map(generarFilaVenta).join(''),
@@ -197,28 +203,13 @@ function renderVentasAdmin(ventas, esPrimeraVez = true, filtroFecha = 'todos', m
 
 function aplicarFiltrosVentas() {
     adminTablaHeaderHTML = '';
-    paginaActualVentas = 1;
-    cargarVentasAdmin(
-        document.getElementById('ventasFiltroFecha')?.value || 'todos',
-        document.getElementById('ventasFiltroMetodo')?.value || 'todos',
-        document.getElementById('ventasFiltroDocumento')?.value || 'todos',
-        document.getElementById('ventasOrdenar')?.value || 'fecha_desc',
-        document.getElementById('busquedaVentaId')?.value || ''
-    );
+    cargarVentasAdmin(true);
 }
 
 function buscarVentasPorId() {
     clearTimeout(debounceTimerVentas);
     debounceTimerVentas = setTimeout(() => {
-        paginaActualVentas = 1;
-        const b = document.getElementById('busquedaVentaId')?.value || '';
-        cargarVentasAdmin(
-            document.getElementById('ventasFiltroFecha')?.value || 'todos',
-            document.getElementById('ventasFiltroMetodo')?.value || 'todos',
-            document.getElementById('ventasFiltroDocumento')?.value || 'todos',
-            document.getElementById('ventasOrdenar')?.value || 'fecha_desc',
-            b
-        );
+        cargarVentasAdmin(true);
     }, 300);
 }
 
@@ -261,6 +252,23 @@ function verDetalleVenta(idVenta) {
                     descuentoHtml += `<div style="color:${discColor};"><strong>Cupón:</strong> ${descuentos.descuentoManualCupon}</div>`;
             }
 
+            let pagoInfo = venta.metodoPago || '💵 Efectivo';
+            if (venta.metodoPago === 'mixto' && venta.desglose_pago) {
+                try {
+                    const desc = JSON.parse(venta.desglose_pago);
+                    let items = [];
+                    if (desc.efectivo) items.push(`💵 ${parseFloat(desc.efectivo).toFixed(2).replace('.',',')}€`);
+                    if (desc.tarjeta) items.push(`💳 ${parseFloat(desc.tarjeta).toFixed(2).replace('.',',')}€`);
+                    if (desc.bizum) items.push(`📱 ${parseFloat(desc.bizum).toFixed(2).replace('.',',')}€`);
+                    if (desc.cambio > 0) items.push(`<span style="color:#ef4444;font-size:0.85em;">Cambio: -${parseFloat(desc.cambio).toFixed(2).replace('.',',')}€</span>`);
+                    pagoInfo = `🔄 Mixto<br><span style="font-size:0.9em;color:#6b7280;">${items.join(' | ')}</span>`;
+                } catch(e) { console.error('Error parsing desglose_pago:', e); }
+            } else if (venta.metodoPago === 'mixto') {
+                pagoInfo = '🔄 Mixto';
+            } else {
+                pagoInfo = { efectivo: '💵 Efectivo', tarjeta: '💳 Tarjeta', bizum: '📱 Bizum' }[venta.metodoPago] || venta.metodoPago;
+            }
+
             let html = `<div style="border-radius:12px;overflow:hidden;background:${bg};">
                 <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:20px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -272,7 +280,7 @@ function verDetalleVenta(idVenta) {
                     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:20px;padding:15px;background:${card};border-radius:8px;">
                         <div style="color:${text};"><strong>👤 Usuario:</strong><br>${venta.usuario_nombre || '—'}</div>
                         <div style="color:${text};"><strong>📄 Tipo:</strong><br>${tipoDoc}</div>
-                        <div style="color:${text};"><strong>💳 Pago:</strong><br>${venta.metodoPago || '💵 Efectivo'}</div>
+                        <div style="color:${text};"><strong>💳 Pago:</strong><br>${pagoInfo}</div>
                     </div>`;
 
             if (descuentoHtml)
