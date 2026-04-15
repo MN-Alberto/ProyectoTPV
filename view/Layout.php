@@ -1,22 +1,41 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="<?php echo $_SESSION['lang'] ?? 'es'; ?>">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TPV Bazar Electrónico</title>
+    <title><?php echo t('app.title'); ?></title>
+    <script>
+        window.__LANG__ = <?php echo json_encode($LANG, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        window.__LANG_CODE__ = '<?php echo $_SESSION['lang'] ?? 'es'; ?>';
+        function _t(key, params) {
+            const keys = key.split('.');
+            let val = window.__LANG__;
+            for (const k of keys) {
+                if (val === undefined || val === null || val[k] === undefined) {
+                    return key;
+                }
+                val = val[k];
+            }
+            if (typeof val !== 'string') return key;
+            if (params) {
+                Object.keys(params).forEach(p => { val = val.replace(p, params[p]); });
+            }
+            return val;
+        }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="webroot/css/login.css" rel="stylesheet" type="text/css">
     <!-- Si la pagina en curso solicitada es la del cajero y la solicita el cajero o el admin, cargamos la hoja de estilos de cajero -->
     <?php if (isset($_SESSION['paginaEnCurso']) && ($_SESSION['paginaEnCurso'] === 'cajero' || $_SESSION['paginaEnCurso'] === 'admin')): ?>
         <link href="webroot/css/cajero.css" rel="stylesheet" type="text/css">
-    <?php
-endif; ?>
+        <?php
+    endif; ?>
     <!-- Si la pagina en curso solicitada es la del admin o cajero, cargamos la hoja de estilos de admin (para modales) -->
     <?php if (isset($_SESSION['paginaEnCurso']) && ($_SESSION['paginaEnCurso'] === 'admin' || $_SESSION['paginaEnCurso'] === 'cajero')): ?>
         <link href="webroot/css/admin.css" rel="stylesheet" type="text/css">
-    <?php
-endif; ?>
+        <?php
+    endif; ?>
     <link rel="icon" href="webroot/img/logoCPU.PNG" type="image/png" id="favicon-link">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -40,47 +59,76 @@ endif; ?>
                     <path d="M9 20v2"></path>
                 </svg>
             </div>
-            <h1>TPV Bazar Electrónico</h1>
+            <h1><?php echo t('app.title'); ?></h1>
         </div>
         <!-- Si el id del usuario está guardado en la sesión, mostramos el nombre del usuario y el botón de cerrar sesión -->
         <?php if (isset($_SESSION['idUsuario'])): ?>
             <div class="header-usuario">
-                <div class="theme-toggle" title="Cambiar tema">
-                    <button class="theme-btn" id="btnModoClaro" onclick="setTheme('light')" title="Modo claro">
+                <!-- Selector de idioma -->
+                <div class="lang-toggle" title="<?php echo t('header.language'); ?>">
+                    <?php
+                    $currentPage = $_SESSION['paginaEnCurso'] ?? 'login';
+                    $currentLang = $_SESSION['lang'] ?? 'es';
+                    ?>
+                    <a href="?lang=es&ctl=<?php echo $currentPage; ?>"
+                        class="lang-btn <?php echo $currentLang === 'es' ? 'active' : ''; ?>" title="Español">
+                        <svg width="20" height="15" viewBox="0 0 20 15">
+                            <rect width="20" height="15" fill="#AA151B" />
+                            <rect y="5" width="20" height="5" fill="#F1BF00" />
+                        </svg>
+                    </a>
+                    <a href="?lang=en&ctl=<?php echo $currentPage; ?>"
+                        class="lang-btn <?php echo $currentLang === 'en' ? 'active' : ''; ?>" title="English">
+                        <svg width="20" height="15" viewBox="0 0 20 15">
+                            <rect width="20" height="15" fill="#012169" />
+                            <path d="M0,0 L20,15 M20,0 L0,15" stroke="#fff" stroke-width="2" />
+                            <rect x="0" y="6" width="20" height="3" fill="#fff" />
+                            <rect x="8" y="0" width="3" height="15" fill="#fff" />
+                            <rect x="0" y="7" width="20" height="1" fill="#C8102E" />
+                            <rect x="9" y="0" width="1" height="15" fill="#C8102E" />
+                        </svg>
+                    </a>
+                </div>
+                <div class="theme-toggle" title="<?php echo t('header.change_theme'); ?>">
+                    <button class="theme-btn" id="btnModoClaro" onclick="setTheme('light')"
+                        title="<?php echo t('header.light_mode'); ?>">
                         <i class="fas fa-sun"></i>
                     </button>
-                    <button class="theme-btn" id="btnModoOscuro" onclick="setTheme('dark')" title="Modo oscuro">
+                    <button class="theme-btn" id="btnModoOscuro" onclick="setTheme('dark')"
+                        title="<?php echo t('header.dark_mode'); ?>">
                         <i class="fas fa-moon"></i>
                     </button>
                 </div>
                 <?php if (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'admin'): ?>
-                    <a href="?ctl=cajero" class="btn-ir-cajero" title="Ir a Vista de Cajero">
-                        <i class="fas fa-cash-register"></i> Cajero
+                    <a href="?ctl=cajero" class="btn-ir-cajero" title="<?php echo t('header.go_cashier'); ?>">
+                        <i class="fas fa-cash-register"></i> <?php echo t('header.cashier'); ?>
                     </a>
-                <?php
-    elseif (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'cajero' && isset($_SESSION['rolUsuario']) && $_SESSION['rolUsuario'] === 'admin'): ?>
-                    <a href="?ctl=admin" class="btn-ir-cajero" title="Volver a Administración">
-                        <i class="fas fa-user-shield"></i> Admin
+                    <?php
+                elseif (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'cajero' && isset($_SESSION['rolUsuario']) && $_SESSION['rolUsuario'] === 'admin'): ?>
+                    <a href="?ctl=admin" class="btn-ir-cajero" title="<?php echo t('header.go_admin'); ?>">
+                        <i class="fas fa-user-shield"></i> <?php echo t('header.admin'); ?>
                     </a>
-                <?php
-    endif; ?>
-                <span>Hola, <strong><?php echo htmlspecialchars($_SESSION['nombreUsuario']); ?></strong></span>
+                    <?php
+                endif; ?>
+                <span><?php echo t('header.hello'); ?>,
+                    <strong><?php echo htmlspecialchars($_SESSION['nombreUsuario']); ?></strong></span>
                 <form action="<?php echo $_SERVER["PHP_SELF"]; ?>" method="post">
-                    <input type="submit" name="cerrarSesion" class="btn-cerrar-sesion" value="Cerrar Sesión">
+                    <input type="submit" name="cerrarSesion" class="btn-cerrar-sesion"
+                        value="<?php echo t('header.logout'); ?>">
                 </form>
             </div>
-        <?php
-endif; ?>
+            <?php
+        endif; ?>
     </header>
     <?php
 
-/*
- * Autor: Alberto Méndez 
- * Fecha de actualización: 24/02/2026
- */
+    /*
+     * Autor: Alberto Méndez 
+     * Fecha de actualización: 24/02/2026
+     */
 
-require_once $view[$_SESSION["paginaEnCurso"]]; //Añadimos la pagina en curso para cargarla.
-?>
+    require_once $view[$_SESSION["paginaEnCurso"]]; //Añadimos la pagina en curso para cargarla.
+    ?>
     <footer>
         <a href="https://github.com/MN-Alberto/ProyectoTPV" target="blank" id="link-repositorio">
             <h4>Alberto Méndez Núñez</h4>

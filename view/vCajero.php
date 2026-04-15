@@ -17,6 +17,10 @@
        - $sesionCaja: objeto Caja con la sesión activa (o null si la caja está cerrada)
        - $_SESSION: variables de sesión para modales de éxito/error/cierre de caja
      ============================================================================ -->
+<!-- Inyectar traducciones para JS -->
+<script>
+    const LANG = <?php echo json_encode($LANG); ?>;
+</script>
 
 <!-- ##=========================== SECCIÓN PRINCIPAL DEL CAJERO ===========================## -->
 <!-- Contenedor principal dividido en dos paneles: productos (izquierda) y ticket (derecha) -->
@@ -30,22 +34,23 @@
         <!-- Input de búsqueda que filtra productos en tiempo real mediante la función buscarProductos() -->
         <div id="formBuscarProducto">
             <div style="display: flex; gap: 10px; align-items: center; flex: 1;">
-                <label for="inputBuscarProducto" style="font-weight: 600; white-space: nowrap;">Buscar:</label>
+                <label for="inputBuscarProducto"
+                    style="font-weight: 600; white-space: nowrap;"><?php echo t('cajero.search'); ?></label>
                 <input type="text" id="inputBuscarProducto" class="input-buscarProducto"
-                    placeholder="Escribe el nombre del producto a buscar..." oninput="buscarProductos()"
+                    placeholder="<?php echo t('cajero.search_placeholder'); ?>" oninput="buscarProductos()"
                     autocomplete="off" style="width: 100%;" />
             </div>
 
             <!-- INDICADOR DE EFECTIVO EN CAJA -->
             <?php if ($sesionCaja): ?>
                 <div class="indicador-efectivo" title="Efectivo actual en caja">
-                    <span class="label">Efectivo en caja:</span>
+                    <span class="label"><?php echo t('cajero.cash_in_register'); ?></span>
                     <span class="amount"><?php echo number_format($sesionCaja->getImporteActual(), 2, ',', '.'); ?> €</span>
                 </div>
                 <?php
             else: ?>
                 <div class="indicador-efectivo caja-cerrada">
-                    <span class="label">Caja Cerrada</span>
+                    <span class="label"><?php echo t('cajero.register_closed'); ?></span>
                 </div>
                 <?php
             endif; ?>
@@ -57,13 +62,13 @@
         <div class="cajero-categorias">
             <!-- Botón "Todos": muestra todos los productos, activo por defecto -->
             <button class="cat-btn activa" data-categoria="" onclick="seleccionarCategoria(this, null)">
-                Todos
+                <?php echo t('cajero.all'); ?>
             </button>
             <!-- Bucle PHP: genera un botón por cada categoría existente en la base de datos -->
             <?php foreach ($categorias as $cat): ?>
                 <button class="cat-btn" data-categoria="<?php echo $cat->getId(); ?>"
                     onclick="seleccionarCategoria(this, <?php echo $cat->getId(); ?>)">
-                    <?php echo htmlspecialchars($cat->getNombre()); ?>
+                    <?php echo t('categories.' . $cat->getSlug()); ?>
                 </button>
                 <?php
             endforeach; ?>
@@ -75,7 +80,7 @@
 
             <!-- Flecha izquierda del carrusel -->
             <button type="button" class="cajero-carousel-arrow cajero-carousel-arrow-left" id="cajeroCarouselArrowLeft"
-                onclick="scrollCarouselBotonesIzquierda()" title="Ver opciones anteriores">
+                onclick="scrollCarouselBotonesIzquierda()" title="<?php echo t('cajero.see_prev_options'); ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="15 18 9 12 15 6"></polyline>
@@ -97,7 +102,7 @@
                                 <line x1="12" y1="1" x2="12" y2="23"></line>
                                 <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                             </svg>
-                            Hacer Caja
+                            <?php echo t('cajero.close_register'); ?>
                         </button>
                     </form>
 
@@ -110,7 +115,7 @@
                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                         </svg>
-                        Abrir Caja
+                        <?php echo t('cajero.open_register'); ?>
                     </button>
 
                     <!-- Botón DEVOLUCIÓN -->
@@ -122,7 +127,7 @@
                             <path d="M1 4v6h6"></path>
                             <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
                         </svg>
-                        Devolución
+                        <?php echo t('cajero.return'); ?>
                     </button>
 
                     <!-- Botón RETIRAR DINERO -->
@@ -134,7 +139,7 @@
                             <circle cx="12" cy="12" r="2"></circle>
                             <path d="M6 12h.01M18 12h.01"></path>
                         </svg>
-                        Retirar Dinero
+                        <?php echo t('cajero.withdraw_money'); ?>
                     </button>
 
                     <!-- Botón HISTORIAL DE VENTAS -->
@@ -146,7 +151,7 @@
                             <path d="M12 8v4l3 3"></path>
                             <circle cx="12" cy="12" r="10"></circle>
                         </svg>
-                        Historial Ventas
+                        <?php echo t('cajero.sales_history'); ?>
                     </button>
 
                     <!-- Botón NUEVO PRODUCTO -->
@@ -158,7 +163,7 @@
                             <line x1="12" y1="5" x2="12" y2="19"></line>
                             <line x1="5" y1="12" x2="19" y2="12"></line>
                         </svg>
-                        Nuevo Producto
+                        <?php echo t('cajero.new_product'); ?>
                     </button>
 
                     <!-- Botón CLIENTE HABITUAL -->
@@ -172,7 +177,7 @@
                             <line x1="19" y1="8" x2="19" y2="14"></line>
                             <line x1="22" y1="11" x2="16" y2="11"></line>
                         </svg>
-                        Nuevo Cliente
+                        <?php echo t('cajero.new_client'); ?>
                     </button>
 
                     <!-- Botón HISTORIAL DE DEVOLUCIONES -->
@@ -184,7 +189,7 @@
                             <path d="M1 4v6h6"></path>
                             <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
                         </svg>
-                        Historial Devoluciones
+                        <?php echo t('cajero.returns_history'); ?>
                     </button>
 
                     <!-- Botón CAMBIAR PRECIOS: abre el modal para cambiar precios base/tarifas -->
@@ -196,14 +201,14 @@
                             <line x1="12" y1="1" x2="12" y2="23"></line>
                             <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                         </svg>
-                        Cambiar Precios
+                        <?php echo t('cajero.change_prices'); ?>
                     </button>
                 </div>
             </div>
 
             <!-- Flecha de scroll del carrusel -->
             <button type="button" class="cajero-carousel-arrow" id="cajeroCarouselArrow"
-                onclick="scrollCarouselBotones()" title="Ver más opciones">
+                onclick="scrollCarouselBotones()" title="<?php echo t('cajero.see_more_options'); ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="9 18 15 12 9 6"></polyline>
@@ -218,7 +223,7 @@
         <div class="productos-grid" id="productosGrid">
             <?php if (empty($productos)): ?>
                 <!-- Mensaje cuando no hay productos disponibles -->
-                <p class="sin-productos">No hay productos disponibles.</p>
+                <p class="sin-productos"><?php echo t('cajero.no_products'); ?></p>
                 <?php
             else: ?>
                 <!-- Bucle PHP: genera una tarjeta por cada producto -->
@@ -255,6 +260,7 @@
                         data-precio="<?php echo $precioBaseEfectivo; ?>"
                         data-precio-original="<?php echo $prod->getPrecio(); ?>" data-pvp="<?php echo $precioPVP_fmt; ?>"
                         data-iva="<?php echo $prod->getIvaPorcentaje(); ?>"
+                        data-decimales="<?php echo $prod->getDecimales(); ?>"
                         data-precios-tarifas='<?php echo htmlspecialchars(json_encode($prod->getPreciosTarifas()), ENT_QUOTES, 'UTF-8'); ?>'
                         data-stock="<?php echo $prod->getStock(); ?>" onclick="agregarAlCarrito(this)" style="<?php if ($prod->getStock() <= 0) {
                                echo 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);';
@@ -276,7 +282,9 @@
                         <!-- Precio y stock del producto -->
                         <!-- El stock se muestra en rojo y subrayado si es 0 o menor -->
                         <div class="producto-info-inferior" style="display: flex; flex-direction: column; gap: 2px;">
-                            <span class="producto-precio"><?php echo number_format($precioPVP, 2, ',', '.'); ?> €</span>
+                            <span
+                                class="producto-precio"><?php echo number_format($precioPVP, $prod->getDecimales(), ',', '.'); ?>
+                                €</span>
 
                             <!-- Selector de tarifa -->
                             <select class="tarifa-selector" onclick="event.stopPropagation()"
@@ -294,7 +302,8 @@
 
                             <span class="producto-stock" <?php if ($prod->getStock() <= 0) {
                                 echo 'style="color: red; text-decoration: underline;"';
-                            } ?>>Stock: <?php echo $prod->getStock(); ?></span>
+                            } ?>><?php echo t('cajero.stock'); ?>:
+                                <?php echo $prod->getStock(); ?></span>
                         </div>
                     </div>
                     <?php
@@ -310,7 +319,7 @@
 
         <!-- Cabecera del ticket: título y reloj en tiempo real -->
         <div class="ticket-header">
-            <h3>Productos añadidos</h3>
+            <h3><?php echo t('ticket.added_products'); ?></h3>
             <!-- Reloj que se actualiza cada segundo mostrando fecha y hora actual -->
             <span class="ticket-fecha">
                 <script>
@@ -359,12 +368,12 @@
                 style="background: #eff6ff; border: 1px solid #3b82f6; color: #ef4444; font-size: 1rem; cursor: pointer; padding: 2px 8px; border-radius: 4px; line-height: 1; margin-left: auto; font-weight: bold; transition: all 0.2s;"
                 onmouseover="this.style.background='#ef4444'; this.style.color='white'"
                 onmouseout="this.style.background='#eff6ff'; this.style.color='#ef4444'"
-                title="Quitar cliente">✕</button>
+                title="<?php echo t('ticket.remove_client'); ?>">✕</button>
         </div>
 
         <!-- Contenedor de las líneas del ticket (se rellena dinámicamente con JS) -->
         <div class="ticket-lineas" id="ticketLineas">
-            <p class="ticket-vacio">Añade productos para realizar la venta</p>
+            <p class="ticket-vacio"><?php echo t('ticket.empty'); ?></p>
         </div>
 
         <!-- Contenedor para el desglose de subtotal y descuento (se rellena con JS) -->
@@ -372,7 +381,7 @@
 
         <!-- Total del ticket -->
         <div class="ticket-total">
-            <span>TOTAL:</span>
+            <span><?php echo t('ticket.total'); ?></span>
             <span id="ticketTotal">0,00 €</span>
         </div>
 
@@ -383,30 +392,30 @@
             <div class="ticket-acciones-fila">
                 <!-- Botón DESCUENTO: abre el modal para aplicar descuento porcentual o por cupón -->
                 <button class="btn-descuento" id="btnDescuento" onclick="aplicarDescuento()" disabled
-                    title="Aplicar descuento">
+                    title="<?php echo t('ticket.discount'); ?>">
                     🏷️
                 </button>
 
                 <!-- Botón PUNTOS: abre el modal para consultar y canjear puntos -->
                 <button class="btn-descuento" id="btnPuntos" onclick="abrirModalPuntosCliente()"
-                    title="Consultar/Canjear puntos" style="background: #10b981;">
+                    title="<?php echo t('ticket.points'); ?>" style="background: #10b981;">
                     👤
                 </button>
 
                 <!-- Botón VACIAR: elimina todos los productos del carrito -->
-                <button class="btn-cancelar" onclick="vaciarCarrito()" title="Vaciar carrito">
+                <button class="btn-cancelar" onclick="vaciarCarrito()" title="<?php echo t('ticket.empty_cart'); ?>">
                     🗑️
                 </button>
 
                 <!-- Botón POSPONER: guarda la venta sin terminar para recuperarla después -->
                 <button class="btn-descuento" id="btnPosponer" onclick="posponerVenta()" disabled
-                    style="background: #8b5cf6;" title="Posponer venta">
+                    style="background: #8b5cf6;" title="<?php echo t('ticket.postpone'); ?>">
                     ⏳
                 </button>
 
                 <!-- Botón VER POSPUESTAS: muestra modal con todas las ventas pospuestas para recuperar -->
                 <button class="btn-descuento" id="btnVerPospuestas" onclick="mostrarModalVentasPospuestas()" disabled
-                    style="background: #8b5cf6;" title="Ver ventas pospuestas">
+                    style="background: #8b5cf6;" title="<?php echo t('ticket.see_postponed'); ?>">
                     📋
                 </button>
             </div>
@@ -415,9 +424,10 @@
             <div class="ticket-acciones-fila">
                 <!-- Selector de método de pago: Efectivo, Tarjeta o Bizum -->
                 <select id="metodoPago">
-                    <option value="efectivo">Efectivo</option>
-                    <option value="tarjeta">Tarjeta</option>
-                    <option value="bizum">Bizum</option>
+                    <option value="efectivo"><?php echo t('ticket.cash'); ?></option>
+                    <option value="tarjeta"><?php echo t('ticket.card'); ?></option>
+                    <option value="bizum"><?php echo t('ticket.bizum'); ?></option>
+                    <option value="mixto"><?php echo t('ticket.mixed'); ?></option>
                 </select>
 
                 <!-- Selector de tarifa: ahora gestionado por producto, mantenemos el ID occulto para compatibilidad JS -->
@@ -435,12 +445,12 @@
                 <!-- Aviso legal: no se permite pago en efectivo superior a 1.000€ -->
                 <div id="avisoLimiteEfectivo"
                     style="display: none; color: #dc2626; font-size: 0.75rem; margin-top: 5px; font-weight: 600;">
-                    ⚠️ No se permite pago en efectivo > 1.000€
+                    <?php echo t('ticket.cash_limit_warning'); ?>
                 </div>
 
                 <!-- Botón COBRAR: inicia el proceso de cobro (modal de cambio o tipo de documento) -->
                 <button class="btn-cobrar" id="btnCobrar" onclick="intentarCobrar()" disabled>
-                    Cobrar
+                    <?php echo t('ticket.charge'); ?>
                 </button>
             </div>
         </div>
@@ -487,6 +497,8 @@
         <input type="hidden" name="clienteIdentificadoPuntos" id="inputClienteIdentificadoPuntos">
         <input type="hidden" name="clienteIdentificadoPuntos" id="inputClienteIdentificadoPuntos" value="false">
         <input type="hidden" name="mensajePersonalizado" id="inputMensajePersonalizado">
+        <!-- Desglose de pago mixto (JSON) -->
+        <input type="hidden" name="desglosePago" id="inputDesglosePago">
     </form>
 </section>
 
@@ -510,18 +522,19 @@
                 </div>
                 <h3
                     style="margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.01em;">
-                    Cobro en efectivo</h3>
+                    <?php echo t('cash_modal.title'); ?>
+                </h3>
             </div>
-            <p style="margin: 0; color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">Calcula el cambio y
-                registra la transacción final</p>
+            <p style="margin: 0; color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">
+                <?php echo t('cash_modal.subtitle'); ?>
+            </p>
         </div>
 
         <div style="display: grid; gap: 28px;">
             <!-- Display de Total -->
             <div style="padding-bottom: 12px; border-bottom: 1px solid var(--border-main);">
                 <span
-                    style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;">Total
-                    a cobrar</span>
+                    style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;"><?php echo t('cash_modal.total_to_charge'); ?></span>
                 <span id="cambioTotalPagar"
                     style="font-size: 3rem; font-weight: 950; color: var(--text-main); letter-spacing: -0.04em; line-height: 1;">0,00
                     €</span>
@@ -531,17 +544,17 @@
             <div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <label for="inputDineroEntregado"
-                        style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">Dinero
-                        recibido</label>
+                        style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;"><?php echo t('cash_modal.money_received'); ?></label>
                     <button type="button" onclick="fijarImporteExacto()"
                         style="background: none; border: none; color: var(--accent); font-size: 0.8rem; font-weight: 700; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 4px; transition: color 0.2s;"
                         onmouseover="this.style.color='var(--accent-hover)'"
                         onmouseout="this.style.color='var(--accent)'">
-                        Importe exacto
+                        <?php echo t('cash_modal.exact_amount'); ?>
                     </button>
                 </div>
                 <div style="position: relative; display: flex; align-items: center;">
-                    <input type="number" id="inputDineroEntregado" step="0.01" min="0" placeholder="0.00"
+                    <input type="number" id="inputDineroEntregado" step="0.0001"
+                        oninput="validar4Decimales(this); calcularCambio()" min="0" placeholder="0.00"
                         style="width: 100%; padding: 14px 45px 14px 20px; font-size: 1.8rem; font-weight: 700; border: 2px solid var(--border-main); border-radius: 14px; background: var(--bg-input); color: var(--text-main); outline: none; transition: border-color 0.2s, box-shadow 0.2s;"
                         oninput="calcularCambio()" onkeypress="if(event.key === 'Enter') confirmarCambio()"
                         onfocus="this.style.borderColor='var(--accent)'; this.style.boxShadow='0 0 0 4px rgba(37, 99, 235, 0.1)'"
@@ -557,7 +570,7 @@
                         <line x1="12" y1="8" x2="12" y2="12"></line>
                         <line x1="12" y1="16" x2="12.01" y2="16"></line>
                     </svg>
-                    Cantidad insuficiente
+                    <?php echo t('cash_modal.insufficient'); ?>
                 </p>
             </div>
 
@@ -566,8 +579,9 @@
                 style="margin-top: 4px; padding: 24px; border-radius: 18px; background: var(--bg-accent-success); border: 2px solid transparent; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease;">
                 <div>
                     <span
-                        style="display: block; font-size: 0.85rem; font-weight: 800; color: var(--accent-success); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">Cambio</span>
-                    <span style="font-size: 0.8rem; color: var(--accent-success); opacity: 0.7;">Para el cliente</span>
+                        style="display: block; font-size: 0.85rem; font-weight: 800; color: var(--accent-success); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;"><?php echo t('cash_modal.change'); ?></span>
+                    <span
+                        style="font-size: 0.8rem; color: var(--accent-success); opacity: 0.7;"><?php echo t('cash_modal.for_client'); ?></span>
                 </div>
                 <span id="cambioDevolver"
                     style="font-size: 2.2rem; font-weight: 900; color: var(--accent-success); letter-spacing: -0.02em;">0,00
@@ -579,11 +593,158 @@
             <button class="btn-modal-cancelar" onclick="cerrarModal('modalCambio')"
                 style="flex: 1; padding: 16px; border-radius: 14px; font-weight: 700; font-size: 0.95rem; border: 1px solid var(--border-main); background: var(--bg-card); color: var(--text-muted); cursor: pointer; transition: all 0.15s;"
                 onmouseover="this.style.background='var(--bg-main)'; this.style.color='var(--text-main)'"
-                onmouseout="this.style.background='var(--bg-card)'; this.style.color='var(--text-muted)'">Cerrar</button>
+                onmouseout="this.style.background='var(--bg-card)'; this.style.color='var(--text-muted)'"><?php echo t('cash_modal.close'); ?></button>
             <button class="btn-exito" onclick="confirmarCambio()"
                 style="flex: 2; padding: 16px; border-radius: 14px; font-weight: 800; font-size: 1.05rem; margin: 0; cursor: pointer; transition: transform 0.1s, opacity 0.2s;"
-                onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'">Confirmar
-                pago</button>
+                onmousedown="this.style.transform='scale(0.98)'"
+                onmouseup="this.style.transform='scale(1)'"><?php echo t('cash_modal.confirm_payment'); ?></button>
+        </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: PAGO MIXTO ===========================## -->
+<!-- Modal que aparece cuando el método de pago es "mixto" -->
+<!-- Permite distribuir el total de la compra entre varios métodos de pago -->
+<div class="modal-overlay" id="modalPagoMixto" style="display:none;">
+    <div class="modal-content"
+        style="max-width: 520px; padding: 40px; border-radius: 24px; background: var(--bg-card); border: 1px solid var(--border-main); text-align: left; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+
+        <!-- Cabecera -->
+        <div style="margin-bottom: 28px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                <div
+                    style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: linear-gradient(135deg, #8b5cf6, #6366f1); border-radius: 10px; color: white;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="8" y1="12" x2="16" y2="12"></line>
+                        <line x1="12" y1="8" x2="12" y2="16"></line>
+                    </svg>
+                </div>
+                <h3
+                    style="margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.01em;">
+                    <?php echo t('mixed_modal.title'); ?>
+                </h3>
+            </div>
+            <p style="margin: 0; color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">
+                <?php echo t('mixed_modal.subtitle'); ?>
+            </p>
+        </div>
+
+        <!-- Total a distribuir -->
+        <div
+            style="padding: 16px; border-radius: 14px; background: var(--bg-main); border: 1px solid var(--border-main); margin-bottom: 24px;">
+            <span
+                style="display: block; font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;"><?php echo t('mixed_modal.total_to_distribute'); ?></span>
+            <span id="mixtoTotalDistribuir"
+                style="font-size: 2.4rem; font-weight: 950; color: var(--text-main); letter-spacing: -0.04em; line-height: 1;">0,00
+                €</span>
+        </div>
+
+        <!-- Campos de distribución -->
+        <div style="display: grid; gap: 16px; margin-bottom: 20px;">
+            <!-- Efectivo -->
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div
+                    style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: #ecfdf5; border-radius: 10px; flex-shrink: 0;">
+                    <span style="font-size: 1.2rem;">💵</span>
+                </div>
+                <div style="flex: 1;">
+                    <label
+                        style="display: block; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;"><?php echo t('ticket.cash'); ?></label>
+                    <div style="position: relative;">
+                        <input type="number" id="mixtoEfectivo" step="0.01" min="0" placeholder="0.00"
+                            oninput="calcularRestanteMixto()"
+                            onkeypress="if(event.key === 'Enter') confirmarPagoMixto()"
+                            style="width: 100%; padding: 10px 35px 10px 14px; font-size: 1.2rem; font-weight: 700; border: 2px solid var(--border-main); border-radius: 10px; background: var(--bg-input); color: var(--text-main); outline: none; transition: border-color 0.2s;"
+                            onfocus="this.style.borderColor='#10b981'"
+                            onblur="this.style.borderColor='var(--border-main)'">
+                        <span
+                            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 1rem; font-weight: 700; color: var(--text-muted); pointer-events: none;">€</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarjeta -->
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div
+                    style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: #eff6ff; border-radius: 10px; flex-shrink: 0;">
+                    <span style="font-size: 1.2rem;">💳</span>
+                </div>
+                <div style="flex: 1;">
+                    <label
+                        style="display: block; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;"><?php echo t('ticket.card'); ?></label>
+                    <div style="position: relative;">
+                        <input type="number" id="mixtoTarjeta" step="0.01" min="0" placeholder="0.00"
+                            oninput="calcularRestanteMixto()"
+                            onkeypress="if(event.key === 'Enter') confirmarPagoMixto()"
+                            style="width: 100%; padding: 10px 35px 10px 14px; font-size: 1.2rem; font-weight: 700; border: 2px solid var(--border-main); border-radius: 10px; background: var(--bg-input); color: var(--text-main); outline: none; transition: border-color 0.2s;"
+                            onfocus="this.style.borderColor='#3b82f6'"
+                            onblur="this.style.borderColor='var(--border-main)'">
+                        <span
+                            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 1rem; font-weight: 700; color: var(--text-muted); pointer-events: none;">€</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bizum -->
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div
+                    style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: #fef3c7; border-radius: 10px; flex-shrink: 0;">
+                    <span style="font-size: 1.2rem;">📱</span>
+                </div>
+                <div style="flex: 1;">
+                    <label
+                        style="display: block; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;"><?php echo t('ticket.bizum'); ?></label>
+                    <div style="position: relative;">
+                        <input type="number" id="mixtoBizum" step="0.01" min="0" placeholder="0.00"
+                            oninput="calcularRestanteMixto()"
+                            onkeypress="if(event.key === 'Enter') confirmarPagoMixto()"
+                            style="width: 100%; padding: 10px 35px 10px 14px; font-size: 1.2rem; font-weight: 700; border: 2px solid var(--border-main); border-radius: 10px; background: var(--bg-input); color: var(--text-main); outline: none; transition: border-color 0.2s;"
+                            onfocus="this.style.borderColor='#f59e0b'"
+                            onblur="this.style.borderColor='var(--border-main)'">
+                        <span
+                            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 1rem; font-weight: 700; color: var(--text-muted); pointer-events: none;">€</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Indicador de Restante -->
+        <div id="mixtoRestanteContainer"
+            style="padding: 16px; border-radius: 14px; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease; background: var(--bg-accent-danger); border: 2px solid transparent;">
+            <div>
+                <span id="mixtoRestanteLabel"
+                    style="display: block; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; color: var(--accent-danger);"><?php echo t('mixed_modal.remaining'); ?></span>
+                <span id="mixtoRestanteSub"
+                    style="font-size: 0.75rem; color: var(--accent-danger); opacity: 0.7;"><?php echo t('mixed_modal.distribute_total'); ?></span>
+            </div>
+            <span id="mixtoRestanteValor"
+                style="font-size: 1.8rem; font-weight: 900; letter-spacing: -0.02em; color: var(--accent-danger);">0,00
+                €</span>
+        </div>
+
+        <!-- Aviso límite efectivo -->
+        <p id="mixtoAvisoEfectivo"
+            style="display: none; color: #dc2626; font-size: 0.8rem; margin-top: 10px; font-weight: 700; align-items: center; gap: 5px;">
+            <?php echo t('mixed_modal.cash_limit'); ?>
+        </p>
+
+        <!-- Error de validación -->
+        <p id="mixtoError"
+            style="display: none; color: var(--accent-danger); font-size: 0.85rem; margin-top: 10px; font-weight: 700;">
+        </p>
+
+        <!-- Botones -->
+        <div style="display: flex; gap: 12px; margin-top: 28px;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalPagoMixto')"
+                style="flex: 1; padding: 16px; border-radius: 14px; font-weight: 700; font-size: 0.95rem; border: 1px solid var(--border-main); background: var(--bg-card); color: var(--text-muted); cursor: pointer; transition: all 0.15s;"
+                onmouseover="this.style.background='var(--bg-main)'; this.style.color='var(--text-main)'"
+                onmouseout="this.style.background='var(--bg-card)'; this.style.color='var(--text-muted)'"><?php echo t('mixed_modal.close'); ?></button>
+            <button class="btn-exito" onclick="confirmarPagoMixto()"
+                style="flex: 2; padding: 16px; border-radius: 14px; font-weight: 800; font-size: 1.05rem; margin: 0; cursor: pointer; transition: transform 0.1s, opacity 0.2s;"
+                onmousedown="this.style.transform='scale(0.98)'"
+                onmouseup="this.style.transform='scale(1)'"><?php echo t('mixed_modal.confirm_distribution'); ?></button>
         </div>
     </div>
 </div>
@@ -593,8 +754,8 @@
 <!-- Aparece después del modal de cambio (efectivo) o directamente (tarjeta/bizum) -->
 <div class="modal-overlay" id="modalTipoDoc" style="display:none;">
     <div class="modal-content modal-tipodoc">
-        <h3>¿Cómo desea el comprobante?</h3>
-        <p class="modal-subtitulo">Seleccione el tipo de documento para esta venta</p>
+        <h3><?php echo t('doc_type.title'); ?></h3>
+        <p class="modal-subtitulo"><?php echo t('doc_type.subtitle'); ?></p>
         <div class="modal-opciones-doc">
 
             <!-- Opción TICKET: comprobante simplificado (datos del cliente opcionales) -->
@@ -605,8 +766,8 @@
                     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
                     <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
                 </svg>
-                <span class="opcion-titulo">Ticket</span>
-                <span class="opcion-desc">Comprobante de venta simplificado</span>
+                <span class="opcion-titulo"><?php echo t('doc_type.ticket'); ?></span>
+                <span class="opcion-desc"><?php echo t('doc_type.ticket_desc'); ?></span>
             </button>
 
             <!-- Opción FACTURA: documento fiscal completo (datos del cliente obligatorios) -->
@@ -620,11 +781,12 @@
                     <line x1="16" y1="17" x2="8" y2="17"></line>
                     <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>
-                <span class="opcion-titulo">Factura</span>
-                <span class="opcion-desc">Documento fiscal completo</span>
+                <span class="opcion-titulo"><?php echo t('doc_type.invoice'); ?></span>
+                <span class="opcion-desc"><?php echo t('doc_type.invoice_desc'); ?></span>
             </button>
         </div>
-        <button class="btn-modal-cancelar" onclick="cerrarModal('modalTipoDoc')">Cancelar</button>
+        <button class="btn-modal-cancelar"
+            onclick="cerrarModal('modalTipoDoc')"><?php echo t('doc_type.cancel'); ?></button>
     </div>
 </div>
 
@@ -642,11 +804,11 @@
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                             <polyline points="14 2 14 8 20 8"></polyline>
                         </svg>
-                        Vista Previa Real
+                        <?php echo t('checkout.preview'); ?>
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <button id="btnZoomTicket" onclick="toggleZoomTicket()" class="btn-zoom-ticket"
-                            title="Ampliar vista previa" style="display: none;">
+                            title="<?php echo t('checkout.zoom'); ?>" style="display: none;">
                             <svg id="iconZoom" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                                 stroke-linecap="round" stroke-linejoin="round">
@@ -667,7 +829,8 @@
                     <!-- El contenedor que simula el papel físico -->
                     <div id="ticketPreviewContent" class="paper-simulation tipo-ticket">
                         <div style="text-align:center; padding-top:100px; color:#cbd5e1; font-family: sans-serif;">
-                            Generando comprobante...</div>
+                            <?php echo t('checkout.generating'); ?>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -677,10 +840,12 @@
             <div class="controles-col">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
-                        <h3 style="margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--text-main);">Finalizar
-                            Venta</h3>
-                        <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 0.85rem;">Configura el
-                            comprobante y método de entrega</p>
+                        <h3 style="margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--text-main);">
+                            <?php echo t('checkout.finalize_sale'); ?>
+                        </h3>
+                        <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 0.85rem;">
+                            <?php echo t('checkout.configure_receipt'); ?>
+                        </p>
                     </div>
                     <button onclick="cerrarModal('modalFinalizarVenta')"
                         style="background: var(--bg-main); border: 1px solid var(--border-main); color: var(--text-muted); font-size: 1.1rem; cursor: pointer; padding: 6px 10px; border-radius: 8px; transition: all 0.2s;"
@@ -690,7 +855,7 @@
 
                 <!-- Sección: Tipo de Documento -->
                 <div class="control-group">
-                    <div class="control-section-title">Tipo de Documento</div>
+                    <div class="control-section-title"><?php echo t('checkout.doc_type'); ?></div>
                     <div class="opciones-grid">
                         <div class="checkout-option-card active" id="optTicket"
                             onclick="cambiarTipoDocumentoCheckout('ticket')">
@@ -700,7 +865,7 @@
                                 <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
                                 <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
                             </svg>
-                            <span>Ticket</span>
+                            <span><?php echo t('doc_type.ticket'); ?></span>
                         </div>
                         <div class="checkout-option-card" id="optFactura"
                             onclick="cambiarTipoDocumentoCheckout('factura')">
@@ -712,29 +877,29 @@
                                 <line x1="16" y1="13" x2="8" y2="13"></line>
                                 <line x1="16" y1="17" x2="8" y2="17"></line>
                             </svg>
-                            <span>Factura</span>
+                            <span><?php echo t('doc_type.invoice'); ?></span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Sección: Datos del Cliente -->
                 <div class="control-group" id="seccionDatosReceptor">
-                    <div class="control-section-title">Datos del Receptor</div>
+                    <div class="control-section-title"><?php echo t('checkout.receiver_data'); ?></div>
                     <div id="clientDataSummaryCheckout"
                         style="background: var(--bg-card); border: 2px solid var(--border-main); border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; transition: border-color 0.2s;">
                         <div id="clientDataTextCheckout" style="font-size: 0.85rem; color: var(--text-muted);">
-                            Sin datos de cliente asignados
+                            <?php echo t('checkout.no_client_data'); ?>
                         </div>
                         <button class="btn-descuento" onclick="abrirDatosClienteDesdeCheckout()"
                             style="padding: 7px 14px; font-size: 0.75rem; white-space: nowrap;">
-                            Editar
+                            <?php echo t('checkout.edit'); ?>
                         </button>
                     </div>
                 </div>
 
                 <!-- Sección: Método de Entrega -->
                 <div class="control-group">
-                    <div class="control-section-title">Método de Entrega</div>
+                    <div class="control-section-title"><?php echo t('checkout.delivery_method'); ?></div>
                     <div class="opciones-grid">
                         <div class="checkout-option-card active" id="optImprimir"
                             onclick="cambiarMetodoEntregaCheckout('imprimir')">
@@ -746,7 +911,7 @@
                                 </path>
                                 <rect x="6" y="14" width="12" height="8"></rect>
                             </svg>
-                            <span>Imprimir</span>
+                            <span><?php echo t('checkout.print'); ?></span>
                         </div>
                         <div class="checkout-option-card" id="optEmail" onclick="cambiarMetodoEntregaCheckout('email')">
                             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
@@ -756,7 +921,7 @@
                                 </path>
                                 <polyline points="22,6 12,13 2,6"></polyline>
                             </svg>
-                            <span>Email</span>
+                            <span><?php echo t('checkout.email'); ?></span>
                         </div>
                     </div>
                 </div>
@@ -764,8 +929,7 @@
                 <!-- Campo Email (oculto por defecto) -->
                 <div id="emailContainerCheckout" class="email-delivery-container" style="display: none;">
                     <label
-                        style="display: block; font-size: 0.78rem; margin-bottom: 6px; font-weight: 600; color: var(--text-muted);">Dirección
-                        de Correo Electrónico</label>
+                        style="display: block; font-size: 0.78rem; margin-bottom: 6px; font-weight: 600; color: var(--text-muted);"><?php echo t('checkout.email_label'); ?></label>
                     <input type="email" id="emailCheckout" placeholder="ejemplo@correo.com">
                 </div>
 
@@ -774,16 +938,15 @@
                     <div style="display: flex; align-items: center; gap: 10px; color: #16a34a; font-size: 0.82rem;">
                         <span
                             style="width: 8px; height: 8px; background: #16a34a; border-radius: 50%; flex-shrink: 0; animation: pulse 2s infinite;"></span>
-                        Impresora de tickets lista (Térmica 80mm)
+                        <?php echo t('checkout.printer_ready'); ?>
                     </div>
                 </div>
 
                 <!-- Sección: Mensaje Personalizado -->
                 <div class="control-group">
-                    <div class="control-section-title">Mensaje Personalizado (Opcional)</div>
+                    <div class="control-section-title"><?php echo t('checkout.custom_message'); ?></div>
                     <textarea id="mensajePersonalizadoVenta"
-                        placeholder="Escribe un mensaje personalizado que aparecerá en la parte inferior del ticket/factura..."
-                        style="width: 100%; min-height: 80px; padding: 12px; border: 2px solid var(--border-main); border-radius: 12px; 
+                        placeholder="<?php echo t('checkout.custom_message_placeholder'); ?>" style="width: 100%; min-height: 80px; padding: 12px; border: 2px solid var(--border-main); border-radius: 12px; 
                            background: var(--bg-input); color: var(--text-main); font-size: 0.9rem; resize: vertical;
                            outline: none; transition: border-color 0.2s, box-shadow 0.2s;"
                         onfocus="this.style.borderColor='var(--accent)'; this.style.boxShadow='0 0 0 4px rgba(37, 99, 235, 0.1)'"
@@ -793,7 +956,7 @@
 
                 <!-- Total resumen -->
                 <div class="checkout-total-bar" id="checkoutTotalBar">
-                    <span class="total-label">Total a cobrar</span>
+                    <span class="total-label"><?php echo t('checkout.total_to_charge'); ?></span>
                     <span class="total-amount" id="checkoutTotalAmount">0,00 €</span>
                 </div>
 
@@ -803,7 +966,7 @@
                         stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                    Confirmar y Realizar Venta
+                    <?php echo t('checkout.confirm_sale'); ?>
                 </button>
             </div>
         </div>
@@ -826,30 +989,31 @@
                     <circle cx="17.5" cy="17.5" r="2.5"></circle>
                 </svg>
             </div>
-            <h3>Aplicar Descuento</h3>
-            <p>Elige un porcentaje o usa un código promocional</p>
+            <h3><?php echo t('discount.title'); ?></h3>
+            <p><?php echo t('discount.subtitle'); ?></p>
         </div>
 
         <div class="modal-body-premium">
             <!-- Opción 1: Descuento por porcentaje (0% a 100%) -->
             <div class="form-group-premium">
-                <label for="inputPorcentajeDescuento">Porcentaje de Descuento</label>
+                <label for="inputPorcentajeDescuento"><?php echo t('discount.percentage'); ?></label>
                 <div class="input-with-icon">
                     <input type="number" id="inputPorcentajeDescuento" min="0" max="100" step="1" placeholder="0">
                     <span class="input-suffix">%</span>
                 </div>
-                <span class="input-hint">Rango permitido: 0% a 100%</span>
+                <span class="input-hint"><?php echo t('discount.range_hint'); ?></span>
             </div>
 
             <!-- Separador visual entre las dos opciones -->
-            <div class="divider-text">o bien</div>
+            <div class="divider-text"><?php echo t('discount.or'); ?></div>
 
             <!-- Opción 2: Descuento por código de cupón -->
             <!-- Cupones válidos: PROMO10 (10%), BIENVENIDA5 (5%), FIJO5 (5€ fijo) -->
             <div class="form-group-premium">
-                <label for="inputCuponDescuento">Código de Cupón</label>
+                <label for="inputCuponDescuento"><?php echo t('discount.coupon_code'); ?></label>
                 <div class="input-cupon">
-                    <input type="text" id="inputCuponDescuento" placeholder="Introduce el código"
+                    <input type="text" id="inputCuponDescuento"
+                        placeholder="<?php echo t('discount.coupon_placeholder'); ?>"
                         style="text-transform: uppercase;">
                 </div>
             </div>
@@ -858,10 +1022,11 @@
         <!-- Botones: Cancelar y Aplicar Descuento -->
         <div class="modal-footer-premium" style="display: flex; gap: 10px; align-items: center;">
             <button id="btnQuitarDescuento" class="btn-cancel-flat" onclick="quitarDescuento()"
-                style="display: none; background: #fee2e2; color: #dc2626;">Quitar Descuento</button>
+                style="display: none; background: #fee2e2; color: #dc2626;"><?php echo t('discount.remove'); ?></button>
             <div style="flex-grow: 1;"></div>
-            <button class="btn-cancel-flat" onclick="cerrarModal('modalDescuento')">Cancelar</button>
-            <button class="btn-apply-premium" onclick="procesarDescuento()">Aplicar Descuento</button>
+            <button class="btn-cancel-flat"
+                onclick="cerrarModal('modalDescuento')"><?php echo t('discount.cancel'); ?></button>
+            <button class="btn-apply-premium" onclick="procesarDescuento()"><?php echo t('discount.apply'); ?></button>
         </div>
     </div>
 </div>
@@ -873,16 +1038,30 @@
 <div class="modal-overlay" id="modalDatosCliente" style="display:none;">
     <div class="modal-content" style="max-width: 500px; text-align: left;">
         <!-- Título dinámico que cambia según sea Ticket o Factura -->
-        <h3 id="tituloDatosCliente" style="margin-bottom: 5px;">Datos del Cliente</h3>
-        <p id="subtituloDatosCliente" class="modal-subtitulo-cliente">Complete los datos (Opcional en Ticket)</p>
+        <h3 id="tituloDatosCliente" style="margin-bottom: 5px;"><?php echo t('client_data.title'); ?></h3>
+        <p id="subtituloDatosCliente" class="modal-subtitulo-cliente"><?php echo t('client_data.subtitle'); ?></p>
+
+        <!-- Buscador por DNI -->
+        <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e5e7eb;">
+            <label for="buscarDniCliente"
+                style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('client_data.search_dni'); ?></label>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="buscarDniCliente"
+                    style="flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="12345678A" onkeypress="if(event.key === 'Enter') buscarDatosCliente()">
+                <button type="button" class="btn-exito" style="margin: 0; padding: 10px 15px;"
+                    onclick="buscarDatosCliente()"><?php echo t('client_data.search_btn'); ?></button>
+            </div>
+            <p id="mensajeBusquedaClienteDatos" style="font-size: 0.85rem; margin-top: 5px; display: none;"></p>
+        </div>
 
         <div style="display: grid; gap: 15px;">
             <!-- Campo NIF/CIF del cliente -->
             <!-- El asterisco rojo (*) se muestra solo en modo Factura -->
             <div>
                 <label for="clienteNif"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">NIF/CIF <span
-                        id="reqNif" style="color: #ef4444; display: none;">*</span></label>
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('client_data.nif_cif'); ?>
+                    <span id="reqNif" style="color: #ef4444; display: none;">*</span></label>
                 <input type="text" id="clienteNif"
                     style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
                     placeholder="B12345678">
@@ -892,43 +1071,44 @@
             <!-- Campo Razón Social / Nombre del cliente -->
             <div>
                 <label for="clienteNombre"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Razón Social /
-                    Nombre <span id="reqNombre" style="color: #ef4444; display: none;">*</span></label>
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('client_data.name_company'); ?>
+                    <span id="reqNombre" style="color: #ef4444; display: none;">*</span></label>
                 <input type="text" id="clienteNombre"
                     style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="Nombre de la empresa o persona">
+                    placeholder="<?php echo t('client_data.name_placeholder'); ?>">
             </div>
 
             <!-- Campo Domicilio Fiscal (solo visible en modo Factura) -->
             <div id="divDireccionCliente" style="display: none;">
                 <label for="clienteDireccion"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Domicilio Fiscal
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('client_data.fiscal_address'); ?>
                     <span id="reqDir" style="color: #ef4444; display: none;">*</span></label>
                 <input type="text" id="clienteDireccion"
                     style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="Calle, Número, C.P, Ciudad">
+                    placeholder="<?php echo t('client_data.address_placeholder'); ?>">
             </div>
 
             <!-- Campo Observaciones (solo visible en modo Factura, siempre opcional) -->
             <div id="divObservacionesCliente" style="display: none;">
                 <label for="clienteObservaciones"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Observaciones
-                    (Régimen, Exento, etc.)</label>
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('client_data.observations'); ?></label>
                 <input type="text" id="clienteObservaciones"
                     style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="Opcional">
+                    placeholder="<?php echo t('client_data.observations_placeholder'); ?>">
             </div>
         </div>
 
         <!-- Mensaje de error: se muestra si faltan campos obligatorios en modo Factura -->
-        <p id="errorDatosCliente" style="color: #ef4444; font-size: 0.9rem; margin-top: 15px; display: none;">Por favor,
-            rellene todos los campos obligatorios (*).</p>
+        <p id="errorDatosCliente" style="color: #ef4444; font-size: 0.9rem; margin-top: 15px; display: none;">
+            <?php echo t('client_data.error_required'); ?>
+        </p>
 
         <!-- Botones: Atrás (vuelve al modal anterior) y Finalizar Venta (valida y envía) -->
         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
-            <button class="btn-modal-cancelar" onclick="cerrarModalDatosClienteAtras()">Atrás</button>
+            <button class="btn-modal-cancelar"
+                onclick="cerrarModalDatosClienteAtras()"><?php echo t('client_data.back'); ?></button>
             <button class="btn-exito" id="btnConfirmarDatos" onclick="validarYConfirmarVenta()"
-                style="margin: 0;">Aceptar</button>
+                style="margin: 0;"><?php echo t('client_data.accept'); ?></button>
         </div>
     </div>
 </div>
@@ -937,8 +1117,8 @@
 <!-- Modal para añadir un cliente habitual (DNI, nombre, apellidos, fecha alta, compras) -->
 <div class="modal-overlay" id="modalClienteHabitual" style="display:none;">
     <div class="modal-content" style="max-width: 500px; text-align: left;">
-        <h3 style="margin-bottom: 5px;">Nuevo Cliente Habitual</h3>
-        <p class="modal-subtitulo" style="margin-bottom: 20px;">Complete los datos del cliente</p>
+        <h3 style="margin-bottom: 5px;"><?php echo t('new_client.title'); ?></h3>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;"><?php echo t('new_client.subtitle'); ?></p>
 
         <div style="display: grid; gap: 15px;">
             <!-- Campo DNI -->
@@ -954,8 +1134,8 @@
             <!-- Campo Nombre -->
             <div>
                 <label for="clienteHabitualNombre"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Nombre <span
-                        style="color: #ef4444;">*</span></label>
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('new_client.name'); ?>
+                    <span style="color: #ef4444;">*</span></label>
                 <input type="text" id="clienteHabitualNombre"
                     style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
                     placeholder="Juan" maxlength="100">
@@ -964,18 +1144,26 @@
             <!-- Campo Apellidos -->
             <div>
                 <label for="clienteHabitualApellidos"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Apellidos <span
-                        style="color: #ef4444;">*</span></label>
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('new_client.surname'); ?>
+                    <span style="color: #ef4444;">*</span></label>
                 <input type="text" id="clienteHabitualApellidos"
                     style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
                     placeholder="García López" maxlength="150">
             </div>
 
+            <!-- Campo Dirección -->
+            <div>
+                <label for="clienteHabitualDireccion"
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('new_client.address'); ?></label>
+                <input type="text" id="clienteHabitualDireccion"
+                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
+                    placeholder="Calle Principal 123" maxlength="255">
+            </div>
+
             <!-- Campo Fecha de Alta -->
             <div>
                 <label for="clienteHabitualFecha"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Fecha de
-                    Alta</label>
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('new_client.created_at'); ?></label>
                 <input type="datetime-local" id="clienteHabitualFecha"
                     style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" disabled>
             </div>
@@ -983,8 +1171,10 @@
 
         <!-- Botones: Cancelar y Guardar -->
         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalClienteHabitual')">Cancelar</button>
-            <button class="btn-exito" id="btnGuardarClienteHabitual" style="margin: 0;">Guardar</button>
+            <button class="btn-modal-cancelar"
+                onclick="cerrarModal('modalClienteHabitual')"><?php echo t('new_client.cancel'); ?></button>
+            <button class="btn-exito" id="btnGuardarClienteHabitual"
+                style="margin: 0;"><?php echo t('new_client.save'); ?></button>
         </div>
     </div>
 </div>
@@ -993,28 +1183,26 @@
 <!-- Modal que aparece cuando el total de la venta es >= 20€ y no se ha especificado cliente -->
 <div class="modal-overlay" id="modalPuntos" style="display:none;">
     <div class="modal-content" style="max-width: 400px; text-align: left;">
-        <h3 style="margin-bottom: 5px;">¡Gana puntos!</h3>
-        <p class="modal-subtitulo" style="margin-bottom: 20px;">Esta compra es elegible para acumular puntos de
-            fidelidad.</p>
+        <h3 style="margin-bottom: 5px;"><?php echo t('points_modal.title'); ?></h3>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;"><?php echo t('points_modal.subtitle'); ?></p>
 
         <div
             style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: center;">
-            <span style="font-size: 1.2rem; color: #166534;">El cliente podría ganar </span>
+            <span style="font-size: 1.2rem; color: #166534;"><?php echo t('points_modal.can_earn'); ?> </span>
             <span id="puntosPosibles" style="font-size: 1.5rem; font-weight: bold; color: #15803d;">0</span>
-            <span style="font-size: 1.2rem; color: #166534;"> puntos</span>
+            <span style="font-size: 1.2rem; color: #166534;"> <?php echo t('points_modal.points'); ?></span>
         </div>
 
         <p style="color: #6b7280; font-size: 0.9rem; margin-bottom: 20px;">
-            ¿Desea introducir el DNI del cliente para registrar la compra y acumular puntos? Los puntos se pueden
-            canjear en futuras compras.
+            <?php echo t('points_modal.explanation'); ?>
         </p>
 
         <div style="display: flex; gap: 10px;">
             <button class="btn-modal-cancelar" onclick="confirmarSinPuntos()" style="flex: 1;">
-                Ahora no
+                <?php echo t('points_modal.not_now'); ?>
             </button>
             <button class="btn-exito" onclick="confirmarConPuntos()" style="flex: 1;">
-                Introducir DNI
+                <?php echo t('points_modal.enter_dni'); ?>
             </button>
         </div>
     </div>
@@ -1024,14 +1212,14 @@
 <!-- Modal para consultar los puntos de un cliente y canjearlos por descuento -->
 <div class="modal-overlay" id="modalPuntosCliente" style="display:none;">
     <div class="modal-content" style="max-width: 450px; text-align: left;">
-        <h3 style="margin-bottom: 5px;">Puntos del Cliente</h3>
-        <p class="modal-subtitulo" style="margin-bottom: 20px;">Consulta los puntos y canjéalos por descuento</p>
+        <h3 style="margin-bottom: 5px;"><?php echo t('points_client.title'); ?></h3>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;"><?php echo t('points_client.subtitle'); ?></p>
 
         <!-- Buscar cliente por DNI -->
         <div id="puntosClienteBusqueda">
             <div>
                 <label for="dniPuntosCliente"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">DNI del Cliente
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('points_client.dni'); ?>
                     <span style="color: #ef4444;">*</span></label>
                 <input type="text" id="dniPuntosCliente"
                     style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
@@ -1041,10 +1229,10 @@
             </div>
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button class="btn-modal-cancelar" onclick="cerrarModal('modalPuntosCliente')" style="flex: 1;">
-                    Cerrar
+                    <?php echo t('points_client.close'); ?>
                 </button>
                 <button class="btn-exito" onclick="buscarPuntosCliente()" style="flex: 1;">
-                    Buscar
+                    <?php echo t('points_client.search'); ?>
                 </button>
             </div>
         </div>
@@ -1053,10 +1241,10 @@
         <div id="puntosClienteInfo" style="display: none;">
             <div
                 style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 20px; margin-bottom: 20px; text-align: center;">
-                <p style="color: #6b7280; margin-bottom: 5px;">Puntos disponibles</p>
+                <p style="color: #6b7280; margin-bottom: 5px;"><?php echo t('points_client.available_points'); ?></p>
                 <span id="puntosDisponiblesCliente"
                     style="font-size: 2.5rem; font-weight: bold; color: #15803d;">0</span>
-                <p style="color: #6b7280; margin-top: 5px;">1€ = 10 puntos | 1.000 puntos = 5€</p>
+                <p style="color: #6b7280; margin-top: 5px;"><?php echo t('points_client.conversion_rule'); ?></p>
             </div>
 
             <!-- Información de puntos que se pueden usar y ganar -->
@@ -1068,8 +1256,7 @@
 
             <div>
                 <label for="puntosACanjeer"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Puntos a canjear
-                    (múltiplos de 1000)</label>
+                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('points_client.points_to_redeem'); ?></label>
                 <input type="number" id="puntosACanjeer"
                     style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" placeholder="0"
                     min="0" step="1000" oninput="calcularDescuentoPuntos()">
@@ -1078,14 +1265,14 @@
 
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button class="btn-modal-cancelar" onclick="cerrarYLimpiarClientePuntos()" style="flex: 1;">
-                    Cancelar
+                    <?php echo t('points_client.cancel'); ?>
                 </button>
                 <button class="btn-exito" onclick="acumularPuntosSolamente()" style="flex: 1; background: #3b82f6;">
-                    Acumular Puntos
+                    <?php echo t('points_client.accumulate'); ?>
                 </button>
                 <button class="btn-exito" id="btnAplicarDescuentoPuntos" onclick="aplicarDescuentoPuntos()"
                     style="flex: 1;">
-                    Aplicar Descuento
+                    <?php echo t('points_client.apply_discount'); ?>
                 </button>
             </div>
         </div>
@@ -1096,13 +1283,13 @@
 <!-- Modal para buscar un cliente registrado por DNI y aplicar descuento según tarifa -->
 <div class="modal-overlay" id="modalBuscarClienteRegistrado" style="display:none;" data-modo="">
     <div class="modal-content" style="max-width: 400px; text-align: left;">
-        <h3 style="margin-bottom: 5px;">Cliente Registrado</h3>
-        <p class="modal-subtitulo" style="margin-bottom: 20px;">Introduce el DNI del cliente</p>
+        <h3 style="margin-bottom: 5px;"><?php echo t('search_client.title'); ?></h3>
+        <p class="modal-subtitulo" style="margin-bottom: 20px;"><?php echo t('search_client.subtitle'); ?></p>
 
         <div>
             <label for="dniBusquedaCliente"
-                style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">DNI <span
-                    style="color: #ef4444;">*</span></label>
+                style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('search_client.dni'); ?>
+                <span style="color: #ef4444;">*</span></label>
             <input type="text" id="dniBusquedaCliente"
                 style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
                 placeholder="12345678A" maxlength="20" onkeypress="if(event.key==='Enter') buscarClienteRegistrado()">
@@ -1113,10 +1300,10 @@
 
         <div style="display: flex; gap: 10px; margin-top: 20px;">
             <button class="btn-modal-cancelar" onclick="cerrarModalBuscarClienteRegistrado()" style="flex: 1;">
-                Cancelar
+                <?php echo t('search_client.cancel'); ?>
             </button>
             <button class="btn-exito" onclick="buscarClienteRegistrado()" style="flex: 1;">
-                Buscar
+                <?php echo t('search_client.search'); ?>
             </button>
         </div>
     </div>
@@ -1137,16 +1324,16 @@
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
-            <h3>¡Venta registrada!</h3>
+            <h3><?php echo t('sale_success.title'); ?></h3>
 
             <!-- Detalle de la venta: tipo de documento, número y total -->
             <p class="exito-detalle">
-                <?php echo ($_SESSION['ultimaVentaTipo'] === 'factura') ? 'Factura' : 'Ticket'; ?>
+                <?php echo ($_SESSION['ultimaVentaTipo'] === 'factura') ? t('sale_success.invoice') : t('sale_success.ticket'); ?>
                 #<?php
                 $serie = $_SESSION['ultimaVentaSerie'] ?? 'T';
                 $numero = $_SESSION['ultimaVentaNumero'] ?? $_SESSION['ultimaVentaId'];
                 echo $serie . str_pad($numero, 5, '0', STR_PAD_LEFT);
-                ?> — Total:
+                ?> — <?php echo t('sale_success.total'); ?>:
                 <?php echo number_format($_SESSION['ultimaVentaTotal'] ?? 0, 2, ',', '.'); ?> €
             </p>
 
@@ -1154,11 +1341,11 @@
             <?php if (isset($_SESSION['ultimaVentaPuntosGanados']) && $_SESSION['ultimaVentaPuntosGanados'] > 0): ?>
                 <div
                     style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center;">
-                    <span style="font-size: 1.1rem; color: #166534;">El cliente ha ganado </span>
+                    <span style="font-size: 1.1rem; color: #166534;"><?php echo t('sale_success.points_earned'); ?> </span>
                     <span
                         style="font-size: 1.4rem; font-weight: bold; color: #15803d;"><?php echo number_format($_SESSION['ultimaVentaPuntosGanados'], 0, ',', '.'); ?>
-                        puntos</span>
-                    <br><small style="color: #166534;">(1€ = 10 puntos)</small>
+                        <?php echo t('sale_success.points'); ?></span>
+                    <br><small style="color: #166534;"><?php echo t('sale_success.points_info'); ?></small>
                 </div>
             <?php endif; ?>
 
@@ -1166,13 +1353,13 @@
             <?php if (isset($_SESSION['ultimaVentaPuntosCanjeados']) && $_SESSION['ultimaVentaPuntosCanjeados'] > 0): ?>
                 <div
                     style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center;">
-                    <span style="font-size: 1.1rem; color: #92400e;">El cliente ha canjeado </span>
+                    <span style="font-size: 1.1rem; color: #92400e;"><?php echo t('sale_success.points_redeemed'); ?> </span>
                     <span
                         style="font-size: 1.4rem; font-weight: bold; color: #b45309;"><?php echo number_format($_SESSION['ultimaVentaPuntosCanjeados'], 0, ',', '.'); ?>
-                        puntos</span>
+                        <?php echo t('sale_success.points'); ?></span>
                     <span style="font-size: 1rem; color: #92400e;">
-                        (<?php echo number_format($_SESSION['ultimaVentaDescuentoValor'] ?? 0, 2, ',', '.'); ?>€ de
-                        descuento)</span>
+                        (<?php echo number_format($_SESSION['ultimaVentaDescuentoValor'] ?? 0, 2, ',', '.'); ?>€
+                        <?php echo t('sale_success.of_discount'); ?>)</span>
                 </div>
             <?php endif; ?>
 
@@ -1188,7 +1375,7 @@
                         <polyline points="6 14 6 22 18 22 18 14"></polyline>
                         <path d="M6 18h12"></path>
                     </svg>
-                    Imprimir
+                    <?php echo t('sale_success.print'); ?>
                 </button>
 
                 <!-- Botón ENVIAR POR CORREO: muestra el formulario de email -->
@@ -1199,23 +1386,24 @@
                         </path>
                         <polyline points="22,6 12,13 2,6"></polyline>
                     </svg>
-                    Enviar por correo
+                    <?php echo t('sale_success.send_email'); ?>
                 </button>
             </div>
 
             <!-- Formulario de envío por email (oculto por defecto, se muestra al pulsar "Enviar por correo") -->
             <div class="form-email" id="formEmail" style="display:none;">
-                <label for="inputEmail">Correo electrónico:</label>
+                <label for="inputEmail"><?php echo t('sale_success.email_label'); ?></label>
                 <div class="email-input-group">
-                    <input type="email" id="inputEmail" placeholder="cliente@ejemplo.com" />
-                    <button class="btn-enviar-email" onclick="enviarPorCorreo()">Enviar</button>
+                    <input type="email" id="inputEmail" placeholder="<?php echo t('sale_success.email_placeholder'); ?>" />
+                    <button class="btn-enviar-email"
+                        onclick="enviarPorCorreo()"><?php echo t('sale_success.send'); ?></button>
                 </div>
                 <!-- Estado del envío: enviando, éxito o error -->
                 <p class="email-status" id="emailStatus"></p>
             </div>
 
             <!-- Botón para cerrar el modal de éxito -->
-            <button class="btn-cerrar-exito" onclick="cerrarExito()">Aceptar</button>
+            <button class="btn-cerrar-exito" onclick="cerrarExito()"><?php echo t('sale_success.accept'); ?></button>
         </div>
     </div>
 
@@ -1249,6 +1437,7 @@
             puntosGanados: <?php echo $_SESSION['ultimaVentaPuntosGanados'] ?? 0; ?>,
             puntosBalance: <?php echo $_SESSION['ultimaVentaPuntosBalance'] ?? 0; ?>,
             puntosCanjeados: <?php echo (isset($_SESSION['ultimaVentaPuntosCanjeados']) && $_SESSION['ultimaVentaPuntosCanjeados'] > 0) ? '{ puntos: ' . ($_SESSION['ultimaVentaPuntosCanjeados']) . ', descuento: ' . ($_SESSION['ultimaVentaDescuentoValor'] ?? 0) . ' }' : 'null'; ?>,
+            pagoMixtoDesglose: <?php echo !empty($_SESSION['ultimaVentaDesglosePago']) ? $_SESSION['ultimaVentaDesglosePago'] : 'null'; ?>,
             mensajePersonalizado: '<?php echo addslashes($_SESSION['ultimaVentaMensajePersonalizado'] ?? ''); ?>'
         };
     </script>
@@ -1321,8 +1510,8 @@ endif; ?>
                     <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                 </svg>
             </div>
-            <h3>Apertura de Caja</h3>
-            <p>Introduce el efectivo inicial para comenzar la jornada</p>
+            <h3><?php echo t('open_register.title'); ?></h3>
+            <p><?php echo t('open_register.subtitle'); ?></p>
         </div>
 
         <div class="modal-body-premium">
@@ -1337,7 +1526,7 @@ endif; ?>
                         <label style="display: flex; align-items: center; cursor: pointer;">
                             <input type="radio" name="opcionCambio" value="recuperar" checked onclick="toggleCambio(false)"
                                 style="margin-right: 8px;">
-                            <span>💰 Recuperar cambio anterior:
+                            <span>💰 <?php echo t('open_register.recover_change'); ?>
                                 <strong><?php echo number_format($cambioAnterior, 2, ',', '.'); ?> €</strong></span>
                         </label>
                     </div>
@@ -1345,7 +1534,7 @@ endif; ?>
                         <label style="display: flex; align-items: center; cursor: pointer;">
                             <input type="radio" name="opcionCambio" value="nuevo" onclick="toggleCambio(true)"
                                 style="margin-right: 8px;">
-                            <span>✨ Introducir nuevo cambio</span>
+                            <span>✨ <?php echo t('open_register.new_change'); ?></span>
                         </label>
                     </div>
                     <?php
@@ -1357,9 +1546,10 @@ endif; ?>
                 <!-- Input para el importe inicial (fondo de caja) -->
                 <div class="form-group-premium" id="divImporteInicial"
                     style="<?php echo ($cambioAnterior > 0) ? 'opacity: 0.5;' : ''; ?>">
-                    <label for="importeInicial">Fondo de caja inicial (€)</label>
+                    <label for="importeInicial"><?php echo t('open_register.initial_cash'); ?></label>
                     <div class="input-cupon">
-                        <input type="number" name="importeInicial" id="importeInicial" step="0.01" min="0"
+                        <input type="number" name="importeInicial" id="importeInicial" step="0.0001"
+                            oninput="validar4Decimales(this)" onblur="validar4Decimales(this)" min="0"
                             placeholder="0,00" <?php echo ($cambioAnterior > 0) ? '' : 'required'; ?>
                             style="text-align: center; padding-right: 15px;">
                     </div>
@@ -1368,10 +1558,9 @@ endif; ?>
                 <!-- Botones: Cancelar y Confirmar Apertura -->
                 <div style="display: flex; gap: 15px; margin-top: 30px;">
                     <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalAbrirCaja')"
-                        style="flex: 1;">Cancelar</button>
+                        style="flex: 1;"><?php echo t('open_register.cancel'); ?></button>
                     <button type="submit" class="btn-apply-premium"
-                        style="flex: 1; background: #16a34a; color: white;">Confirmar
-                        Apertura</button>
+                        style="flex: 1; background: #16a34a; color: white;"><?php echo t('open_register.confirm'); ?></button>
                 </div>
             </form>
         </div>
@@ -1395,8 +1584,8 @@ endif; ?>
                     <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
                 </svg>
             </div>
-            <h3 style="margin-bottom: 5px;">Tramitar Devolución</h3>
-            <p id="devolucionSubtitulo" style="opacity: 0.9;">Introduce el ID del Ticket para comenzar</p>
+            <h3 style="margin-bottom: 5px;"><?php echo t('return.title'); ?></h3>
+            <p id="devolucionSubtitulo" style="opacity: 0.9;"><?php echo t('return.subtitle'); ?></p>
         </div>
 
         <div class="modal-body-premium" style="flex: 1; overflow-y: auto; padding: 25px;">
@@ -1410,14 +1599,16 @@ endif; ?>
                     </div>
 
                     <h4 style="color: var(--text-main); font-size: 1.4rem; margin-bottom: 10px; font-weight: 700;">
-                        Recuperar Ticket</h4>
+                        <?php echo t('return.step1_title'); ?>
+                    </h4>
                     <p
                         style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 30px; max-width: 400px; margin-left: auto; margin-right: auto;">
-                        Introduce el número identificador para procesar la devolución de los productos.
+                        <?php echo t('return.step1_desc'); ?>
                     </p>
 
                     <div style="max-width: 340px; margin: 0 auto;">
-                        <input type="text" id="inputTicketIdDev" placeholder="Ej: T00001"
+                        <input type="text" id="inputTicketIdDev"
+                            placeholder="<?php echo t('return.ticket_placeholder'); ?>"
                             style="width: 100%; padding: 18px; font-size: 1.6rem; text-align: center; border-radius: 14px; border: 2px solid var(--border-main); background: var(--bg-input); color: var(--text-main); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transition: all 0.2s; outline: none; font-weight: 600;"
                             onkeypress="if(event.key === 'Enter') buscarTicketParaDevolucion()"
                             onfocus="this.style.borderColor = 'var(--accent-danger)'; this.style.boxShadow = '0 0 0 4px rgba(220, 38, 38, 0.1)'; this.style.transform = 'translateY(-2px)'"
@@ -1425,7 +1616,7 @@ endif; ?>
 
                         <button type="button" class="btn-apply-premium" onclick="buscarTicketParaDevolucion()"
                             style="width: 100%; background: var(--accent-danger); color: white; margin-top: 20px; padding: 16px; border-radius: 14px; font-size: 1.1rem; font-weight: 700; border: none; box-shadow: 0 6px 15px rgba(220, 38, 38, 0.3); transition: all 0.2s; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                            <span>Continuar</span>
+                            <span><?php echo t('return.continue'); ?></span>
                             <i class="fas fa-arrow-right" style="font-size: 0.9rem;"></i>
                         </button>
                     </div>
@@ -1438,7 +1629,7 @@ endif; ?>
                         style="margin-top: 45px; padding: 15px 20px; background: var(--bg-panel); border-radius: 12px; border: 1px dashed var(--border-main); display: inline-flex; align-items: center; gap: 12px; opacity: 0.8;">
                         <i class="fas fa-info-circle" style="color: var(--accent-danger);"></i>
                         <span style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
-                            El número de ticket se encuentra en la parte superior del comprobante.
+                            <?php echo t('return.ticket_info'); ?>
                         </span>
                     </div>
                 </div>
@@ -1446,12 +1637,15 @@ endif; ?>
 
             <!-- PASO 2: Selección de Productos -->
             <div id="devolucionPaso2" style="display: none;">
+
+                <!-- Lista de productos a devolver (REQUIRED ID) -->
+                <div id="listaProductosDevolucion" style="margin-top: 20px; margin-bottom: 20px;"></div>
                 <div
                     style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding: 15px; background: var(--bg-accent-danger); border-radius: 12px; border: 1px solid var(--accent-danger); opacity: 0.9;">
                     <div style="flex: 1;">
                         <div style="font-weight: 700; color: var(--text-main); font-size: 1rem; margin-bottom: 5px;">
-                            Información
-                            del Ticket</div>
+                            <?php echo t('return.ticket_info_title'); ?>
+                        </div>
                         <div style="font-size: 0.9rem; color: var(--text-muted);">
                             <span id="infoTicketId" style="font-weight: 600;"></span> ·
                             <span id="infoTicketFecha"></span>
@@ -1460,12 +1654,14 @@ endif; ?>
                     <div style="text-align: right; display: flex; gap: 20px; align-items: center;">
                         <button type="button" onclick="seleccionarTodosProductos()"
                             style="background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border-main); padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                            <i class="fas fa-check-double" style="margin-right: 6px;"></i> Seleccionar Todo
+                            <i class="fas fa-check-double" style="margin-right: 6px;"></i>
+                            <?php echo t('return.select_all'); ?>
                         </button>
                         <div style="text-align: right;">
                             <div
                                 style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">
-                                Total Original</div>
+                                <?php echo t('return.original_total'); ?>
+                            </div>
                             <div id="infoTicketTotal"
                                 style="font-size: 1.2rem; font-weight: 800; color: var(--accent-danger);"></div>
                         </div>
@@ -1479,13 +1675,16 @@ endif; ?>
                             <tr style="background: var(--bg-panel); border-bottom: 2px solid var(--border-main);">
                                 <th
                                     style="text-align: left; padding: 12px 15px; font-weight: 700; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">
-                                    Producto</th>
+                                    <?php echo t('return.product_col'); ?>
+                                </th>
                                 <th
                                     style="text-align: center; padding: 12px; font-weight: 700; font-size: 0.8rem; color: #64748b; text-transform: uppercase; width: 80px;">
-                                    Disp.</th>
+                                    <?php echo t('return.disp_col'); ?>
+                                </th>
                                 <th
                                     style="text-align: center; padding: 12px 15px; font-weight: 700; font-size: 0.8rem; color: #64748b; text-transform: uppercase; width: 120px;">
-                                    A Devolver</th>
+                                    <?php echo t('return.to_return_col'); ?>
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="tablaProductosDev">
@@ -1495,14 +1694,15 @@ endif; ?>
                 </div>
 
                 <div class="form-group-premium" style="margin-top: 25px;">
-                    <label style="font-size: 1rem;">Método de Reembolso</label>
+                    <label style="font-size: 1rem;"><?php echo t('return.refund_method'); ?></label>
                     <div style="display: flex; gap: 12px; margin-top: 10px;">
                         <label style="flex: 1; cursor: pointer;">
                             <input type="radio" name="metodoPagoDev" value="Efectivo" checked style="display: none;"
                                 onchange="updateMethodUI(this)">
                             <div class="method-chip active" id="chip-Efectivo"
                                 style="padding: 12px; text-align: center; border-radius: 10px; border: 2px solid var(--accent-danger); color: var(--accent-danger); font-weight: 700; transition: all 0.2s;">
-                                <i class="fas fa-money-bill-wave" style="margin-right: 8px;"></i> Efectivo
+                                <i class="fas fa-money-bill-wave" style="margin-right: 8px;"></i>
+                                <?php echo t('ticket.cash'); ?>
                             </div>
                         </label>
                         <label style="flex: 1; cursor: pointer;">
@@ -1510,7 +1710,8 @@ endif; ?>
                                 onchange="updateMethodUI(this)">
                             <div class="method-chip" id="chip-Tarjeta"
                                 style="padding: 12px; text-align: center; border-radius: 10px; border: 2px solid var(--border-main); color: var(--text-muted); font-weight: 600; transition: all 0.2s;">
-                                <i class="fas fa-credit-card" style="margin-right: 8px;"></i> Tarjeta
+                                <i class="fas fa-credit-card" style="margin-right: 8px;"></i>
+                                <?php echo t('ticket.card'); ?>
                             </div>
                         </label>
                         <label style="flex: 1; cursor: pointer;">
@@ -1518,16 +1719,16 @@ endif; ?>
                                 onchange="updateMethodUI(this)">
                             <div class="method-chip" id="chip-Bizum"
                                 style="padding: 12px; text-align: center; border-radius: 10px; border: 2px solid var(--border-main); color: var(--text-muted); font-weight: 600; transition: all 0.2s;">
-                                <i class="fas fa-mobile-alt" style="margin-right: 8px;"></i> Bizum
+                                <i class="fas fa-mobile-alt" style="margin-right: 8px;"></i>
+                                <?php echo t('ticket.bizum'); ?>
                             </div>
                         </label>
                     </div>
                 </div>
 
                 <div class="form-group-premium" style="margin-top: 20px;">
-                    <label style="font-size: 1rem;">Motivo de la Devolución</label>
-                    <textarea id="motivoDevolucionDev"
-                        placeholder="Opcional. Ej: Producto defectuoso, cambio de opinión..."
+                    <label style="font-size: 1rem;"><?php echo t('return.reason'); ?></label>
+                    <textarea id="motivoDevolucionDev" placeholder="<?php echo t('return.reason_placeholder'); ?>"
                         style="width: 100%; border-radius: 8px; border: 1px solid var(--border-main); padding: 12px; background: var(--bg-input); color: var(--text-main); height: 80px; resize: vertical; margin-top: 5px; font-family: inherit; font-size: 0.9rem;"></textarea>
                 </div>
             </div>
@@ -1541,31 +1742,31 @@ endif; ?>
                     <div>
                         <span
                             style="display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Total
-                            venta original</span>
+                            <?php echo t('return.original_sale_total'); ?></span>
                         <span id="totalOriginalDisplay"
                             style="font-size: 1.2rem; font-weight: 600; color: var(--text-main);">0,00 €</span>
                     </div>
                     <div>
                         <span
                             style="display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Total
-                            a reembolsar</span>
+                            <?php echo t('return.refund_total'); ?></span>
                         <span id="totalReembolsoDisplay"
                             style="font-size: 1.6rem; font-weight: 800; color: var(--accent-danger);">0,00 €</span>
                     </div>
                 </div>
                 <div id="errorEfectivoInsuficiente"
                     style="display: none; color: var(--accent-danger); font-size: 0.8rem; font-weight: 600; margin-top: 5px; background: rgba(220, 38, 38, 0.1); padding: 5px 10px; border-radius: 6px;">
-                    <i class="fas fa-exclamation-triangle"></i> No hay suficiente efectivo en caja (Disponible: <span
-                        id="efectivoDisponibleDisplay"></span>)
+                    <i class="fas fa-exclamation-triangle"></i> <?php echo t('return.insufficient_cash'); ?>
+                    (<?php echo t('return.available'); ?>: <span id="efectivoDisponibleDisplay"></span>)
                 </div>
             </div>
             <div style="margin-left: auto; display: flex; gap: 15px;">
                 <button type="button" class="btn-cancel-flat" onclick="cerrarModalDevolucion()"
-                    style="padding: 10px 20px;">Cancelar</button>
+                    style="padding: 10px 20px;"><?php echo t('return.cancel'); ?></button>
                 <button type="button" class="btn-apply-premium" id="btnConfirmarMultiDev" disabled
                     style="background: var(--accent-danger); color: white; margin: 0; padding: 12px 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); display: none;"
                     onclick="procesarMultiDevolucion()">
-                    Confirmar Devolución
+                    <?php echo t('return.confirm'); ?>
                 </button>
             </div>
         </div>
@@ -1597,45 +1798,51 @@ endif; ?>
                     </svg>
                 </div>
             </div>
-            <h3 style="text-align: center; margin: 10px 0; font-size: 1.4rem;" class="devolucion-titulo">Devolución
-                Realizada</h3>
-            <p style="text-align: center; margin: 10px 0;" class="devolucion-subtitulo">La devolución se ha procesado
-                correctamente.</p>
+            <h3 style="text-align: center; margin: 10px 0; font-size: 1.4rem;" class="devolucion-titulo">
+                <?php echo t('return_success.title'); ?>
+            </h3>
+            <p style="text-align: center; margin: 10px 0;" class="devolucion-subtitulo">
+                <?php echo t('return_success.subtitle'); ?>
+            </p>
             <?php if (isset($_SESSION['devolucionDetalles']) && is_array($_SESSION['devolucionDetalles'])): ?>
                 <div class="devolucion-detalles" style="border-radius: 8px; padding: 15px; margin: 15px 0; text-align: left;">
-                    <p style="margin: 5px 0; font-size: 0.9rem;"><strong>Ticket:</strong>
+                    <p style="margin: 5px 0; font-size: 0.9rem;"><strong><?php echo t('return_success.ticket'); ?>:</strong>
                         #<?php echo htmlspecialchars($_SESSION['devolucionDetalles']['ticket'] ?? ''); ?></p>
-                    <p style="margin: 5px 0; font-size: 0.9rem;"><strong>Productos devueltos:</strong>
-                        <?php echo htmlspecialchars($_SESSION['devolucionDetalles']['productos'] ?? ''); ?></p>
+                    <p style="margin: 5px 0; font-size: 0.9rem;">
+                        <strong><?php echo t('return_success.returned_products'); ?>:</strong>
+                        <?php echo htmlspecialchars($_SESSION['devolucionDetalles']['productos'] ?? ''); ?>
+                    </p>
                     <?php if (!empty($_SESSION['devolucionDetalles']['motivo'])): ?>
-                        <p style="margin: 5px 0; font-size: 0.9rem;"><strong>Motivo:</strong>
+                        <p style="margin: 5px 0; font-size: 0.9rem;"><strong><?php echo t('return_success.reason'); ?>:</strong>
                             <?php echo htmlspecialchars($_SESSION['devolucionDetalles']['motivo']); ?></p>
                         <?php
                     endif; ?>
-                    <p style="margin: 5px 0; font-size: 0.9rem;"><strong>Importe devuelto:</strong> <span
+                    <p style="margin: 5px 0; font-size: 0.9rem;">
+                        <strong><?php echo t('return_success.refunded_amount'); ?>:</strong> <span
                             style="color: #f87171; font-weight: bold;">-<?php echo number_format($_SESSION['devolucionDetalles']['total'] ?? 0, 2, ',', '.'); ?>
-                            €</span></p>
+                            €</span>
+                    </p>
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                     <button onclick="imprimirTicketDevolucion()"
                         style="flex: 1; background: #3b82f6; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
-                        <i class="fas fa-print"></i> Imprimir
+                        <i class="fas fa-print"></i> <?php echo t('sale_success.print'); ?>
                     </button>
                     <button onclick="mostrarFormEmailDevolucion()"
                         style="flex: 1; background: #10b981; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
-                        <i class="fas fa-envelope"></i> Correo
+                        <i class="fas fa-envelope"></i> <?php echo t('sale_success.email'); ?>
                     </button>
                 </div>
 
                 <div id="formEmailDev" class="devolucion-email-form"
                     style="display: none; margin-bottom: 15px; padding: 15px; border-radius: 8px;">
-                    <input type="email" id="inputEmailDev" placeholder="Correo del cliente"
+                    <input type="email" id="inputEmailDev" placeholder="<?php echo t('sale_success.email_placeholder'); ?>"
                         style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid; margin-bottom: 10px;"
                         class="devolucion-email-input">
                     <button onclick="enviarPorCorreoDevolucion()"
                         style="width: 100%; background: #10b981; color: white; padding: 8px; border: none; border-radius: 6px; cursor: pointer;">
-                        Enviar Ticket
+                        <?php echo t('sale_success.send'); ?>
                     </button>
                     <div id="emailStatusDev" style="margin-top: 10px; font-size: 0.85rem; text-align: center;"></div>
                 </div>
@@ -1657,7 +1864,7 @@ endif; ?>
             endif; ?>
             <div style="text-align: center; margin-top: 15px;">
                 <button onclick="document.getElementById('devolucionExito').remove()"
-                    style="background: #dc2626; color: white; padding: 10px 30px; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; width: 100%;">Aceptar</button>
+                    style="background: #dc2626; color: white; padding: 10px 30px; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; width: 100%;"><?php echo t('sale_success.accept'); ?></button>
             </div>
         </div>
     </div>
@@ -1683,8 +1890,8 @@ endif; ?>
                     <path d="M6 12h.01M18 12h.01"></path>
                 </svg>
             </div>
-            <h3>Retirar Dinero</h3>
-            <p>Ingresa la cantidad que deseas retirar de la caja</p>
+            <h3><?php echo t('withdraw.title'); ?></h3>
+            <p><?php echo t('withdraw.subtitle'); ?></p>
         </div>
 
         <div class="modal-body-premium">
@@ -1694,11 +1901,11 @@ endif; ?>
 
                 <!-- Campo: cantidad a retirar en euros -->
                 <div class="form-group-premium">
-                    <label for="importeRetiro">Cantidad a Retirar (€)</label>
-                    <input type="number" name="importeRetiro" id="importeRetiro" step="0.01" min="0.01"
-                        placeholder="0.00" required>
+                    <label for="importeRetiro"><?php echo t('withdraw.amount'); ?></label>
+                    <input type="number" name="importeRetiro" id="importeRetiro" step="0.0001" min="0.0001"
+                        oninput="validar4Decimales(this)" onblur="validar4Decimales(this)" placeholder="0.00" required>
                     <small style="color: var(--text-muted); display: block; margin-top: 5px;">
-                        Efectivo disponible: <span
+                        <?php echo t('withdraw.available'); ?>: <span
                             id="efectivoDisponible"><?php echo number_format($sesionCaja ? $sesionCaja->getImporteActual() : 0, 2, ',', '.'); ?></span>
                         €
                     </small>
@@ -1706,18 +1913,17 @@ endif; ?>
 
                 <!-- Campo: motivo del retiro (opcional) -->
                 <div class="form-group-premium" style="margin-top: 15px;">
-                    <label for="motivoRetiro">Motivo (Opcional)</label>
+                    <label for="motivoRetiro"><?php echo t('withdraw.reason_optional'); ?></label>
                     <input type="text" name="motivoRetiro" id="motivoRetiro"
-                        placeholder="Ej: Pago a proveedor, ingreso banco...">
+                        placeholder="<?php echo t('withdraw.reason_placeholder'); ?>">
                 </div>
 
                 <!-- Botones: Cancelar y Confirmar Retiro -->
                 <div style="display: flex; gap: 15px; margin-top: 25px;">
                     <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalRetiro')"
-                        style="flex: 1;">Cancelar</button>
+                        style="flex: 1;"><?php echo t('withdraw.cancel'); ?></button>
                     <button type="submit" class="btn-apply-premium"
-                        style="flex: 1; background: #ea580c; color: white;">Confirmar
-                        Retiro</button>
+                        style="flex: 1; background: #ea580c; color: white;"><?php echo t('withdraw.confirm'); ?></button>
                 </div>
             </form>
         </div>
@@ -1739,10 +1945,12 @@ endif; ?>
                     <path d="M6 12h.01M18 12h.01"></path>
                 </svg>
             </div>
-            <h3 class="resumen-total-ventas" style="margin-top: 10px; border-top:none; padding-top:0;">Retiro Realizado</h3>
-            <p class="modal-subtitulo-cliente">El importe ha sido restado del efectivo en caja correctamente.</p>
+            <h3 class="resumen-total-ventas" style="margin-top: 10px; border-top:none; padding-top:0;">
+                <?php echo t('withdraw_success.title'); ?>
+            </h3>
+            <p class="modal-subtitulo-cliente"><?php echo t('withdraw_success.subtitle'); ?></p>
             <button class="btn-cerrar-exito" style="background: #ea580c; margin-top: 20px;"
-                onclick="document.getElementById('retiroExito').remove()">Aceptar</button>
+                onclick="document.getElementById('retiroExito').remove()"><?php echo t('withdraw_success.accept'); ?></button>
         </div>
     </div>
     <?php unset($_SESSION['retiroExito']); ?>
@@ -1763,13 +1971,13 @@ endif; ?>
                 <line x1="15" y1="9" x2="9" y2="15"></line>
                 <line x1="9" y1="9" x2="15" y2="15"></line>
             </svg>
-            <h3 style="color: var(--accent-danger);">Error en el retiro</h3>
+            <h3 style="color: var(--accent-danger);"><?php echo t('withdraw_error.title'); ?></h3>
             <!-- Mensaje de error escapado con htmlspecialchars para seguridad XSS -->
             <p style="color: var(--text-main); margin-bottom: 25px;">
                 <?php echo htmlspecialchars($_SESSION['retiroError']); ?>
             </p>
             <button class="btn-modal-cancelar" onclick="document.getElementById('retiroError').remove()"
-                style="width: 100%;">Aceptar</button>
+                style="width: 100%;"><?php echo t('withdraw_error.accept'); ?></button>
         </div>
     </div>
     <?php unset($_SESSION['retiroError']); ?>
@@ -1790,12 +1998,13 @@ endif; ?>
                 <line x1="15" y1="9" x2="9" y2="15"></line>
                 <line x1="9" y1="9" x2="15" y2="15"></line>
             </svg>
-            <h3 style="color: var(--accent-danger);">Error en la venta</h3>
+            <h3 style="color: var(--accent-danger);"><?php echo t('sale_error.title'); ?></h3>
             <!-- Mensaje de error escapado con htmlspecialchars para seguridad XSS -->
             <p style="color: var(--text-main); margin-bottom: 25px;">
                 <?php echo htmlspecialchars($_SESSION['ventaError']); ?>
             </p>
-            <button class="btn-modal-cancelar" onclick="cerrarModal('ventaError')" style="width: 100%;">Aceptar</button>
+            <button class="btn-modal-cancelar" onclick="cerrarModal('ventaError')"
+                style="width: 100%;"><?php echo t('sale_error.accept'); ?></button>
         </div>
     </div>
     <?php unset($_SESSION['ventaError']); ?>
@@ -1821,19 +2030,22 @@ endif; ?>
                     </svg>
                 </div>
             </div>
-            <h3 style="text-align: center; margin: 10px 0; font-size: 1.4rem; color: var(--text-header);">¡Puntos
-                Acumulados!</h3>
-            <p style="text-align: center; margin: 10px 0; color: var(--text-muted);">El cliente ha ganado y/o usado puntos
-                en esta compra.</p>
+            <h3 style="text-align: center; margin: 10px 0; font-size: 1.4rem; color: var(--text-header);">
+                <?php echo t('points_earned.title'); ?>
+            </h3>
+            <p style="text-align: center; margin: 10px 0; color: var(--text-muted);">
+                <?php echo t('points_earned.subtitle'); ?>
+            </p>
 
             <div
                 style="background: var(--bg-main); border: 1px solid var(--border-main); border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center;">
-                <p style="margin: 5px 0; font-size: 1rem; color: var(--text-main);"><strong>Puntos ganados ahora:</strong>
+                <p style="margin: 5px 0; font-size: 1rem; color: var(--text-main);">
+                    <strong><?php echo t('points_earned.earned_now'); ?></strong>
                     <span
                         style="color: var(--accent-success); font-size: 1.2rem;">+<?php echo number_format($_SESSION['postVentaPuntosGanados'] ?? 0, 0, ',', '.'); ?></span>
                 </p>
-                <p style="margin: 10px 0 5px 0; font-size: 1rem; color: var(--text-main);"><strong>Total acumulado
-                        disponible:</strong> <span
+                <p style="margin: 10px 0 5px 0; font-size: 1rem; color: var(--text-main);">
+                    <strong><?php echo t('points_earned.total_accumulated'); ?></strong> <span
                         style="font-weight: bold; font-size: 1.5rem; color: var(--accent);"><?php echo number_format($_SESSION['puntosActualesAcumulados'] ?? 0, 0, ',', '.'); ?></span>
                 </p>
             </div>
@@ -1878,16 +2090,20 @@ endif; ?>
                 <path d="M17 12h.01"></path>
                 <path d="M7 12h.01"></path>
             </svg>
-            <h3 style="color: var(--text-main); font-size: 1.4rem; margin-bottom: 10px;">Arqueo de Caja</h3>
+            <h3 style="color: var(--text-main); font-size: 1.4rem; margin-bottom: 10px;">
+                <?php echo t('cash_count.title'); ?>
+            </h3>
             <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
-                Efectivo esperado: <strong
+                <?php echo t('cash_count.expected_cash'); ?>: <strong
                     style="color: var(--accent); font-size: 1.1rem;"><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?>
                     €</strong>
             </p>
 
             <!-- Billetes -->
             <div style="margin-bottom: 12px;">
-                <p style="margin: 0 0 6px 0; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">BILLETES</p>
+                <p style="margin: 0 0 6px 0; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">
+                    <?php echo t('cash_count.bills'); ?>
+                </p>
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
                     <?php foreach ([500, 200, 100, 50, 20, 10, 5] as $valor): ?>
                         <div style="display: flex; align-items: center; gap: 4px;">
@@ -1904,7 +2120,9 @@ endif; ?>
 
             <!-- Monedas -->
             <div style="margin-bottom: 12px;">
-                <p style="margin: 0 0 6px 0; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">MONEDAS</p>
+                <p style="margin: 0 0 6px 0; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">
+                    <?php echo t('cash_count.coins'); ?>
+                </p>
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
                     <?php foreach ([2, 1, 0.50, 0.20, 0.10, 0.05, 0.02, 0.01] as $valor): ?>
                         <div style="display: flex; align-items: center; gap: 4px;">
@@ -1923,33 +2141,33 @@ endif; ?>
             <div
                 style="background: var(--bg-main); padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border-main);">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: var(--text-muted);">Efectivo esperado:</span>
+                    <span style="color: var(--text-muted);"><?php echo t('cash_count.expected_cash'); ?>:</span>
                     <span id="arqueoEsperado"
                         style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?>
                         €</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: var(--text-muted);">Efectivo contado:</span>
+                    <span style="color: var(--text-muted);"><?php echo t('cash_count.counted_cash'); ?>:</span>
                     <span id="arqueoContado" style="font-weight: 600; color: var(--accent);">0,00 €</span>
                 </div>
                 <div
                     style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px dashed var(--border-main);">
-                    <span style="font-weight: 600;">Diferencia:</span>
+                    <span style="font-weight: 600;"><?php echo t('cash_count.difference'); ?>:</span>
                     <span id="arqueoDiferencia" style="font-weight: 700; color: var(--accent-success);">0,00 €</span>
                 </div>
             </div>
 
             <!-- Observaciones -->
-            <textarea id="arqueoObservaciones" placeholder="Observaciones (opcional)"
+            <textarea id="arqueoObservaciones" placeholder="<?php echo t('cash_count.observations'); ?>"
                 style="width: 100%; padding: 10px; border: 1px solid var(--border-main); border-radius: 6px; resize: none; font-size: 0.85rem; margin-bottom: 20px; background: var(--bg-input); color: var(--text-main);"
                 rows="2"></textarea>
 
             <!-- Botones -->
             <div style="display: flex; gap: 10px; justify-content: center;">
                 <button class="btn-modal-cancelar"
-                    onclick="document.getElementById('arqueoModal').style.display='none';">Cancelar</button>
+                    onclick="document.getElementById('arqueoModal').style.display='none';"><?php echo t('cash_count.cancel'); ?></button>
                 <button class="btn-cerrar-exito" style="margin-top: 0; background: var(--accent);"
-                    onclick="continuarArqueo()">Continuar</button>
+                    onclick="continuarArqueo()"><?php echo t('cash_count.continue'); ?></button>
             </div>
         </div>
     </div>
@@ -1965,28 +2183,30 @@ endif; ?>
                 <!-- Header visible solo al imprimir (clase .solo-impresion) -->
                 <div class="solo-impresion" style="text-align: center; margin-bottom: 15px;">
                     <h2>TPV Bazar</h2>
-                    <p>Cierre de Caja - <?php echo date('d/m/Y H:i'); ?></p>
+                    <p><?php echo t('cash_summary.title'); ?> - <?php echo date('d/m/Y H:i'); ?></p>
                 </div>
 
                 <h4 class="resumen-caja-titulo">
-                    Resumen de Ventas de Hoy</h4>
+                    <?php echo t('cash_summary.sales_summary'); ?>
+                </h4>
 
                 <!-- Desglose por EFECTIVO: cantidad de tickets, total y devoluciones -->
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem;">
-                    <span><strong style="color: #4b5563;">Efectivo:</strong>
-                        (<?php echo $_SESSION['resumenCaja']['efectivo']['cantidad']; ?> tickets)</span>
+                    <span><strong style="color: #4b5563;"><?php echo t('cash_summary.cash'); ?>:</strong>
+                        (<?php echo $_SESSION['resumenCaja']['efectivo']['cantidad']; ?>
+                        <?php echo t('cash_summary.tickets'); ?>)</span>
                     <div style="text-align: right;">
                         <span
                             style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['efectivo']['total'], 2, ',', '.'); ?>
                             €</span>
                         <?php if ($_SESSION['resumenCaja']['efectivo']['devoluciones'] > 0): ?>
-                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev:
+                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(<?php echo t('cash_summary.returns'); ?>:
                                 -<?php echo number_format($_SESSION['resumenCaja']['efectivo']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
                             <?php
                         endif; ?>
                         <?php if (isset($_SESSION['resumenCaja']['totalRetiros']) && $_SESSION['resumenCaja']['totalRetiros'] > 0): ?>
-                            <br><span style="font-size: 0.75rem; color: #ea580c;">(Retiros:
+                            <br><span style="font-size: 0.75rem; color: #ea580c;">(<?php echo t('cash_summary.withdrawals'); ?>:
                                 -<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'], 2, ',', '.'); ?>
                                 €)</span>
                             <?php
@@ -1996,14 +2216,15 @@ endif; ?>
 
                 <!-- Desglose por TARJETA: cantidad de tickets, total y devoluciones -->
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem;">
-                    <span><strong style="color: #4b5563;">Tarjeta:</strong>
-                        (<?php echo $_SESSION['resumenCaja']['tarjeta']['cantidad']; ?> tickets)</span>
+                    <span><strong style="color: #4b5563;"><?php echo t('cash_summary.card'); ?>:</strong>
+                        (<?php echo $_SESSION['resumenCaja']['tarjeta']['cantidad']; ?>
+                        <?php echo t('cash_summary.tickets'); ?>)</span>
                     <div style="text-align: right;">
                         <span
                             style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['tarjeta']['total'], 2, ',', '.'); ?>
                             €</span>
                         <?php if ($_SESSION['resumenCaja']['tarjeta']['devoluciones'] > 0): ?>
-                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev:
+                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(<?php echo t('cash_summary.returns'); ?>:
                                 -<?php echo number_format($_SESSION['resumenCaja']['tarjeta']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
                             <?php
@@ -2013,14 +2234,15 @@ endif; ?>
 
                 <!-- Desglose por BIZUM: cantidad de tickets, total y devoluciones -->
                 <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.95rem;">
-                    <span><strong style="color: #4b5563;">Bizum:</strong>
-                        (<?php echo $_SESSION['resumenCaja']['bizum']['cantidad']; ?> tickets)</span>
+                    <span><strong style="color: #4b5563;"><?php echo t('cash_summary.bizum'); ?>:</strong>
+                        (<?php echo $_SESSION['resumenCaja']['bizum']['cantidad']; ?>
+                        <?php echo t('cash_summary.tickets'); ?>)</span>
                     <div style="text-align: right;">
                         <span
                             style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['bizum']['total'], 2, ',', '.'); ?>
                             €</span>
                         <?php if ($_SESSION['resumenCaja']['bizum']['devoluciones'] > 0): ?>
-                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(Dev:
+                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(<?php echo t('cash_summary.returns'); ?>:
                                 -<?php echo number_format($_SESSION['resumenCaja']['bizum']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
                             <?php
@@ -2030,7 +2252,7 @@ endif; ?>
 
                 <!-- TOTAL GENERAL de ventas del día (suma de todos los métodos) -->
                 <div class="resumen-total-ventas">
-                    <strong>TOTAL VENTAS:</strong>
+                    <strong><?php echo t('cash_summary.total_sales'); ?>:</strong>
                     <strong
                         class="total-monto-verde"><?php echo number_format($_SESSION['resumenCaja']['totalGeneral'], 2, ',', '.'); ?>
                         €</strong>
@@ -2040,37 +2262,37 @@ endif; ?>
                 <div class="resumen-caja-detalles">
                     <!-- Fondo de caja inicial (importe con el que se abrió la caja) -->
                     <div class="resumen-detalle-fila">
-                        <span>Fondo inicial:</span>
+                        <span><?php echo t('cash_summary.initial_cash'); ?>:</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['importeInicial'], 2, ',', '.'); ?> €</span>
                     </div>
                     <!-- Total de devoluciones realizadas durante la sesión -->
                     <div class="resumen-detalle-fila" style="color: #ef4444;">
-                        <span>Total Devoluciones:</span>
+                        <span><?php echo t('cash_summary.total_returns'); ?>:</span>
                         <span
                             style="font-weight: 600;">-<?php echo number_format($_SESSION['resumenCaja']['totalDevoluciones'], 2, ',', '.'); ?>
                             €</span>
                     </div>
                     <!-- Total de retiros realizados durante la sesión -->
                     <div class="resumen-detalle-fila" style="color: #ef4444;">
-                        <span>Total Retiros:</span>
+                        <span><?php echo t('cash_summary.total_withdrawals'); ?>:</span>
                         <span
                             style="font-weight: 600;">-<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'] ?? 0, 2, ',', '.'); ?>
                             €</span>
                     </div>
                     <!-- Efectivo real que debería haber en la caja física -->
                     <div class="caja-efectivo-real">
-                        <span>EFECTIVO ESPERADO:</span>
+                        <span><?php echo t('cash_summary.expected_cash'); ?>:</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?> €</span>
                     </div>
                     <!-- Arqueo: efectivo contado y diferencia -->
                     <div id="arqueoResumen"
                         style="background: var(--bg-accent-success); padding: 10px; border-radius: 8px; margin-top: 10px; border: 1px solid var(--accent-success); opacity: 0.9;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                            <span style="color: var(--text-main);">Efectivo contado:</span>
+                            <span style="color: var(--text-main);"><?php echo t('cash_count.counted_cash'); ?>:</span>
                             <span id="arqueoContadoResumen" style="font-weight: 600; color: var(--text-main);">--</span>
                         </div>
                         <div style="display: flex; justify-content: space-between;">
-                            <span style="color: var(--text-main);">Diferencia:</span>
+                            <span style="color: var(--text-main);"><?php echo t('cash_count.difference'); ?>:</span>
                             <span id="arqueoDiferenciaResumen" style="font-weight: 600;">--</span>
                         </div>
                     </div>
@@ -2080,7 +2302,7 @@ endif; ?>
 
                 <!-- Footer visible solo al imprimir: espacio para firma y sello -->
                 <div class="solo-impresion solo-impresion-footer">
-                    <p>Firma y sello:</p>
+                    <p><?php echo t('cash_summary.signature'); ?>:</p>
                     <br><br><br>
                 </div>
             </div>
@@ -2088,21 +2310,22 @@ endif; ?>
             <!-- Opción para guardar cambio para el siguiente turno -->
             <div class="cambio-turno-container">
                 <label for="cambio" class="cambio-turno-label">
-                    💰 Cambio a guardar para el siguiente turno:
+                    💰 <?php echo t('cash_summary.next_turn_change'); ?>
                 </label>
-                <input type="number" id="cambio" name="cambio" step="0.01" min="0"
+                <input type="number" id="cambio" name="cambio" step="0.0001" oninput="validar4Decimales(this)"
+                    onblur="validar4Decimales(this)" min="0"
                     value="<?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, '.', ''); ?>"
                     placeholder="0,00"
                     style="width: 100%; padding: 10px; text-align: center; font-size: 16px; border-radius: 6px;">
                 <p class="cambio-turno-subtitulo">
-                    Cantidad de efectivo que se quedará en la caja para el próximo turno
+                    <?php echo t('cash_summary.change_help'); ?>
                 </p>
             </div>
 
             <!-- Botones: Cancelar (cierra sin cerrar caja) y Confirmar Cierre (cierra la caja definitivamente) -->
             <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
                 <button class="btn-modal-cancelar"
-                    onclick="document.getElementById('cajaPrevisualizacion').style.display='none';">Cancelar</button>
+                    onclick="document.getElementById('cajaPrevisualizacion').style.display='none';"><?php echo t('cash_summary.cancel'); ?></button>
                 <form method="POST" action="index.php" style="margin: 0;">
                     <input type="hidden" name="accion" value="confirmarCaja">
                     <input type="hidden" name="cambio" id="cambioHidden"
@@ -2111,8 +2334,7 @@ endif; ?>
                     <input type="hidden" name="arqueoDetalleConteo" id="arqueoDetalleConteoForm" value="">
                     <input type="hidden" name="arqueoObservaciones" id="arqueoObservacionesHidden" value="">
                     <button type="submit" class="btn-cerrar-exito" style="margin-top: 0; background: #2563eb;"
-                        onclick="document.getElementById('cambioHidden').value = document.getElementById('cambio').value; document.getElementById('arqueoObservacionesHidden').value = document.getElementById('arqueoObservaciones').value || '';">Confirmar
-                        Cierre</button>
+                        onclick="document.getElementById('cambioHidden').value = document.getElementById('cambio').value; document.getElementById('arqueoObservacionesHidden').value = document.getElementById('arqueoObservaciones').value || '';"><?php echo t('cash_summary.confirm'); ?></button>
                 </form>
             </div>
         </div>
@@ -2137,10 +2359,12 @@ endif; ?>
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
-            <h3 style="color: var(--text-main); font-size: 1.4rem; margin-bottom: 20px;">Caja Cerrada Correctamente</h3>
-            <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px;">El recuento de ventas ha vuelto a
-                0 para el
-                contador del día de mañana.</p>
+            <h3 style="color: var(--text-main); font-size: 1.4rem; margin-bottom: 20px;">
+                <?php echo t('cash_summary.closed_success'); ?>
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px;">
+                <?php echo t('cash_summary.closed_message'); ?>
+            </p>
 
             <!-- Bloque oculto con el HTML del resumen para imprimir -->
             <!-- Se inyecta en una ventana nueva al pulsar "Imprimir Resumen" -->
@@ -2148,7 +2372,9 @@ endif; ?>
                 <!-- Cabecera del documento impreso -->
                 <div style="text-align: center; margin-bottom: 15px; font-family: 'Inter', sans-serif;">
                     <h2 style="margin:0;">TPV Bazar</h2>
-                    <p style="margin:5px 0 15px 0;">Cierre de Caja - <?php echo date('d/m/Y H:i'); ?></p>
+                    <p style="margin:5px 0 15px 0;"><?php echo t('cash_summary.title'); ?> -
+                        <?php echo date('d/m/Y H:i'); ?>
+                    </p>
                 </div>
 
                 <!-- Desglose por método de pago para impresión -->
@@ -2156,13 +2382,14 @@ endif; ?>
                     style="border-top: 1px solid #000; padding-top: 10px; padding-bottom: 5px; font-family: 'Inter', sans-serif;">
                     <!-- Efectivo -->
                     <p style="margin: 5px 0; display:flex; justify-content:space-between;">
-                        <span>Efectivo (<?php echo $_SESSION['resumenCaja']['efectivo']['cantidad']; ?>):</span>
+                        <span><?php echo t('cash_summary.cash'); ?>
+                            (<?php echo $_SESSION['resumenCaja']['efectivo']['cantidad']; ?>):</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['efectivo']['total'], 2, ',', '.'); ?>
                             €</span>
                     </p>
                     <?php if ($_SESSION['resumenCaja']['efectivo']['devoluciones'] > 0): ?>
                         <p style="margin: 0px 0 5px 0; display:flex; justify-content:flex-end; font-size: 0.8rem;">
-                            <span>(Devolución:
+                            <span>(<?php echo t('cash_summary.returns'); ?>:
                                 -<?php echo number_format($_SESSION['resumenCaja']['efectivo']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
                         </p>
@@ -2170,7 +2397,7 @@ endif; ?>
                     endif; ?>
                     <?php if (isset($_SESSION['resumenCaja']['totalRetiros']) && $_SESSION['resumenCaja']['totalRetiros'] > 0): ?>
                         <p style="margin: 0px 0 5px 0; display:flex; justify-content:flex-end; font-size: 0.8rem;">
-                            <span>(Retiros:
+                            <span>(<?php echo t('cash_summary.withdrawals'); ?>:
                                 -<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'], 2, ',', '.'); ?>
                                 €)</span>
                         </p>
@@ -2179,13 +2406,14 @@ endif; ?>
 
                     <!-- Tarjeta -->
                     <p style="margin: 5px 0; display:flex; justify-content:space-between;">
-                        <span>Tarjeta (<?php echo $_SESSION['resumenCaja']['tarjeta']['cantidad']; ?>):</span>
+                        <span><?php echo t('cash_summary.card'); ?>
+                            (<?php echo $_SESSION['resumenCaja']['tarjeta']['cantidad']; ?>):</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['tarjeta']['total'], 2, ',', '.'); ?>
                             €</span>
                     </p>
                     <?php if ($_SESSION['resumenCaja']['tarjeta']['devoluciones'] > 0): ?>
                         <p style="margin: 0px 0 5px 0; display:flex; justify-content:flex-end; font-size: 0.8rem;">
-                            <span>(Devolución:
+                            <span>(<?php echo t('cash_summary.returns'); ?>:
                                 -<?php echo number_format($_SESSION['resumenCaja']['tarjeta']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
                         </p>
@@ -2194,12 +2422,13 @@ endif; ?>
 
                     <!-- Bizum -->
                     <p style="margin: 5px 0; display:flex; justify-content:space-between;">
-                        <span>Bizum (<?php echo $_SESSION['resumenCaja']['bizum']['cantidad']; ?>):</span>
+                        <span><?php echo t('cash_summary.bizum'); ?>
+                            (<?php echo $_SESSION['resumenCaja']['bizum']['cantidad']; ?>):</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['bizum']['total'], 2, ',', '.'); ?> €</span>
                     </p>
                     <?php if ($_SESSION['resumenCaja']['bizum']['devoluciones'] > 0): ?>
                         <p style="margin: 0px 0 5px 0; display:flex; justify-content:flex-end; font-size: 0.8rem;">
-                            <span>(Devolución:
+                            <span>(<?php echo t('cash_summary.returns'); ?>:
                                 -<?php echo number_format($_SESSION['resumenCaja']['bizum']['devoluciones'], 2, ',', '.'); ?>
                                 €)</span>
                         </p>
@@ -2210,7 +2439,7 @@ endif; ?>
                 <!-- Total general de ventas para impresión -->
                 <div
                     style="border-top: 1px solid #000; padding-top: 10px; margin-top: 10px; font-weight: bold; display:flex; justify-content:space-between; font-family: 'Inter', sans-serif;">
-                    <span>TOTAL VENTAS:</span>
+                    <span><?php echo t('cash_summary.total_sales'); ?>:</span>
                     <span><?php echo number_format($_SESSION['resumenCaja']['totalGeneral'], 2, ',', '.'); ?> €</span>
                 </div>
 
@@ -2218,37 +2447,38 @@ endif; ?>
                 <div
                     style="border-top: 1px dashed #000; margin-top: 15px; padding-top: 10px; font-family: 'Inter', sans-serif;">
                     <p style="margin: 5px 0; display:flex; justify-content:space-between; font-size: 0.9em;">
-                        <span>Fondo inicial:</span>
+                        <span><?php echo t('cash_summary.initial_cash'); ?>:</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['importeInicial'], 2, ',', '.'); ?> €</span>
                     </p>
                     <p style="margin: 5px 0; display:flex; justify-content:space-between; font-size: 0.9em; color: #000;">
-                        <span>Total Devoluciones:</span>
+                        <span><?php echo t('cash_summary.total_returns'); ?>:</span>
                         <span>- <?php echo number_format($_SESSION['resumenCaja']['totalDevoluciones'], 2, ',', '.'); ?>
                             €</span>
                     </p>
                     <p style="margin: 5px 0; display:flex; justify-content:space-between; font-size: 0.9em; color: #000;">
-                        <span>Total Retiros:</span>
+                        <span><?php echo t('cash_summary.total_withdrawals'); ?>:</span>
                         <span>- <?php echo number_format($_SESSION['resumenCaja']['totalRetiros'] ?? 0, 2, ',', '.'); ?>
                             €</span>
                     </p>
                     <p
                         style="margin: 5px 0; display:flex; justify-content:space-between; font-weight: bold; font-size: 1.1em;">
-                        <span>EFECTIVO REAL CAJA:</span>
+                        <span><?php echo t('cash_summary.real_cash'); ?>:</span>
                         <span><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?> €</span>
                     </p>
                 </div>
 
                 <!-- Espacio para firma/sello en el documento impreso -->
                 <div style="text-align: center; margin-top: 30px; font-size: 0.8rem; font-family: 'Inter', sans-serif;">
-                    <p>Firma / Sello</p>
+                    <p><?php echo t('cash_summary.signature'); ?></p>
                 </div>
             </div>
 
             <!-- Botones: Imprimir Resumen y Aceptar (cierra el modal) -->
             <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-                <button class="btn-cerrar-exito" onclick="imprimirCierreCaja()">Imprimir Resumen</button>
+                <button class="btn-cerrar-exito"
+                    onclick="imprimirCierreCaja()"><?php echo t('cash_summary.print'); ?></button>
                 <button class="btn-modal-cancelar"
-                    onclick="document.getElementById('cajaConfirmacion').style.display='none';">Aceptar</button>
+                    onclick="document.getElementById('cajaConfirmacion').style.display='none';"><?php echo t('cash_summary.accept'); ?></button>
             </div>
         </div>
     </div>
@@ -2307,11 +2537,10 @@ endif; ?>
                 <circle cx="12" cy="12" r="4"></circle>
             </svg>
         </div>
-        <h3 style="color: var(--text-main); margin-top: 15px;">¡Bienvenido de nuevo!</h3>
-        <p style="color: var(--text-muted); margin-bottom: 20px;">Tu descanso ha terminado. La sesión de caja sigue
-            activa y lista para trabajar.</p>
+        <h3 style="color: var(--text-main); margin-top: 15px;"><?php echo t('resume.welcome_back'); ?></h3>
+        <p style="color: var(--text-muted); margin-bottom: 20px;"><?php echo t('resume.session_active'); ?></p>
         <button class="btn-cerrar-exito" style="background: #2563eb; width: 100%;"
-            onclick="cerrarModalBienvenida('modalDescansoTerminado')">Continuar</button>
+            onclick="cerrarModalBienvenida('modalDescansoTerminado')"><?php echo t('resume.continue'); ?></button>
     </div>
 </div>
 
@@ -2382,8 +2611,8 @@ endif; ?>
                     <circle cx="12" cy="12" r="10"></circle>
                 </svg>
             </div>
-            <h3>Historial de Ventas</h3>
-            <p id="historialFecha">Ventas desde la apertura de caja</p>
+            <h3><?php echo t('history.sales_title'); ?></h3>
+            <p id="historialFecha"><?php echo t('history.sales_subtitle'); ?></p>
         </div>
 
         <div class="modal-body-premium">
@@ -2394,7 +2623,7 @@ endif; ?>
                 style="display: flex; justify-content: space-between; margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-main);">
                 <div id="historialTotal" style="font-weight: bold; font-size: 1.1rem;"></div>
                 <button class="btn-modal-cancelar" onclick="cerrarModal('modalHistorialVentas')"
-                    style="min-width: 100px;">Cerrar</button>
+                    style="min-width: 100px;"><?php echo t('history.close'); ?></button>
             </div>
         </div>
     </div>
@@ -2412,8 +2641,8 @@ endif; ?>
                     <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
                 </svg>
             </div>
-            <h3>Historial de Devoluciones</h3>
-            <p id="historialDevolucionesFecha">Devoluciones desde la apertura de caja</p>
+            <h3><?php echo t('history.returns_title'); ?></h3>
+            <p id="historialDevolucionesFecha"><?php echo t('history.returns_subtitle'); ?></p>
         </div>
 
         <div class="modal-body-premium">
@@ -2424,7 +2653,7 @@ endif; ?>
                 style="display: flex; justify-content: space-between; margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-main);">
                 <div id="historialDevolucionesTotal" style="font-weight: bold; font-size: 1.1rem;"></div>
                 <button class="btn-modal-cancelar" onclick="cerrarModal('modalHistorialDevoluciones')"
-                    style="min-width: 100px;">Cerrar</button>
+                    style="min-width: 100px;"><?php echo t('history.close'); ?></button>
             </div>
         </div>
     </div>
@@ -2441,8 +2670,8 @@ endif; ?>
                     <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
                 </svg>
             </div>
-            <h3>Detalle de Devolución</h3>
-            <p id="detalleDevolucionId">Información de la devolución</p>
+            <h3><?php echo t('return_details.title'); ?></h3>
+            <p id="detalleDevolucionId"><?php echo t('return_details.subtitle'); ?></p>
         </div>
 
         <div class="modal-body-premium">
@@ -2450,7 +2679,8 @@ endif; ?>
                 <!-- Aquí se cargarán los detalles -->
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                <button class="btn-modal-cancelar" onclick="cerrarModal('modalDetalleDevolucion')">Cerrar</button>
+                <button class="btn-modal-cancelar"
+                    onclick="cerrarModal('modalDetalleDevolucion')"><?php echo t('return_details.close'); ?></button>
             </div>
         </div>
     </div>
@@ -2470,8 +2700,8 @@ endif; ?>
                     <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>
             </div>
-            <h3>Detalle de Venta</h3>
-            <p id="detalleVentaId">Información del comprobante</p>
+            <h3><?php echo t('sale_details.title'); ?></h3>
+            <p id="detalleVentaId"><?php echo t('sale_details.subtitle'); ?></p>
         </div>
         <div class="modal-body-premium">
             <div id="detalleVentaContenido">
@@ -2521,13 +2751,13 @@ endif; ?>
         // Cambiar color según la diferencia
         if (diferencia === 0) {
             diffElement.style.color = '#059669'; // Verde - caja correcta
-            diffElement.textContent = '✓ Caja correcta';
+            diffElement.textContent = '✓ <?php echo t('cash_count.correct'); ?>';
         } else if (diferencia > 0) {
             diffElement.style.color = '#2563eb'; // Azul - sobrante
-            diffElement.textContent = '+' + diferencia.toFixed(2).replace('.', ',') + ' € (Sobrante)';
+            diffElement.textContent = '+' + diferencia.toFixed(2).replace('.', ',') + ' € (<?php echo t('cash_count.surplus'); ?>)';
         } else {
             diffElement.style.color = '#dc2626'; // Rojo - faltante
-            diffElement.textContent = diferencia.toFixed(2).replace('.', ',') + ' € (Faltante)';
+            diffElement.textContent = diferencia.toFixed(2).replace('.', ',') + ' € (<?php echo t('cash_count.shortage'); ?>)';
         }
 
         // Guardar el total en un campo oculto para el formulario
@@ -2629,13 +2859,13 @@ endif; ?>
         }
         if (arqueoDiferenciaResumen) {
             if (diferencia === 0) {
-                arqueoDiferenciaResumen.textContent = '✓ Caja correcta';
+                arqueoDiferenciaResumen.textContent = '✓ <?php echo t('cash_count.correct'); ?>';
                 arqueoDiferenciaResumen.style.color = '#059669';
             } else if (diferencia > 0) {
-                arqueoDiferenciaResumen.textContent = '+' + diferencia.toFixed(2).replace('.', ',') + ' € (Sobrante)';
+                arqueoDiferenciaResumen.textContent = '+' + diferencia.toFixed(2).replace('.', ',') + ' € (<?php echo t('cash_count.surplus'); ?>)';
                 arqueoDiferenciaResumen.style.color = '#2563eb';
             } else {
-                arqueoDiferenciaResumen.textContent = diferencia.toFixed(2).replace('.', ',') + ' € (Faltante)';
+                arqueoDiferenciaResumen.textContent = diferencia.toFixed(2).replace('.', ',') + ' € (<?php echo t('cash_count.shortage'); ?>)';
                 arqueoDiferenciaResumen.style.color = '#dc2626';
             }
         }
@@ -2673,7 +2903,7 @@ endif; ?>
         // Actualizar la fecha en el subtítulo
         const hoy = new Date();
         if (fechaDiv) {
-            fechaDiv.textContent = 'Ventas desde la apertura de caja - ' + hoy.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+            fechaDiv.textContent = '<?php echo t('history.sales_subtitle'); ?> - ' + hoy.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
         }
 
         // Mostrar modal
@@ -2692,15 +2922,15 @@ endif; ?>
                 console.log('Ventas:', ventas);
                 if (ventas.error) {
                     if (ventas.error.includes('No hay sesión')) {
-                        contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">No hay sesión de caja abierta.</p>';
+                        contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;"><?php echo t('history.no_session'); ?></p>';
                         totalDiv.textContent = '';
                         return;
                     }
                     throw new Error(ventas.error);
                 }
                 if (!ventas || ventas.length === 0) {
-                    contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">No hay ventas registradas hoy.</p>';
-                    totalDiv.textContent = 'Total: 0.00 €';
+                    contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;"><?php echo t('history.no_sales'); ?></p>';
+                    totalDiv.textContent = '<?php echo t('history.total'); ?>: 0.00 €';
                     return;
                 }
 
@@ -2708,12 +2938,12 @@ endif; ?>
                 let total = 0;
                 let html = '<table class="historial-ventas-tabla">';
                 html += '<thead><tr>';
-                html += '<th>Hora</th>';
-                html += '<th>Usuario</th>';
-                html += '<th>Cantidad</th>';
-                html += '<th>Forma de pago</th>';
-                html += '<th>Total</th>';
-                html += '<th>Acciones</th>';
+                html += '<th><?php echo t('history.time'); ?></th>';
+                html += '<th><?php echo t('history.user'); ?></th>';
+                html += '<th><?php echo t('history.quantity'); ?></th>';
+                html += '<th><?php echo t('history.payment_method'); ?></th>';
+                html += '<th><?php echo t('history.total_table'); ?></th>';
+                html += '<th><?php echo t('history.actions'); ?></th>';
                 html += '</tr></thead><tbody>';
 
                 ventas.forEach(v => {
@@ -2743,11 +2973,11 @@ endif; ?>
 
                 html += '</tbody></table>';
                 contenido.innerHTML = html;
-                totalDiv.textContent = 'Total del día: ' + total.toFixed(2).replace('.', ',') + ' € (' + ventas.length + ' ventas)';
+                totalDiv.textContent = '<?php echo t('history.total_day'); ?>: ' + total.toFixed(2).replace('.', ',') + ' € (' + ventas.length + ' <?php echo t('history.sales'); ?>)';
             })
             .catch(err => {
                 console.error('Error cargando historial:', err);
-                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 40px;">Error al cargar el historial de ventas: ' + err.message + '</p>';
+                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 40px;"><?php echo t('history.error_loading'); ?>: ' + err.message + '</p>';
                 totalDiv.textContent = '';
             });
     }
@@ -2760,13 +2990,13 @@ endif; ?>
         const contenido = document.getElementById('detalleVentaContenido');
 
         modal.style.display = 'flex';
-        contenido.innerHTML = '<p style="text-align: center; padding: 20px;">Cargando...</p>';
+        contenido.innerHTML = '<p style="text-align: center; padding: 20px;"><?php echo t('sale_details.loading'); ?></p>';
 
         fetch('api/ventas.php?detalleVenta=' + idVenta)
             .then(res => res.json())
             .then(data => {
                 if (data.error) {
-                    contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;">Error: ' + data.error + '</p>';
+                    contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;"><?php echo t('sale_details.error'); ?>: ' + data.error + '</p>';
                     return;
                 }
 
@@ -2790,11 +3020,11 @@ endif; ?>
                 // Info row
                 html += '<div style="display: flex; gap: 15px; margin-bottom: 20px;">';
                 html += '<div style="flex: 1; background: var(--bg-secondary); padding: 12px; border-radius: 8px;">';
-                html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Tipo</div>';
+                html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;"><?php echo t('sale_details.type'); ?></div>';
                 html += '<div style="font-weight: 600;">' + tipoIcono + ' ' + tipoLabel + '</div>';
                 html += '</div>';
                 html += '<div style="flex: 1; background: var(--bg-secondary); padding: 12px; border-radius: 8px;">';
-                html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Pago</div>';
+                html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;"><?php echo t('sale_details.payment'); ?></div>';
                 html += '<div style="font-weight: 600;">' + pagoIcono + ' ' + pagoLabel + '</div>';
                 html += '</div>';
                 html += '</div>';
@@ -2803,10 +3033,10 @@ endif; ?>
                 html += '<div style="max-height: 250px; overflow-y: auto; margin-bottom: 20px;">';
                 html += '<table style="width: 100%; border-collapse: collapse;">';
                 html += '<thead><tr style="background: var(--bg-secondary);">';
-                html += '<th style="padding: 10px; text-align: left; font-size: 12px; color: var(--text-muted);">Producto</th>';
-                html += '<th style="padding: 10px; text-align: center; font-size: 12px; color: var(--text-muted);">Cant.</th>';
-                html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);">P.V.P</th>';
-                html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);">Importe</th>';
+                html += '<th style="padding: 10px; text-align: left; font-size: 12px; color: var(--text-muted);"><?php echo t('sale_details.product'); ?></th>';
+                html += '<th style="padding: 10px; text-align: center; font-size: 12px; color: var(--text-muted);"><?php echo t('sale_details.quantity'); ?></th>';
+                html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);"><?php echo t('sale_details.price'); ?></th>';
+                html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);"><?php echo t('sale_details.amount'); ?></th>';
                 html += '</tr></thead><tbody>';
 
                 lineas.forEach(item => {
@@ -2827,7 +3057,7 @@ endif; ?>
 
                 // Total
                 html += '<div style="background: var(--accent); color: white; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px;">';
-                html += 'TOTAL: ' + parseFloat(venta.total).toFixed(2).replace('.', ',') + ' €';
+                html += '<?php echo t('sale_details.total'); ?>: ' + parseFloat(venta.total).toFixed(2).replace('.', ',') + ' €';
                 html += '</div>';
 
                 // Close button
@@ -2839,7 +3069,7 @@ endif; ?>
             })
             .catch(err => {
                 console.error('Error:', err);
-                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;">Error al cargar los detalles</p>';
+                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;"><?php echo t('sale_details.error_loading'); ?></p>';
             });
     }
 
@@ -2848,8 +3078,8 @@ endif; ?>
      * Envía un ticket por correo electrónico
      */
     function enviarTicketCorreo(idVenta) {
-        const email = prompt('Introduce el correo electrónico del cliente:');
-        if (!email || !email.includes('@')) { alert('Por favor, introduce un correo válido.'); return; }
+        const email = prompt('<?php echo t('email.prompt_ticket'); ?>');
+        if (!email || !email.includes('@')) { alert('<?php echo t('email.invalid_email'); ?>'); return; }
 
         fetch('api/ventas.php?detalleVenta=' + idVenta)
             .then(res => res.json())
@@ -2918,6 +3148,7 @@ endif; ?>
                     } : null,
                     puntosBalance: parseInt(venta.puntos_balance) || 0,
                     mensajePersonalizado: venta.mensaje_personalizado || '',
+                    pagoMixtoDesglose: venta.desglose_pago ? JSON.parse(venta.desglose_pago) : null,
                     carrito: lineas.map(l => ({
                         idProducto: l.idProducto,
                         nombre: l.producto_nombre,
@@ -3001,7 +3232,7 @@ endif; ?>
         // Actualizar la fecha en el subtítulo
         const hoy = new Date();
         if (fechaDiv) {
-            fechaDiv.textContent = 'Devoluciones desde la apertura de caja - ' + hoy.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+            fechaDiv.textContent = '<?php echo t('history.returns_subtitle'); ?> - ' + hoy.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
         }
 
         // Mostrar modal
@@ -3020,15 +3251,15 @@ endif; ?>
                 console.log('Devoluciones:', devoluciones);
                 if (devoluciones.error) {
                     if (devoluciones.error.includes('No hay sesión')) {
-                        contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">No hay sesión de caja abierta.</p>';
+                        contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;"><?php echo t('history.no_session'); ?></p>';
                         totalDiv.textContent = '';
                         return;
                     }
                     throw new Error(devoluciones.error);
                 }
                 if (!devoluciones || devoluciones.length === 0) {
-                    contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">No hay devoluciones registradas hoy.</p>';
-                    totalDiv.textContent = 'Total: 0.00 €';
+                    contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;"><?php echo t('history.no_returns'); ?></p>';
+                    totalDiv.textContent = '<?php echo t('history.total'); ?>: 0.00 €';
                     return;
                 }
 
@@ -3036,12 +3267,12 @@ endif; ?>
                 let total = 0;
                 let html = '<table class="historial-ventas-tabla">';
                 html += '<thead><tr>';
-                html += '<th>Hora</th>';
-                html += '<th>Usuario</th>';
-                html += '<th>Productos</th>';
-                html += '<th>Forma de pago</th>';
-                html += '<th>Total</th>';
-                html += '<th>Acciones</th>';
+                html += '<th><?php echo t('history.time'); ?></th>';
+                html += '<th><?php echo t('history.user'); ?></th>';
+                html += '<th><?php echo t('history.products'); ?></th>';
+                html += '<th><?php echo t('history.payment_method'); ?></th>';
+                html += '<th><?php echo t('history.total_table'); ?></th>';
+                html += '<th><?php echo t('history.actions'); ?></th>';
                 html += '</tr></thead><tbody>';
 
                 devoluciones.forEach(d => {
@@ -3071,11 +3302,11 @@ endif; ?>
 
                 html += '</tbody></table>';
                 contenido.innerHTML = html;
-                totalDiv.textContent = 'Total devuelto: -' + total.toFixed(2).replace('.', ',') + ' € (' + devoluciones.length + ' devoluciones)';
+                totalDiv.textContent = '<?php echo t('history.total_returned'); ?>: -' + total.toFixed(2).replace('.', ',') + ' € (' + devoluciones.length + ' <?php echo t('history.returns'); ?>)';
             })
             .catch(err => {
                 console.error('Error cargando historial:', err);
-                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 40px;">Error al cargar el historial de devoluciones: ' + err.message + '</p>';
+                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 40px;"><?php echo t('history.error_loading'); ?>: ' + err.message + '</p>';
                 totalDiv.textContent = '';
             });
     }
@@ -3088,18 +3319,18 @@ endif; ?>
         const contenido = document.getElementById('detalleDevolucionContenido');
 
         modal.style.display = 'flex';
-        contenido.innerHTML = '<p style="text-align: center; padding: 20px;">Cargando...</p>';
+        contenido.innerHTML = '<p style="text-align: center; padding: 20px;"><?php echo t('return_details.loading'); ?></p>';
 
         fetch('api/devoluciones.php?detalleVenta=' + idVenta)
             .then(res => res.json())
             .then(data => {
                 if (data.error) {
-                    contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;">Error: ' + data.error + '</p>';
+                    contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;"><?php echo t('return_details.error'); ?>: ' + data.error + '</p>';
                     return;
                 }
 
                 if (!data || data.length === 0) {
-                    contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No se encontraron productos devueltos.</p>';
+                    contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;"><?php echo t('return_details.not_found'); ?></p>';
                     return;
                 }
 
@@ -3109,7 +3340,7 @@ endif; ?>
                 // Update header info
                 const serie = primera.serie || 'T';
                 const numero = primera.numero || primera.idVenta || idVenta;
-                document.getElementById('detalleDevolucionId').textContent = 'Devolución ' + serie + String(numero).padStart(5, '0') + ' - ' + fecha;
+                document.getElementById('detalleDevolucionId').textContent = '<?php echo t('return_details.return_name'); ?> ' + serie + String(numero).padStart(5, '0') + ' - ' + fecha;
 
                 // Simple style matching other modals
                 let html = '';
@@ -3117,12 +3348,12 @@ endif; ?>
                 // Info row
                 html += '<div style="display: flex; gap: 15px; margin-bottom: 20px;">';
                 html += '<div style="flex: 1; background: var(--bg-secondary); padding: 12px; border-radius: 8px;">';
-                html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Forma de pago</div>';
+                html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;"><?php echo t('return_details.payment'); ?></div>';
                 html += '<div style="font-weight: 600;">💵 ' + (primera.metodoPago || 'Efectivo') + '</div>';
                 html += '</div>';
                 html += '<div style="flex: 1; background: var(--bg-secondary); padding: 12px; border-radius: 8px;">';
-                html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Motivo</div>';
-                html += '<div style="font-weight: 600;">' + (primera.motivo || 'No especificado') + '</div>';
+                html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;"><?php echo t('return_details.reason'); ?></div>';
+                html += '<div style="font-weight: 600;">' + (primera.motivo || '<?php echo t('return_details.no_reason'); ?>') + '</div>';
                 html += '</div>';
                 html += '</div>';
 
@@ -3130,10 +3361,10 @@ endif; ?>
                 html += '<div style="max-height: 250px; overflow-y: auto; margin-bottom: 20px;">';
                 html += '<table style="width: 100%; border-collapse: collapse;">';
                 html += '<thead><tr style="background: var(--bg-secondary);">';
-                html += '<th style="padding: 10px; text-align: left; font-size: 12px; color: var(--text-muted);">Producto</th>';
-                html += '<th style="padding: 10px; text-align: center; font-size: 12px; color: var(--text-muted);">Cant.</th>';
-                html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);">P.V.P</th>';
-                html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);">Importe</th>';
+                html += '<th style="padding: 10px; text-align: left; font-size: 12px; color: var(--text-muted);"><?php echo t('return_details.product'); ?></th>';
+                html += '<th style="padding: 10px; text-align: center; font-size: 12px; color: var(--text-muted);"><?php echo t('return_details.quantity'); ?></th>';
+                html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);"><?php echo t('return_details.price'); ?></th>';
+                html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);"><?php echo t('return_details.amount'); ?></th>';
                 html += '</tr></thead><tbody>';
 
                 let totalDevolucion = 0;
@@ -3141,7 +3372,7 @@ endif; ?>
                     const subtotal = parseFloat(item.importeTotal || 0);
                     totalDevolucion += subtotal;
                     html += '<tr style="border-bottom: 1px solid var(--border-main);">';
-                    html += '<td style="padding: 10px;">' + (item.producto_nombre || 'Producto') + '</td>';
+                    html += '<td style="padding: 10px;">' + (item.producto_nombre || '<?php echo t('return_details.product_default'); ?>') + '</td>';
                     html += '<td style="padding: 10px; text-align: center;">' + item.cantidad + '</td>';
                     html += '<td style="padding: 10px; text-align: right;">' + parseFloat(item.precioUnitario || 0).toFixed(2).replace('.', ',') + ' €</td>';
                     html += '<td style="padding: 10px; text-align: right; font-weight: 600; color: #ef4444;">-' + subtotal.toFixed(2).replace('.', ',') + ' €</td>';
@@ -3153,14 +3384,14 @@ endif; ?>
 
                 // Total
                 html += '<div style="background: #ef4444; color: white; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px;">';
-                html += 'TOTAL DEVUELTO: -' + totalDevolucion.toFixed(2).replace('.', ',') + ' €';
+                html += '<?php echo t('return_details.total_returned'); ?>: -' + totalDevolucion.toFixed(2).replace('.', ',') + ' €';
                 html += '</div>';
 
                 contenido.innerHTML = html;
             })
             .catch(err => {
                 console.error('Error:', err);
-                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;">Error al cargar los detalles</p>';
+                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;"><?php echo t('return_details.error_loading'); ?></p>';
             });
     }
 
@@ -3177,7 +3408,7 @@ endif; ?>
             .then(res => res.json())
             .then(data => {
                 if (data.error) { alert('Error: ' + data.error); return; }
-                if (!data || data.length === 0) { alert('No se encontraron datos de la devolución'); return; }
+                if (!data || data.length === 0) { alert('<?php echo t('return_details.alert_not_found'); ?>'); return; }
 
                 const primera = data[0];
                 const serie = primera.serie || 'T';
@@ -3272,7 +3503,7 @@ endif; ?>
         </head>
         <body>
             <div class="header">
-                <h1>TICKET DE DEVOLUCIÓN</h1>
+                <h1><?php echo mb_strtoupper(t('return_details.title')); ?></h1>
             </div>
             
             <div class="datos">
@@ -3280,15 +3511,15 @@ endif; ?>
                 NIF: B12345678<br>
                 C/ Falsa 123, 23000 León<br>
                 <div style="margin-top: 10px;">
-                    <p><strong>Nº Ticket Original:</strong> ${ticketOriginal}</p>
-                    <p><strong>Fecha Operación:</strong> ${fecha}</p>
-                    <p><strong>Método de pago:</strong> ${devolucion.metodoPago}</p>
+                    <p><strong><?php echo t('resume.original_ticket'); ?>:</strong> ${ticketOriginal}</p>
+                    <p><strong><?php echo t('resume.date'); ?>:</strong> ${fecha}</p>
+                    <p><strong><?php echo t('return_details.payment'); ?>:</strong> ${devolucion.metodoPago}</p>
                 </div>
             </div>
 
             <table class="tabla-lineas">
                 <thead>
-                    <tr><th>Desc.</th><th style="text-align:center">Cant</th><th style="text-align:right">Precio Base</th><th style="text-align:right">Subt.</th></tr>
+                    <tr><th><?php echo t('return_details.product'); ?></th><th style="text-align:center"><?php echo t('return_details.quantity'); ?></th><th style="text-align:right"><?php echo t('return_details.price'); ?></th><th style="text-align:right"><?php echo t('return_details.amount'); ?></th></tr>
                 </thead>
                 <tbody>${lineasHtml}</tbody>
             </table>
@@ -3297,8 +3528,8 @@ endif; ?>
             ${obsHtml}
 
             <div class="footer">
-                <p>Las cantidades han sido reembolsadas mediante ${devolucion.metodoPago}.</p>
-                <p>Conserve este ticket como justificante.</p>
+                <p><?php echo t('return_details.refund_method'); ?> ${devolucion.metodoPago}.</p>
+                <p><?php echo t('return_details.keep_ticket'); ?></p>
             </div>
         </body>
         </html>
@@ -3306,7 +3537,7 @@ endif; ?>
 
         const printWindow = window.open('', '_blank', 'width=400,height=600');
         if (!printWindow) {
-            alert('Por favor permita ventanas emergentes para imprimir');
+            alert('<?php echo t('print.allow_popups'); ?>');
             return;
         }
 
@@ -3321,7 +3552,7 @@ endif; ?>
      */
     function imprimirDocumentoDevolucion() {
         if (!ultimaDevolucion) {
-            alert('No hay devolución para imprimir');
+            alert('<?php echo t('return_details.alert_not_found'); ?>');
             return;
         }
         imprimirDocumentoDevolucionConDatos(ultimaDevolucion);
@@ -3348,6 +3579,41 @@ endif; ?>
 <!-- Contiene toda la lógica JavaScript del carrito, descuentos, cobro, impresión,
      envío por correo, devoluciones y utilidades -->
 <script>
+    /**
+     * roundTo(num, dec)
+     * Redondea un número al número de decimales especificado.
+     * @param {number} num - El número a redondear
+     * @param {number} dec - Número de decimales (por defecto 2)
+     * @returns {number} Número redondeado
+     */
+    function roundTo(num, dec) {
+        if (isNaN(num)) return 0;
+        const factor = Math.pow(10, dec || 2);
+        return Math.round(num * factor) / factor;
+    }
+
+    /**
+     * round2(num)
+     * Redondea un número a 2 decimales.
+     * @param {number} num - El número a redondear
+     * @returns {number} Número redondeado a 2 decimales
+     */
+    function round2(num) {
+        return roundTo(num, 2);
+    }
+
+    /**
+     * obtenerDecimalesMaximosCarrito()
+     * Determina la precisión decimal necesaria basándose en los productos del carrito.
+     * Devuelve el máximo de decimales de los productos del carrito, con un mínimo de 2.
+     * @returns {number} Cantidad de decimales (2 a 4)
+     */
+    function obtenerDecimalesMaximosCarrito() {
+        if (!typeof carrito !== 'undefined' || !carrito || carrito.length === 0) return 2;
+        const max = Math.max(...carrito.map(item => item.decimales || 2));
+        return Math.max(2, max);
+    }
+
     // ======================== CARRITO (persiste en memoria durante la sesión del navegador) ========================
 
     /**
@@ -3393,12 +3659,14 @@ endif; ?>
         const precioBase = parseFloat(elemento.dataset.precio) || 0;
         const iva = parseInt(elemento.dataset.iva || 21);
 
+        const decimales = parseInt(elemento.dataset.decimales) || 2;
+
         // PVP Actual: Intentar leer de data-pvp, si no existe o es NaN, calcularlo ahora.
         let pvpActual = parseFloat(elemento.dataset.pvp);
         if (isNaN(pvpActual)) {
-            pvpActual = round2(precioBase * (1 + (iva / 100)));
+            pvpActual = roundTo(precioBase * (1 + (iva / 100)), decimales);
         } else {
-            pvpActual = round2(pvpActual);
+            pvpActual = roundTo(pvpActual, decimales);
         }
 
         const stockMax = parseInt(elemento.dataset.stock) || 0;
@@ -3410,7 +3678,7 @@ endif; ?>
         let precioBaseSinTarifa = parseFloat(elemento.dataset.precioOriginal || elemento.dataset.precio) || precioBase;
 
         // PVP Original sin ninguna tarifa aplicada
-        let pvpOriginalUnitario = round2(precioBaseSinTarifa * (1 + (iva / 100)));
+        let pvpOriginalUnitario = roundTo(precioBaseSinTarifa * (1 + (iva / 100)), decimales);
 
         if (selectTarifa) {
             const selectedOption = selectTarifa.options[selectTarifa.selectedIndex];
@@ -3422,13 +3690,13 @@ endif; ?>
 
         if (existente) {
             if (existente.cantidad >= stockMax) {
-                alert('No hay más stock disponible para este producto.');
+                alert('<?php echo t('cart.alert_no_more_stock'); ?>');
                 return;
             }
             existente.cantidad++;
         } else {
             if (stockMax <= 0) {
-                alert('Este producto no tiene stock disponible.');
+                alert('<?php echo t('cart.alert_no_stock_available'); ?>');
                 return;
             }
             carrito.push({
@@ -3438,6 +3706,7 @@ endif; ?>
                 pvpOriginalUnitario: pvpOriginalUnitario,
                 pvpUnitario: pvpActual,
                 iva: iva,
+                decimales: decimales,
                 cantidad: 1,
                 stockMax: stockMax,
                 tarifaNombre: tarifaNombre,
@@ -3484,7 +3753,7 @@ endif; ?>
      */
     function vaciarCarrito() {
         if (carrito.length === 0) return;
-        if (confirm('¿Estás seguro de que quieres vaciar el carrito?')) {
+        if (confirm('<?php echo t('cart.confirm_empty'); ?>')) {
             carrito = [];
 
             // Desvincular cliente y resetar descuentos
@@ -3515,7 +3784,7 @@ endif; ?>
      */
     function posponerVenta() {
         if (carrito.length === 0) {
-            alert('No hay productos en el carrito para posponer');
+            alert('<?php echo t('cart.alert_no_products_postpone'); ?>');
             return;
         }
 
@@ -3590,7 +3859,7 @@ endif; ?>
 
         // Mostrar mensaje
         const totalPospuestas = ventasPospuestas.length;
-        alert(`✅ Venta pospuesta. Tienes ${totalPospuestas} venta(s) pospuesta(s). Puedes recuperarlas cuando quieras.`);
+        alert('✅ <?php echo t('cart.postponed_success1'); ?> ' + totalPospuestas + ' <?php echo t('cart.postponed_success2'); ?>');
 
         // Actualizar estado del botón recuperar
         actualizarBotonesPospuestos();
@@ -3613,7 +3882,7 @@ endif; ?>
         }
 
         if (ventasPospuestas.length === 0) {
-            alert('No hay ventas pospuestas para recuperar');
+            alert('<?php echo t('cart.alert_no_postponed_recover'); ?>');
             return;
         }
 
@@ -3628,7 +3897,7 @@ endif; ?>
             <div id="modalVentasPospuestas" class="modal-overlay" style="display: flex;">
                 <div class="modal-content" style="background: ${bgColor}; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); max-width: 500px; width: 90%; max-height: 80vh; overflow: hidden;">
                     <div style="padding: 20px; border-bottom: 1px solid ${borderColor}; display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin: 0; font-size: 20px; color: ${textColor};">Ventas Pospuestas</h2>
+                        <h2 style="margin: 0; font-size: 20px; color: ${textColor};"><?php echo t('cart.postponed_sales_title'); ?></h2>
                         <button onclick="cerrarModalVentasPospuestas()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: ${subTextColor};">&times;</button>
                     </div>
                     <div style="padding: 20px; overflow-y: auto; max-height: 60vh;">
@@ -3644,18 +3913,18 @@ endif; ?>
                                         </div>
                                         <div style="text-align: right;">
                                             <div style="font-size: 16px; font-weight: 600; color: #059669;">${totalVenta.toFixed(2)} €</div>
-                                            <div style="font-size: 12px; color: ${subTextColor};">${numProductos} producto(s)</div>
+                                            <div style="font-size: 12px; color: ${subTextColor};">${numProductos} <?php echo t('cart.product_s'); ?></div>
                                         </div>
                                     </div>
                                     <div style="font-size: 13px; color: ${subTextColor}; margin-bottom: 10px;">
-                                        ${venta.clienteDni ? 'Cliente: ' + venta.clienteDni : 'Sin cliente'}
+                                        ${venta.clienteDni ? '<?php echo t('cart.customer_label'); ?>: ' + venta.clienteDni : '<?php echo t('cart.no_customer'); ?>'}
                                     </div>
                                     <div style="display: flex; gap: 10px; margin-top: 12px;">
                                         <button onclick="recuperarVenta(${venta.id})" class="btn-tpv" style="background: #059669; flex: 1;">
-                                            <i class="fas fa-reply"></i> Recuperar
+                                            <i class="fas fa-reply"></i> <?php echo t('cart.recover_btn'); ?>
                                         </button>
                                         <button onclick="eliminarVentaPospuesta(${venta.id})" class="btn-tpv" style="background: #dc2626; flex: 1;">
-                                            <i class="fas fa-trash"></i> Eliminar
+                                            <i class="fas fa-trash"></i> <?php echo t('cart.delete_btn'); ?>
                                         </button>
                                     </div>
                                 </div>
@@ -3686,7 +3955,7 @@ endif; ?>
      * Elimina una venta pospuesta sin recuperarla.
      */
     function eliminarVentaPospuesta(id) {
-        if (!confirm('¿Estás seguro de que quieres eliminar esta venta pospuesta?')) {
+        if (!confirm('<?php echo t('cart.confirm_delete_postponed'); ?>')) {
             return;
         }
 
@@ -3712,7 +3981,7 @@ endif; ?>
         ventasPospuestas.splice(ventaIndex, 1);
         sessionStorage.setItem('ventasPospuestas', JSON.stringify(ventasPospuestas));
 
-        alert('✅ Venta pospuesta eliminada');
+        alert('✅ <?php echo t('cart.alert_postponed_deleted'); ?>');
 
         // Actualizar estado del botón
         actualizarBotonesPospuestos();
@@ -3738,7 +4007,7 @@ endif; ?>
             try {
                 ventasPospuestas = JSON.parse(ventasJson);
             } catch (e) {
-                alert('Error al recuperar las ventas pospuestas');
+                alert('<?php echo t('cart.alert_error_recovering'); ?>');
                 return;
             }
         }
@@ -3809,7 +4078,7 @@ endif; ?>
         ventasPospuestas.splice(ventaIndex, 1);
         sessionStorage.setItem('ventasPospuestas', JSON.stringify(ventasPospuestas));
 
-        alert('✅ Venta recuperada: ' + ventaPospuesta.fecha);
+        alert('✅ <?php echo t('cart.alert_recovered'); ?>: ' + ventaPospuesta.fecha);
 
         // Actualizar estado del botón recuperar
         actualizarBotonesPospuestos();
@@ -3866,12 +4135,13 @@ endif; ?>
                                 // Actualizar el IVA del producto
                                 item.iva = nuevoIVA;
                                 // Recalcular el PVP con el nuevo IVA
+                                const prec = item.decimales || 2;
                                 const precioBase = parseFloat(item.precio || item.precioConDescuento || 0);
-                                item.pvpUnitario = round2(precioBase * (1 + (nuevoIVA / 100)));
+                                item.pvpUnitario = roundTo(precioBase * (1 + (nuevoIVA / 100)), prec);
                                 // También actualizar el PVP original si existe
                                 if (item.pvpOriginalUnitario) {
                                     const precioOriginal = parseFloat(item.precio || 0);
-                                    item.pvpOriginalUnitario = round2(precioOriginal * (1 + (nuevoIVA / 100)));
+                                    item.pvpOriginalUnitario = roundTo(precioOriginal * (1 + (nuevoIVA / 100)), prec);
                                 }
                             }
                         });
@@ -3899,21 +4169,23 @@ endif; ?>
      * @returns {number} Total final (mínimo 0)
      */
     function obtenerTotalCalculado() {
+        const precTotal = obtenerDecimalesMaximosCarrito();
+
         // El total es la suma de los subtotales de cada línea (PVP ya redondeado)
         let totalPVPBruto = carrito.reduce((sum, item) => {
-            const subtotalLinea = round2(item.pvpUnitario * item.cantidad);
+            const subtotalLinea = roundTo(item.pvpUnitario * item.cantidad, precTotal);
             return sum + subtotalLinea;
         }, 0);
 
         // Calcular descuento manual (global) sobre el total PVP acumulado
         let importeDescuentoManual = 0;
         if (descuento.tipo === 'porcentaje') {
-            importeDescuentoManual = round2(totalPVPBruto * (descuento.valor / 100));
+            importeDescuentoManual = roundTo(totalPVPBruto * (descuento.valor / 100), precTotal);
         } else if (descuento.tipo === 'fijo') {
-            importeDescuentoManual = round2(descuento.valor);
+            importeDescuentoManual = roundTo(descuento.valor, precTotal);
         }
 
-        return Math.max(0, round2(totalPVPBruto - importeDescuentoManual));
+        return Math.max(0, roundTo(totalPVPBruto - importeDescuentoManual, precTotal));
     }
 
     /**
@@ -3930,7 +4202,7 @@ endif; ?>
 
         // Si el carrito está vacío, mostrar mensaje y deshabilitar botones
         if (carrito.length === 0) {
-            contenedor.innerHTML = '<p class="ticket-vacio">Añade productos al ticket</p>';
+            contenedor.innerHTML = '<p class="ticket-vacio"><?php echo t('cart.empty_message'); ?></p>';
             document.getElementById('ticketDesglose').innerHTML = '';
             totalEl.textContent = '0,00 €';
             btnCobrar.disabled = true;
@@ -3943,23 +4215,24 @@ endif; ?>
         }
 
         // Generar tabla HTML con las líneas del ticket
-        let html = '<table class="ticket-tabla"><thead><tr><th>Producto</th><th>Cant.</th><th>Precio (PVP)</th><th>Subt.</th><th></th></tr></thead><tbody>';
+        let html = '<table class="ticket-tabla"><thead><tr><th><?php echo t('cart.product_th'); ?></th><th><?php echo t('cart.quantity_th'); ?></th><th><?php echo t('cart.price_th'); ?></th><th><?php echo t('cart.subtotal_th'); ?></th><th></th></tr></thead><tbody>';
 
         // Iterar sobre cada producto del carrito
         carrito.forEach((item, i) => {
+            const dec = item.decimales || 2;
             // Asegurar que pvpUnitario existe (fallback para items antiguos o corruptos)
             if (isNaN(item.pvpUnitario) || item.pvpUnitario === undefined) {
                 const precio = parseFloat(item.precioConDescuento || item.precio || 0);
                 const iva = parseInt(item.iva || 21);
-                item.pvpUnitario = round2(precio * (1 + (iva / 100)));
+                item.pvpUnitario = roundTo(precio * (1 + (iva / 100)), dec);
             }
             if (isNaN(item.pvpOriginalUnitario) || item.pvpOriginalUnitario === undefined) {
                 const precio = parseFloat(item.precio || 0);
                 const iva = parseInt(item.iva || 21);
-                item.pvpOriginalUnitario = round2(precio * (1 + (iva / 100)));
+                item.pvpOriginalUnitario = roundTo(precio * (1 + (iva / 100)), dec);
             }
 
-            const subtotalRebajado = round2(item.pvpUnitario * item.cantidad);
+            const subtotalRebajado = roundTo(item.pvpUnitario * item.cantidad, dec);
 
             html += `<tr>
                 <td>
@@ -3978,8 +4251,8 @@ endif; ?>
                         <button onclick="cambiarCantidad(${i}, ${item.cantidad + 1})">+</button>
                     </div>
                 </td>
-                <td>${item.pvpUnitario.toFixed(2).replace('.', ',')} €</td>
-                <td>${subtotalRebajado.toFixed(2).replace('.', ',')} €</td>
+                <td>${item.pvpUnitario.toFixed(dec).replace('.', ',')} €</td>
+                <td>${subtotalRebajado.toFixed(dec).replace('.', ',')} €</td>
                 <td><button class="btn-quitar" onclick="eliminarDelCarrito(${i})">✕</button></td>
             </tr>`;
         });
@@ -3988,33 +4261,36 @@ endif; ?>
         contenedor.innerHTML = html;
 
         // Calcular desglose de totales
-        let totalPVPBruto = carrito.reduce((sum, item) => sum + round2(item.pvpUnitario * item.cantidad), 0);
+        const precTotal = obtenerDecimalesMaximosCarrito();
+        let totalPVPBruto = carrito.reduce((sum, item) => sum + roundTo(item.pvpUnitario * item.cantidad, precTotal), 0);
         let totalPVPFinal = obtenerTotalCalculado();
-        let descuentoManualImporte = round2(totalPVPBruto - totalPVPFinal);
+        let descuentoManualImporte = roundTo(totalPVPBruto - totalPVPFinal, precTotal);
 
         // Agrupar ahorros de tarifas
         const ahorrosTarifasAgrupados = {};
         carrito.forEach(item => {
-            const ahorroUnitario = round2(item.pvpOriginalUnitario - item.pvpUnitario);
-            const ahorroLinea = round2(ahorroUnitario * item.cantidad);
+            const dec = item.decimales || 2;
+            const ahorroUnitario = roundTo(item.pvpOriginalUnitario - item.pvpUnitario, dec);
+            const ahorroLinea = roundTo(ahorroUnitario * item.cantidad, dec);
 
             if (ahorroLinea > 0) {
                 const nombre = item.tarifaNombre;
                 if (!ahorrosTarifasAgrupados[nombre]) {
                     ahorrosTarifasAgrupados[nombre] = 0;
                 }
-                ahorrosTarifasAgrupados[nombre] = round2(ahorrosTarifasAgrupados[nombre] + ahorroLinea);
+                ahorrosTarifasAgrupados[nombre] = roundTo(ahorrosTarifasAgrupados[nombre] + ahorroLinea, dec);
             }
         });
 
-        const ahorroTarifasTotal = round2(Object.values(ahorrosTarifasAgrupados).reduce((a, b) => a + b, 0));
+        const ahorroTarifasTotal = roundTo(Object.values(ahorrosTarifasAgrupados).reduce((a, b) => a + b, 0), precTotal);
 
         let htmlDesglose = `<div class="resumen-final-premium">`;
 
         // IVA Total: Recalculo exacto agrupando por tipo de IVA
         const desglosePorIVA = {};
         carrito.forEach(item => {
-            const subtotalLineaPVP = round2(item.pvpUnitario * item.cantidad);
+            const dec = item.decimales || 2;
+            const subtotalLineaPVP = roundTo(item.pvpUnitario * item.cantidad, dec);
             const factorDescuentoManual = totalPVPBruto > 0 ? (totalPVPFinal / totalPVPBruto) : 0;
             const subtotalFinalPVP = subtotalLineaPVP * factorDescuentoManual;
 
@@ -4025,17 +4301,17 @@ endif; ?>
 
         let baseImponibleCalculada = 0;
         for (const [iva, pvpAcumulado] of Object.entries(desglosePorIVA)) {
-            baseImponibleCalculada += round2(pvpAcumulado / (1 + (parseInt(iva) / 100)));
+            baseImponibleCalculada += roundTo(pvpAcumulado / (1 + (parseInt(iva) / 100)), precTotal);
         }
 
-        baseImponibleCalculada = round2(baseImponibleCalculada);
-        const ivaTotal = round2(totalPVPFinal - baseImponibleCalculada);
+        baseImponibleCalculada = roundTo(baseImponibleCalculada, precTotal);
+        const ivaTotal = roundTo(totalPVPFinal - baseImponibleCalculada, precTotal);
 
         // Mostrar Base Imponible (Total Final - IVA)
         htmlDesglose += `
         <div class="resumen-fila-mini">
-            <span>Base Imponible:</span>
-            <span>${baseImponibleCalculada.toFixed(2).replace('.', ',')} €</span>
+            <span><?php echo t('cart.tax_base'); ?>:</span>
+            <span>${baseImponibleCalculada.toFixed(precTotal).replace('.', ',')} €</span>
         </div>`;
 
         // Mostrar ahorros por tarifa si existen
@@ -4043,34 +4319,34 @@ endif; ?>
             for (const [nombre, importe] of Object.entries(ahorrosTarifasAgrupados)) {
                 htmlDesglose += `
                 <div class="resumen-fila-mini descuento-texto">
-                    <span>Ahorro ${nombre}:</span>
-                    <span>- ${importe.toFixed(2).replace('.', ',')} €</span>
+                    <span><?php echo t('cart.saving'); ?> ${nombre}:</span>
+                    <span>- ${importe.toFixed(precTotal).replace('.', ',')} €</span>
                 </div>`;
             }
         }
 
         // Subtotal tras tarifas solo si hay cupón manual
         if (descuentoManualImporte > 0.005) {
-            const textoManual = descuento.tipo === 'porcentaje' ? 'Descuento (' + descuento.valor + '%)' : 'Cupón ' + (descuento.cupon || 'Manual');
+            const textoManual = descuento.tipo === 'porcentaje' ? '<?php echo t('cart.discount'); ?> (' + descuento.valor + '%)' : '<?php echo t('cart.coupon'); ?> ' + (descuento.cupon || '<?php echo t('cart.manual'); ?>');
             htmlDesglose += `
             <div class="resumen-fila-mini descuento-texto" style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #16a34a;">
-                    <span style="cursor: pointer; color: #ef4444; margin-right: 5px;" onclick="quitarDescuento()" title="Quitar descuento">
+                    <span style="cursor: pointer; color: #ef4444; margin-right: 5px;" onclick="quitarDescuento()" title="<?php echo t('cart.remove_discount_title'); ?>">
                         <i class="fas fa-times-circle"></i>
                     </span>${textoManual}:
                 </span>
-                <span style="color: #16a34a;">- ${descuentoManualImporte.toFixed(2).replace('.', ',')} €</span>
+                <span style="color: #16a34a;">- ${descuentoManualImporte.toFixed(precTotal).replace('.', ',')} €</span>
             </div>`;
         }
 
         htmlDesglose += `
             <div class="resumen-fila-mini">
-                <span>IVA:</span>
-                <span>${ivaTotal.toFixed(2).replace('.', ',')} €</span>
+                <span><?php echo t('cart.tax'); ?>:</span>
+                <span>${ivaTotal.toFixed(precTotal).replace('.', ',')} €</span>
             </div>
             <div class="resumen-fila-mini" style="font-weight: bold; border-top: 1px solid #e5e7eb; padding-top: 8px;">
-                <span>Total Final (IVA incl.):</span>
-                <span>${totalPVPFinal.toFixed(2).replace('.', ',')} €</span>
+                <span><?php echo t('cart.final_total'); ?>:</span>
+                <span>${totalPVPFinal.toFixed(precTotal).replace('.', ',')} €</span>
             </div>`;
 
         // Añadir puntos previstos a ganar si el cliente está identificado
@@ -4079,7 +4355,7 @@ endif; ?>
             const puntosAGanar = Math.round(totalPVPFinal * 10);
             htmlDesglose += `
             <div class="resumen-fila-mini" style="color: #059669; font-weight: 600; font-size: 0.85rem; padding-top: 4px;">
-                <span>Puntos previstos a ganar:</span>
+                <span><?php echo t('cart.points_to_earn'); ?>:</span>
                 <span>+${puntosAGanar.toLocaleString('es-ES')} pts</span>
             </div>`;
         }
@@ -4088,7 +4364,7 @@ endif; ?>
 
         // Actualizar el DOM
         document.getElementById('ticketDesglose').innerHTML = htmlDesglose;
-        totalEl.textContent = totalPVPFinal.toFixed(2).replace('.', ',') + ' €';
+        totalEl.textContent = totalPVPFinal.toFixed(precTotal).replace('.', ',') + ' €';
 
         // Verificar si se supera el límite de 1.000€ en efectivo
         // verificarLimiteEfectivo();
@@ -4150,7 +4426,7 @@ endif; ?>
         if (!isNaN(porcentaje) && document.getElementById('inputPorcentajeDescuento').value !== '') {
             // Opción 1: Descuento por porcentaje manual
             if (porcentaje < 0 || porcentaje > 100) {
-                alert('El porcentaje de descuento debe estar entre 0 y 100');
+                alert('<?php echo t('cart.alert_discount_range'); ?>');
                 return;
             }
             descuento = { tipo: 'porcentaje', valor: porcentaje, cupon: '' };
@@ -4163,7 +4439,7 @@ endif; ?>
             } else if (cupon === 'FIJO5') {
                 descuento = { tipo: 'fijo', valor: 5, cupon: 'FIJO5' };
             } else {
-                alert('Cupón no válido');
+                alert('<?php echo t('cart.alert_invalid_coupon'); ?>');
                 return;
             }
         } else {
@@ -4196,11 +4472,14 @@ endif; ?>
             // Verificar límite legal de efectivo (1.000€)
             const total = obtenerTotalCalculado();
             if (total > 1000) {
-                alert('No se permite el pago en efectivo para importes superiores a 1.000€. Por favor, selecciona otro método de pago.');
+                alert('<?php echo t('cart.alert_cash_limit_exceeded'); ?>');
                 return;
             }
             // Mostrar modal para calcular el cambio
             mostrarModalCambio();
+        } else if (metodoPago === 'mixto') {
+            // Mostrar modal de pago mixto para distribuir entre métodos
+            mostrarModalPagoMixto();
         } else {
             // Para tarjeta/bizum, ir directamente al tipo de documento
             mostrarModalTipoDocumento();
@@ -4214,7 +4493,8 @@ endif; ?>
      */
     function mostrarModalCambio() {
         const total = obtenerTotalCalculado();
-        document.getElementById('cambioTotalPagar').textContent = total.toFixed(2).replace('.', ',') + ' €';
+        const precTotal = obtenerDecimalesMaximosCarrito();
+        document.getElementById('cambioTotalPagar').textContent = total.toFixed(precTotal).replace('.', ',') + ' €';
 
         // Resetear campos del modal
         const inputEntregado = document.getElementById('inputDineroEntregado');
@@ -4234,9 +4514,10 @@ endif; ?>
      */
     function fijarImporteExacto() {
         const total = obtenerTotalCalculado();
+        const precTotal = obtenerDecimalesMaximosCarrito();
         const input = document.getElementById('inputDineroEntregado');
         if (input) {
-            input.value = total.toFixed(2);
+            input.value = total.toFixed(precTotal);
             calcularCambio();
             // Foco al botón de continuar para agilizar
             setTimeout(() => {
@@ -4253,10 +4534,11 @@ endif; ?>
      */
     function calcularCambio() {
         const total = obtenerTotalCalculado();
+        const precTotal = obtenerDecimalesMaximosCarrito();
         const entregado = parseFloat(document.getElementById('inputDineroEntregado').value) || 0;
         const devolucion = entregado - total;
         // Usar un pequeño epsilon o redondear para evitar errores de precisión en punto flotante
-        const devolucionRedondeada = Math.round(devolucion * 100) / 100;
+        const devolucionRedondeada = roundTo(devolucion, precTotal);
 
         const spanDevolver = document.getElementById('cambioDevolver');
         const errorMsg = document.getElementById('cambioError');
@@ -4273,7 +4555,7 @@ endif; ?>
                 spanDevolver.textContent = '0,00 €';
                 spanDevolver.style.color = '#333';
             } else {
-                spanDevolver.textContent = devolucionRedondeada.toFixed(2).replace('.', ',') + ' €';
+                spanDevolver.textContent = devolucionRedondeada.toFixed(precTotal).replace('.', ',') + ' €';
                 spanDevolver.style.color = '#22c55e';
             }
         }
@@ -4298,6 +4580,154 @@ endif; ?>
         abrirModalFinalizarVenta();
     }
 
+    // ======================== PAGO MIXTO ========================
+
+    /** Almacena el desglose del pago mixto: {efectivo, tarjeta, bizum, cambio} */
+    let pagoMixtoDesglose = null;
+
+    /**
+     * mostrarModalPagoMixto()
+     * Inicializa y muestra el modal para distribuir el pago entre múltiples métodos.
+     */
+    function mostrarModalPagoMixto() {
+        const total = obtenerTotalCalculado();
+        const precTotal = obtenerDecimalesMaximosCarrito();
+        document.getElementById('mixtoTotalDistribuir').textContent = total.toFixed(precTotal).replace('.', ',') + ' €';
+
+        // Resetear campos
+        document.getElementById('mixtoEfectivo').value = '';
+        document.getElementById('mixtoTarjeta').value = '';
+        document.getElementById('mixtoBizum').value = '';
+        document.getElementById('mixtoError').style.display = 'none';
+        document.getElementById('mixtoAvisoEfectivo').style.display = 'none';
+
+        // Resetear indicador restante
+        const restanteValor = document.getElementById('mixtoRestanteValor');
+        restanteValor.textContent = total.toFixed(precTotal).replace('.', ',') + ' €';
+
+        const container = document.getElementById('mixtoRestanteContainer');
+        container.style.background = 'var(--bg-accent-danger)';
+        document.getElementById('mixtoRestanteLabel').style.color = 'var(--accent-danger)';
+        document.getElementById('mixtoRestanteSub').style.color = 'var(--accent-danger)';
+        restanteValor.style.color = 'var(--accent-danger)';
+        document.getElementById('mixtoRestanteLabel').textContent = '<?php echo t('cart.mixed_remaining_assign'); ?>';
+        document.getElementById('mixtoRestanteSub').textContent = '<?php echo t('cart.mixed_distribute_full'); ?>';
+
+        // Mostrar modal y enfocar primer campo
+        document.getElementById('modalPagoMixto').style.display = 'flex';
+        setTimeout(() => document.getElementById('mixtoEfectivo').focus(), 100);
+    }
+
+    /**
+     * calcularRestanteMixto()
+     * Calcula en tiempo real cuánto queda por asignar y actualiza el indicador visual.
+     */
+    function calcularRestanteMixto() {
+        const total = obtenerTotalCalculado();
+        const precTotal = obtenerDecimalesMaximosCarrito();
+        const efectivo = parseFloat(document.getElementById('mixtoEfectivo').value) || 0;
+        const tarjeta = parseFloat(document.getElementById('mixtoTarjeta').value) || 0;
+        const bizum = parseFloat(document.getElementById('mixtoBizum').value) || 0;
+
+        const asignado = roundTo(efectivo + tarjeta + bizum, precTotal);
+        const restante = roundTo(total - asignado, precTotal);
+
+        const restanteValor = document.getElementById('mixtoRestanteValor');
+        const container = document.getElementById('mixtoRestanteContainer');
+        const label = document.getElementById('mixtoRestanteLabel');
+        const sub = document.getElementById('mixtoRestanteSub');
+        const errorEl = document.getElementById('mixtoError');
+
+        // Aviso límite efectivo
+        const avisoEfectivo = document.getElementById('mixtoAvisoEfectivo');
+        avisoEfectivo.style.display = (efectivo > 1000) ? 'block' : 'none';
+
+        if (restante > 0.005) {
+            // Falta por asignar
+            container.style.background = 'var(--bg-accent-danger)';
+            label.style.color = 'var(--accent-danger)';
+            sub.style.color = 'var(--accent-danger)';
+            restanteValor.style.color = 'var(--accent-danger)';
+            label.textContent = '<?php echo t('cart.mixed_remaining_assign'); ?>';
+            sub.textContent = '<?php echo t('cart.mixed_distribute_full'); ?>';
+            restanteValor.textContent = restante.toFixed(precTotal).replace('.', ',') + ' €';
+            errorEl.style.display = 'none';
+        } else if (restante < -0.005) {
+            // Excedente (cambio)
+            const cambio = Math.abs(restante);
+            container.style.background = 'var(--bg-accent-success)';
+            label.style.color = 'var(--accent-success)';
+            sub.style.color = 'var(--accent-success)';
+            restanteValor.style.color = 'var(--accent-success)';
+            label.textContent = '<?php echo t('cart.mixed_change_return'); ?>';
+            sub.textContent = '<?php echo t('cart.mixed_cash_excess'); ?>';
+            restanteValor.textContent = cambio.toFixed(precTotal).replace('.', ',') + ' €';
+            errorEl.style.display = 'none';
+        } else {
+            // Exacto
+            container.style.background = 'var(--bg-accent-success)';
+            label.style.color = 'var(--accent-success)';
+            sub.style.color = 'var(--accent-success)';
+            restanteValor.style.color = 'var(--accent-success)';
+            label.textContent = '✓ <?php echo t('cart.mixed_total_covered'); ?>';
+            sub.textContent = '<?php echo t('cart.mixed_exact_assigned'); ?>';
+            restanteValor.textContent = '0,00 €';
+            errorEl.style.display = 'none';
+        }
+    }
+
+    /**
+     * confirmarPagoMixto()
+     * Valida la distribución y avanza al modal de finalización de venta.
+     */
+    function confirmarPagoMixto() {
+        const total = obtenerTotalCalculado();
+        const precTotal = obtenerDecimalesMaximosCarrito();
+        const efectivo = parseFloat(document.getElementById('mixtoEfectivo').value) || 0;
+        const tarjeta = parseFloat(document.getElementById('mixtoTarjeta').value) || 0;
+        const bizum = parseFloat(document.getElementById('mixtoBizum').value) || 0;
+        const errorEl = document.getElementById('mixtoError');
+
+        const asignado = roundTo(efectivo + tarjeta + bizum, precTotal);
+
+        // Validar que la suma cubra el total
+        if (Math.round(asignado * 100) < Math.round(total * 100)) {
+            errorEl.textContent = '<?php echo t('cart.mixed_error_not_covered'); ?>: ' + roundTo(total - asignado, precTotal).toFixed(precTotal).replace('.', ',') + ' €';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        // Validar límite de efectivo
+        if (efectivo > 1000) {
+            errorEl.textContent = '<?php echo t('cart.mixed_error_cash_limit'); ?>';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        // Validar que al menos 2 métodos tengan importe (sino no tiene sentido "mixto")
+        const metodosUsados = [efectivo, tarjeta, bizum].filter(v => v > 0).length;
+        if (metodosUsados < 2) {
+            errorEl.textContent = '<?php echo t('cart.mixed_error_two_methods'); ?>';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        // Calcular cambio (solo posible si hay efectivo y el asignado > total)
+        const cambio = roundTo(Math.max(0, asignado - total), precTotal);
+
+        // Guardar desglose
+        pagoMixtoDesglose = {
+            efectivo: roundTo(efectivo, precTotal),
+            tarjeta: roundTo(tarjeta, precTotal),
+            bizum: roundTo(bizum, precTotal),
+            cambio: cambio
+        };
+
+        // Cerrar modal mixto y abrir el modal de finalización
+        cerrarModal('modalPagoMixto');
+        abrirModalFinalizarVenta();
+    }
+
     // ======================== MODAL TIPO DOCUMENTO / CLIENTE ========================
 
     /**
@@ -4311,7 +4741,7 @@ endif; ?>
 
         // Verificar que la caja esté abierta antes de permitir ventas
         if (!cajaAbierta) {
-            alert('No se pueden realizar ventas si la caja no está abierta. Por favor, realiza la Apertura de Caja.');
+            alert('<?php echo t('cart.alert_box_closed'); ?>');
             return;
         }
 
@@ -4383,9 +4813,9 @@ endif; ?>
         const textEl = document.getElementById('clientDataTextCheckout');
 
         if (nif || nombre) {
-            textEl.innerHTML = `<div style="color:var(--text-main); font-weight:600;">${nombre || 'Sin nombre'}</div><div style="font-size:0.8rem;">${nif || 'Sin NIF'}</div>`;
+            textEl.innerHTML = `<div style="color:var(--text-main); font-weight:600;">${nombre || '<?php echo t('cart.no_name'); ?>'}</div><div style="font-size:0.8rem;">${nif || '<?php echo t('cart.no_nif'); ?>'}</div>`;
         } else {
-            textEl.textContent = 'Sin datos de cliente asignados';
+            textEl.textContent = '<?php echo t('cart.no_customer_assigned'); ?>';
         }
     }
 
@@ -4493,7 +4923,8 @@ endif; ?>
             descuentoCupon: descuento.cupon,
             puntosGanados: totalPVP >= 20 ? Math.round(totalPVP * 10) : 0,
             puntosCanjeados: puntosCanjeados,
-            mensajePersonalizado: mensajePersonalizado
+            mensajePersonalizado: mensajePersonalizado,
+            pagoMixtoDesglose: (document.getElementById('metodoPago').value === 'mixto') ? pagoMixtoDesglose : null
         };
     }
 
@@ -4516,35 +4947,76 @@ endif; ?>
     }
 
     /**
+     * generarDesgloseFormaPago(datosVenta, isFactura)
+     * Genera el HTML para la sección de método de pago en el comprobante.
+     * Si es pago mixto, muestra el desglose por método; si no, muestra una línea simple.
+     */
+    function generarDesgloseFormaPago(datosVenta, isFactura) {
+        const metodoLabels = { efectivo: '💵 <?php echo t('print.cash'); ?>', tarjeta: '💳 <?php echo t('print.card'); ?>', bizum: '📱 <?php echo t('print.bizum'); ?>' };
+        const precTotal = 2;
+
+        if (datosVenta.metodoPago === 'mixto' && datosVenta.pagoMixtoDesglose) {
+            const d = datosVenta.pagoMixtoDesglose;
+            let rows = '';
+            if (d.efectivo > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">💵 <?php echo t('print.cash'); ?></td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">${d.efectivo.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
+            if (d.tarjeta > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">💳 <?php echo t('print.card'); ?></td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">${d.tarjeta.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
+            if (d.bizum > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">📱 <?php echo t('print.bizum'); ?></td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">${d.bizum.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
+            if (d.cambio > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'}; color:#888;"><?php echo t('print.change_returned'); ?></td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'}; color:#888;">-${d.cambio.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
+
+            if (isFactura) {
+                return `<div style="clear:both; margin-top:30px;">
+                    <p style="font-size:13px; color:#444; font-weight:bold; margin-bottom:6px;"><?php echo mb_strtoupper(t('print.payment_method')); ?>: MIXTO</p>
+                    <table style="width:auto; border-collapse:collapse;">${rows}</table>
+                </div>`;
+            } else {
+                return `<div style="margin-top:10px; border-top:1px dashed #000; padding-top:6px;">
+                    <div style="font-size:10px; font-weight:bold; margin-bottom:4px;"><?php echo mb_strtoupper(t('print.payment_method')); ?>: MIXTO</div>
+                    <table style="width:100%; border-collapse:collapse;">${rows}</table>
+                </div>`;
+            }
+        }
+
+        // Pago simple
+        const label = metodoLabels[datosVenta.metodoPago] || datosVenta.metodoPago.toUpperCase();
+        if (isFactura) {
+            return `<p style="clear:both; margin-top:30px; font-size:12px; color:#666;"><?php echo t('print.payment_method'); ?>: ${label}</p>`;
+        } else {
+            return `<div style="margin-top:8px; font-size:10px; text-align:center;"><?php echo t('print.payment_method'); ?>: ${label}</div>`;
+        }
+    }
+
+    /**
      * generarHTMLComprobante(datosVenta)
      * Genera el HTML completo (con <style> e <html>) para un ticket o factura.
      * ÚNICA FUENTE DE VERDAD para el formato de impresión.
      */
     function generarHTMLComprobante(datosVenta) {
         const isFactura = (datosVenta.tipo === 'factura');
-        const tipoTitulo = isFactura ? 'FACTURA' : 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
+        const tipoTitulo = isFactura ? '<?php echo t('print.factura_title'); ?>' : '<?php echo t('print.ticket_title'); ?>';
 
         // --- LÓGICA DE CÁLCULO ---
+        const precTotal = 2; // Siempre 2 para ticket/factura impresos
         let lineasHtmlTicket = '';
         let lineasHtmlFactura = '';
         let sumaTotalesNumeric = 0;
         let desgloseIva = {};
 
         datosVenta.carrito.forEach(item => {
-            const cantidad = parseFloat(item.cantidad) || 0;
+            const cant = parseFloat(item.cantidad) || 0;
+            const dec = 2; // Forzar 2 decimales en ticket/factura
             const precioBaseUnitario = parseFloat(item.precio) || 0; // Precio sin IVA
             const ivaPorc = (item.iva !== undefined && item.iva !== null && item.iva !== "") ? parseInt(item.iva) : 21;
 
             // Si pvpUnitario no viene (ej: historial), lo calculamos del base + iva
             let pvpUnitario = parseFloat(item.pvpUnitario) || 0;
             if (pvpUnitario === 0 && precioBaseUnitario > 0) {
-                pvpUnitario = round2(precioBaseUnitario * (1 + (ivaPorc / 100)));
+                pvpUnitario = roundTo(precioBaseUnitario * (1 + (ivaPorc / 100)), dec);
             }
 
             // Cálculos
-            const subtotalPVP = (item.importeTotal !== undefined) ? parseFloat(item.importeTotal) : round2(pvpUnitario * cantidad);
-            const subtotalBase = round2(subtotalPVP / (1 + (ivaPorc / 100)));
-            const subtotalIva = round2(subtotalPVP - subtotalBase);
+            const subtotalPVP = (item.importeTotal !== undefined) ? parseFloat(item.importeTotal) : roundTo(pvpUnitario * cant, dec);
+            const subtotalBase = roundTo(subtotalPVP / (1 + (ivaPorc / 100)), dec);
+            const subtotalIva = roundTo(subtotalPVP - subtotalBase, dec);
 
             sumaTotalesNumeric += subtotalPVP;
             if (!desgloseIva[ivaPorc]) desgloseIva[ivaPorc] = { base: 0, cuota: 0 };
@@ -4554,19 +5026,19 @@ endif; ?>
             // Fila para TICKET: 5 columnas (Art, Ud, Base, IVA%, Total)
             lineasHtmlTicket += `<tr>
                 <td style="padding: 6px 4px; font-size: 11px;">${item.nombre}</td>
-                <td style="text-align:center; font-size: 11px;">${cantidad}</td>
-                <td style="text-align:right; font-size: 11px; padding-right: 12px;">${precioBaseUnitario.toFixed(2).replace('.', ',')}€</td>
+                <td style="text-align:center; font-size: 11px;">${cant}</td>
+                <td style="text-align:right; font-size: 11px; padding-right: 12px;">${precioBaseUnitario.toFixed(dec).replace('.', ',')}€</td>
                 <td style="text-align:center; font-size: 11px; padding-left: 12px;">${ivaPorc}%</td>
-                <td style="text-align:right; font-size: 11px;">${subtotalPVP.toFixed(2).replace('.', ',')}€</td>
+                <td style="text-align:right; font-size: 11px;">${subtotalPVP.toFixed(dec).replace('.', ',')}€</td>
             </tr>`;
 
             // Fila para FACTURA: 5 columnas (Descripción, Cant, Unitario_Base, IVA%, Importe)
             lineasHtmlFactura += `<tr>
                 <td style="padding: 10px 5px;">${item.nombre}</td>
-                <td style="text-align:center">${cantidad}</td>
-                <td style="text-align:right">${precioBaseUnitario.toFixed(2).replace('.', ',')} €</td>
+                <td style="text-align:center">${cant}</td>
+                <td style="text-align:right">${precioBaseUnitario.toFixed(dec).replace('.', ',')} €</td>
                 <td style="text-align:center">${ivaPorc}%</td>
-                <td style="text-align:right">${subtotalPVP.toFixed(2).replace('.', ',')} €</td>
+                <td style="text-align:right">${subtotalPVP.toFixed(dec).replace('.', ',')} €</td>
             </tr>`;
         });
 
@@ -4574,12 +5046,12 @@ endif; ?>
         Object.keys(desgloseIva).sort().forEach(porc => {
             totalesHtml += `
                 <tr style="font-size: 0.8rem; color: #444;">
-                    <td>Base al ${porc}%:</td>
-                    <td style="text-align:right">${desgloseIva[porc].base.toFixed(2).replace('.', ',')} €</td>
+                    <td><?php echo t('print.base_at'); ?> ${porc}%:</td>
+                    <td style="text-align:right">${desgloseIva[porc].base.toFixed(precTotal).replace('.', ',')} €</td>
                 </tr>
                 <tr style="font-size: 0.8rem; color: #444;">
-                    <td>Cuota IVA (${porc}%):</td>
-                    <td style="text-align:right">${desgloseIva[porc].cuota.toFixed(2).replace('.', ',')} €</td>
+                    <td><?php echo t('print.iva_quote'); ?> (${porc}%):</td>
+                    <td style="text-align:right">${desgloseIva[porc].cuota.toFixed(precTotal).replace('.', ',')} €</td>
                 </tr>`;
         });
 
@@ -4589,30 +5061,30 @@ endif; ?>
             let descLabel = '';
             if (datosVenta.descuentoTipo === 'porcentaje') {
                 descImporte = round2(sumaTotalesNumeric * (datosVenta.descuentoValor / 100));
-                descLabel = `Dto. (${datosVenta.descuentoValor}%):`;
+                descLabel = `<?php echo t('print.dto'); ?> (${datosVenta.descuentoValor}%):`;
             } else {
                 descImporte = datosVenta.descuentoValor;
-                descLabel = 'Descuento:';
+                descLabel = '<?php echo t('print.discount'); ?>:';
             }
             totalesHtml += `
                 <tr style="font-size: 0.85rem; color: #d32f2f;">
                     <td>${descLabel}</td>
-                    <td style="text-align:right">-${descImporte.toFixed(2).replace('.', ',')} €</td>
+                    <td style="text-align:right">-${descImporte.toFixed(precTotal).replace('.', ',')} €</td>
                 </tr>`;
         }
 
         if (datosVenta.puntosCanjeados) {
             totalesHtml += `
                 <tr style="font-size: 0.85rem; color: #d32f2f;">
-                    <td>Canje Puntos (${datosVenta.puntosCanjeados.puntos} pts):</td>
-                    <td style="text-align:right">-${parseFloat(datosVenta.puntosCanjeados.descuento).toFixed(2).replace('.', ',')} €</td>
+                    <td><?php echo t('print.points_exchange'); ?> (${datosVenta.puntosCanjeados.puntos} pts):</td>
+                    <td style="text-align:right">-${parseFloat(datosVenta.puntosCanjeados.descuento).toFixed(precTotal).replace('.', ',')} €</td>
                 </tr>`;
         }
 
         totalesHtml += `
             <tr style="border-top: 2px solid #000;">
-                <td style="font-size: 1.1rem; padding-top:8px;"><strong>TOTAL:</strong></td>
-                <td style="font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:8px;">${parseEsp(datosVenta.total).toFixed(2).replace('.', ',')} €</td>
+                <td style="font-size: 1.1rem; padding-top:8px;"><strong><?php echo t('print.total'); ?>:</strong></td>
+                <td style="font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:8px;">${parseEsp(datosVenta.total).toFixed(precTotal).replace('.', ',')} €</td>
             </tr>
         </table>`;
 
@@ -4627,8 +5099,8 @@ endif; ?>
 
         const puntosFooterHtml = datosVenta.clienteNif ? `
             <div style="margin-top:10px; border-top:1px dashed #ccc; padding-top:5px; font-size:10px;">
-                ${datosVenta.puntosGanados > 0 ? `<div>Puntos ganados: <strong>+${datosVenta.puntosGanados}</strong></div>` : ''}
-                <div>Nuevo Saldo Puntos: <strong>${finalPuntosBalance.toLocaleString('es-ES')}</strong></div>
+                ${datosVenta.puntosGanados > 0 ? `<div><?php echo t('print.earned_points'); ?>: <strong>+${datosVenta.puntosGanados}</strong></div>` : ''}
+                <div><?php echo t('print.new_balance'); ?>: <strong>${finalPuntosBalance.toLocaleString('es-ES')}</strong></div>
             </div>` : '';
 
         if (isFactura) {
@@ -4644,19 +5116,20 @@ endif; ?>
                 td { padding: 10px 5px; border-bottom: 1px solid #e5e7eb; }
             </style></head><body>
                 <div class="header"><h1>${tipoTitulo}</h1></div>
-                <div class="two-col"><div class="col"><h3>Emisor</h3><p><strong>TPV Bazar</strong></p><p>NIF: B12345678</p><p>C/ Falsa 123, Madrid</p></div>
-                <div class="col" style="text-align:right"><div style="font-size: 18px; font-weight: bold;">Nº ${numComprobante}</div><div style="color:#666">Fecha: ${datosVenta.fecha}</div></div></div>
+                <div class="two-col"><div class="col"><h3><?php echo t('print.emitter'); ?></h3><p><strong>TPV Bazar</strong></p><p>NIF: B12345678</p><p>C/ Falsa 123, Madrid</p></div>
+                <div class="col" style="text-align:right"><div style="font-size: 18px; font-weight: bold;">Nº ${numComprobante}</div><div style="color:#666"><?php echo t('print.date'); ?>: ${datosVenta.fecha}</div></div></div>
                 <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px;">
-                    <h3>Receptor</h3>
-                    <p><strong>${datosVenta.clienteNombre || 'Sin nombre'}</strong></p>
+                    <h3><?php echo t('print.receiver'); ?></h3>
+                    <p><strong>${datosVenta.clienteNombre || '<?php echo t('print.no_name'); ?>'}</strong></p>
                     ${datosVenta.clienteNif ? `<p>NIF: ${datosVenta.clienteNif}</p>` : ''}
                     ${datosVenta.clienteDir ? `<p>${datosVenta.clienteDir}</p>` : ''}
                     ${puntosFooterHtml ? `<div style="margin-top:10px; padding-top:10px; border-top:1px solid #e5e7eb;">${puntosFooterHtml}</div>` : ''}
                 </div>
-                <table><thead><tr><th>Descripción</th><th style="text-align:center">Cant</th><th style="text-align:right">Base/Ud</th><th style="text-align:center">IVA</th><th style="text-align:right">Importe</th></tr></thead>
+                <table><thead><tr><th><?php echo t('print.description_th'); ?></th><th style="text-align:center"><?php echo t('print.cant_th'); ?></th><th style="text-align:right"><?php echo t('print.base_ud_th'); ?></th><th style="text-align:center">IVA</th><th style="text-align:right"><?php echo t('print.importe_th'); ?></th></tr></thead>
                 <tbody>${lineasHtmlFactura}</tbody></table>
                  <div style="float:right; width: 45%;">${totalesHtml}</div>
-                 <p style="clear:both; margin-top:30px; font-size:12px; color:#666;">Método de pago: ${datosVenta.metodoPago.toUpperCase()}</p>
+                 ${generarDesgloseFormaPago(datosVenta, true)}
+                 
                  
         ${datosVenta.mensajePersonalizado ? `
             <div style="clear:both; margin-top:20px; padding:12px; border-top:1px dashed #ccc; border-bottom:1px dashed #ccc; text-align:center; font-style:italic; color:#444; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.5;">
@@ -4685,15 +5158,15 @@ endif; ?>
                         <div style="font-size:10px; margin-top:4px; font-weight:bold;">${tipoTitulo}</div>
                     </div>
                     <div class="flex-row"><span>Nº: ${numComprobante}</span><span>${datosVenta.fecha}</span></div>
-                    ${datosVenta.clienteNombre ? `<div style="margin-bottom:8px; font-size:10px; border:1px solid #eee; padding:4px;"><strong>Cliente:</strong> ${datosVenta.clienteNombre}</div>` : ''}
+                    ${datosVenta.clienteNombre ? `<div style="margin-bottom:8px; font-size:10px; border:1px solid #eee; padding:4px;"><strong><?php echo t('print.client'); ?>:</strong> ${datosVenta.clienteNombre}</div>` : ''}
                     <table>
                         <thead>
                             <tr>
-                                <th style="width: 35%;">Art.</th>
-                                <th style="text-align:center; width: 10%;">Ud.</th>
-                                <th style="text-align:right; width: 20%; padding-right: 5px;">Base</th>
+                                <th style="width: 35%;"><?php echo t('print.art_th'); ?></th>
+                                <th style="text-align:center; width: 10%;"><?php echo t('print.ud_th'); ?></th>
+                                <th style="text-align:right; width: 20%; padding-right: 5px;"><?php echo t('print.base_th'); ?></th>
                                 <th style="text-align:center; width: 15%; padding-left: 5px;">IVA</th>
-                                <th style="text-align:right; width: 20%;">Total</th>
+                                <th style="text-align:right; width: 20%;"><?php echo t('print.total_th'); ?></th>
                             </tr>
                         </thead>
                         <tbody>${lineasHtmlTicket}</tbody>
@@ -4707,7 +5180,9 @@ endif; ?>
             </div>
         ` : ''}
 
-        <div class="footer"><p>GRACIAS POR SU COMPRA</p></div>
+        ${generarDesgloseFormaPago(datosVenta, false)}
+
+        <div class="footer"><p><?php echo t('print.thanks_for_purchase'); ?></p></div>
                 </div>
             </body></html>`;
         }
@@ -4850,6 +5325,7 @@ endif; ?>
         };
 
         const totalEl = document.getElementById('checkoutTotalAmount');
+        const precTotal = obtenerDecimalesMaximosCarrito();
         if (totalEl) totalEl.textContent = datosMock.total.toFixed(2).replace('.', ',') + ' €';
 
     }
@@ -4883,7 +5359,7 @@ endif; ?>
         if (metodoEntregaActual === 'email') {
             const email = document.getElementById('emailCheckout').value.trim();
             if (!email || !email.includes('@')) {
-                alert('Por favor, introduce un correo electrónico válido.');
+                alert('<?php echo t('cart.alert_valid_email'); ?>');
                 return;
             }
             // Sincronizar con el input global por si se usa después
@@ -4907,6 +5383,55 @@ endif; ?>
 
     /** Variable que almacena el tipo de documento seleccionado ('ticket' o 'factura') */
     let tipoDocumentoActual = 'ticket';
+
+    /**
+     * Buscar cliente por DNI en el checkout
+     */
+    function buscarDatosCliente() {
+        const dniBusqueda = document.getElementById('buscarDniCliente').value.trim();
+        const msgEl = document.getElementById('mensajeBusquedaClienteDatos');
+
+        if (!dniBusqueda) {
+            msgEl.style.display = 'block';
+            msgEl.style.color = '#ef4444';
+            msgEl.textContent = '<?php echo t('cart.alert_valid_dni'); ?>';
+            return;
+        }
+
+        msgEl.style.display = 'block';
+        msgEl.style.color = '#3b82f6';
+        msgEl.textContent = '<?php echo t('cart.searching'); ?>';
+
+        fetch('api/clientes.php?dni=' + encodeURIComponent(dniBusqueda))
+            .then(res => res.json())
+            .then(data => {
+                if (data && !data.error && data.length > 0) {
+                    const cliente = data.find(c => c.dni.toUpperCase() === dniBusqueda.toUpperCase()) || data[0];
+
+                    document.getElementById('clienteNif').value = cliente.dni;
+                    document.getElementById('clienteNombre').value = cliente.nombre + ' ' + cliente.apellidos;
+                    document.getElementById('clienteDireccion').value = cliente.direccion || '';
+                    if (document.getElementById('clientePuntos')) {
+                        document.getElementById('clientePuntos').value = cliente.puntos || 0;
+                    }
+
+                    msgEl.style.color = '#10b981';
+                    msgEl.textContent = '<?php echo t('cart.client_found_filled'); ?>';
+                } else {
+                    msgEl.style.display = 'none';
+                    if (confirm('<?php echo t('cart.confirm_add_client'); ?>')) {
+                        document.getElementById('clienteHabitualDni').value = dniBusqueda;
+                        abrirModalClienteHabitual();
+                    }
+                }
+            })
+            .catch(err => {
+                console.error('Error buscando cliente:', err);
+                msgEl.style.display = 'block';
+                msgEl.style.color = '#ef4444';
+                msgEl.textContent = '<?php echo t('cart.error_searching_client'); ?>';
+            });
+    }
 
     /**
      * seleccionarDatosCliente(tipo)
@@ -4933,7 +5458,7 @@ endif; ?>
 
         if (tipo === 'factura') {
             // Modo Factura: mostrar todos los campos y marcar obligatorios con *
-            subTitulo.textContent = 'Complete los datos (Obligatorios para Factura)';
+            subTitulo.textContent = '<?php echo t('cart.complete_data_mandatory'); ?>';
             divDir.style.display = 'block';
             divObs.style.display = 'block';
             reqNif.style.display = 'inline';
@@ -4941,7 +5466,7 @@ endif; ?>
             reqDir.style.display = 'inline';
         } else {
             // Modo Ticket: ocultar campos extra y quitar indicadores de obligatorio
-            subTitulo.textContent = 'Complete los datos (Opcional en Ticket)';
+            subTitulo.textContent = '<?php echo t('cart.complete_data_optional'); ?>';
             divDir.style.display = 'none';
             divObs.style.display = 'none';
             reqNif.style.display = 'none';
@@ -5025,8 +5550,8 @@ endif; ?>
         document.getElementById('dniBusquedaCliente').value = '';
         document.getElementById('mensajeResultadoBusqueda').style.display = 'none';
         // Cambiamos el título para indicar que es para puntos
-        document.querySelector('#modalBuscarClienteRegistrado h3').textContent = 'Cliente para Puntos';
-        document.querySelector('#modalBuscarClienteRegistrado .modal-subtitulo').textContent = 'Introduce el DNI del cliente para acumular ' + document.getElementById('puntosPosibles').textContent + ' puntos';
+        document.querySelector('#modalBuscarClienteRegistrado h3').textContent = '<?php echo t('cart.client_for_points'); ?>';
+        document.querySelector('#modalBuscarClienteRegistrado .modal-subtitulo').textContent = '<?php echo t('cart.enter_dni_accumulate'); ?> ' + document.getElementById('puntosPosibles').textContent + ' <?php echo t('cart.points_text'); ?>';
         // Cambiamos el comportamiento del botón buscar
         document.getElementById('modalBuscarClienteRegistrado').dataset.modo = 'puntos';
         document.getElementById('modalBuscarClienteRegistrado').style.display = 'flex';
@@ -5056,14 +5581,33 @@ endif; ?>
                 entregado = inputVal;
                 cambio = inputVal - total;
             }
+        } else if (metodoPago === 'mixto' && pagoMixtoDesglose) {
+            // El entregado/cambio global lo usamos solo para referenciar el "dinero entregado"
+            // si hay parte en efectivo.
+            if (pagoMixtoDesglose.efectivo > 0 && pagoMixtoDesglose.cambio >= 0) {
+                entregado = pagoMixtoDesglose.efectivo + pagoMixtoDesglose.cambio;
+                cambio = pagoMixtoDesglose.cambio;
+            } else {
+                entregado = total;
+                cambio = 0;
+            }
         }
+
+        const precTotal = obtenerDecimalesMaximosCarrito();
 
         // Rellenar los campos ocultos del formulario
         document.getElementById('inputCarrito').value = JSON.stringify(carrito);
         document.getElementById('inputMetodoPago').value = metodoPago;
         document.getElementById('inputTipoDocumento').value = tipoDocumento;
-        document.getElementById('inputDineroEntregadoFinal').value = entregado.toFixed(2);
-        document.getElementById('inputCambioDevueltoFinal').value = cambio.toFixed(2);
+        document.getElementById('inputDineroEntregadoFinal').value = entregado.toFixed(precTotal);
+        document.getElementById('inputCambioDevueltoFinal').value = cambio.toFixed(precTotal);
+
+        // Pago mixto
+        if (metodoPago === 'mixto' && pagoMixtoDesglose) {
+            document.getElementById('inputDesglosePago').value = JSON.stringify(pagoMixtoDesglose);
+        } else {
+            document.getElementById('inputDesglosePago').value = '';
+        }
 
         // Datos del cliente
         document.getElementById('inputClienteNifFinal').value = nif;
@@ -5167,7 +5711,7 @@ endif; ?>
 
         // Validar que los campos obligatorios no estén vacíos.
         if (!nombre || !categoria || !precio || stock === '') {
-            alert('Por favor rellena todos los campos obligatorios.');
+            alert('<?php echo t('products.alert_fill_mandatory'); ?>');
             return;
         }
 
@@ -5186,17 +5730,17 @@ endif; ?>
             .then(res => res.json())
             .then(data => {
                 if (data.ok) {
-                    alert('Producto creado correctamente');
+                    alert('<?php echo t('products.alert_created_successfully'); ?>');
                     cerrarModal('modalNuevoProducto');
                     // Recargar productos
                     location.reload();
                 } else {
-                    alert('Error: ' + (data.error ?? ''));
+                    alert('<?php echo t('products.alert_error'); ?>: ' + (data.error ?? ''));
                 }
             })
             .catch(err => {
                 console.error('Error:', err);
-                alert('Error al crear el producto');
+                alert('<?php echo t('products.alert_error_creating'); ?>');
             });
     }
 </script>
@@ -5227,7 +5771,7 @@ endif; ?>
 
         // Validación básica del email
         if (!email || !email.includes('@')) {
-            statusEl.textContent = 'Por favor, introduce un correo válido.';
+            statusEl.textContent = '<?php echo t('cart.alert_valid_email'); ?>';
             statusEl.className = 'email-status email-error';
             return;
         }
@@ -5237,7 +5781,7 @@ endif; ?>
         console.log('Enviando email con ventaId:', ventaIdNumero, 'serie:', ultimaVenta.serie, 'numero:', ultimaVenta.numero);
 
         // Mostrar estado "Enviando..."
-        statusEl.textContent = 'Enviando...';
+        statusEl.textContent = '<?php echo t('cart.email_sending'); ?>';
         statusEl.className = 'email-status email-enviando';
 
         // Petición AJAX al endpoint de envío de correo
@@ -5273,24 +5817,25 @@ endif; ?>
                 puntos_ganados: ultimaVenta.puntosGanados || 0,
                 puntos_canjeados: ultimaVenta.puntosCanjeados ? ultimaVenta.puntosCanjeados.puntos : 0,
                 puntos_balance: ultimaVenta.puntosBalance || 0,
-                mensajePersonalizado: ultimaVenta.mensajePersonalizado || ''
+                mensajePersonalizado: ultimaVenta.mensajePersonalizado || '',
+                pagoMixtoDesglose: ultimaVenta.pagoMixtoDesglose || null
             })
         })
             .then(res => res.json())
             .then(data => {
                 if (data.ok) {
                     // Envío exitoso
-                    statusEl.textContent = '✓ Correo enviado correctamente a ' + email;
+                    statusEl.textContent = '✓ <?php echo t('cart.email_sent_to'); ?> ' + email;
                     statusEl.className = 'email-status email-ok';
                 } else {
                     // Error del servidor
-                    statusEl.textContent = '✗ ' + (data.mensaje || 'Error al enviar el correo.');
+                    statusEl.textContent = '✗ ' + (data.mensaje || '<?php echo t('cart.email_error_sending'); ?>');
                     statusEl.className = 'email-status email-error';
                 }
             })
             .catch(err => {
                 // Error de conexión
-                statusEl.textContent = '✗ Error de conexión al enviar el correo.';
+                statusEl.textContent = '✗ <?php echo t('cart.email_error_connection'); ?>';
                 statusEl.className = 'email-status email-error';
             });
     }
@@ -5316,13 +5861,13 @@ endif; ?>
 
         // Validación básica del email
         if (!email || !email.includes('@')) {
-            statusEl.textContent = 'Por favor, introduce un correo válido.';
+            statusEl.textContent = '<?php echo t('cart.alert_valid_email'); ?>';
             statusEl.style.color = '#ef4444';
             return;
         }
 
         // Mostrar estado "Enviando..."
-        statusEl.textContent = 'Enviando...';
+        statusEl.textContent = '<?php echo t('cart.email_sending'); ?>';
         statusEl.style.color = '#3b82f6';
 
         // Petición AJAX al endpoint de envío de correo
@@ -5344,17 +5889,17 @@ endif; ?>
             .then(data => {
                 if (data.ok) {
                     // Envío exitoso
-                    statusEl.textContent = '✓ Correo enviado correctamente a ' + email;
+                    statusEl.textContent = '✓ <?php echo t('cart.email_sent_to'); ?> ' + email;
                     statusEl.style.color = '#10b981';
                 } else {
                     // Error del servidor
-                    statusEl.textContent = '✗ ' + (data.mensaje || 'Error al enviar el correo.');
+                    statusEl.textContent = '✗ ' + (data.mensaje || '<?php echo t('cart.email_error_sending'); ?>');
                     statusEl.style.color = '#ef4444';
                 }
             })
             .catch(err => {
                 // Error de conexión
-                statusEl.textContent = '✗ Error de conexión al enviar el correo.';
+                statusEl.textContent = '✗ <?php echo t('cart.email_error_connection'); ?>';
                 statusEl.style.color = '#ef4444';
             });
     }
@@ -5367,16 +5912,18 @@ endif; ?>
         if (typeof ultimaDevolucion === 'undefined') return;
 
         let lineasHtml = '';
+        const dec = 2; // Redondear a 2 para ticket de devolución
         if (ultimaDevolucion.lineas && ultimaDevolucion.lineas.length > 0) {
             ultimaDevolucion.lineas.forEach(linea => {
+                const dec = 2; // Forzar 2 decimales en ticket de devolución
                 // Formatting depending on the object fields
                 const cant = linea.cantidad || 0;
                 const prec = linea.precio || 0;
                 const imp = linea.importe || 0;
 
                 // Formatear precios (asegurar que es numérico y usar replace para la coma)
-                const precFmt = parseFloat(prec).toFixed(2).replace('.', ',');
-                const impFmt = parseFloat(imp).toFixed(2).replace('.', ',');
+                const precFmt = parseFloat(prec).toFixed(dec).replace('.', ',');
+                const impFmt = parseFloat(imp).toFixed(dec).replace('.', ',');
 
                 lineasHtml += `
                     <tr>
@@ -5535,12 +6082,12 @@ endif; ?>
         const efectivoDisponible = <?php echo $sesionCaja ? $sesionCaja->getImporteActual() : 0; ?>;
 
         if (isNaN(importe) || importe <= 0) {
-            alert('Por favor, ingresa un importe válido mayor a 0.');
+            alert('<?php echo t('cashier.alert_valid_amount'); ?>');
             return false;
         }
 
         if (importe > efectivoDisponible) {
-            alert('No hay suficiente efectivo en la caja. Efectivo disponible: ' + efectivoDisponible.toFixed(2).replace('.', ',') + ' €');
+            alert('<?php echo t('cashier.alert_insufficient_cash'); ?>: ' + efectivoDisponible.toFixed(2).replace('.', ',') + ' €');
             return false;
         }
 
@@ -5592,7 +6139,7 @@ endif; ?>
         const errorEl = document.getElementById('errorTicketDev');
 
         if (!input) {
-            errorEl.textContent = 'Por favor, introduce el número del ticket (ej: T00001).';
+            errorEl.textContent = '<?php echo t('returns.error_no_ticket'); ?>';
             errorEl.style.display = 'block';
             return;
         }
@@ -5635,7 +6182,7 @@ endif; ?>
                 }, 0);
 
                 if (totalDisponible <= 0) {
-                    errorEl.textContent = 'Este ticket no tiene productos disponibles para devolver (ya se han devuelto todos).';
+                    errorEl.textContent = '<?php echo t('returns.error_no_products_avail'); ?>';
                     errorEl.style.display = 'block';
                     return;
                 }
@@ -5645,23 +6192,24 @@ endif; ?>
                 document.getElementById('devolucionPaso2').style.display = 'block';
                 document.getElementById('btnConfirmarMultiDev').style.display = 'block';
                 document.getElementById('resumenReembolso').style.display = 'block';
-                document.getElementById('devolucionSubtitulo').textContent = 'Selecciona las unidades a devolver';
+                document.getElementById('devolucionSubtitulo').textContent = '<?php echo t('returns.subtitle_select_units'); ?>';
 
                 // Mostrar TICKET T00001 o FACTURA F00001 según la serie
                 const serie = ticketActualDevolucion.serie || 'T';
-                const tipoDoc = serie === 'F' ? 'FACTURA' : 'TICKET';
+                const tipoDoc = serie === 'F' ? '<?php echo t('print.factura'); ?>' : '<?php echo t('print.ticket'); ?>';
                 const numero = String(ticketActualDevolucion.numero || ticketActualDevolucion.id).padStart(5, '0');
+                const precGlobal = Math.max(2, ...lineasVentaDevolucion.map(l => l.decimales || 2));
                 document.getElementById('infoTicketId').textContent = tipoDoc + ' ' + serie + numero;
                 document.getElementById('infoTicketFecha').textContent = new Date(ticketActualDevolucion.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                document.getElementById('infoTicketTotal').textContent = parseFloat(ticketActualDevolucion.total).toFixed(2).replace('.', ',') + ' €';
+                document.getElementById('infoTicketTotal').textContent = parseFloat(ticketActualDevolucion.total).toFixed(precGlobal).replace('.', ',') + ' €';
                 // Also update the original total in the footer
-                document.getElementById('totalOriginalDisplay').textContent = parseFloat(ticketActualDevolucion.total).toFixed(2).replace('.', ',') + ' €';
+                document.getElementById('totalOriginalDisplay').textContent = parseFloat(ticketActualDevolucion.total).toFixed(precGlobal).replace('.', ',') + ' €';
 
                 renderizarTablaDevolucion();
             })
             .catch(err => {
                 console.error(err);
-                errorEl.textContent = 'Error de conexión al buscar el ticket.';
+                errorEl.textContent = '<?php echo t('returns.error_connection'); ?>';
                 errorEl.style.display = 'block';
             });
     }
@@ -5681,12 +6229,13 @@ endif; ?>
             // Usar precio con IVA (el que se pagó en el momento de la compra)
             const precioMostrar = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
 
+            const dec = linea.decimales || 2;
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid #f1f5f9';
             tr.innerHTML = `
             <td style="padding: 12px 15px;">
                     <div class="producto-nombre-dev" style="font-weight: 600;">${linea.producto_nombre}</div>
-                    <div class="producto-precio-dev" style="font-size: 0.75rem;">Precio: ${precioMostrar.toFixed(2)} € (IVA incl.)</div>
+                    <div class="producto-precio-dev" style="font-size: 0.75rem;">Precio: ${precioMostrar.toFixed(dec)} € (IVA incl.)</div>
                 </td>
                 <td style="padding: 12px; text-align: center; color: #64748b; font-weight: 500;">${disponible}</td>
                 <td style="padding: 12px 15px; text-align: center;">
@@ -5770,6 +6319,7 @@ endif; ?>
      * Esto cubre automáticamente cualquier tipo de descuento, canje de puntos, etc.
      */
     function recalcularTotalReembolso() {
+        const precDevTotal = 2; // Forzar 2 decimales en documentos de reembolso
         let total = 0;
         let hayDevolucion = false;
         const inputs = document.querySelectorAll('.cant-dev-input');
@@ -5818,10 +6368,10 @@ endif; ?>
             total = ventaTotal;
         }
 
-        // Redondear el total a 2 decimales
-        total = Math.round(total * 100) / 100;
+        // Redondear el total
+        total = roundTo(total, precDevTotal);
 
-        document.getElementById('totalReembolsoDisplay').textContent = total.toFixed(2).replace('.', ',') + ' €';
+        document.getElementById('totalReembolsoDisplay').textContent = total.toFixed(precDevTotal).replace('.', ',') + ' €';
 
         // Validación de efectivo disponible
         const errorEl = document.getElementById('errorEfectivoInsuficiente');
@@ -5833,7 +6383,7 @@ endif; ?>
 
         if (totalRedondeado > efectivoRedondeado) {
             errorEl.style.display = 'block';
-            dispEl.textContent = efectivoActualCaja.toFixed(2).replace('.', ',') + ' €';
+            dispEl.textContent = efectivoActualCaja.toFixed(precDevTotal).replace('.', ',') + ' €';
             btnConfirmar.disabled = true;
             btnConfirmar.style.opacity = '0.5';
             btnConfirmar.style.cursor = 'not-allowed';
@@ -5887,17 +6437,19 @@ endif; ?>
             totalUnidadesSeleccionadas += cant;
 
             if (cant > 0) {
+                const dec = linea.decimales || 2;
                 // Usar precio con IVA (el que se pagó en el momento de la compra)
                 const precioConIva = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
-                // Redondear a 2 decimales para evitar errores de precisión
-                const subtotal = Math.round(cant * precioConIva * 100) / 100;
+                // Redondear para evitar errores de precisión
+                const subtotal = roundTo(cant * precioConIva, dec);
 
                 productosDev.push({
                     idProducto: linea.idProducto,
                     nombreProducto: linea.producto_nombre,
                     idLineaOriginal: linea.id,
                     cantidad: cant,
-                    importe: subtotal
+                    importe: subtotal,
+                    decimales: dec
                 });
                 totalReembolso += subtotal;
             }
@@ -5917,12 +6469,16 @@ endif; ?>
 
         const factorDescuento = sumaBruta > 0 ? ventaTotal / sumaBruta : 1;
 
+        // Redondear total final
+        const precDevMax = Math.max(2, ...lineasVentaDevolucion.map(l => l.decimales || 2));
+
         // Recalcular importes aplicando el factor de descuento
         productosDev = productosDev.map(p => {
             const linea = lineasVentaDevolucion.find(l => l.id === p.idLineaOriginal);
             if (linea) {
+                const dec = linea.decimales || 2;
                 const precioBase = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
-                const subtotal = Math.round(p.cantidad * precioBase * factorDescuento * 100) / 100;
+                const subtotal = roundTo(p.cantidad * precioBase * factorDescuento, dec);
                 return { ...p, importe: subtotal };
             }
             return p;
@@ -5935,16 +6491,16 @@ endif; ?>
         if (totalReembolso > ventaTotal) {
             totalReembolso = ventaTotal;
             // Ajustar proporcionalmente los importes de los productos
-            const factorAjuste = ventaTotal / (totalReembolso / factorDescuento);
+            const factorAjuste = ventaTotal / (totalReembolso / (factorDescuento || 1));
             productosDev = productosDev.map(p => ({
                 ...p,
-                importe: Math.round(p.importe * factorAjuste * 100) / 100
+                importe: roundTo(p.importe * factorAjuste, p.decimales || 2)
             }));
             totalReembolso = ventaTotal;
         }
 
-        // Redondear total final a 2 decimales
-        totalReembolso = Math.round(totalReembolso * 100) / 100;
+        // Redondear total final
+        totalReembolso = roundTo(totalReembolso, precDevMax);
 
         const metodoPago = document.querySelector('input[name="metodoPagoDev"]:checked').value;
 
@@ -6005,6 +6561,20 @@ endif; ?>
     }
 
     /**
+     * validar4Decimales(input)
+     * Limita el input a un máximo de 4 decimales en tiempo real.
+     * @param {HTMLInputElement} input
+     */
+    function validar4Decimales(input) {
+        if (input.value.includes('.')) {
+            const parts = input.value.split('.');
+            if (parts[1].length > 4) {
+                input.value = parts[0] + '.' + parts[1].slice(0, 4);
+            }
+        }
+    }
+
+    /**
      * abrirModalProductoComodin()
      * Abre el modal para crear un producto comodín
      */
@@ -6042,19 +6612,19 @@ endif; ?>
 
         // Validaciones
         if (!nombre) {
-            alert('Por favor, introduce un nombre para el producto.');
+            alert('<?php echo t('products.alert_enter_name'); ?>');
             document.getElementById('comodinNombre').focus();
             return;
         }
 
         if (isNaN(precioBase) || precioBase < 0) {
-            alert('Por favor, introduce un precio base válido.');
+            alert('<?php echo t('products.alert_enter_valid_price'); ?>');
             document.getElementById('comodinPrecio').focus();
             return;
         }
 
         if (isNaN(ivaPorcentaje) || ivaPorcentaje < 0) {
-            alert('Por favor, introduce un % de IVA válido.');
+            alert('<?php echo t('products.alert_enter_valid_iva'); ?>');
             document.getElementById('comodinIva').focus();
             return;
         }
@@ -6072,7 +6642,7 @@ endif; ?>
             pvpOriginalUnitario: precioConIva, // Precio original sin descuentos de tarifa
             cantidad: 1,
             iva: ivaPorcentaje,
-            tarifaNombre: 'Cliente', // Tarifa por defecto
+            tarifaNombre: '<?php echo t('cart.client_default_tarifa'); ?>', // Tarifa por defecto
             stockMax: 999, // Sin límite real de stock
             esComodin: true // Flag para identificar como producto comodín
         };
@@ -6104,7 +6674,7 @@ endif; ?>
             // Feedback visual
             console.log('Producto comodín añadido:', productoComodin);
         } else {
-            alert('Error: El carrito no está disponible.');
+            alert('<?php echo t('cart.error_cart_not_available'); ?>');
         }
     }
 
@@ -6234,12 +6804,12 @@ endif; ?>
         const btnCanjear = document.getElementById('btnAplicarDescuentoPuntos');
         if (carrito.length === 0) {
             btnCanjear.disabled = true;
-            btnCanjear.title = 'Añade productos al carrito para canjear puntos';
+            btnCanjear.title = '<?php echo t('points.title_add_to_canjear'); ?>';
             btnCanjear.style.opacity = '0.5';
             btnCanjear.style.cursor = 'not-allowed';
         } else {
             btnCanjear.disabled = false;
-            btnCanjear.title = 'Aplicar descuento de puntos';
+            btnCanjear.title = '<?php echo t('points.title_apply_descuento'); ?>';
             btnCanjear.style.opacity = '1';
             btnCanjear.style.cursor = 'pointer';
         }
@@ -6360,7 +6930,7 @@ endif; ?>
             const response = await fetch('api/clientes.php?dni=' + encodeURIComponent(dni));
 
             if (!response.ok) {
-                mensajeDiv.textContent = 'No se encuentra ningún cliente con ese DNI';
+                mensajeDiv.textContent = '<?php echo t('points.error_client_not_found'); ?>';
                 mensajeDiv.className = 'mensaje-error';
                 mensajeDiv.style.display = 'block';
                 return;
@@ -6403,26 +6973,26 @@ endif; ?>
                     if (puntosDisponibles >= 1000) {
                         const puedenUsarse = Math.floor(Math.min(puntosDisponibles, maxPuntosCanjeables) / 1000) * 1000;
                         const descuentoMax = Math.floor(puedenUsarse / 1000) * 5;
-                        mensajeUsar = `Puedes usar hasta ${puedenUsarse.toLocaleString('es-ES')} puntos = ${descuentoMax.toFixed(2)}€ de descuento (30% máximo del ticket)`;
+                        mensajeUsar = `<?php echo t('points.you_can_use'); ?> ${puedenUsarse.toLocaleString('es-ES')} <?php echo t('points.points_text'); ?> = ${descuentoMax.toFixed(2)}€ <?php echo t('points.of_discount'); ?> (30% <?php echo t('points.max_of_ticket'); ?>)`;
                         document.getElementById('puntosACanjeer').max = puedenUsarse;
                     } else {
-                        mensajeUsar = `Te faltan ${puntosParaSiguienteDescuento.toLocaleString('es-ES')} puntos para tu próximo descuento`;
+                        mensajeUsar = `<?php echo t('points.you_need'); ?> ${puntosParaSiguienteDescuento.toLocaleString('es-ES')} <?php echo t('points.points_for_next_discount'); ?>`;
                     }
 
                     puntosUsarMsg.textContent = mensajeUsar;
-                    puntosGanadosMsg.textContent = `Con esta compra ganarás ${puntosQueSeGanaran.toLocaleString('es-ES')} puntos (1€ = 10 puntos)`;
+                    puntosGanadosMsg.textContent = `<?php echo t('points.with_purchase_earn'); ?> ${puntosQueSeGanaran.toLocaleString('es-ES')} <?php echo t('points.points_text'); ?> (1€ = 10 <?php echo t('points.points_text'); ?>)`;
                     infoPanel.style.display = 'block';
                 } else {
                     infoPanel.style.display = 'none';
                 }
             } else {
-                mensajeDiv.textContent = 'El cliente está inactivo o no existe';
+                mensajeDiv.textContent = '<?php echo t('points.error_client_inactive_or_none'); ?>';
                 mensajeDiv.className = 'mensaje-error';
                 mensajeDiv.style.display = 'block';
             }
         } catch (error) {
             console.error('Error al buscar cliente:', error);
-            mensajeDiv.textContent = 'Error al buscar el cliente';
+            mensajeDiv.textContent = '<?php echo t('points.error_searching_client'); ?>';
             mensajeDiv.className = 'mensaje-error';
             mensajeDiv.style.display = 'block';
         }
@@ -6447,15 +7017,15 @@ endif; ?>
         const descuento = Math.floor(puntos / 1000) * 5;
 
         if (puntos >= 1000) {
-            preview.textContent = `Descuento: ${descuento.toFixed(2)}€ (${puntos.toLocaleString('es-ES')} puntos)`;
+            preview.textContent = `<?php echo t('cart.discount'); ?>: ${descuento.toFixed(2)}€ (${puntos.toLocaleString('es-ES')} <?php echo t('points.points_text'); ?>)`;
             preview.style.color = '';
             nuevoTotal = Math.max(0, totalTicket - descuento);
         } else if (puntos > 0 && puntos < 1000) {
-            preview.textContent = 'Mínimo 1000 puntos para canjear (múltiplos de 1000)';
+            preview.textContent = '<?php echo t('points.error_min_1000'); ?>';
             preview.style.color = '#ef4444';
         } else if (puntos > 0 && !esMultiploDeMil) {
             // Si wrote un valor que no es múltiplo de 1000, mostrar mensaje pero no modificar el input
-            preview.textContent = 'Los puntos deben ser múltiplos de 1000';
+            preview.textContent = '<?php echo t('points.error_multiples_1000'); ?>';
             preview.style.color = '#ef4444';
         } else {
             preview.textContent = '';
@@ -6465,7 +7035,7 @@ endif; ?>
         // Actualizar dinámicamente los puntos que se ganarán basados en el nuevo total
         if (puntosGanadosMsg) {
             const puntosQueSeGanaran = Math.round(nuevoTotal * 10);
-            puntosGanadosMsg.textContent = `Con esta compra ganarás ${puntosQueSeGanaran.toLocaleString('es-ES')} puntos (1€ = 10 puntos)`;
+            puntosGanadosMsg.textContent = `<?php echo t('points.with_purchase_earn'); ?> ${puntosQueSeGanaran.toLocaleString('es-ES')} <?php echo t('points.points_text'); ?> (1€ = 10 <?php echo t('points.points_text'); ?>)`;
         }
     }
 
@@ -6479,18 +7049,18 @@ endif; ?>
         const puntosDisponibles = parseInt(document.getElementById('puntosDisponiblesCliente').textContent.replace(/\./g, '')) || 0;
 
         if (!dni) {
-            alert('Error: No se ha especificado el DNI del cliente');
+            alert('<?php echo t('points.error_no_dni_specified'); ?>');
             return;
         }
 
         if (puntosRedondeados < 1000) {
-            alert('Mínimo 1000 puntos para canjear');
+            alert('<?php echo t('points.error_min_1000_alert'); ?>');
             return;
         }
 
         // Validar que no canjee más puntos de los que tiene
         if (puntosRedondeados > puntosDisponibles) {
-            alert(`No puedes canjear más puntos de los que tienes. Tienes ${puntosDisponibles.toLocaleString('es-ES')} puntos.`);
+            alert(`<?php echo t('points.error_not_enough_points'); ?>. <?php echo t('points.you_have'); ?> ${puntosDisponibles.toLocaleString('es-ES')} <?php echo t('points.points_text'); ?>.`);
             return;
         }
 
@@ -6502,7 +7072,7 @@ endif; ?>
         // Limitar los puntos al máximo permitido
         let puntosFinales = puntosRedondeados;
         if (puntosRedondeados > maxPuntos) {
-            alert(`Has superado el máximo permitido (30% del ticket = ${maxDescuento.toFixed(2)}€). Se usarán ${maxPuntos.toLocaleString('es-ES')} puntos.`);
+            alert(`<?php echo t('points.alert_exceeded_max'); ?> (30% <?php echo t('points.of_ticket'); ?> = ${maxDescuento.toFixed(2)}€). <?php echo t('points.will_use'); ?> ${maxPuntos.toLocaleString('es-ES')} <?php echo t('points.points_text'); ?>.`);
             puntosFinales = maxPuntos;
         }
 
@@ -6510,7 +7080,7 @@ endif; ?>
 
         // Verificar que el total no sea 0
         if (totalTicket - descuentoEuros <= 0) {
-            alert('El descuento no puede hacer el ticket 0. Reduce los puntos a canjear.');
+            alert('<?php echo t('points.error_discount_ticket_zero'); ?>');
             return;
         }
 
@@ -6541,8 +7111,8 @@ endif; ?>
             descuento: descuentoEuros
         };
 
-        alert(`Descuento de ${descuentoEuros.toFixed(2)}€ aplicado (${puntosFinales.toLocaleString('es-ES')} puntos canjeados)\n` +
-            `Con esta compra ganarás ${puntosGanados.toLocaleString('es-ES')} puntos`);
+        alert(`<?php echo t('points.alert_discount_applied'); ?> ${descuentoEuros.toFixed(2)}€ (<?php echo t('points.canjeados'); ?> ${puntosFinales.toLocaleString('es-ES')} <?php echo t('points.points_text'); ?>)\n` +
+            `<?php echo t('points.with_purchase_earn'); ?> ${puntosGanados.toLocaleString('es-ES')} <?php echo t('points.points_text'); ?>`);
     }
 
     /**
@@ -6580,14 +7150,14 @@ endif; ?>
                 // Cliente no encontrado (404)
                 if (esModoPuntos) {
                     // En modo puntos, permitimos continuar sin cliente registrado
-                    mensajeDiv.textContent = 'Cliente no encontrado. ¿Deseas continuar sin registrar puntos?';
+                    mensajeDiv.textContent = '<?php echo t('points.error_client_not_found_points'); ?>';
                     mensajeDiv.className = 'mensaje-error';
                     mensajeDiv.style.display = 'block';
                     // Añadir botón para continuar sin cliente
-                    mensajeDiv.innerHTML += '<br><button class="btn-modal-cancelar" onclick="confirmarSinPuntos()" style="margin-top:10px; width:100%;">Continuar sin puntos</button>';
+                    mensajeDiv.innerHTML += `<br><button class="btn-modal-cancelar" onclick="confirmarSinPuntos()" style="margin-top:10px; width:100%;"><?php echo t('points.btn_continue_no_points'); ?></button>`;
                     return;
                 }
-                mensajeDiv.textContent = 'No se encuentra ningún cliente con ese DNI';
+                mensajeDiv.textContent = '<?php echo t('points.error_client_not_found'); ?>';
                 mensajeDiv.className = 'mensaje-error';
                 mensajeDiv.style.display = 'block';
                 // Cambiar la tarifa a Cliente
@@ -6627,7 +7197,7 @@ endif; ?>
                 const descuentoValor = tarifaActual ? parseFloat(tarifaActual.descuento_porcentaje) : 0;
 
                 actualizarTicket();
-                mensajeDiv.textContent = `Cliente encontrado: ${cliente.nombre} ${cliente.apellidos}. Tarifa ${nombreTarifa} (${descuentoValor}%) validada.`;
+                mensajeDiv.textContent = `<?php echo t('points.client_found'); ?>: ${cliente.nombre} ${cliente.apellidos}. <?php echo t('cart.tarifa'); ?> ${nombreTarifa} (${descuentoValor}%) <?php echo t('points.validated'); ?>.`;
                 mensajeDiv.className = 'mensaje-exito';
                 mensajeDiv.style.display = 'block';
 
@@ -6641,11 +7211,11 @@ endif; ?>
                     cerrarModal('modalBuscarClienteRegistrado');
                 }, 1500);
             } else if (cliente && cliente.activo == 0) {
-                mensajeDiv.textContent = 'El cliente está inactivo';
+                mensajeDiv.textContent = '<?php echo t('points.error_client_inactive'); ?>';
                 mensajeDiv.className = 'mensaje-error';
                 mensajeDiv.style.display = 'block';
             } else {
-                mensajeDiv.textContent = 'No se encuentra ningún cliente con ese DNI';
+                mensajeDiv.textContent = '<?php echo t('points.error_client_not_found'); ?>';
                 mensajeDiv.className = 'mensaje-error';
                 mensajeDiv.style.display = 'block';
                 // Cambiar la tarifa a Cliente
@@ -6658,7 +7228,7 @@ endif; ?>
             }
         } catch (error) {
             console.error('Error al buscar cliente:', error);
-            mensajeDiv.textContent = 'Error al buscar el cliente';
+            mensajeDiv.textContent = '<?php echo t('points.error_searching_client'); ?>';
             mensajeDiv.className = 'mensaje-error';
             if (productoPendienteTarifa) {
                 revertirTarifaCard(productoPendienteTarifa.card.dataset.id);
@@ -6677,8 +7247,8 @@ endif; ?>
         if (modal.dataset.modo === 'puntos') {
             modal.dataset.modo = '';
             // Restaurar títulos
-            document.querySelector('#modalBuscarClienteRegistrado h3').textContent = 'Cliente Registrado';
-            document.querySelector('#modalBuscarClienteRegistrado .modal-subtitulo').textContent = 'Introduce el DNI del cliente';
+            document.querySelector('#modalBuscarClienteRegistrado h3').textContent = '<?php echo t('points.registered_client'); ?>';
+            document.querySelector('#modalBuscarClienteRegistrado .modal-subtitulo').textContent = '<?php echo t('points.enter_client_dni'); ?>';
             confirmarSinPuntos();
             return;
         }
@@ -6734,23 +7304,25 @@ endif; ?>
         const dni = document.getElementById('clienteHabitualDni').value.trim();
         const nombre = document.getElementById('clienteHabitualNombre').value.trim();
         const apellidos = document.getElementById('clienteHabitualApellidos').value.trim();
+        const direccion = document.getElementById('clienteHabitualDireccion').value.trim();
         const fecha_alta = document.getElementById('clienteHabitualFecha').value || new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
 
         // Validar campos obligatorios
         if (!dni || !nombre || !apellidos) {
-            alert('Por favor, complete todos los campos obligatorios (DNI, Nombre, Apellidos)');
+            alert('<?php echo t('points.error_mandatory_habitual'); ?>');
             return;
         }
 
         const btnGuardar = document.getElementById('btnGuardarClienteHabitual');
         btnGuardar.disabled = true;
-        btnGuardar.textContent = 'Guardando...';
+        btnGuardar.textContent = '<?php echo t('points.btn_saving'); ?>';
 
         try {
             const formData = new FormData();
             formData.append('dni', dni);
             formData.append('nombre', nombre);
             formData.append('apellidos', apellidos);
+            formData.append('direccion', direccion);
             formData.append('fecha_alta', fecha_alta);
 
             const response = await fetch('api/clientes.php', {
@@ -6761,17 +7333,17 @@ endif; ?>
             const data = await response.json();
 
             if (data.ok) {
-                alert('Cliente habitual guardado correctamente');
+                alert('<?php echo t('points.alert_habitual_saved'); ?>');
                 cerrarModal('modalClienteHabitual');
             } else {
-                alert(data.error || 'Error al guardar el cliente');
+                alert(data.error || '<?php echo t('points.error_saving_habitual'); ?>');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al comunicar con el servidor');
+            alert('<?php echo t('points.error_server_communication'); ?>');
         } finally {
             btnGuardar.disabled = false;
-            btnGuardar.textContent = 'Guardar';
+            btnGuardar.textContent = '<?php echo t('points.btn_save'); ?>';
         }
     }
 </script>
@@ -6779,8 +7351,8 @@ endif; ?>
 <!-- Modal para crear nuevo producto (permiso: crear_productos) -->
 <div class="modal-overlay" id="modalNuevoProducto" style="display:none;">
     <div class="modal-content modal-editarProducto">
-        <h3 id="editProductoTitulo">Nuevo Producto</h3>
-        <p id="editProductoSubtitulo" class="modal-subtitulo">Introduce los datos del nuevo producto</p>
+        <h3 id="editProductoTitulo"><?php echo t('products.new_product_title'); ?></h3>
+        <p id="editProductoSubtitulo" class="modal-subtitulo"><?php echo t('products.enter_data_subtitle'); ?></p>
 
         <input type="hidden" id="editProductoId">
 
@@ -6789,8 +7361,8 @@ endif; ?>
             <div class="editar-prod-imagen-wrapper">
                 <img id="editProductoImagen" src="webroot/img/logoCPU.PNG" alt="" style="cursor: zoom-in;"
                     onclick="abrirImagenGrande(this.src, this.alt)">
-                <label class="btn-cambiar-imagen" title="Cambiar imagen">
-                    <i class="fas fa-camera"></i> Cambiar imagen
+                <label class="btn-cambiar-imagen" title="<?php echo t('products.title_change_image'); ?>">
+                    <i class="fas fa-camera"></i> <?php echo t('products.btn_change_image'); ?>
                     <input type="file" id="editProductoImagenInput" accept="image/*" style="display:none;"
                         onchange="previsualizarImagen(event)">
                 </label>
@@ -6799,46 +7371,49 @@ endif; ?>
             <!-- Campos -->
             <div class="editar-prod-campos">
                 <div class="editar-prod-fila">
-                    <label>Nombre</label>
+                    <label><?php echo t('products.label_name'); ?></label>
                     <input type="text" id="nuevoProductoNombre">
                 </div>
                 <div class="editar-prod-fila">
-                    <label>Categoría</label>
+                    <label><?php echo t('products.label_category'); ?></label>
                     <select id="nuevoProductoCategoria"
                         style="padding: 8px; border-radius: 4px; border: 1px solid #d1d5db;">
                     </select>
                 </div>
                 <div class="editar-prod-fila">
-                    <label>Precio (€)</label>
-                    <input type="number" id="nuevoProductoPrecio" step="0.01" min="0">
+                    <label><?php echo t('products.label_price'); ?> (€) <span style="color:red">*</span></label>
+                    <input type="number" id="nuevoProductoPrecio" step="0.0001" min="0"
+                        oninput="validarPrecisionDinamica(this, 'nuevoProductoDecimales')"
+                        onblur="validarPrecisionDinamica(this, 'nuevoProductoDecimales')">
                 </div>
                 <div class="editar-prod-fila">
-                    <label>Stock</label>
+                    <label><?php echo t('products.label_stock'); ?></label>
                     <input type="number" id="nuevoProductoStock" min="0" value="0">
                 </div>
                 <div class="editar-prod-fila">
-                    <label>Tipo de IVA (%)</label>
+                    <label><?php echo t('products.label_iva_type'); ?> (%)</label>
                     <select id="nuevoProductoIva" style="padding: 8px; border-radius: 4px; border: 1px solid #d1d5db;">
-                        <option value="21">21% (General)</option>
-                        <option value="10">10% (Reducido)</option>
-                        <option value="4">4% (Superreducido)</option>
-                        <option value="0">0% (Exento)</option>
+                        <option value="21">21% (<?php echo t('products.iva_general'); ?>)</option>
+                        <option value="10">10% (<?php echo t('products.iva_reduced'); ?>)</option>
+                        <option value="4">4% (<?php echo t('products.iva_super_reduced'); ?>)</option>
+                        <option value="0">0% (<?php echo t('products.iva_exempt'); ?>)</option>
                     </select>
                 </div>
                 <div class="editar-prod-fila">
-                    <label>Estado</label>
+                    <label><?php echo t('products.label_status'); ?></label>
                     <select id="nuevoProductoEstado">
-                        <option value="1">Activo</option>
-                        <option value="0">Inactivo</option>
+                        <option value="1"><?php echo t('products.status_active'); ?></option>
+                        <option value="0"><?php echo t('products.status_inactive'); ?></option>
                     </select>
                 </div>
             </div>
         </div>
 
         <div class="editar-prod-botones">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalNuevoProducto')">Cancelar</button>
+            <button class="btn-modal-cancelar"
+                onclick="cerrarModal('modalNuevoProducto')"><?php echo t('common.cancel'); ?></button>
             <button class="btn-exito" onclick="guardarNuevoProducto()">
-                <i class="fas fa-save"></i> Guardar
+                <i class="fas fa-save"></i> <?php echo t('common.save'); ?>
             </button>
         </div>
     </div>
@@ -6853,9 +7428,12 @@ endif; ?>
         <div
             style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white; padding: 20px 25px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; position: relative;">
             <div style="text-align: center;">
-                <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700;">Cambiar Precios</h3>
-                <p style="margin: 4px 0 0 0; font-size: 0.85rem; opacity: 0.9;">Modifica los precios base y tarifas de
-                    cualquier producto</p>
+                <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700;">
+                    <?php echo t('products.change_prices_title'); ?>
+                </h3>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; opacity: 0.9;">
+                    <?php echo t('products.change_prices_subtitle'); ?>
+                </p>
             </div>
             <button onclick="cerrarModal('modalCambiarPrecios')"
                 style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1; opacity: 0.8; transition: opacity 0.2s; position: absolute; right: 20px;"
@@ -6865,7 +7443,8 @@ endif; ?>
         <!-- Barra de búsqueda y botón IVA -->
         <div
             style="padding: 15px 25px; border-bottom: 1px solid var(--border-main); flex-shrink: 0; display: flex; gap: 10px; align-items: center;">
-            <input type="text" id="buscarProductoCambiarPrecio" placeholder="Buscar producto por nombre..."
+            <input type="text" id="buscarProductoCambiarPrecio"
+                placeholder="<?php echo t('products.search_placeholder'); ?>..."
                 oninput="buscarProductosCambiarPrecio()"
                 style="flex: 1; padding: 10px 15px; border: 1px solid var(--border-main); border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; box-sizing: border-box; background: var(--bg-input); color: var(--text-main);"
                 onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='var(--border-main)'">
@@ -6877,7 +7456,7 @@ endif; ?>
                     <line x1="12" y1="8" x2="12" y2="16"></line>
                     <line x1="8" y1="12" x2="16" y2="12"></line>
                 </svg>
-                Ver Con IVA
+                <?php echo t('products.btn_view_with_iva'); ?>
             </button>
             <button type="button" id="btnAplicarCambiosPrecios" onclick="aplicarCambiosPreciosCajero()" disabled
                 style="padding: 10px 15px; border: none; border-radius: 8px; cursor: not-allowed; font-weight: 500; font-size: 13px; transition: all 0.2s; display: flex; align-items: center; gap: 6px; white-space: nowrap; background: #10b981; color: white; opacity: 0.5;">
@@ -6887,7 +7466,7 @@ endif; ?>
                     <polyline points="17 21 17 13 7 13 7 21"></polyline>
                     <polyline points="7 3 7 8 15 8"></polyline>
                 </svg>
-                Aplicar Cambios
+                <?php echo t('products.btn_apply_changes'); ?>
             </button>
         </div>
 
@@ -6902,8 +7481,9 @@ endif; ?>
                 </thead>
                 <tbody id="bodyTablaCambiarPrecios">
                     <tr>
-                        <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-muted);">Cargando
-                            productos...</td>
+                        <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            <?php echo t('products.loading_products'); ?>...
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -6930,26 +7510,27 @@ endif; ?>
                     </polygon>
                 </svg>
             </div>
-            <h3>Producto Comodín</h3>
-            <p>Crea un producto temporal para añadir al carrito</p>
+            <h3><?php echo t('products.comodin_title'); ?></h3>
+            <p><?php echo t('products.comodin_subtitle'); ?></p>
         </div>
 
         <!-- Formulario -->
         <div style="padding: 25px;">
             <div style="margin-bottom: 20px;">
                 <label for="comodinNombre"
-                    style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);">Nombre del
-                    producto *</label>
-                <input type="text" id="comodinNombre" placeholder="Ej: Servicio de reparaciones"
+                    style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);"><?php echo t('products.label_comodin_name'); ?>
+                    *</label>
+                <input type="text" id="comodinNombre"
+                    placeholder="Ej: <?php echo t('products.comodin_name_placeholder'); ?>"
                     style="width: 100%; padding: 12px 15px; border: 1px solid var(--border-main); border-radius: 8px; font-size: 14px; box-sizing: border-box; background: var(--bg-input); color: var(--text-main);"
                     onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='var(--border-main)'">
             </div>
 
             <div style="margin-bottom: 20px;">
                 <label for="comodinDescripcion"
-                    style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);">Descripción
-                    (opcional)</label>
-                <textarea id="comodinDescripcion" placeholder="Descripción adicional del producto..."
+                    style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);"><?php echo t('products.label_comodin_desc'); ?>
+                    (<?php echo t('common.optional'); ?>)</label>
+                <textarea id="comodinDescripcion" placeholder="<?php echo t('products.comodin_desc_placeholder'); ?>..."
                     style="width: 100%; padding: 12px 15px; border: 1px solid var(--border-main); border-radius: 8px; font-size: 14px; box-sizing: border-box; background: var(--bg-input); color: var(--text-main); resize: vertical; min-height: 80px;"
                     onfocus="this.style.borderColor='#6366f1'"
                     onblur="this.style.borderColor='var(--border-main)'"></textarea>
@@ -6967,10 +7548,11 @@ endif; ?>
                 </div>
                 <div style="flex: 2;">
                     <label for="comodinPrecio"
-                        style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);">Precio
-                        (Base) *</label>
+                        style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);"><?php echo t('products.label_price'); ?>
+                        (<?php echo t('products.price_base'); ?>) *</label>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="number" id="comodinPrecio" placeholder="0,00" step="0.01" min="0"
+                        <input type="number" id="comodinPrecio" placeholder="0,00" step="0.0001"
+                            oninput="validar4Decimales(this); actualizarComodinPrecioTotal()" min="0"
                             oninput="actualizarComodinPrecioTotal()"
                             style="flex: 1; padding: 12px 15px; border: 1px solid var(--border-main); border-radius: 8px; font-size: 14px; box-sizing: border-box; background: var(--bg-input); color: var(--text-main);"
                             onfocus="this.style.borderColor='#6366f1'"
@@ -6983,8 +7565,7 @@ endif; ?>
             <div id="comodinTotalContainer"
                 style="margin-bottom: 25px; padding: 15px; background: var(--bg-panel); border-radius: 10px; border: 1px dashed var(--border-main); text-align: center;">
                 <span
-                    style="display: block; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-bottom: 4px;">PRECIO
-                    TOTAL CON IVA</span>
+                    style="display: block; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-bottom: 4px;"><?php echo mb_strtoupper(t('products.total_price_with_iva')); ?></span>
                 <span id="comodinPrecioTotal" style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">0,00
                     €</span>
             </div>
@@ -6992,11 +7573,11 @@ endif; ?>
             <div style="display: flex; gap: 10px; margin-top: 30px;">
                 <button class="btn-modal-cancelar" onclick="cerrarModal('modalProductoComodin')"
                     style="flex: 1; padding: 14px;">
-                    Cancelar
+                    <?php echo t('common.cancel'); ?>
                 </button>
                 <button class="btn-apply-premium" onclick="agregarProductoComodin()"
                     style="flex: 1; background: var(--accent); color: white; padding: 14px;">
-                    Añadir al Carrito
+                    <?php echo t('cart.add_to_cart'); ?>
                 </button>
             </div>
         </div>

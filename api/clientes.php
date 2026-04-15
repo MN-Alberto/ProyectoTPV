@@ -52,6 +52,7 @@ try {
         $dni = strtoupper(trim($_POST['dni'] ?? ''));
         $nombre = $_POST['nombre'] ?? '';
         $apellidos = $_POST['apellidos'] ?? '';
+        $direccion = $_POST['direccion'] ?? '';
         $fecha_alta = $_POST['fecha_alta'] ?? date('Y-m-d');
 
         if (empty($dni) || empty($nombre) || empty($apellidos)) {
@@ -76,9 +77,9 @@ try {
             exit;
         }
 
-        $stmt = $pdo->prepare("INSERT INTO clientes (dni, nombre, apellidos, fecha_alta, productos_comprados, compras_realizadas, activo) VALUES (?, ?, ?, ?, 0, 0, 1)");
+        $stmt = $pdo->prepare("INSERT INTO clientes (dni, nombre, apellidos, direccion, fecha_alta, productos_comprados, compras_realizadas, activo) VALUES (?, ?, ?, ?, ?, 0, 0, 1)");
 
-        if ($stmt->execute([$dni, $nombre, $apellidos, $fecha_alta])) {
+        if ($stmt->execute([$dni, $nombre, $apellidos, $direccion, $fecha_alta])) {
             echo json_encode(['ok' => true, 'id' => $pdo->lastInsertId()]);
         }
         else {
@@ -96,6 +97,7 @@ try {
         $dni = strtoupper(trim($_PUT['dni'] ?? ''));
         $nombre = $_PUT['nombre'] ?? '';
         $apellidos = $_PUT['apellidos'] ?? '';
+        $direccion = $_PUT['direccion'] ?? '';
         $fecha_alta = $_PUT['fecha_alta'] ?? '';
         $puntos = isset($_PUT['puntos']) ? (int)$_PUT['puntos'] : null;
 
@@ -129,12 +131,12 @@ try {
         }
 
         if ($puntos !== null) {
-            $stmt = $pdo->prepare("UPDATE clientes SET dni = ?, nombre = ?, apellidos = ?, fecha_alta = ?, puntos = ? WHERE id = ?");
-            $success = $stmt->execute([$dni, $nombre, $apellidos, $fecha_alta, $puntos, $id]);
+            $stmt = $pdo->prepare("UPDATE clientes SET dni = ?, nombre = ?, apellidos = ?, direccion = ?, fecha_alta = ?, puntos = ? WHERE id = ?");
+            $success = $stmt->execute([$dni, $nombre, $apellidos, $direccion, $fecha_alta, $puntos, $id]);
         }
         else {
-            $stmt = $pdo->prepare("UPDATE clientes SET dni = ?, nombre = ?, apellidos = ?, fecha_alta = ? WHERE id = ?");
-            $success = $stmt->execute([$dni, $nombre, $apellidos, $fecha_alta, $id]);
+            $stmt = $pdo->prepare("UPDATE clientes SET dni = ?, nombre = ?, apellidos = ?, direccion = ?, fecha_alta = ? WHERE id = ?");
+            $success = $stmt->execute([$dni, $nombre, $apellidos, $direccion, $fecha_alta, $id]);
         }
 
         if ($success) {
@@ -254,7 +256,7 @@ try {
             $total = (int)$stmtCount->fetchColumn();
 
             // Fetch página — solo columnas necesarias, WHERE en orden del índice
-            $stmt = $pdo->prepare("SELECT id, dni, nombre, apellidos, fecha_alta, productos_comprados, compras_realizadas, puntos, activo FROM clientes WHERE dni LIKE ? ORDER BY dni ASC LIMIT ? OFFSET ?");
+            $stmt = $pdo->prepare("SELECT id, dni, nombre, apellidos, direccion, fecha_alta, productos_comprados, compras_realizadas, puntos, activo FROM clientes WHERE dni LIKE ? ORDER BY dni ASC LIMIT ? OFFSET ?");
             $stmt->bindValue(1, $dni . '%', PDO::PARAM_STR);
             $stmt->bindValue(2, $porPagina, PDO::PARAM_INT);
             $stmt->bindValue(3, $offset, PDO::PARAM_INT);
@@ -272,7 +274,7 @@ try {
         }
 
         // Búsqueda simple sin paginación (compatibilidad cajero)
-        $stmt = $pdo->prepare("SELECT id, dni, nombre, apellidos, fecha_alta, productos_comprados, compras_realizadas, puntos, activo FROM clientes WHERE dni LIKE ? ORDER BY dni ASC LIMIT 20");
+        $stmt = $pdo->prepare("SELECT id, dni, nombre, apellidos, direccion, fecha_alta, productos_comprados, compras_realizadas, puntos, activo FROM clientes WHERE dni LIKE ? ORDER BY dni ASC LIMIT 20");
         $stmt->execute([$dni . '%']);
         $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -307,25 +309,47 @@ try {
     $porPagina = min(50, max(1, intval($_GET['porPagina'] ?? 6)));
     $offset = ($pagina - 1) * $porPagina;
 
-    // Optimizado: Una sola consulta para obtener todos los conteos
-    $stmtCount = $pdo->query("
-        SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN activo = 1 THEN 1 ELSE 0 END) as activos,
-            SUM(CASE WHEN activo = 0 THEN 1 ELSE 0 END) as inactivos
-        FROM clientes
-    ");
-    $result = $stmtCount->fetch(PDO::FETCH_ASSOC);
-    $totalTodos = (int)$result['total'];
-    $total = (int)$result['activos'];
-    $totalInactivos = (int)$result['inactivos'];
+    // ✅ OPTIMIZADO: Conteos ultra-rápidos usando solo los índices (Covering Index Count)
+    // En lugar de SUM(CASE) que lee 10M de filas, hacemos dos COUNT indexados.
+    $totalActivos = (int)$pdo->query("SELECT COUNT(*) FROM clientes WHERE activo = 1")->fetchColumn();
+    $totalInactivos = (int)$pdo->query("SELECT COUNT(*) FROM clientes WHERE activo = 0")->fetchColumn();
+    $totalTodos = $totalActivos + $totalInactivos;
+    $total = $totalActivos; // Por defecto mostramos activos
 
-    // Fetch página — solo columnas necesarias
-    $stmt = $pdo->prepare("SELECT id, dni, nombre, apellidos, fecha_alta, productos_comprados, compras_realizadas, puntos, activo FROM clientes WHERE activo = 1 ORDER BY id DESC LIMIT ? OFFSET ?");
-    $stmt->bindValue(1, $porPagina, PDO::PARAM_INT);
-    $stmt->bindValue(2, $offset, PDO::PARAM_INT);
-    $stmt->execute();
+    // ✅ TRUCO DE INVERSIÓN: Si pides las últimas páginas, buscamos desde el final
+    $invertirOrden = false;
+    if ($total > $porPagina * 2 && $offset > ($total / 2)) {
+        $invertirOrden = true;
+        $offset = max(0, $total - $offset - $porPagina);
+    }
+
+    $orderBy = $invertirOrden ? "id ASC" : "id DESC";
+
+    // ✅ ETAPA 1: Obtener solo los IDs (Muy rápido con el índice)
+    $stmtIds = $pdo->prepare("SELECT id FROM clientes WHERE activo = 1 ORDER BY $orderBy LIMIT ? OFFSET ?");
+    $stmtIds->bindValue(1, $porPagina, PDO::PARAM_INT);
+    $stmtIds->bindValue(2, $offset, PDO::PARAM_INT);
+    $stmtIds->execute();
+    $targetIds = $stmtIds->fetchAll(PDO::FETCH_COLUMN, 0);
+
+    if (empty($targetIds)) {
+        echo json_encode([
+            'clientes' => [], 'total' => $total, 'totalTodos' => $totalTodos, 'totalInactivos' => $totalInactivos,
+            'pagina' => $pagina, 'porPagina' => $porPagina, 'totalPaginas' => 1
+        ]);
+        exit;
+    }
+
+    // ✅ ETAPA 2: Obtener detalles solo para los IDs seleccionados (Deferred Join)
+    $placeholders = implode(',', array_fill(0, count($targetIds), '?'));
+    $stmt = $pdo->prepare("SELECT id, dni, nombre, apellidos, direccion, fecha_alta, productos_comprados, compras_realizadas, puntos, activo FROM clientes WHERE id IN ($placeholders) ORDER BY $orderBy");
+    $stmt->execute($targetIds);
     $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Revertir si usamos truco de inversión
+    if ($invertirOrden) {
+        $clientes = array_reverse($clientes);
+    }
 
     echo json_encode([
         'clientes' => $clientes,

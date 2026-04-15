@@ -23,8 +23,8 @@ class Devolucion
     private $fecha;
     private $motivo;
     private $nombreProducto;
-
     private $idSesionCaja;
+    private $decimales;
 
     /**
      * Constructor de la clase Devolucion.
@@ -41,7 +41,8 @@ class Devolucion
         $motivo = null,
         $id = null,
         $fecha = null,
-        $idSesionCaja = null
+        $idSesionCaja = null,
+        $decimales = 2
         )
     {
         $this->idVenta = $idVenta;
@@ -56,6 +57,7 @@ class Devolucion
         $this->id = $id;
         $this->fecha = $fecha;
         $this->idSesionCaja = $idSesionCaja;
+        $this->decimales = $decimales;
     }
 
     /**
@@ -119,7 +121,8 @@ class Devolucion
                         d.iva,
                         d.importeTotal,
                         d.motivo,
-                        d.fecha
+                        d.fecha,
+                        d.decimales
                     FROM devoluciones d
                     LEFT JOIN productos p ON d.idProducto = p.id
                     WHERE d.idVenta = ?
@@ -127,7 +130,16 @@ class Devolucion
 
             $stmt = $conexion->prepare($sql);
             $stmt->execute([$idVenta]);
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $lineas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Calcular precio con IVA usando los decimales guardados
+            foreach ($lineas as &$l) {
+                $dec = isset($l['decimales']) ? (int) $l['decimales'] : 2;
+                $pBase = (float) $l['precioUnitario'];
+                $iva = (float) $l['iva'];
+                $l['precioConIva'] = round($pBase * (1 + $iva / 100), $dec);
+            }
+            return $lineas;
         }
         catch (Exception $e) {
             error_log("Error al obtener detalle de devolución: " . $e->getMessage());
@@ -201,6 +213,11 @@ class Devolucion
         $this->idSesionCaja = $idSesionCaja;
     }
 
+    public function setDecimales($decimales)
+    {
+        $this->decimales = $decimales;
+    }
+
     // Getters
     public function getId()
     {
@@ -262,6 +279,11 @@ class Devolucion
         return $this->motivo;
     }
 
+    public function getDecimales()
+    {
+        return $this->decimales;
+    }
+
     /**
      * Crea una nueva devolución en la base de datos.
      * @return bool True si la operación fue exitosa, False en caso contrario.
@@ -272,8 +294,8 @@ class Devolucion
             $conexion = ConexionDB::getInstancia()->getConexion();
 
             // Inserción completa con todos los campos (Requiere script scriptDB/fix_devoluciones_columns.sql)
-            $sql = "INSERT INTO devoluciones (idVenta, idProducto, nombreProducto, cantidad, precioUnitario, iva, importeTotal, idUsuario, metodoPago, motivo, idSesionCaja, fecha) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            $sql = "INSERT INTO devoluciones (idVenta, idProducto, nombreProducto, cantidad, precioUnitario, iva, importeTotal, idUsuario, metodoPago, motivo, idSesionCaja, decimales, fecha) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
             $stmt = $conexion->prepare($sql);
             return $stmt->execute([
                 $this->idVenta,
@@ -286,7 +308,8 @@ class Devolucion
                 $this->idUsuario,
                 $this->metodoPago,
                 $this->motivo,
-                $this->idSesionCaja
+                $this->idSesionCaja,
+                $this->decimales
             ]);
         }
         catch (Exception $e) {

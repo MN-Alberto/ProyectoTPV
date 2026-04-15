@@ -138,3 +138,43 @@ function abrirImagenGrande(src, alt = '') {
     document.addEventListener('keydown', cerrarConEsc);
     document.body.appendChild(overlay);
 }
+
+// ── Validación de Decimales ──────────────────────────────────────────────────
+
+/**
+ * Limita el input a un máximo de 4 decimales en tiempo real.
+ * @param {HTMLInputElement} input
+ */
+function validarPrecisionDinamica(input, limitInputId) {
+    let limitInput = document.getElementById(limitInputId);
+    let limit = limitInput ? parseInt(limitInput.value) : 4;
+    if (isNaN(limit)) limit = 4;
+    if (limit > 4) limit = 4;
+    if (limit < 0) limit = 0;
+
+    let value = input.value;
+    if (!value) return;
+
+    // Use regex to keep only up to N decimals
+    let regex = new RegExp('^-?\\d*(\\.\\d{0,' + limit + '})?');
+    let match = value.match(regex);
+    if (match && match[0] !== value) {
+        input.value = match[0];
+    }
+}
+
+/**
+ * Valida que el número de decimales esté entre 0 y 4.
+ * Además, actualiza la precisión del input de precio relacionado.
+ * @param {HTMLInputElement} input
+ * @param {string} priceInputId
+ */
+function validarDecimalesRango(input, priceInputId) {
+    if (input.value > 4) input.value = 4;
+    if (input.value < 0 && input.value !== "") input.value = 0;
+    
+    let priceInput = document.getElementById(priceInputId);
+    if (priceInput) {
+        validarPrecisionDinamica(priceInput, input.id);
+    }
+}

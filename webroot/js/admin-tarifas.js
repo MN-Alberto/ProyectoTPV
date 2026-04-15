@@ -190,7 +190,8 @@ function renderizarProductoCarrusel() {
 
     const p = productosCategoriaActual[indexProductoActual];
     const img = p.imagen || 'webroot/img/productos/default.png';
-    const precio = parseFloat(p.precio).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const decimals = parseInt(p.decimales ?? 2);
+    const precio = parseFloat(p.precio).toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 
     listCont.innerHTML = `
         <div class="cat-prod-card animate-fade-in">
@@ -543,15 +544,16 @@ function mostrarTablaPrevisualizacionIVA(productos, nuevoIVA) {
         const excluido = productosExcluidos.includes(p.id);
         const precioConIVA = parseFloat(p.precio) * (1 + (excluido ? p.iva_actual : nuevoIVA) / 100);
         const clase = excluido ? 'fila-excluida' : (p.iva_actual !== nuevoIVA ? 'fila-destacada' : '');
+        const prec = parseInt(p.decimales ?? 2);
         html += `
             <tr class="${clase}" onclick="toggleExcluirProducto(${p.id},'iva')">
                 <td style="text-align:center;">${excluido ? '❌' : i + 1}</td>
                 <td>${p.id}</td>
                 <td>${p.nombre}</td>
-                <td style="text-align:right;">${parseFloat(p.precio).toFixed(2)} €</td>
+                <td style="text-align:right;">${parseFloat(p.precio).toFixed(prec)} €</td>
                 <td style="text-align:center;">${p.iva_actual}%</td>
                 <td style="text-align:center;" class="precio-iva-nuevo">${excluido ? p.iva_actual + '%' : nuevoIVA + '%'}</td>
-                <td style="text-align:right;" class="precio-destacado">${precioConIVA.toFixed(2)} €</td>
+                <td style="text-align:right;" class="precio-destacado">${precioConIVA.toFixed(prec)} €</td>
             </tr>`;
     });
 
@@ -602,8 +604,8 @@ function mostrarPanelAjustePrecios() {
                 <p class="tarifa-panel-desc">Aplica un porcentaje de subida o bajada a todos los productos.</p>
                 <div class="tarifa-input-group">
                     <label>Porcentaje de ajuste (%):</label>
-                    <input type="number" id="porcentajeAjuste" step="0.01" placeholder="Ej: 10 o -10"
-                        class="tarifa-input" oninput="actualizarPrevisualizacionPreciosAuto()">
+                    <input type="number" id="porcentajeAjuste" step="0.0001" placeholder="Ej: 10 o -10" oninput="validar4Decimales(this); actualizarPrevisualizacionPreciosAuto()"
+                        class="tarifa-input">
                     <small class="tarifa-hint">Positivo = subir | Negativo = bajar</small>
                 </div>
                 <button onclick="aplicarAjustePrecios()" class="tarifa-btn-aplicar tarifa-btn-precios">
@@ -670,14 +672,15 @@ function mostrarTablaPrevisualizacionPrecios(productos, porcentaje) {
         const diferencia = excluido ? 0 : p.diferencia;
         const clase = excluido ? 'fila-excluida' : (p.diferencia !== 0 ? 'fila-destacada' : '');
         const signo = esSubida && !excluido ? '+' : '';
+        const prec = parseInt(p.decimales ?? 2);
         html += `
             <tr class="${clase}" onclick="toggleExcluirProducto(${p.id},'precios')">
                 <td style="text-align:center;">${excluido ? '❌' : i + 1}</td>
                 <td>${p.id}</td>
                 <td>${p.nombre}</td>
-                <td style="text-align:right;">${parseFloat(p.precio_actual).toFixed(2)} €</td>
-                <td style="text-align:right;font-weight:bold;">${parseFloat(precioNuevo).toFixed(2)} €</td>
-                <td style="text-align:right;" class="${excluido ? '' : claseDif}">${signo}${diferencia.toFixed(2)} €</td>
+                <td style="text-align:right;">${parseFloat(p.precio_actual).toFixed(prec)} €</td>
+                <td style="text-align:right;font-weight:bold;">${parseFloat(precioNuevo).toFixed(prec)} €</td>
+                <td style="text-align:right;" class="${excluido ? '' : claseDif}">${signo}${diferencia.toFixed(prec)} €</td>
             </tr>`;
     });
 
@@ -766,10 +769,17 @@ function actualizarTablaTarifas() {
         let precioBase = parseFloat(prod.precio);
         if (tarifasMostrarConIva) precioBase *= (1 + ivaProd / 100);
 
+        // Formateador dinámico: mínimo 2 decimales, máximo 4, basado en el precio original (sin inflar por IVA)
+        const getPrec = (v, d) => {
+            const s = v.toString();
+            const decPart = s.split('.')[1] || '';
+            return Math.min(4, Math.max(2, d || 2, decPart.length));
+        };
+        const prec = getPrec(parseFloat(prod.precio), prod.decimales);
         let fila = `
             <tr style="border-bottom:1px solid ${tableRowBorder};">
                 <td style="padding:8px 6px;font-weight:500;color:${textColor};">${prod.nombre}</td>
-                <td style="padding:8px 6px;font-weight:600;text-align:right;">${precioBase.toFixed(2)} €</td>`;
+                <td style="padding:8px 6px;font-weight:600;text-align:right;">${precioBase.toFixed(prec)} €</td>`;
 
         tarifas.forEach(tarifa => {
             const dataTarifa = prod.preciosTarifas && prod.preciosTarifas[tarifa.id];
@@ -802,7 +812,7 @@ function actualizarTablaTarifas() {
             fila += `
                 <td style="padding:8px 6px;">
                     <div style="display:flex;align-items:center;gap:4px;">
-                        <input type="number" step="0.01" value="${valueToShow.toFixed(2)}"
+                        <input type="number" step="0.0001" value="${valueToShow.toFixed(prec)}"
                             data-precio-anterior="${precioFinal.toFixed(4)}"
                             onchange="actualizarPrecioTarifaIndividual(${prod.id},${tarifa.id},this,${ivaProd})"
                             ${disabledAttr} class="${customClass}"
@@ -976,10 +986,16 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
                     precioBaseAMostrar = precioBaseOriginal * (1 + iva / 100);
                 }
 
+                const getPrec = (v, d) => {
+                    const s = v.toString();
+                    const decPart = s.split('.')[1] || '';
+                    return Math.min(4, Math.max(2, d || 2, decPart.length));
+                };
+                const prec = getPrec(precioBaseOriginal, prod.decimales);
                 let fila = `
                 <tr style="border-bottom: 1px solid ${tableRowBorder};">
                     <td style="padding: 8px 6px; font-weight: 500; color: ${textColor};">${prod.nombre}</td>
-                    <td style="padding: 8px 6px; color: ${isDark ? '#f3f4f6' : '#1f2937'}; font-weight: 600; text-align: right;">${precioBaseAMostrar.toFixed(2)} €</td>`;
+                    <td style="padding: 8px 6px; color: ${isDark ? '#f3f4f6' : '#1f2937'}; font-weight: 600; text-align: right;">${precioBaseAMostrar.toFixed(prec)} €</td>`;
 
                 tarifas.forEach(tarifa => {
                     const idTarifa = tarifa.id;
@@ -1022,8 +1038,8 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
                     fila += `
                     <td style="padding: 8px 6px;">
                         <div style="display: flex; align-items: center; gap: 4px;">
-                            <input type="number" step="0.01"
-                                value="${valueToShow.toFixed(2)}"
+                            <input type="number" step="0.0001"
+                                value="${valueToShow.toFixed(prec)}"
                                 data-precio-anterior="${precioFinal.toFixed(4)}"
                                 onchange="actualizarPrecioTarifaIndividual(${prod.id}, ${idTarifa}, this, ${iva})"
                                 ${disabledAttr}
@@ -1231,7 +1247,7 @@ function abrirModalNuevaTarifa() {
                     </div>
                     <div style="margin-bottom: 15px;">
                         <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Descuento (%):</label>
-                        <input type="number" id="nuevaTarifaDescuento" step="0.01" min="0" max="100" value="0" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; box-sizing: border-box;">
+                        <input type="number" id="nuevaTarifaDescuento" step="0.0001" min="0" max="100" value="0" oninput="validar4Decimales(this)" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; box-sizing: border-box;">
                     </div>
                     <div style="margin-bottom: 15px;">
                         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -1488,13 +1504,14 @@ function verDetalleBatchTarifas(id) {
                         const diferenciaSigno = diferencia >= 0 ? '+' : '';
                         const diferenciaColor = diferencia >= 0 ? '#10b981' : '#ef4444';
 
+                            const prec = parseInt(d.decimales ?? 2);
                         html += `
                     <tr style="border-bottom: 1px solid var(--border-main);">
                         <td style="padding: 8px;">${d.producto_nombre}</td>
                         <td style="padding: 8px;">${d.tarifa_nombre}</td>
-                        <td style="padding: 8px; text-align: right;">${precioAnterior.toFixed(2)} €</td>
-                        <td style="padding: 8px; text-align: right; font-weight: 600;">${precioNuevo.toFixed(2)} €</td>
-                        <td style="padding: 8px; text-align: right; font-weight: 600; color: ${diferenciaColor};">${diferenciaSigno}${diferencia.toFixed(2)} €</td>
+                        <td style="padding: 8px; text-align: right;">${precioAnterior.toFixed(prec)} €</td>
+                        <td style="padding: 8px; text-align: right; font-weight: 600;">${precioNuevo.toFixed(prec)} €</td>
+                        <td style="padding: 8px; text-align: right; font-weight: 600; color: ${diferenciaColor};">${diferenciaSigno}${diferencia.toFixed(prec)} €</td>
                     </tr>`;
                     });
 

@@ -56,7 +56,7 @@ $sesionCaja = Caja::obtenerSesionAbierta();
  * Títulos y etiquetas descriptivas para las diferentes secciones de la interfaz.
  * Se actualizan dinámicamente si los datos mostrados pertenecen a la sesión actual o anterior.
  */
-$tituloVentas = "Ventas (Sesión Actual)";
+$tituloVentas = "Ganancias (Sesión Actual)";
 $tituloPedidos = "Ventas realizadas hoy";
 $tituloRetiros = "Retiros (Sesión Actual)";
 $tituloDevoluciones = "Devoluciones (Sesión Actual)";
@@ -73,7 +73,7 @@ if ($sesionCaja) {
         // Obtenemos el resumen de la caja cerrada
         $resumenCaja = Venta::obtenerResumenCerrada($ultimaCaja->getFechaApertura(), $ultimaCaja->getFechaCierre(), $ultimaCaja->getId());
         // Ajustamos etiquetas para informar al administrador que consulta datos pasados
-        $tituloVentas = "Ventas (Sesión Anterior)";
+        $tituloVentas = "Ganancias (Sesión Anterior)";
         $tituloPedidos = "Ventas realizadas (Sesión Anterior)";
         $tituloRetiros = "Retiros (Sesión Anterior)";
         $tituloDevoluciones = "Devoluciones (Sesión Anterior)";
@@ -135,20 +135,38 @@ if ($sesionCaja) {
 }
 
 // Obtener las horas trabajadas en la semana actual
-$inicioSemana = date('Y-m-d 00:00:00', strtotime('monday this week'));
+// Fix: Calcular correctamente el lunes de la semana actual para todos los dias (incluyendo domingo)
+$hoy = new DateTime();
+$inicioSemana = (clone $hoy)->modify('monday this week')->setTime(0, 0, 0);
+
+// Si hoy es domingo, strtotime devuelve lunes siguiente, por lo que debemos corregirlo
+if ($hoy->format('N') == 7) {
+    $inicioSemana->modify('-7 days');
+}
+
 $pdo = new PDO(RUTA, USUARIO, PASS);
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $stmt = $pdo->prepare("SELECT fechaApertura, fechaCierre FROM caja_sesiones WHERE fechaApertura >= :inicioSemana");
-$stmt->execute([':inicioSemana' => $inicioSemana]);
+$stmt->execute([':inicioSemana' => $inicioSemana->format('Y-m-d H:i:s')]);
 $totalHoras = 0.0;
 while ($fila = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $fechaApertura = new DateTime($fila['fechaApertura']);
-    $fechaCierre = $fila['fechaCierre'] ? new DateTime($fila['fechaCierre']) : new DateTime();
+
+    // Si no hay fecha de cierre = sesión abierta actualmente, usar hora actual
+    if ($fila['fechaCierre']) {
+        $fechaCierre = new DateTime($fila['fechaCierre']);
+    } else {
+        $fechaCierre = new DateTime();
+    }
+
     $diferencia = $fechaCierre->getTimestamp() - $fechaApertura->getTimestamp();
     $horas = $diferencia / 3600;
     $totalHoras += $horas;
 }
 $stats['horasTrabajadasSemana'] = $totalHoras;
+
+// Calcular ganancias netas: Ventas - Devoluciones - Retiros
+$stats['gananciasHoy'] = $stats['ventasHoy'] - $stats['devolucionesHoy'] - $stats['retirosHoy'];
 
 // Llamamos a la vista
 require_once $view['Layout'];

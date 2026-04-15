@@ -44,14 +44,14 @@ function obtenerNombreColumnaTarifa($nombreTarifa)
 function actualizarPreciosProductosPorTarifa($conexion, $idTarifa, $columnName, $descuentoPorcentaje, $sobreescribirManuales = false)
 {
     // Obtener todos los productos activos
-    $stmt = $conexion->query("SELECT id, precio FROM productos WHERE activo = 1");
+    $stmt = $conexion->query("SELECT id, precio, decimales FROM productos WHERE activo = 1");
     $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Actualizar el precio para cada producto en la columna de productos
     foreach ($productos as $producto) {
         $idProducto = $producto['id'];
         $precioBase = floatval($producto['precio']);
-        $nuevoPrecio = round($precioBase * (1 - $descuentoPorcentaje / 100), 2);
+        $nuevoPrecio = round($precioBase * (1 - $descuentoPorcentaje / 100), 4);
 
         // Actualizar el precio en la columna de tarifa
         $upsertStmt = $conexion->prepare("UPDATE productos SET `$columnName` = :precio WHERE id = :id");
@@ -83,7 +83,7 @@ function anadirColumnaTarifaProductos($conexion, $idTarifa, $nombreTarifa, $desc
     $columnName = obtenerNombreColumnaTarifa($nombreTarifa);
 
     // Añadir la columna a la tabla productos
-    $alterStmt = $conexion->prepare("ALTER TABLE productos ADD COLUMN `$columnName` DECIMAL(10, 2) NULL AFTER activo");
+    $alterStmt = $conexion->prepare("ALTER TABLE productos ADD COLUMN `$columnName` DECIMAL(15, 4) NULL AFTER activo");
     $alterStmt->execute();
 
     // Poblar la columna con los precios calculados
@@ -118,7 +118,7 @@ function detectarPreciosManuales($conexion, $idTarifa, $nombreTarifa)
 
     // Obtener productos que tienen precio en esa columna
     $sql = "
-        SELECT p.id, p.nombre, p.precio, p.$columnName as precio_tarifa
+        SELECT p.id, p.nombre, p.precio, p.decimales, p.$columnName as precio_tarifa
         FROM productos p
         WHERE p.$columnName IS NOT NULL
     ";
@@ -130,7 +130,7 @@ function detectarPreciosManuales($conexion, $idTarifa, $nombreTarifa)
     foreach ($productos as $prod) {
         $precioBase = floatval($prod['precio']);
         $precioTarifa = floatval($prod['precio_tarifa']);
-        $precioCalculado = round($precioBase * (1 - $descuento / 100), 2);
+        $precioCalculado = round($precioBase * (1 - $descuento / 100), 4);
 
         // Si el precio almacenado es diferente del calculado, es manual
         if (abs($precioTarifa - $precioCalculado) > 0.01) {
@@ -257,7 +257,7 @@ try {
         $conexion = ConexionDB::getInstancia()->getConexion();
         
         $stmt = $conexion->prepare("
-            SELECT d.*, p.nombre as producto_nombre, t.nombre as tarifa_nombre
+            SELECT d.*, p.nombre as producto_nombre, p.decimales, t.nombre as tarifa_nombre
             FROM ajustes_tarifas_detalle d
             JOIN productos p ON d.producto_id = p.id
             JOIN tarifas_prefijadas t ON d.tarifa_id = t.id
@@ -554,7 +554,7 @@ try {
                 $columnNameNuevo = obtenerNombreColumnaTarifa($nombre);
 
                 // Renombrar la columna
-                $renameStmt = $conexion->prepare("ALTER TABLE productos CHANGE COLUMN `$columnNameAnterior` `$columnNameNuevo` DECIMAL(10, 2) NULL");
+                $renameStmt = $conexion->prepare("ALTER TABLE productos CHANGE COLUMN `$columnNameAnterior` `$columnNameNuevo` DECIMAL(15, 4) NULL");
                 $renameStmt->execute();
             }
 

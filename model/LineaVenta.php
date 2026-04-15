@@ -52,6 +52,10 @@ class LineaVenta
      * @var float|null Importe total de la línea (cantidad multiplicada por precio unitario). 
      */
     private $subtotal;
+    /** 
+     * @var int|null Número de decimales aplicados en el momento de la venta. 
+     */
+    private $decimales;
 
     // ======================== GETTERS ========================
 
@@ -145,6 +149,15 @@ class LineaVenta
         return $this->iva;
     }
 
+    /** 
+     * Obtiene la cantidad de decimales aplicados.
+     * @return int|null 
+     */
+    public function getDecimales()
+    {
+        return $this->decimales;
+    }
+
     // ======================== SETTERS ========================
 
     /** 
@@ -227,6 +240,14 @@ class LineaVenta
     {
         $this->iva = $iva;
     }
+    /** 
+     * Establece la cantidad de decimales aplicados.
+     * @param int|null $decimales 
+     */
+    public function setDecimales($decimales)
+    {
+        $this->decimales = $decimales;
+    }
 
     // ======================== MÉTODOS CRUD ========================
 
@@ -258,8 +279,9 @@ class LineaVenta
         foreach ($lineas as &$linea) {
             $iva = isset($linea['iva']) ? floatval($linea['iva']) : 21;
             $precioBase = floatval($linea['precioUnitario']);
+            $dec = isset($linea['decimales']) ? (int) $linea['decimales'] : 2;
             $precioConIva = $precioBase * (1 + $iva / 100);
-            $linea['precioConIva'] = round($precioConIva, 2);
+            $linea['precioConIva'] = round($precioConIva, $dec);
         }
 
         return $lineas;
@@ -328,10 +350,10 @@ class LineaVenta
         $this->subtotal = $this->cantidad * $this->precioUnitario;
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta (ahora incluye IVA y nombreProducto)
+        // Preparamos la consulta (ahora incluye IVA, nombreProducto y decimales)
         $stmt = $conexion->prepare(
-            "INSERT INTO lineasVenta (idVenta, idProducto, nombreProducto, cantidad, precioUnitario, precioOriginal, tarifaNombre, iva, subtotal) 
-             VALUES (:idVenta, :idProducto, :nombreProducto, :cantidad, :precioUnitario, :precioOriginal, :tarifaNombre, :iva, :subtotal)"
+            "INSERT INTO lineasVenta (idVenta, idProducto, nombreProducto, cantidad, precioUnitario, precioOriginal, tarifaNombre, iva, subtotal, decimales) 
+             VALUES (:idVenta, :idProducto, :nombreProducto, :cantidad, :precioUnitario, :precioOriginal, :tarifaNombre, :iva, :subtotal, :decimales)"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':idVenta', $this->idVenta, PDO::PARAM_INT);
@@ -349,6 +371,7 @@ class LineaVenta
         $stmt->bindParam(':tarifaNombre', $this->tarifaNombre);
         $stmt->bindParam(':iva', $this->iva, PDO::PARAM_INT);
         $stmt->bindParam(':subtotal', $this->subtotal);
+        $stmt->bindParam(':decimales', $this->decimales, PDO::PARAM_INT);
         // Ejecutamos la consulta
         $resultado = $stmt->execute();
         // Obtenemos el último ID insertado
@@ -371,7 +394,7 @@ class LineaVenta
         $stmt = $conexion->prepare(
             "UPDATE lineasVenta SET idVenta = :idVenta, idProducto = :idProducto, nombreProducto = :nombreProducto,
              cantidad = :cantidad, precioUnitario = :precioUnitario, precioOriginal = :precioOriginal, 
-             tarifaNombre = :tarifaNombre, iva = :iva, subtotal = :subtotal WHERE id = :id"
+             tarifaNombre = :tarifaNombre, iva = :iva, subtotal = :subtotal, decimales = :decimales WHERE id = :id"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':idVenta', $this->idVenta, PDO::PARAM_INT);
@@ -389,6 +412,7 @@ class LineaVenta
         $stmt->bindParam(':tarifaNombre', $this->tarifaNombre);
         $stmt->bindParam(':iva', $this->iva, PDO::PARAM_INT);
         $stmt->bindParam(':subtotal', $this->subtotal);
+        $stmt->bindParam(':decimales', $this->decimales, PDO::PARAM_INT);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
         // Ejecutamos la consulta
         return $stmt->execute();
@@ -449,6 +473,7 @@ class LineaVenta
         $linea->setTarifaNombre($fila['tarifaNombre'] ?? null);
         $linea->setIva($fila['iva'] ?? 21);
         $linea->setSubtotal($fila['subtotal']);
+        $linea->setDecimales($fila['decimales'] ?? 2);
         // Devolvemos la linea creada
         return $linea;
     }

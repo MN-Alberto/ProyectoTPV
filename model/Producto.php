@@ -25,6 +25,7 @@ class Producto
     // Campos auxiliares (vienen del JOIN con la tabla iva)
     private $ivaPorcentaje;
     private $ivaNombre;
+    private $decimales;
     private $preciosTarifas = []; // Precios específicos por tarifa
 
     // ======================== GETTERS ========================
@@ -89,6 +90,11 @@ class Producto
         return $this->preciosTarifas;
     }
 
+    public function getDecimales()
+    {
+        return $this->decimales;
+    }
+
     // ======================== SETTERS ========================
 
     public function setId($id)
@@ -147,6 +153,11 @@ class Producto
     public function setIdIva($idIva)
     {
         $this->idIva = $idIva;
+    }
+
+    public function setDecimales($decimales)
+    {
+        $this->decimales = $decimales;
     }
 
     public function setIvaPorcentaje($ivaPorcentaje)
@@ -370,8 +381,8 @@ class Producto
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "INSERT INTO productos (nombre, descripcion, precio, stock, idCategoria, imagen, activo, idIva) 
-             VALUES (:nombre, :descripcion, :precio, :stock, :idCategoria, :imagen, :activo, :idIva)"
+            "INSERT INTO productos (nombre, descripcion, precio, stock, idCategoria, imagen, activo, idIva, decimales) 
+             VALUES (:nombre, :descripcion, :precio, :stock, :idCategoria, :imagen, :activo, :idIva, :decimales)"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':nombre', $this->nombre);
@@ -382,6 +393,7 @@ class Producto
         $stmt->bindParam(':imagen', $this->imagen);
         $stmt->bindParam(':activo', $this->activo, PDO::PARAM_BOOL);
         $stmt->bindParam(':idIva', $this->idIva, PDO::PARAM_INT);
+        $stmt->bindParam(':decimales', $this->decimales, PDO::PARAM_INT);
         // Ejecutamos la consulta
         $resultado = $stmt->execute();
         // Obtenemos el último ID insertado
@@ -417,13 +429,12 @@ class Producto
                 "UPDATE productos SET nombre = :nombre, descripcion = :descripcion, precio = :precio, 
                  stock = :stock, idCategoria = :idCategoria, 
                  imagen = :imagen, activo = :activo, idIva = :idIva, 
-                 precio_cliente = :precio WHERE id = :id"
+                 precio_cliente = :precio, decimales = :decimales WHERE id = :id"
             );
         } else {
             $stmt = $conexion->prepare(
                 "UPDATE productos SET nombre = :nombre, descripcion = :descripcion, precio = :precio, 
-                 stock = :stock, idCategoria = :idCategoria, 
-                 imagen = :imagen, activo = :activo, idIva = :idIva WHERE id = :id"
+                 stock = :stock, idCategoria = :idCategoria, imagen = :imagen, activo = :activo, idIva = :idIva, decimales = :decimales WHERE id = :id"
             );
         }
         // Vinculamos los parámetros
@@ -435,6 +446,7 @@ class Producto
         $stmt->bindParam(':imagen', $this->imagen);
         $stmt->bindParam(':activo', $this->activo, PDO::PARAM_INT);
         $stmt->bindParam(':idIva', $this->idIva, PDO::PARAM_INT);
+        $stmt->bindParam(':decimales', $this->decimales, PDO::PARAM_INT);
         $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
         return $stmt->execute();
     }
@@ -550,6 +562,7 @@ class Producto
         $producto->setImagen($fila['imagen']);
         $producto->setActivo($fila['activo']);
         $producto->setIdIva($fila['idIva'] ?? 1);
+        $producto->setDecimales($fila['decimales'] ?? 2);
         // Campos auxiliares del JOIN con la tabla iva
         $producto->setIvaPorcentaje($fila['ivaPorcentaje'] ?? 21);
         $producto->setIvaNombre($fila['ivaNombre'] ?? 'General');

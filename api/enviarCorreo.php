@@ -77,6 +77,8 @@ $metodoPago = $datos['metodoPago'] ?? 'efectivo';
 $entregado = $datos['entregado'] ?? '0,00';
 $cambio = $datos['cambio'] ?? '0,00';
 
+$pagoMixtoDesglose = $datos['pagoMixtoDesglose'] ?? null;
+
 // Datos opcionales del cliente (necesarios para facturas)
 $clienteNif = $datos['clienteNif'] ?? '';
 $clienteNombre = $datos['clienteNombre'] ?? '';
@@ -343,6 +345,40 @@ if ($puntosGanados > 0 || $puntosCanjeados > 0 || $puntosBalance > 0) {
 
 /**
  * ────────────────────────────────────────────────────────────────────────────
+ * 5B. RENDERIZACIÓN DE MÉTODO DE PAGO
+ * ────────────────────────────────────────────────────────────────────────────
+ */
+$metodoPagoHtmlFactura = "<p><strong>Método de pago:</strong> " . strtoupper($metodoPago) . "</p>";
+$metodoPagoHtmlTicket = "<p><strong>Método de pago:</strong> " . strtoupper($metodoPago) . "</p>";
+
+if ($metodoPago === 'mixto' && is_array($pagoMixtoDesglose)) {
+    $rows = "";
+    if (isset($pagoMixtoDesglose['efectivo']) && $pagoMixtoDesglose['efectivo'] > 0) {
+        $rows .= "<tr><td style='padding:3px 0;'>💵 Efectivo</td><td style='text-align:right; padding:3px 0;'>" . number_format($pagoMixtoDesglose['efectivo'], 2, ',', '.') . " €</td></tr>";
+    }
+    if (isset($pagoMixtoDesglose['tarjeta']) && $pagoMixtoDesglose['tarjeta'] > 0) {
+        $rows .= "<tr><td style='padding:3px 0;'>💳 Tarjeta</td><td style='text-align:right; padding:3px 0;'>" . number_format($pagoMixtoDesglose['tarjeta'], 2, ',', '.') . " €</td></tr>";
+    }
+    if (isset($pagoMixtoDesglose['bizum']) && $pagoMixtoDesglose['bizum'] > 0) {
+        $rows .= "<tr><td style='padding:3px 0;'>📱 Bizum</td><td style='text-align:right; padding:3px 0;'>" . number_format($pagoMixtoDesglose['bizum'], 2, ',', '.') . " €</td></tr>";
+    }
+    if (isset($pagoMixtoDesglose['cambio']) && $pagoMixtoDesglose['cambio'] > 0) {
+        $rows .= "<tr><td style='padding:3px 0; color:#888;'>Cambio devuelto</td><td style='text-align:right; padding:3px 0; color:#888;'>-" . number_format($pagoMixtoDesglose['cambio'], 2, ',', '.') . " €</td></tr>";
+    }
+
+    $metodoPagoHtmlFactura = "
+        <p style='font-size:13px; color:#444; font-weight:bold; margin-bottom:6px;'>Forma de pago: MIXTO</p>
+        <table style='width:auto; border-collapse:collapse;'>$rows</table>
+    ";
+
+    $metodoPagoHtmlTicket = "
+        <div style='font-size:12px; font-weight:bold; margin-bottom:4px;'>FORMA DE PAGO: MIXTO</div>
+        <table style='width:100%; border-collapse:collapse;'>$rows</table>
+    ";
+}
+
+/**
+ * ────────────────────────────────────────────────────────────────────────────
  * 6. ESTRUCTURA FINAL DEL CUERPO DEL EMAIL (HTML) - IDÉNTICO A imprimirDocumento()
  * ────────────────────────────────────────────────────────────────────────────
  */
@@ -419,7 +455,7 @@ if ($isFactura) {
     {$puntosHtml}
     
     <div class=\"datos-pago\" style=\"margin-top: 25px; padding: 15px; background: #f8fafc; border-radius: 8px;\">
-        <p><strong>Método de pago:</strong> {$metodoPago}</p>
+        {$metodoPagoHtmlFactura}
     </div>
     
     {$obsHtml}
@@ -471,7 +507,7 @@ if ($isFactura) {
             <div style='margin-top: 10px;'>
                 <p><strong>Nº Factura/Ticket:</strong> {$ventaId}</p>
                 <p><strong>Fecha Operación y Expedición:</strong> {$fecha}</p>
-                <p><strong>Método de pago:</strong> {$metodoPago}</p>
+                <div style='margin-top:5px;'>{$metodoPagoHtmlTicket}</div>
             </div>
             {$receptorHtml}
         </div>

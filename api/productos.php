@@ -38,7 +38,7 @@ try {
         }
 
         $conexion = ConexionDB::getInstancia()->getConexion();
-        $stmt = $conexion->query("SELECT p.id, p.nombre, p.precio, p.idIva, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre FROM productos p LEFT JOIN iva i ON p.idIva = i.id ORDER BY p.nombre ASC LIMIT 100");
+        $stmt = $conexion->query("SELECT p.id, p.nombre, p.precio, p.idIva, p.decimales, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre FROM productos p LEFT JOIN iva i ON p.idIva = i.id ORDER BY p.nombre ASC LIMIT 100");
         $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $resultado = [];
@@ -48,7 +48,8 @@ try {
                 'nombre' => $prod['nombre'],
                 'precio' => floatval($prod['precio']),
                 'iva_actual' => floatval($prod['ivaPorcentaje']),
-                'iva_nuevo' => floatval($nuevoIva->getPorcentaje())
+                'iva_nuevo' => floatval($nuevoIva->getPorcentaje()),
+                'decimales' => intval($prod['decimales'] ?? 2)
             ];
         }
 
@@ -65,19 +66,21 @@ try {
         $porcentaje = floatval($_GET['previsualizarAjuste']);
 
         $conexion = ConexionDB::getInstancia()->getConexion();
-        $stmt = $conexion->query("SELECT p.id, p.nombre, p.precio, p.idIva, i.porcentaje as ivaPorcentaje FROM productos p LEFT JOIN iva i ON p.idIva = i.id ORDER BY p.nombre ASC LIMIT 100");
+        $stmt = $conexion->query("SELECT p.id, p.nombre, p.precio, p.idIva, p.decimales, i.porcentaje as ivaPorcentaje FROM productos p LEFT JOIN iva i ON p.idIva = i.id ORDER BY p.nombre ASC LIMIT 100");
         $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $resultado = [];
         foreach ($productos as $prod) {
             $precioActual = floatval($prod['precio']);
-            $nuevoPrecio = round($precioActual * (1 + ($porcentaje / 100)), 2);
+            $prec = intval($prod['decimales'] ?? 2);
+            $nuevoPrecio = round($precioActual * (1 + ($porcentaje / 100)), $prec);
             $resultado[] = [
                 'id' => $prod['id'],
                 'nombre' => $prod['nombre'],
                 'precio_actual' => $precioActual,
                 'precio_nuevo' => $nuevoPrecio,
-                'diferencia' => round($nuevoPrecio - $precioActual, 2)
+                'diferencia' => round($nuevoPrecio - $precioActual, $prec),
+                'decimales' => $prec
             ];
         }
 
@@ -588,7 +591,7 @@ try {
             $query = "
                 SELECT p.id, p.nombre, 
                        p.precio as precio_anterior,
-                       ROUND(p.precio * (1 + ? / 100), 2) as precio_nuevo
+                       ROUND(p.precio * (1 + ? / 100), p.decimales) as precio_nuevo
                 FROM productos p
                 WHERE p.precio > 0
             ";
@@ -641,11 +644,11 @@ try {
             // Aplicar el ajuste de precios
             if (count($excluidos) > 0) {
                 $placeholders = implode(',', array_fill(0, count($excluidos), '?'));
-                $stmtUpdate = $conexion->prepare("UPDATE productos SET precio = ROUND(precio * (1 + ? / 100), 2) WHERE id NOT IN ($placeholders)");
+                $stmtUpdate = $conexion->prepare("UPDATE productos SET precio = ROUND(precio * (1 + ? / 100), decimales) WHERE id NOT IN ($placeholders)");
                 $params = array_merge([$porcentaje], $excluidos);
                 $stmtUpdate->execute($params);
             } else {
-                $stmtUpdate = $conexion->prepare("UPDATE productos SET precio = ROUND(precio * (1 + ? / 100), 2)");
+                $stmtUpdate = $conexion->prepare("UPDATE productos SET precio = ROUND(precio * (1 + ? / 100), decimales)");
                 $stmtUpdate->execute([$porcentaje]);
             }
 
@@ -691,8 +694,8 @@ try {
 
         $actualizados = 0;
         foreach ($productos as $prod) {
-            $nuevoPrecio = $prod['precio'] * (1 + ($porcentaje / 100));
-            $nuevoPrecio = round($nuevoPrecio, 2);
+            $prec = intval($prod['decimales'] ?? 2);
+            $nuevoPrecio = round($prod['precio'] * (1 + ($porcentaje / 100)), $prec);
 
             // Actualizar también el precio de la tarifa Cliente
             if ($columnExists) {
@@ -876,6 +879,7 @@ try {
         $activo = (int) ($_POST['activo'] ?? 1);
         $categoria = trim($_POST['categoria'] ?? '');
         $idIva = (int) ($_POST['idIva'] ?? 1);
+        $decimales = (int) ($_POST['decimales'] ?? 2);
 
         // Validar que los campos obligatorios no estén vacíos
         if (empty($nombre) || empty($categoria)) {
@@ -916,6 +920,7 @@ try {
             $producto->setStock($stock);
             $producto->setActivo($activo);
             $producto->setIdIva($idIva);
+            $producto->setDecimales($decimales);
 
             // Buscar la categoría para obtener su ID y actualizar
             $categorias = Categoria::obtenerTodas();
@@ -955,6 +960,7 @@ try {
             $producto->setIdCategoria($idCategoria);
             $producto->setImagen('webroot/img/logo.PNG');
             $producto->setIdIva($idIva);
+            $producto->setDecimales($decimales);
         }
 
         // Subida de imagen (opcional)
@@ -993,8 +999,9 @@ try {
                 if ($productoAnterior && isset($productoAnterior['precio'])) {
                     $precioAnterior = floatval($productoAnterior['precio']);
                     $precioNuevo = floatval($producto->getPrecio());
+                    $prec = intval($producto->getDecimales());
 
-                    if (round($precioAnterior, 2) !== round($precioNuevo, 2)) {
+                    if (round($precioAnterior, $prec) !== round($precioNuevo, $prec)) {
                         try {
                             $pdoHistorial = new PDO(RUTA, USUARIO, PASS);
                             $adminId = $_SESSION['idUsuario'] ?? $_SESSION['id'] ?? null;
@@ -1270,6 +1277,7 @@ try {
             'idIva' => (int) $prod->getIdIva(),
             'iva' => (float) $prod->getIvaPorcentaje(),   // ← porcentaje numérico para cálculos
             'ivaNombre' => $prod->getIvaNombre(),          // ← nombre legible del tipo de IVA
+            'decimales' => (int) $prod->getDecimales(),    // ← precision configured
             'preciosTarifas' => $preciosTarifas[$idProd] ?? [] // ← Precios específicos por tarifa
         ];
     }

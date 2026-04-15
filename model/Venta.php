@@ -116,6 +116,9 @@ class Venta
     // Mensaje personalizado
     private $mensajePersonalizado;
 
+    // Desglose de pago mixto (JSON)
+    private $desglosePago;
+
     // ======================== GETTERS ========================
 
     /** 
@@ -226,6 +229,11 @@ class Venta
     public function getMensajePersonalizado()
     {
         return $this->mensajePersonalizado;
+    }
+
+    public function getDesglosePago()
+    {
+        return $this->desglosePago;
     }
 
     // ======================== SETTERS ========================
@@ -362,6 +370,11 @@ class Venta
     public function setMensajePersonalizado($v)
     {
         $this->mensajePersonalizado = $v;
+    }
+
+    public function setDesglosePago($v)
+    {
+        $this->desglosePago = $v;
     }
 
     public function getImporteEntregado()
@@ -678,8 +691,8 @@ class Venta
 
             // 4. Insertar en la tabla real correspondiente (tickets o facturas) con el ID obtenido
             $tabla = $this->getTabla();
-            $sql = "INSERT INTO {$tabla} (id, idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni, cliente_nombre, cliente_direccion, cliente_observaciones, mensaje_personalizado, idSesionCaja, puntos_ganados, puntos_canjeados, puntos_balance) 
-                  VALUES (:id, :idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni, :clienteNombre, :clienteDireccion, :clienteObservaciones, :mensajePersonalizado, :idSesionCaja, :puntosGanados, :puntosCanjeados, :puntosBalance)";
+            $sql = "INSERT INTO {$tabla} (id, idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni, cliente_nombre, cliente_direccion, cliente_observaciones, mensaje_personalizado, desglose_pago, idSesionCaja, puntos_ganados, puntos_canjeados, puntos_balance) 
+                  VALUES (:id, :idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni, :clienteNombre, :clienteDireccion, :clienteObservaciones, :mensajePersonalizado, :desglosePago, :idSesionCaja, :puntosGanados, :puntosCanjeados, :puntosBalance)";
 
             $stmt = $conexion->prepare($sql);
 
@@ -710,6 +723,7 @@ class Venta
             $stmt->bindParam(':clienteDireccion', $this->clienteDireccion, PDO::PARAM_STR);
             $stmt->bindParam(':clienteObservaciones', $this->clienteObservaciones, PDO::PARAM_STR);
             $stmt->bindParam(':mensajePersonalizado', $this->mensajePersonalizado, PDO::PARAM_STR);
+            $stmt->bindParam(':desglosePago', $this->desglosePago, PDO::PARAM_STR);
             $stmt->bindParam(':idSesionCaja', $this->idSesionCaja, PDO::PARAM_INT);
             $stmt->bindParam(':puntosGanados', $this->puntosGanados, PDO::PARAM_INT);
             $stmt->bindParam(':puntosCanjeados', $this->puntosCanjeados, PDO::PARAM_INT);
@@ -729,11 +743,12 @@ class Venta
                         $conexion->exec("ALTER TABLE {$t} ADD COLUMN IF NOT EXISTS puntos_canjeados INT DEFAULT 0");
                         $conexion->exec("ALTER TABLE {$t} ADD COLUMN IF NOT EXISTS puntos_balance INT DEFAULT 0");
                         $conexion->exec("ALTER TABLE {$t} ADD COLUMN IF NOT EXISTS mensaje_personalizado TEXT DEFAULT NULL");
+                        $conexion->exec("ALTER TABLE {$t} ADD COLUMN IF NOT EXISTS desglose_pago TEXT DEFAULT NULL");
                     }
 
-                    // Refrescar la vista 'ventas' usando columnas explícitas para evitar desalineación (ej: puntos_canjeados y puntos_balance)
+                    // Refrescar la vista 'ventas' usando columnas explícitas para evitar desalineación
                     $conexion->exec("DROP VIEW IF EXISTS ventas");
-                    $cols = "id,idUsuario,fecha,total,descuentoTipo,descuentoValor,descuentoCupon,descuentoTarifaTipo,descuentoTarifaValor,descuentoTarifaCupon,descuentoManualTipo,descuentoManualValor,descuentoManualCupon,metodoPago,estado,tipoDocumento,importeEntregado,cambioDevuelto,cerrada,idSesionCaja,idTarifa,cliente_dni,cliente_nombre,cliente_direccion,cliente_observaciones,mensaje_personalizado,puntos_ganados,puntos_canjeados,puntos_balance";
+                    $cols = "id,idUsuario,fecha,total,descuentoTipo,descuentoValor,descuentoCupon,descuentoTarifaTipo,descuentoTarifaValor,descuentoTarifaCupon,descuentoManualTipo,descuentoManualValor,descuentoManualCupon,metodoPago,estado,tipoDocumento,importeEntregado,cambioDevuelto,cerrada,idSesionCaja,idTarifa,cliente_dni,cliente_nombre,cliente_direccion,cliente_observaciones,mensaje_personalizado,desglose_pago,puntos_ganados,puntos_canjeados,puntos_balance";
                     $conexion->exec("CREATE VIEW ventas AS SELECT $cols FROM tickets UNION ALL SELECT $cols FROM facturas");
 
                     // Re-intentar la inserción
@@ -1043,6 +1058,9 @@ class Venta
         }
         if (isset($fila['mensaje_personalizado'])) {
             $venta->setMensajePersonalizado($fila['mensaje_personalizado']);
+        }
+        if (isset($fila['desglose_pago'])) {
+            $venta->setDesglosePago($fila['desglose_pago']);
         }
         return $venta;
     }

@@ -1,26 +1,51 @@
 /**
- * cajero.js
- * 
- * Script principal para la vista del cajero del sistema TPV.
- * Gestiona la interacción con categorías, la búsqueda de productos
- * y el renderizado dinámico de la cuadrícula de productos mediante AJAX.
+ * Traduce una clave usando el diccionario global LANG (inyectado desde PHP).
+ * Soporta dot-notation (ej: 'cajero.search').
+ * @param {string} key 
+ * @returns {string}
  */
-
-// ======================== TARIFAS (AJAX) ========================
-let tarifasDisponibles = [];
-// Almacena el producto que está esperando a que se identifique un cliente
-let productoPendienteTarifa = null;
-// Almacena la tarifa anterior para poder revertir si el cliente no se encuentra
-let tarifaAnteriorCard = new Map();
+function t(key) {
+    if (typeof window.__LANG__ === 'undefined') return key;
+    const keys = key.split('.');
+    let value = window.__LANG__;
+    for (const k of keys) {
+        if (value === undefined || value === null || value[k] === undefined) {
+            return key;
+        }
+        value = value[k];
+    }
+    return typeof value === 'string' ? value : key;
+}
 
 /**
- * Redondeo financiero a 2 decimales exactos.
+ * Redondeo financiero a N decimales.
+ * @param {number} num 
+ * @param {number} decimals 
+ * @returns {number}
+ */
+function roundTo(num, decimals = 2) {
+    if (isNaN(num) || num === null) return 0;
+    const factor = Math.pow(10, decimals);
+    return Math.round((num + Number.EPSILON) * factor) / factor;
+}
+
+/**
+ * Redondeo financiero a 2 decimales exactos (Legacy/Frecuente).
  * @param {number} num 
  * @returns {number}
  */
 function round2(num) {
-    if (isNaN(num) || num === null) return 0;
-    return Math.round((num + Number.EPSILON) * 100) / 100;
+    return roundTo(num, 2);
+}
+
+/**
+ * Determina el número máximo de decimales presentes en el carrito actual.
+ * @returns {number} Mínimo 2, máximo 4.
+ */
+function obtenerDecimalesMaximosCarrito() {
+    if (typeof carrito === 'undefined' || carrito.length === 0) return 2;
+    const max = Math.max(...carrito.map(item => item.decimales || 2));
+    return Math.max(2, Math.min(4, max));
 }
 
 /**
@@ -83,7 +108,7 @@ function seleccionarCategoria(boton, idCategoria) {
             // En caso de error, mostrar un mensaje en consola y en la cuadrícula.
             console.error('Error cargando productos:', err);
             document.getElementById('productosGrid').innerHTML =
-                '<p class="sin-productos">Error al cargar los productos.</p>';
+                '<p class="sin-productos">' + t('common.error_loading') + '</p>';
         });
 }
 
@@ -147,7 +172,7 @@ function renderProductos(productos) {
 
     // Si no hay productos o el array está vacío, mostrar un mensaje informativo.
     if (!productos || productos.length === 0) {
-        grid.innerHTML = '<p class="sin-productos">No hay productos disponibles.</p>';
+        grid.innerHTML = '<p class="sin-productos">' + t('cajero.no_products') + '</p>';
         return;
     }
 
@@ -171,8 +196,9 @@ function renderProductos(productos) {
             precioBaseEfectivo = preciosManuales[tarifaClienteId].precio;
         }
 
+        const decimales = parseInt(prod.decimales) !== undefined ? parseInt(prod.decimales) : 2;
         const precioPVP = precioBaseEfectivo * (1 + (ivaProd / 100));
-        let precioFmt = round2(precioPVP).toFixed(2).replace('.', ',');
+        let precioFmt = roundTo(precioPVP, decimales).toFixed(decimales).replace('.', ',');
 
         // Usar la imagen del producto si existe; de lo contrario, usar el logo por defecto.
         let imgSrc = prod.imagen && prod.imagen !== '' ? prod.imagen : 'webroot/img/logo.PNG';
@@ -197,8 +223,9 @@ function renderProductos(productos) {
                     data-nombre="${prod.nombre.replace(/"/g, '&quot;')}"
                     data-precio="${precioBaseEfectivo}" 
                     data-precio-original="${precioBaseOriginal}"
-                    data-pvp="${round2(precioPVP).toFixed(2)}"
+                    data-pvp="${roundTo(precioPVP, decimales).toFixed(decimales)}"
                     data-iva="${ivaProd}"
+                    data-decimales="${decimales}"
                     data-precios-tarifas='${JSON.stringify(preciosManuales)}'
                     data-stock="${prod.stock || 0}"
                     onclick="agregarAlCarrito(this)" style="${prod.stock <= 0 ? 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);' : ''}">
@@ -219,13 +246,13 @@ function renderProductos(productos) {
         <div class="producto-card producto-comodin" onclick="abrirModalProductoComodin()"
              style="cursor: pointer; border: 2px dashed #6366f1; background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);">
             <div class="producto-nombre" style="color: #6366f1; font-weight: 700;">
-                <i class="fas fa-plus-circle"></i> Producto Comodín
+                <i class="fas fa-plus-circle"></i> ${t('products.comodin_title')}
             </div>
             <div class="producto-imagen" style="display: flex; align-items: center; justify-content: center; height: 120px;">
                 <i class="fas fa-tag" style="font-size: 3rem; color: #6366f1;"></i>
             </div>
             <div class="producto-info-inferior" style="text-align: center;">
-                <span class="producto-precio" style="color: #6366f1;">Crear producto</span>
+                <span class="producto-precio" style="color: #6366f1;">${t('products.comodin_subtitle')}</span>
             </div>
         </div>`;
     grid.innerHTML = comodinCard + html;
@@ -249,14 +276,16 @@ function actualizarPrecioDesdeInput(input) {
     // Calcular el precio base sin IVA
     const precioBase = nuevoPVP / (1 + (ivaProd / 100));
 
+    const decimales = parseInt(card.dataset.decimales) || 2;
+
     // Actualizar los datos de la tarjeta
-    card.dataset.pvp = nuevoPVP.toFixed(2);
-    card.dataset.precio = precioBase.toFixed(2);
+    card.dataset.pvp = nuevoPVP.toFixed(decimales);
+    card.dataset.precio = precioBase.toFixed(decimales);
 
     // Actualizar el precio mostrado en la tarjeta
     const precioSpan = card.querySelector('.producto-precio');
     if (precioSpan) {
-        precioSpan.textContent = nuevoPVP.toFixed(2).replace('.', ',') + ' €';
+        precioSpan.textContent = nuevoPVP.toFixed(decimales).replace('.', ',') + ' €';
     }
 }
 
@@ -365,18 +394,28 @@ function actualizarPrecioCard(selectElement, precioBase, iva, triggerAutoAdd = t
     }
 
     // Calcular precio final con IVA para mostrar (PVP unitario)
-    // REDONDEAMOS EL PVP UNITARIO A 2 DECIMALES PARA EVITAR DESCUADRES (PVP x Cantidad)
-    const precioFinalConIva = round2(nuevoPrecioBase * (1 + (iva / 100)));
+    // REDONDEAMOS EL PVP UNITARIO A SUS DECIMALES PARA EVITAR DESCUADRES
+    const decimales = parseInt(card.dataset.decimales) || 2;
+    const precioFinalConIva = roundTo(nuevoPrecioBase * (1 + (iva / 100)), decimales);
+
+    // Formateador dinámico (min 2, max 4, anclado a base)
+    const getPrecDinamico = (v, d) => {
+        const s = v.toString();
+        const decPart = s.split('.')[1] || '';
+        return Math.min(4, Math.max(2, d || 2, decPart.length));
+    };
+
+    const decimalesShow = getPrecDinamico(precioBaseOriginal, decimales);
 
     // Actualizar texto en la tarjeta
-    precioSpan.textContent = precioFinalConIva.toFixed(2).replace('.', ',') + ' €';
+    precioSpan.textContent = precioFinalConIva.toFixed(decimalesShow).replace('.', ',') + ' €';
 
     // El nuevo precio base efectivo para el carrito lo recalculamos desde el PVP redondeado
     const nuevoPrecioBaseAjustado = precioFinalConIva / (1 + (iva / 100));
 
     // Actualizar el data-precio y data-pvp de la card
-    card.dataset.precio = nuevoPrecioBaseAjustado;
-    card.dataset.pvp = precioFinalConIva.toFixed(2);
+    card.dataset.precio = nuevoPrecioBaseAjustado.toFixed(decimalesShow);
+    card.dataset.pvp = precioFinalConIva.toFixed(decimalesShow);
 
     // Lógica de cliente registrado
     if (requiereCliente && triggerAutoAdd) {
@@ -733,12 +772,19 @@ function renderizarTablaCambiarPrecios() {
         const ivaProd = parseFloat(prod.iva) || 21;
         const precioBase = parseFloat(prod.precio) || 0;
 
+        const getPrec = (v, d) => {
+            const s = v.toString();
+            const decPart = s.split('.')[1] || '';
+            return Math.min(4, Math.max(2, d || 2, decPart.length));
+        };
+        const prec = getPrec(precioBase, prod.decimales);
+
         html += `<tr style="border-bottom:1px solid var(--border-main);">`;
         html += `<td style="padding:8px 6px;font-weight:500;color:var(--text-main);white-space:nowrap;">${prod.nombre}</td>`;
 
         let precioBaseAMostrar = precioBase;
         if (cambiarPreciosMostrarConIva) precioBaseAMostrar = precioBase * (1 + ivaProd / 100);
-        html += `<td style="padding:8px 6px;font-weight:600;text-align:right;">${precioBaseAMostrar.toFixed(2)} €</td>`;
+        html += `<td style="padding:8px 6px;font-weight:600;text-align:right;">${precioBaseAMostrar.toFixed(prec).replace('.', ',')} €</td>`;
 
         cambiarPreciosTarifas.forEach(tarifa => {
             const dataTarifa = prod.preciosTarifas && prod.preciosTarifas[tarifa.id];
@@ -776,7 +822,7 @@ function renderizarTablaCambiarPrecios() {
 
             html += `<td style="padding:8px 6px;">
                 <div style="display:flex;align-items:center;gap:4px;">
-                    <input type="number" step="0.01" value="${precioAMostrar.toFixed(2)}"
+                    <input type="number" step="0.0001" value="${precioAMostrar.toFixed(prec)}"
                         data-precio-original="${precioFinal.toFixed(4)}"
                         onchange="estacionarCambioPrecioCajero(${prod.id},${tarifa.id},this,${ivaProd})"
                         style="width:70px;padding:4px 6px;border-radius:4px;font-weight:600;text-align:right;${manualStyle}${disabledStyle}"
@@ -998,4 +1044,219 @@ function aplicarCambiosPreciosCajero() {
         alert('Error grave de conexión al aplicar los cambios.');
         actualizarBotonAplicarCambios();
     });
+}
+
+// ==============================================
+// FUNCIONES FALTANTES - CORRECCIÓN ERRORES
+// ==============================================
+
+/**
+ * Abre el modal de Retiro de Dinero
+ */
+function mostrarModalRetiro() {
+    const modal = document.getElementById('modalRetiro');
+    if (modal) {
+        modal.style.display = 'flex';
+        const importeInput = document.getElementById('importeRetiro');
+        if (importeInput) importeInput.focus();
+    }
+}
+
+/**
+ * Abre el modal de Devoluciones
+ */
+function mostrarModalDevolucion() {
+    const modal = document.getElementById('modalDevolucion');
+    if (modal) {
+        modal.style.display = 'flex';
+        const input = document.getElementById('inputTicketIdDev');
+        if (input) input.focus();
+    }
+}
+
+/**
+ * Abre el modal para AÑADIR un NUEVO cliente habitual
+ */
+function abrirModalClienteHabitual() {
+    const modal = document.getElementById('modalClienteHabitual');
+    if (modal) {
+        modal.style.display = 'flex';
+        // Limpiar todos los campos
+        const inputs = modal.querySelectorAll('input');
+        inputs.forEach(input => input.value = '');
+        // Enfocar el primer campo
+        const primerInput = modal.querySelector('input');
+        if (primerInput) primerInput.focus();
+    }
+}
+
+/**
+ * Busca un ticket mediante su ID para iniciar el proceso de devolución.
+ */
+function buscarTicketParaDevolucion() {
+    const input = document.getElementById('inputTicketIdDev');
+    if (!input) return;
+
+    const ticketId = input.value.trim();
+    const errorEl = document.getElementById('errorTicketDev');
+
+    if (!ticketId) {
+        if (errorEl) {
+            errorEl.textContent = 'Introduce el número de ticket';
+            errorEl.style.display = 'block';
+        }
+        return;
+    }
+
+    if (errorEl) errorEl.style.display = 'none';
+
+    // Parse formato número de ticket (ej: "T00001" -> serie="T", numero=1)
+    let serie = '';
+    let numero = ticketId;
+
+    const match = ticketId.match(/^([TF]?)0*(\d+)$/i);
+    if (match) {
+        serie = match[1].toUpperCase();
+        numero = match[2];
+    }
+
+    // Construir URL con serie y numero
+    let url = `api/ventas.php?checkVentaDevolucion=${numero}`;
+    if (serie) {
+        url += `&serie=${serie}`;
+    }
+
+    // Consultar API para verificar el ticket y obtener productos
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                if (errorEl) {
+                    errorEl.textContent = 'Error: ' + data.error;
+                    errorEl.style.display = 'block';
+                }
+                return;
+            }
+
+            // Ticket encontrado correctamente, mostrar paso 2
+
+            // Ocultar paso 1 y mostrar paso 2
+            const paso1 = document.getElementById('devolucionPaso1');
+            const paso2 = document.getElementById('devolucionPaso2');
+
+            if (paso1) paso1.style.display = 'none';
+            if (paso2) paso2.style.display = 'block';
+
+            // Cargar los productos del ticket en el paso 2
+            console.log('Datos del ticket cargados:', data);
+
+            // ✅ CORRECCION: La API devuelve anidado: { venta: {}, lineas: [] }
+            // Renderizar los productos de la venta
+            renderizarProductosDevolucion(data);
+
+            // Actualizar totales (con comprobación de existencia para evitar errores)
+            const elTotalOriginal = document.getElementById('devTotalOriginal');
+            const elTotalDevolver = document.getElementById('devTotalDevolver');
+
+            if (elTotalOriginal && data.venta) elTotalOriginal.textContent = (data.venta.total || 0).toFixed(2).replace('.', ',') + ' €';
+            if (elTotalDevolver) elTotalDevolver.textContent = '0,00 €';
+        })
+        .catch(err => {
+            console.error(err);
+            if (errorEl) {
+                errorEl.textContent = 'Error de conexión';
+                errorEl.style.display = 'block';
+            }
+        });
+}
+
+/**
+ * Cierra el modal y resetea su estado.
+ */
+function cerrarModalDevolucion() {
+    cerrarModal('modalDevolucion');
+    // Resetear estado del modal
+    const paso1 = document.getElementById('devolucionPaso1');
+    const paso2 = document.getElementById('devolucionPaso2');
+    const input = document.getElementById('inputTicketIdDev');
+    const errorEl = document.getElementById('errorTicketDev');
+
+    if (paso1) paso1.style.display = 'block';
+    if (paso2) paso2.style.display = 'none';
+    if (input) input.value = '';
+    if (errorEl) errorEl.style.display = 'none';
+}
+
+/**
+ * Limita el input a un máximo de 4 decimales en tiempo real.
+ * @param {HTMLInputElement} input
+ */
+function validar4Decimales(input) {
+    if (input.value.includes('.')) {
+        const parts = input.value.split('.');
+        if (parts[1].length > 4) {
+            input.value = parts[0] + '.' + parts[1].slice(0, 4);
+        }
+    }
+}
+
+/**
+ * Renderiza la lista de productos disponibles para devolver
+ * @param {Object} venta - Objeto de venta con lineas de productos
+ */
+function renderizarProductosDevolucion(data) {
+    const container = document.getElementById('listaProductosDevolucion');
+    if (!container) return;
+
+    // ✅ CORRECCION: API devuelve { venta: {}, lineas: [] }
+    const lineas = data.lineas || [];
+
+    if (lineas.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color: var(--text-muted); padding: 30px;">No hay productos disponibles para devolver</p>';
+        return;
+    }
+
+    let html = '';
+
+    lineas.forEach((linea, index) => {
+        const cantMax = linea.cantidad - (linea.devuelta || 0);
+
+        if (cantMax <= 0) return;
+
+        html += `
+        <div class="dev-producto-item" style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-input); border-radius: 8px; margin-bottom: 8px;">
+            <div style="flex-grow: 1; text-align: left;">
+                <div style="font-weight: 600; font-size: 0.95rem;">${linea.nombre}</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted);">Precio: ${parseFloat(linea.precio).toFixed(2).replace('.', ',')} € | Disponibles: ${cantMax}</div>
+            </div>
+            <input type="number" 
+                   min="0" 
+                   max="${cantMax}" 
+                   value="0" 
+                   onchange="calcularTotalDevolucion()"
+                   class="dev-cantidad-input"
+                   style="width: 70px; padding: 6px 8px; border: 2px solid var(--border-main); border-radius: 6px; text-align: center; font-weight: 600;"
+                   data-precio="${linea.precio}"
+                   data-indice="${index}">
+        </div>`;
+    });
+
+    container.innerHTML = html;
+}
+
+/**
+ * Calcula el total de devolución automaticamente al cambiar cantidades
+ */
+function calcularTotalDevolucion() {
+    let total = 0;
+    const inputs = document.querySelectorAll('.dev-cantidad-input');
+
+    inputs.forEach(input => {
+        const cant = parseInt(input.value) || 0;
+        const precio = parseFloat(input.dataset.precio) || 0;
+        total += cant * precio;
+    });
+
+    const elTotalDevolver = document.getElementById('devTotalDevolver');
+    if (elTotalDevolver) elTotalDevolver.textContent = total.toFixed(2).replace('.', ',') + ' €';
 }

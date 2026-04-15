@@ -68,6 +68,22 @@ class Categoria
         return $this->fecha_creacion;
     }
 
+    /** 
+     * Obtiene el slug normalizado del nombre para traducciones
+     * Elimina acentos y caracteres especiales correctamente
+     * @return string 
+     */
+    public function getSlug()
+    {
+        $nombre = $this->nombre;
+
+        // Normalizar y eliminar diacríticos (acentos, tildes)
+        $nombre = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $nombre);
+
+        // Convertir espacios a guiones bajos, limpiar y minúsculas
+        return strtolower(trim(preg_replace('/[^A-Za-z0-9_]+/', '', str_replace(' ', '_', $nombre))));
+    }
+
     // ======================== SETTERS ========================
 
     /** 

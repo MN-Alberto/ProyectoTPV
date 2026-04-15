@@ -27,34 +27,112 @@ function mostrarSeccionInformes(periodo = 'diario') {
             <i class="fas fa-chart-bar" style="font-size:4rem;color:#cbd5e1;margin-bottom:20px"></i>
             <h3 style="color:#64748b;margin-bottom:10px">${titulos[periodo]}</h3>
             <p style="color:#94a3b8;margin-bottom:30px">Haz click en el botón para generar el informe</p>
-            <button class="btn-tpv" onclick="cargarInforme('${periodo}')" style="padding:15px 30px;font-size:1.1rem">
-                <i class="fas fa-play"></i> Generar Informe
-            </button>
+            <div style="display:flex;gap:15px;justify-content:center">
+                <button class="btn-tpv" onclick="cargarInforme('${periodo}')" style="padding:15px 30px;font-size:1.1rem">
+                    <i class="fas fa-play"></i> Generar Ahora
+                </button>
+                <button class="btn-tpv" onclick="cargarInforme('${periodo}', true)" style="padding:15px 30px;font-size:1.1rem;background:var(--bg-secondary);color:var(--text-main);border:1px solid var(--border-main)">
+                    <i class="fas fa-clock"></i> En Segundo Plano
+                </button>
+            </div>
         </div>
     `;
 }
 
-function cargarInforme(periodo) {
+function cargarInforme(periodo, background = false) {
     const contenedor = document.getElementById('adminContenido');
-    contenedor.innerHTML = `<div class="reports-loading"><i class="fas fa-spinner fa-spin"></i> Generando informes...</div>`;
+    
+    // Si ya terminó el background, no ponemos el spinner de "Generando" sino uno de "Obteniendo datos"
+    if (document.getElementById(`task-status-container`)) {
+         contenedor.innerHTML = `<div class="reports-loading"><i class="fas fa-database fa-spin"></i> Obteniendo informes finalizados...</div>`;
+    } else {
+         contenedor.innerHTML = `<div class="reports-loading"><i class="fas fa-spinner fa-spin"></i> ${background ? 'Iniciando tarea en segundo plano...' : 'Generando informes...'}</div>`;
+    }
 
-    fetch('api/informes.php?periodo=' + periodo)
+    const url = `api/informes.php?periodo=${periodo}${background ? '&background=1' : ''}`;
+
+    fetch(url)
         .then(res => res.json())
         .then(data => {
             if (data.error) {
                 contenedor.innerHTML = `<div class="error-container" style="padding:20px;color:#dc2626;text-align:center">
                     <i class="fas fa-exclamation-triangle fa-2x"></i>
-                    <p style="margin-top:10px">Error al generar el informe: ${data.error}</p>
+                    <p style="margin-top:10px">Error: ${data.error}</p>
                     <button class="btn-tpv" onclick="mostrarSeccionInformes('${periodo}')" style="margin-top:10px">Reintentar</button>
                 </div>`;
                 return;
             }
-            renderizarInformes(data, periodo);
+
+            if (background && data.taskId) {
+                monitorizarTarea(data.taskId, periodo);
+            } else {
+                renderizarInformes(data, periodo);
+            }
         })
         .catch(err => {
             console.error('Error cargando informes:', err);
             contenedor.innerHTML = '<p class="sin-productos">Error al generar informes: ' + (err.message || 'Error desconocido') + '</p>';
         });
+}
+
+/**
+ * Polling para tareas en segundo plano.
+ */
+function monitorizarTarea(taskId, periodo) {
+    const contenedor = document.getElementById('adminContenido');
+    contenedor.innerHTML = `
+        <div class="reports-loading" id="task-status-container">
+            <div id="task-status-${taskId}">
+                <i class="fas fa-cog fa-spin" style="font-size:3rem;margin-bottom:20px;color:var(--accent-main)"></i>
+                <h3>Generando Informe #${taskId}</h3>
+                <p id="task-msg">Procesando datos en el servidor...</p>
+                <div style="margin-top:20px;color:#94a3b8;font-size:0.9rem">Puedes salir de esta página, el proceso continuará.</div>
+                <button class="btn-tpv" onclick="mostrarSeccionInformes('${periodo}')" style="margin-top:30px;background:none;border:1px solid var(--border-main);color:var(--text-main)">
+                    Volver más tarde
+                </button>
+            </div>
+        </div>
+    `;
+
+    const interval = setInterval(() => {
+        fetch(`api/informes.php?check_task=${taskId}`)
+            .then(res => res.json())
+            .then(task => {
+                const statusDiv = document.getElementById(`task-status-${taskId}`);
+                const taskMsg = document.getElementById('task-msg');
+                const taskIcon = statusDiv ? statusDiv.querySelector('i') : null;
+                const taskTitle = statusDiv ? statusDiv.querySelector('h3') : null;
+
+                if (task.estado === 'completado') {
+                    clearInterval(interval);
+                    if (taskTitle) taskTitle.textContent = '¡Informe Completado!';
+                    if (taskIcon) {
+                        taskIcon.className = 'fas fa-check-circle';
+                        taskIcon.style.color = '#059669';
+                        taskIcon.classList.remove('fa-spin');
+                    }
+                    if (taskMsg) taskMsg.textContent = 'El proceso ha finalizado con éxito.';
+                    
+                    Swal.fire({
+                        title: 'Informe Listo',
+                        text: 'El informe en segundo plano ha finalizado.',
+                        icon: 'success',
+                        confirmButtonText: 'Ver ahora'
+                    }).then(() => {
+                        cargarInforme(periodo);
+                    });
+                } else if (task.estado === 'error') {
+                    clearInterval(interval);
+                    if (taskTitle) taskTitle.textContent = 'Error en la Tarea';
+                    if (taskIcon) {
+                        taskIcon.className = 'fas fa-times-circle';
+                        taskIcon.style.color = '#dc2626';
+                        taskIcon.classList.remove('fa-spin');
+                    }
+                    if (taskMsg) taskMsg.innerHTML = `<span style="color:#dc2626">Error: ${task.mensaje_error}</span>`;
+                }
+            });
+    }, 3000);
 }
 
 /**
@@ -504,3 +582,60 @@ function cargarGraficoDashboard() {
         })
         .catch(err => console.error('Error cargando gráficas:', err));
 }
+
+/**
+ * Lógica del Centro de Tareas Global
+ */
+function abrirCentroTareas() {
+    abrirModal('modalCentroTareas');
+    actualizarListaTareas();
+}
+
+function actualizarListaTareas() {
+    const lista = document.getElementById('listaTareasAdmin');
+    
+    fetch('api/informes.php?get_tasks=1')
+        .then(res => res.json())
+        .then(tareas => {
+            if (!tareas || tareas.length === 0) {
+                lista.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b">No hay tareas recientes.</div>';
+                return;
+            }
+
+            lista.innerHTML = tareas.map(t => {
+                const labels = {
+                    'pendiente': 'Espera...',
+                    'procesando': 'Generando...',
+                    'completado': 'Listo',
+                    'error': 'Fallido'
+                };
+                return `
+                    <div class="task-item">
+                        <div class="task-info">
+                            <span class="task-name">${t.tipo === 'informe' ? 'Generación de Informe' : t.tipo}</span>
+                            <span class="task-meta">ID: ${t.id} • ${new Date(t.creado_en).toLocaleString()}</span>
+                        </div>
+                        <div class="task-status status-${t.estado}">${labels[t.estado] || t.estado}</div>
+                    </div>
+                `;
+            }).join('');
+
+            // Actualizar indicador del header
+            const activas = tareas.filter(t => t.estado === 'procesando' || t.estado === 'pendiente').length;
+            const indicador = document.getElementById('adminTaskIndicator');
+            const countText = document.getElementById('taskCountText');
+
+            if (activas > 0) {
+                indicador.style.display = 'flex';
+                countText.textContent = `${activas} ${activas === 1 ? 'tarea activa' : 'tareas activas'}`;
+            } else {
+                indicador.style.display = 'none';
+            }
+        })
+        .catch(err => console.error('Error actualizando tareas:', err));
+}
+
+// Iniciar polling global cada 10 segundos para el indicador de tareas
+setInterval(actualizarListaTareas, 10000);
+// Y una vez al cargar
+document.addEventListener('DOMContentLoaded', () => { setTimeout(actualizarListaTareas, 2000); });

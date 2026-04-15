@@ -17,6 +17,9 @@ date_default_timezone_set('Europe/Madrid');
 // 3. INICIAR SESIÓN (Después de cargar los modelos)
 session_start();
 
+// 3.5 SISTEMA DE INTERNACIONALIZACIÓN (i18n)
+require_once("./lang/lang.php");
+
 // 4. LÓGICA DE NAVEGACIÓN
 if (isset($_GET['ctl']) && isset($controller[$_GET['ctl']])) {
     $_SESSION['paginaEnCurso'] = $_GET['ctl'];

@@ -7,8 +7,8 @@
                 <circle cx="12" cy="7" r="4"></circle>
             </svg>
         </div>
-        <h2>Iniciar Sesión</h2>
-        <p class="login-subtitle">TPV Bazar — Productos Informáticos</p>
+        <h2><?php echo t('login.title'); ?></h2>
+        <p class="login-subtitle"><?php echo t('app.subtitle'); ?></p>
 
         <!-- Si hay algún error, se muestra en un div con la clase login-error -->
         <?php if (!empty($error)): ?>
@@ -26,18 +26,18 @@ endif; ?>
 
         <form method="POST" action="index.php" autocomplete="off">
             <div class="form-group">
-                <label for="usuario">Usuario</label>
-                <input type="text" id="usuario" name="usuario" placeholder="Introduce tu usuario" required autofocus>
+                <label for="usuario"><?php echo t('login.user'); ?></label>
+                <input type="text" id="usuario" name="usuario" placeholder="<?php echo t('login.user_placeholder'); ?>" required autofocus>
             </div>
             <div class="form-group">
-                <label for="password">Contraseña</label>
-                <input type="password" id="password" name="password" placeholder="Introduce tu contraseña" required>
+                <label for="password"><?php echo t('login.password'); ?></label>
+                <input type="password" id="password" name="password" placeholder="<?php echo t('login.password_placeholder'); ?>" required>
             </div>
-            <button type="submit" class="btn-login">Acceder</button>
+            <button type="submit" class="btn-login"><?php echo t('login.submit'); ?></button>
         </form>
         
         <div class="forgot-password-link">
-            <a href="#" id="link-recuperar-password">¿Olvidaste tu contraseña?</a>
+            <a href="#" id="link-recuperar-password"><?php echo t('login.forgot_password'); ?></a>
         </div>
     </div>
     
@@ -45,41 +45,41 @@ endif; ?>
     <div id="modal-recuperar-password" class="modal" style="display: none;">
         <div class="modal-content">
             <span class="modal-close" id="cerrar-modal-recuperar">&times;</span>
-            <h3>Recuperar Contraseña</h3>
+            <h3><?php echo t('login.recover_title'); ?></h3>
             
             <!-- Paso 1: Introducir nombre de usuario -->
             <div id="paso-usuario">
-                <p class="modal-subtitle">Introduce tu nombre de usuario y te enviaremos un código de verificación.</p>
+                <p class="modal-subtitle"><?php echo t('login.recover_step1'); ?></p>
                 <div class="form-group">
-                    <label for="recup-usuario">Usuario</label>
-                    <input type="text" id="recup-usuario" placeholder="Introduce tu usuario" required>
+                    <label for="recup-usuario"><?php echo t('login.user'); ?></label>
+                    <input type="text" id="recup-usuario" placeholder="<?php echo t('login.user_placeholder'); ?>" required>
                 </div>
-                <button type="button" class="btn-login" id="btn-enviar-codigo">Enviar Código</button>
+                <button type="button" class="btn-login" id="btn-enviar-codigo"><?php echo t('login.recover_send_code'); ?></button>
             </div>
             
             <!-- Paso 2: Introducir código -->
             <div id="paso-codigo" style="display: none;">
-                <p class="modal-subtitle">Introduce el código de 6 dígitos que hemos enviado a tu correo.</p>
+                <p class="modal-subtitle"><?php echo t('login.recover_step2'); ?></p>
                 <div class="form-group">
-                    <label for="recup-codigo">Código</label>
+                    <label for="recup-codigo"><?php echo t('login.recover_code'); ?></label>
                     <input type="text" id="recup-codigo" placeholder="123456" maxlength="6" required>
                 </div>
-                <button type="button" class="btn-login" id="btn-verificar-codigo">Verificar Código</button>
-                <button type="button" class="btn-secondary" id="btn-volver-usuario">Volver</button>
+                <button type="button" class="btn-login" id="btn-verificar-codigo"><?php echo t('login.recover_verify'); ?></button>
+                <button type="button" class="btn-secondary" id="btn-volver-usuario"><?php echo t('login.recover_back'); ?></button>
             </div>
             
             <!-- Paso 3: Nueva contraseña -->
             <div id=" paso-nueva-password" style="display: none;">
-                <p class="modal-subtitle">Código verificado. Ahora introduce tu nueva contraseña.</p>
+                <p class="modal-subtitle"><?php echo t('login.recover_step3'); ?></p>
                 <div class="form-group">
-                    <label for="recup-nueva-password">Nueva Contraseña</label>
-                    <input type="password" id="recup-nueva-password" placeholder="Mínimo 6 caracteres" required>
+                    <label for="recup-nueva-password"><?php echo t('login.recover_new_password'); ?></label>
+                    <input type="password" id="recup-nueva-password" placeholder="<?php echo t('login.recover_min_chars'); ?>" required>
                 </div>
                 <div class="form-group">
-                    <label for="recup-confirmar-password">Confirmar Contraseña</label>
-                    <input type="password" id="recup-confirmar-password" placeholder="Repite la contraseña" required>
+                    <label for="recup-confirmar-password"><?php echo t('login.recover_confirm_password'); ?></label>
+                    <input type="password" id="recup-confirmar-password" placeholder="<?php echo t('login.recover_repeat'); ?>" required>
                 </div>
-                <button type="button" class="btn-login" id="btn-cambiar-password">Cambiar Contraseña</button>
+                <button type="button" class="btn-login" id="btn-cambiar-password"><?php echo t('login.recover_change'); ?></button>
             </div>
             
             <div id="recuperar-mensaje" class="login-error" style="display: none;"></div>
@@ -164,12 +164,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const nombre = inputUsuario.value.trim();
         
         if (!nombre) {
-            mostrarMensaje('Introduce tu nombre de usuario.', 'error');
+            mostrarMensaje(_t('login.error_enter_user'), 'error');
             return;
         }
         
         btnEnviarCodigo.disabled = true;
-        btnEnviarCodigo.textContent = 'Enviando...';
+        btnEnviarCodigo.textContent = _t('login.recover_sending');
         
         let response;
         try {
@@ -196,14 +196,14 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error:', err);
             if (response) {
                 console.log('Response status:', response.status);
-                mostrarMensaje('Error de conexión. Estado: ' + response.status, 'error');
+                mostrarMensaje(_t('login.error_connection_status') + ' ' + response.status, 'error');
             } else {
-                mostrarMensaje('Error de conexión. Inténtalo de nuevo.', 'error');
+                mostrarMensaje(_t('login.error_connection'), 'error');
             }
         }
         
         btnEnviarCodigo.disabled = false;
-        btnEnviarCodigo.textContent = 'Enviar Código';
+        btnEnviarCodigo.textContent = _t('login.recover_send_code');
     });
     
     // Permitir enviar con Enter en usuario
@@ -226,17 +226,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const codigo = inputCodigo.value.trim();
         
         if (!codigo) {
-            mostrarMensaje('Introduce el código de verificación.', 'error');
+            mostrarMensaje(_t('login.error_enter_code'), 'error');
             return;
         }
         
         if (codigo.length !== 6) {
-            mostrarMensaje('El código debe tener 6 dígitos.', 'error');
+            mostrarMensaje(_t('login.error_code_6digits'), 'error');
             return;
         }
         
         btnVerificarCodigo.disabled = true;
-        btnVerificarCodigo.textContent = 'Verificando...';
+        btnVerificarCodigo.textContent = _t('login.recover_verifying');
         
         try {
             const formData = new FormData();
@@ -258,11 +258,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 mostrarMensaje(data.error, 'error');
             }
         } catch (err) {
-            mostrarMensaje('Error de conexión. Inténtalo de nuevo.', 'error');
+            mostrarMensaje(_t('login.error_connection'), 'error');
         }
         
         btnVerificarCodigo.disabled = false;
-        btnVerificarCodigo.textContent = 'Verificar Código';
+        btnVerificarCodigo.textContent = _t('login.recover_verify');
     });
     
     // Permitir enviar con Enter en código
@@ -279,17 +279,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const confirmPassword = inputConfirmarPassword.value;
         
         if (!password || !confirmPassword) {
-            mostrarMensaje('Completa ambos campos de contraseña.', 'error');
+            mostrarMensaje(_t('login.error_fill_both'), 'error');
             return;
         }
         
         if (password.length < 6) {
-            mostrarMensaje('La contraseña debe tener al menos 6 caracteres.', 'error');
+            mostrarMensaje(_t('login.error_min_password'), 'error');
             return;
         }
         
         if (password !== confirmPassword) {
-            mostrarMensaje('Las contraseñas no coinciden.', 'error');
+            mostrarMensaje(_t('login.error_no_match'), 'error');
             // Limpiar campos de contraseña
             inputNuevaPassword.value = '';
             inputConfirmarPassword.value = '';
@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         btnCambiarPassword.disabled = true;
-        btnCambiarPassword.textContent = 'Cambiando...';
+        btnCambiarPassword.textContent = _t('login.recover_changing');
         
         try {
             const formData = new FormData();
@@ -325,11 +325,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 inputConfirmarPassword.value = '';
             }
         } catch (err) {
-            mostrarMensaje('Error de conexión. Inténtalo de nuevo.', 'error');
+            mostrarMensaje(_t('login.error_connection'), 'error');
         }
         
         btnCambiarPassword.disabled = false;
-        btnCambiarPassword.textContent = 'Cambiar Contraseña';
+        btnCambiarPassword.textContent = _t('login.recover_change');
     });
     
     // Permitir enviar con Enter en password

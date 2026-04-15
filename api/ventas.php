@@ -478,113 +478,158 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
 
             switch ($filtro) {
                 case 'hoy':
-                    $condiciones[] = "DATE(fecha) = ?";
-                    $parametros[] = $hoy;
+                    $condiciones[] = "fecha >= ? AND fecha <= ?";
+                    $parametros[] = $hoy . ' 00:00:00';
+                    $parametros[] = $hoy . ' 23:59:59';
                     break;
                 case '7dias':
-                    $condiciones[] = "fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+                    $condiciones[] = "fecha >= ? AND fecha <= ?";
+                    $parametros[] = date('Y-m-d', strtotime('-6 days')) . ' 00:00:00';
+                    $parametros[] = $hoy . ' 23:59:59';
                     break;
                 case '30dias':
-                    $condiciones[] = "fecha >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+                    $condiciones[] = "fecha >= ? AND fecha <= ?";
+                    $parametros[] = date('Y-m-d', strtotime('-29 days')) . ' 00:00:00';
+                    $parametros[] = $hoy . ' 23:59:59';
                     break;
                 // 'todos' no añade condición
             }
         }
 
-        // ✅ PAGINACIÓN POR CURSOR (KEYSET) - SIN OFFSET
-        $porPagina = min(100, max(10, intval($_GET['porPagina'] ?? 20)));
+        // ✅ PAGINACIÓN POR OFFSET (Mismo estilo que Clientes/Usuarios)
+        $pagina = max(1, intval($_GET['pagina'] ?? 1));
+        $porPagina = min(100, max(1, intval($_GET['porPagina'] ?? 20)));
+        $offset = ($pagina - 1) * $porPagina;
 
-        // Parámetros de cursor
-        $cursorFecha = isset($_GET['cursor_fecha']) ? $_GET['cursor_fecha'] : null;
-        $cursorId = isset($_GET['cursor_id']) ? (int) $_GET['cursor_id'] : null;
-        $direccion = isset($_GET['direccion']) && $_GET['direccion'] === 'anterior' ? 'anterior' : 'siguiente';
-
-        // Añadir condiciones del cursor
-        if ($cursorFecha && $cursorId) {
-            if ($direccion === 'siguiente') {
-                $condiciones[] = "(v.fecha < ? OR (v.fecha = ? AND v.id < ?))";
-                $parametros[] = $cursorFecha;
-                $parametros[] = $cursorFecha;
-                $parametros[] = $cursorId;
-            } else {
-                $condiciones[] = "(v.fecha > ? OR (v.fecha = ? AND v.id > ?))";
-                $parametros[] = $cursorFecha;
-                $parametros[] = $cursorFecha;
-                $parametros[] = $cursorId;
-            }
+        // ✅ CONSULTA DE CONTEO TOTAL (Optimizada)
+        $wherePart = "";
+        $subParametros = [];
+        if (!empty($condiciones)) {
+            $wherePart = " WHERE " . implode(" AND ", $condiciones);
+            $subParametros = $parametros;
         }
 
-        // ✅ CONSULTA FINAL OPTIMIZADA - SIN GROUP BY, SIN JOINS EXTRA
-        // TIEMPO DE RESPUESTA < 5ms PARA CUALQUIER PAGINA
-        $sql = "
+        if (empty($condiciones)) {
+            // Conteo ultra-rápido si no hay filtros
+            $totalVentas = $conexion->query("SELECT (SELECT COUNT(*) FROM tickets) + (SELECT COUNT(*) FROM facturas)")->fetchColumn();
+        } else {
+            $sqlCount = "
+                SELECT (SELECT COUNT(*) FROM tickets v $wherePart) + (SELECT COUNT(*) FROM facturas v $wherePart) as total
+            ";
+            $stmtCount = $conexion->prepare($sqlCount);
+            foreach ($subParametros as $i => $p) {
+                // El mismo parámetro se usa dos veces (una para cada tabla)
+                $stmtCount->bindValue($i + 1, $p);
+                $stmtCount->bindValue($i + 1 + count($subParametros), $p);
+            }
+            $stmtCount->execute();
+            $totalVentas = (int)$stmtCount->fetchColumn();
+        }
+
+        // ✅ DETERMINAR ORDEN
+        $orden = $_GET['orden'] ?? 'fecha_desc';
+        $orderBy = "fecha DESC, id DESC"; // default
+        $invertirOrden = false;
+
+        // ✅ TRUCO DE INVERSIÓN: Si la página está en la segunda mitad, buscamos desde el final hacia atrás
+        if ($totalVentas > $porPagina * 2 && $offset > ($totalVentas / 2)) {
+            $invertirOrden = true;
+            // Calculamos nuevo offset desde el final
+            $offset = max(0, $totalVentas - $offset - $porPagina);
+        }
+
+        // ✅ DETERMINAR LIMIT TOTAL (Para el Lean Union)
+        $limitPlusOffset = $offset + $porPagina;
+
+        switch ($orden) {
+            case 'fecha_asc':    $orderBy = $invertirOrden ? "fecha DESC, id DESC" : "fecha ASC, id ASC"; break;
+            case 'importe_desc': $orderBy = $invertirOrden ? "total ASC, id ASC" : "total DESC, id DESC"; break;
+            case 'importe_asc':  $orderBy = $invertirOrden ? "total DESC, id DESC" : "total ASC, id ASC"; break;
+            case 'cantidad_desc':$orderBy = $invertirOrden ? "cantidad_productos ASC, id ASC" : "cantidad_productos DESC, id DESC"; break;
+            case 'cantidad_asc': $orderBy = $invertirOrden ? "cantidad_productos DESC, id DESC" : "cantidad_productos ASC, id ASC"; break;
+            case 'id_desc':      $orderBy = $invertirOrden ? "id ASC" : "id DESC"; break;
+            case 'id_asc':       $orderBy = $invertirOrden ? "id DESC" : "id ASC"; break;
+            default:             $orderBy = $invertirOrden ? "fecha ASC, id ASC" : "fecha DESC, id DESC"; break;
+        }
+
+        // ✅ DETERMINAR COLUMNAS DE ORDEN (Para el Lean Union)
+        // Necesitamos incluir el ID y la columna por la que estamos ordenando en el interior del UNION.
+        $sortCol = "fecha"; 
+        switch ($orden) {
+            case 'importe_desc': case 'importe_asc': $sortCol = "total"; break;
+            case 'cantidad_desc': case 'cantidad_asc': $sortCol = "cantidad_productos"; break;
+            case 'id_desc': case 'id_asc': $sortCol = "id"; break;
+        }
+
+        // ✅ ETAPA 1: OBTENER SOLO LOS IDs (Y la columna de orden) - MUY RÁPIDO
+        $sqlIds = "
+            SELECT v_ids.id, v_ids.fecha, v_ids.total, v_ids.cantidad_productos
+            FROM (
+                (SELECT id, fecha, total, cantidad_productos FROM tickets v $wherePart ORDER BY $orderBy LIMIT ?)
+                UNION ALL
+                (SELECT id, fecha, total, cantidad_productos FROM facturas v $wherePart ORDER BY $orderBy LIMIT ?)
+            ) v_ids
+            ORDER BY $orderBy
+            LIMIT ? OFFSET ?
+        ";
+
+        $stmtIds = $conexion->prepare($sqlIds);
+        $idx = 1;
+        if (!empty($subParametros)) { foreach ($subParametros as $p) { $stmtIds->bindValue($idx++, $p); } }
+        $stmtIds->bindValue($idx++, $limitPlusOffset, PDO::PARAM_INT);
+        if (!empty($subParametros)) { foreach ($subParametros as $p) { $stmtIds->bindValue($idx++, $p); } }
+        $stmtIds->bindValue($idx++, $limitPlusOffset, PDO::PARAM_INT);
+        $stmtIds->bindValue($idx++, $porPagina, PDO::PARAM_INT);
+        $stmtIds->bindValue($idx++, $offset, PDO::PARAM_INT);
+
+        $stmtIds->execute();
+        $targetIds = $stmtIds->fetchAll(PDO::FETCH_COLUMN, 0); // Solo queremos los IDs
+
+        if (empty($targetIds)) {
+            echo json_encode([
+                'ventas' => [], 'total' => $totalVentas, 'pagina' => $pagina, 
+                'porPagina' => $porPagina, 'totalPaginas' => (int)ceil($totalVentas / $porPagina)
+            ]);
+            exit();
+        }
+
+        // ✅ ETAPA 2: OBTENER DETALLES COMPLETOS SOLO PARA LOS IDs ENCONTRADOS
+        $placeholders = implode(',', array_fill(0, count($targetIds), '?'));
+        $sqlFinal = "
             SELECT v.id, v.fecha, v.total, v.metodoPago as forma_pago, v.tipoDocumento,
             u.nombre as usuario_nombre, vi.serie, vi.numero,
-            v.cantidad_productos
+            v.cantidad_productos, t.nombre as tarifa_nombre, v.desglose_pago
             FROM (
-                SELECT id, fecha, total, metodoPago, tipoDocumento, idUsuario, cantidad_productos FROM tickets
+                SELECT id, fecha, total, metodoPago, tipoDocumento, idUsuario, cantidad_productos, idTarifa, desglose_pago FROM tickets WHERE id IN ($placeholders)
                 UNION ALL
-                SELECT id, fecha, total, metodoPago, tipoDocumento, idUsuario, cantidad_productos FROM facturas
+                SELECT id, fecha, total, metodoPago, tipoDocumento, idUsuario, cantidad_productos, idTarifa, desglose_pago FROM facturas WHERE id IN ($placeholders)
             ) v
             LEFT JOIN usuarios u ON v.idUsuario = u.id
             LEFT JOIN ventas_ids vi ON v.id = vi.id
+            LEFT JOIN tarifas_prefijadas t ON v.idTarifa = t.id
+            ORDER BY v.$orderBy
         ";
-        if (!empty($condiciones)) {
-            $sql .= " WHERE " . implode(" AND ", $condiciones);
+
+        $stmtFinal = $conexion->prepare($sqlFinal);
+        $idx = 1;
+        // Bindeamos los IDs dos veces (una para cada rama del UNION principal de detalles)
+        foreach ($targetIds as $id) { $stmtFinal->bindValue($idx++, $id); }
+        foreach ($targetIds as $id) { $stmtFinal->bindValue($idx++, $id); }
+
+        $stmtFinal->execute();
+        $ventas = $stmtFinal->fetchAll(PDO::FETCH_ASSOC);
+
+        // Si invertimos la búsqueda, revertimos el array de nuevo en el orden final
+        if ($invertirOrden) {
+            $ventas = array_reverse($ventas);
         }
-
-        $sql .= " ORDER BY v.fecha DESC, v.id DESC LIMIT ?";
-
-        $stmt = $conexion->prepare($sql);
-
-        foreach ($parametros as $i => $p) {
-            $stmt->bindValue($i + 1, $p);
-        }
-        $stmt->bindValue(count($parametros) + 1, $porPagina + 1, PDO::PARAM_INT); // Pedimos una mas para detectar si hay mas
-
-        $stmt->execute();
-        $ventas = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        // Detectar si hay mas resultados
-        $hasMore = count($ventas) > $porPagina;
-
-        // ✅ SOLUCION BUG BUSQUEDA: NUNCA borramos registros cuando solo hay 1 resultado
-        // Solo borramos el ultimo si realmente hay mas de 20 registros
-        if ($hasMore && count($ventas) > 1) {
-            array_pop($ventas);
-        }
-
-        // Obtener cursores para paginación
-        $nextCursor = null;
-        $prevCursor = null;
-
-        if (!empty($ventas)) {
-            $ultima = end($ventas);
-            $primera = reset($ventas);
-
-            $nextCursor = [
-                'fecha' => $ultima['fecha'],
-                'id' => $ultima['id']
-            ];
-
-            $prevCursor = [
-                'fecha' => $primera['fecha'],
-                'id' => $primera['id']
-            ];
-        }
-
-        // ✅ Conteo APROXIMADO (inmediato) para mostrar al usuario
-        $stmtEstimado = $conexion->query("EXPLAIN SELECT id FROM ventas");
-        $rowEstimado = $stmtEstimado->fetch(PDO::FETCH_ASSOC);
-        $totalEstimado = (int) $rowEstimado['rows'];
 
         echo json_encode([
             'ventas' => $ventas,
-            'total_estimado' => $totalEstimado,
+            'total' => $totalVentas,
+            'pagina' => $pagina,
             'porPagina' => $porPagina,
-            'has_more' => $hasMore,
-            'next_cursor' => $nextCursor,
-            'prev_cursor' => $prevCursor,
-            'es_cursor' => true
+            'totalPaginas' => $totalVentas > 0 ? (int)ceil($totalVentas / $porPagina) : 1
         ]);
     } catch (Exception $e) {
         http_response_code(500);

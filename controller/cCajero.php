@@ -3,7 +3,7 @@
  * Controlador del cajero. Gestiona la vista del TPV para empleados.
  * 
  * @author Alberto Méndez
- * @version 1.7 (09/03/2026)
+ * @version 1.8 (14/04/2026)
  */
 
 // Requerimos los modelos necesarios
@@ -154,10 +154,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $stockValido = true;
             // Recorremos los productos del carrito para validar el stock y calcular el total con IVA
             foreach ($carrito as $item) {
+                // Determinar precisión del producto
+                $dec = isset($item['decimales']) ? (int) $item['decimales'] : 2;
+
                 // Skip stock validation for comodin products
                 if (isset($item['esComodin']) && $item['esComodin'] === true) {
                     $precioUnitarioConIva = isset($item['pvpUnitario']) ? (float) $item['pvpUnitario'] : (float) $item['precio'];
-                    $total += round($precioUnitarioConIva * $item['cantidad'], 2);
+                    $total += round($precioUnitarioConIva * $item['cantidad'], $dec);
                     continue;
                 }
 
@@ -174,8 +177,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 // Si por algún motivo no viniera, lo calculamos como fallback
                 $precioUnitarioConIva = isset($item['pvpUnitario']) ? (float) $item['pvpUnitario'] : (float) $item['precio'] * (1 + ($producto->getIvaPorcentaje() / 100));
 
-                // Sumamos al total acumulado redondeado a 2 decimales para evitar arrastre de coma flotante
-                $total += round($precioUnitarioConIva * $item['cantidad'], 2);
+                // Sumamos al total acumulado redondeado a sus decimales para evitar arrastre de coma flotante
+                $total += round($precioUnitarioConIva * $item['cantidad'], $dec);
             }
 
             // Si el stock no es válido, guardamos un error en la sesión y recargamos la página
@@ -209,11 +212,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 $importeDescuentoManual = $descuentoManualValor;
             }
 
+            // Determinar precisión del total (max del carrito, min 2)
+            $precTotal = 2;
+            foreach ($carrito as $it) {
+                $d = isset($it['decimales']) ? (int) $it['decimales'] : 2;
+                if ($d > $precTotal) $precTotal = $d;
+            }
+
             // Descuento total (Ya no hay importeDescuentoTarifa global porque es por producto)
-            $importeDescuento = $importeDescuentoManual;
+            $importeDescuento = round($importeDescuentoManual, $precTotal);
 
             // Restamos el descuento al total
-            $total = max(0, $total - $importeDescuento);
+            $total = max(0, round($total - $importeDescuento, $precTotal));
 
             // Si el pago es en efectivo y el total es mayor a 1000
             if ($venta->getMetodoPago() === 'efectivo' && $total > 1000) {
@@ -251,6 +261,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                     // Actualizamos el efectivo en la sesión de caja
                     $sesionCaja->actualizarEfectivo($entregado - $cambio);
                 }
+            } elseif ($venta->getMetodoPago() === 'mixto') {
+                // Pago mixto: solo la parte en efectivo afecta a la caja física
+                $desglosePagoJson = $_POST['desglosePago'] ?? '';
+                if ($desglosePagoJson) {
+                    $desgloseData = json_decode($desglosePagoJson, true);
+                    if ($desgloseData && isset($desgloseData['efectivo']) && $desgloseData['efectivo'] > 0) {
+                        $efectivoMixto = (float) $desgloseData['efectivo'];
+                        $cambioMixto = (float) ($desgloseData['cambio'] ?? 0);
+                        $venta->setImporteEntregado($efectivoMixto);
+                        $venta->setCambioDevuelto($cambioMixto);
+
+                        if ($sesionCaja) {
+                            $sesionCaja->actualizarEfectivo($efectivoMixto - $cambioMixto);
+                        }
+                    }
+                }
             }
 
             // Insertamos la venta
@@ -268,6 +294,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $venta->setClienteDireccion($clienteDireccion);
             $venta->setClienteObservaciones($observaciones);
             $venta->setMensajePersonalizado($mensajePersonalizado);
+
+            // Desglose de pago mixto
+            $desglosePagoStr = $_POST['desglosePago'] ?? '';
+            $venta->setDesglosePago($desglosePagoStr ?: null);
 
             // Guardar puntos en la venta para el historial
             $venta->setPuntosGanados(isset($_POST['puntosGanados']) ? (int) $_POST['puntosGanados'] : 0);
@@ -371,6 +401,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 // Indicamos la cantidad
                 $linea->setCantidad($item['cantidad']);
 
+                $dec = isset($item['decimales']) ? (int) $item['decimales'] : 2;
+                $linea->setDecimales($dec);
+
                 // Indicamos el precio unitario (Base sin IVA)
                 $pvpUnitarioItem = isset($item['pvpUnitario']) ? (float) $item['pvpUnitario'] : null;
 
@@ -410,7 +443,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                     'pvpUnitario' => $pvpUnitarioItem,
                     'pvpOriginalUnitario' => $pvpOriginalUnitario,
                     'tarifaNombre' => $item['tarifaNombre'] ?? 'Tarifa',
-                    'iva' => $ivaItem
+                    'iva' => $ivaItem,
+                    'decimales' => $dec
                 ];
             }
 
@@ -450,6 +484,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $_SESSION['ultimaVentaPuntosGanados'] = (int) ($_POST['puntosGanados'] ?? 0);
             $_SESSION['ultimaVentaPuntosCanjeados'] = (int) ($_POST['puntosCanjeadosCantidad'] ?? 0);
             $_SESSION['ultimaVentaPuntosBalance'] = (int) ($_POST['puntosBalance'] ?? 0);
+
+            // Guardamos el desglose de pago mixto en la sesión
+            $_SESSION['ultimaVentaDesglosePago'] = $_POST['desglosePago'] ?? '';
 
             // Guardamos los datos del descuento de tarifa (cliente registrado, mayorista)
             $_SESSION['ultimaVentaDescuentoTarifaTipo'] = $_POST['descuentoTarifaTipo'] ?? 'ninguno';
@@ -671,8 +708,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 // Pasar el precio unitario base y el IVA de la línea original
                 $devolucion->setPrecioUnitario($lineaOriginal['precioUnitario']);
                 $devolucion->setIva($lineaOriginal['iva']);
-                // Redondear importe a 2 decimales
-                $subtotalLinea = round((float) $item['importe'], 2);
+                $dec = isset($item['decimales']) ? (int) $item['decimales'] : (isset($lineaOriginal['decimales']) ? (int) $lineaOriginal['decimales'] : 2);
+                $devolucion->setDecimales($dec);
+
+                // Redondear importe a sus decimales
+                $subtotalLinea = round((float) $item['importe'], $dec);
                 $devolucion->setImporteTotal($subtotalLinea);
                 $devolucion->setIdVenta($idVenta);
                 $devolucion->setIdSesionCaja($sesionCaja ? $sesionCaja->getId() : null);
@@ -684,7 +724,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                     'cantidad' => $cantidadSolicitada,
                     'precio' => $lineaOriginal['precioUnitario'],
                     'iva' => $lineaOriginal['iva'],
-                    'importe' => $subtotalLinea
+                    'importe' => $subtotalLinea,
+                    'decimales' => $dec
                 ];
 
                 if ($devolucion->insertar()) {
@@ -713,8 +754,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                             $cantidadTotalDevuelta += (int) ($p['cantidad'] ?? 0);
                         }
                     }
-                    // Redondear el total a 2 decimales
-                    $totalReembolsoRedondeado = round($totalReembolso, 2);
+                    // Determinar precisión de la devolución (max de los items)
+                    $precDevTotal = 2;
+                    foreach ($productos as $p) {
+                        $d = isset($p['decimales']) ? (int) $p['decimales'] : 2;
+                        if ($d > $precDevTotal) $precDevTotal = $d;
+                    }
+
+                    // Redondear el total a su precisión
+                    $totalReembolsoRedondeado = round($totalReembolso, $precDevTotal);
                     $detallesDevolucion = array(
                         'ticket' => $idVenta,
                         'productos_devueltos' => $cantidadTotalDevuelta,
