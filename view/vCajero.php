@@ -5969,7 +5969,7 @@ endif; ?>
         </head>
         <body>
             <div class="header">
-                <h1>TICKET DE DEVOLUCIÓN</h1>
+        <h1>${_t('return.ticket_title')}</h1>
             </div>
             
             <div class="datos">

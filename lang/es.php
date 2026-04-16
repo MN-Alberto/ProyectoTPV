@@ -111,6 +111,8 @@ return [
         'client_default_tarifa' => 'Cliente',
         'error_cart_not_available' => 'Error: El carrito no está disponible.',
         'add_to_cart' => 'Añadir al Carrito',
+        'mixed_remaining_assign' => 'Restante por asignar',
+        'mixed_distribute_full' => 'Distribuir total completo',
     ],
 
     // ======================== MODAL: CAMBIO EFECTIVO ========================
@@ -192,14 +194,21 @@ return [
         'title' => 'Datos del Cliente',
         'subtitle' => 'Complete los datos (Opcional en Ticket)',
         'search_by_dni' => 'Buscar Cliente por DNI',
+        'search_dni' => 'Buscar por DNI',
+        'search_btn' => 'Buscar',
         'search' => 'Buscar',
         'nif' => 'NIF/CIF',
+        'nif_cif' => 'NIF / CIF',
         'name' => 'Razón Social / Nombre',
+        'name_company' => 'Razón Social / Nombre',
         'name_placeholder' => 'Nombre de la empresa o persona',
         'address' => 'Domicilio Fiscal',
+        'fiscal_address' => 'Domicilio Fiscal',
         'address_placeholder' => 'Calle, Número, C.P, Ciudad',
         'notes' => 'Observaciones (Régimen, Exento, etc.)',
+        'observations' => 'Observaciones',
         'notes_placeholder' => 'Opcional',
+        'observations_placeholder' => 'Opcional',
         'error_required' => 'Por favor, rellene todos los campos obligatorios (*).',
         'back' => 'Atrás',
         'accept' => 'Aceptar',
@@ -283,7 +292,10 @@ return [
         'title' => '¡Venta registrada!',
         'invoice_word' => 'Factura',
         'ticket_word' => 'Ticket',
+        'ticket' => 'Ticket',
+        'invoice' => 'Factura',
         'total_word' => 'Total',
+        'total' => 'Total',
         'earned_points' => 'El cliente ha ganado',
         'redeemed_points' => 'El cliente ha canjeado',
         'discount_word' => 'de descuento',
@@ -291,6 +303,7 @@ return [
         'send_email' => 'Enviar por correo',
         'email_label' => 'Correo electrónico:',
         'email_placeholder' => 'cliente@ejemplo.com',
+        'email' => 'Email',
         'send' => 'Enviar',
         'accept' => 'Aceptar',
     ],
@@ -352,11 +365,7 @@ return [
         'send_email' => 'Email',
         'accept' => 'Aceptar',
     ],
-    'sale_success' => [
-        'email' => 'Email',
-        'print' => 'Imprimir',
-        'accept' => 'Aceptar',
-    ],
+
 
     // ======================== MODAL: RETIRO ========================
     'withdraw' => [
@@ -373,6 +382,12 @@ return [
         'success_title' => 'Retiro Realizado',
         'success_subtitle' => 'El importe ha sido restado del efectivo en caja correctamente.',
         'error_title' => 'Error en el retiro',
+    ],
+
+    'withdraw_success' => [
+        'title' => 'Retiro Realizado',
+        'subtitle' => 'El dinero ha sido retirado de la caja correctamente.',
+        'accept' => 'Aceptar',
     ],
 
     // ======================== MODAL: CIERRE DE CAJA ========================
@@ -644,6 +659,10 @@ return [
         'optional' => 'opcional',
         'error_loading' => 'Error al cargar los datos',
         'error_searching' => 'Error al buscar',
+        'savings' => 'Ahorro',
+        'discount' => 'Descuento',
+        'fiscal_breakdown' => 'Desglose Fiscal',
+        'total' => 'TOTAL',
     ],
 
     // ======================== PRODUCTOS = [EXISTING] ========================
@@ -692,11 +711,13 @@ return [
 
     // ======================== CART (EXTENDED) ========================
     'cart' => [
+        'empty_message' => 'Añade productos para realizar la venta',
         'postponed_success1' => 'Venta pospuesta correctamente con',
         'postponed_success2' => 'productos. Puedes recuperarla cuando quieras.',
         'postponed_sales_title' => 'Ventas Pospuestas',
         'product_s' => 'Productos',
         'no_customer' => 'Sin cliente',
+        'no_customer_assigned' => 'Sin cliente asignado',
         'recover_btn' => 'Recuperar',
         'delete_btn' => 'Eliminar',
         'alert_recovered' => 'Venta recuperada correctamente',
@@ -726,6 +747,8 @@ return [
         'tarifa' => 'Tarifa',
         'error_cart_not_available' => 'El carrito no está disponible',
         'add_to_cart' => 'Añadir al Carrito',
+        'mixed_remaining_assign' => 'Restante por asignar',
+        'mixed_distribute_full' => 'Distribuir total completo',
     ],
 
     // ======================== PRINT ========================
@@ -759,6 +782,16 @@ return [
         'total_th' => 'Total',
         'client' => 'Cliente',
         'thanks_for_purchase' => '¡Gracias por su compra!',
+        'ticket_number' => 'Nº Factura/Ticket',
+        'operation_date' => 'Fecha Operación y Expedición',
+        'dto' => 'Desc.',
+        'quantity_th' => 'Cant',
+        'base_th' => 'Base',
+        'delivered' => 'Entregado',
+        'prices_include_vat' => 'Los precios mostrados incluyen IVA.',
+        'unit_price' => 'Precio Unit.',
+        'amount' => 'Importe',
+        'invoice_terms' => 'Los precios incluyen IVA. Esta factura está sujeta a las condiciones generales de venta.',
     ],
 
     // ======================== RETURNS (EXTENDED) ========================
@@ -785,6 +818,9 @@ return [
         'available' => 'Disponible',
         'cancel' => 'Cancelar',
         'confirm' => 'Confirmar Devolución',
+        'ticket_title' => 'TICKET DE DEVOLUCIÓN',
+        'ticket_footer1' => 'Las cantidades han sido reembolsadas mediante %method%.',
+        'ticket_footer2' => 'Conserve este ticket como justificante.',
     ],
 
     // ======================== RETURNS (EXTENDED) ========================
@@ -812,6 +848,9 @@ return [
         'sales' => 'Ventas',
         'returns' => 'Devoluciones',
         'close' => 'Cerrar',
+        'no_sales' => 'No hay ventas registradas en el día de hoy',
+        'no_returns' => 'No hay devoluciones registradas en el día de hoy',
+        'total' => 'Total',
     ],
 
     'sale_details' => [
@@ -823,6 +862,27 @@ return [
         'price' => 'Precio',
         'amount' => 'Importe',
         'total' => 'Total',
+    ],
+
+    'return_details' => [
+        'title' => 'Detalle de Devolución',
+        'return_name' => 'Devolución',
+        'payment' => 'Método Reembolso',
+        'refund_method' => 'Método de Reembolso',
+        'reason' => 'Motivo',
+        'no_reason' => 'Sin motivo indicado',
+        'product' => 'Producto',
+        'quantity' => 'Cantidad',
+        'price' => 'Precio',
+        'amount' => 'Importe',
+        'total_returned' => 'Total devuelto',
+        'keep_ticket' => 'Mantener Ticket',
+        'close' => 'Cerrar',
+    ],
+
+    'resume' => [
+        'original_ticket' => 'Ticket original',
+        'date' => 'Fecha',
     ],
 
     'new_client' => [
@@ -871,6 +931,10 @@ return [
         'cancel' => 'Cancelar',
         'confirm' => 'Confirmar Cierre',
         'signature' => 'Firma y sello:',
+        'closed_success' => '✅ Caja cerrada correctamente',
+        'closed_message' => 'El resumen diario se ha guardado correctamente.',
+        'print' => 'Imprimir Resumen',
+        'accept' => 'Aceptar',
     ],
 
 ];

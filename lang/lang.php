@@ -10,7 +10,7 @@
  */
 
 // Idiomas soportados
-$IDIOMAS_SOPORTADOS = ['es', 'en'];
+$IDIOMAS_SOPORTADOS = ['es', 'en', 'fr', 'de', 'ru'];
 $IDIOMA_DEFAULT = 'es';
 
 // Detectar idioma: GET > SESSION > default
@@ -41,12 +41,13 @@ if (file_exists($langFile)) {
  * @param array|null $params Parámetros opcionales para reemplazo (ej: [':name' => 'Juan'])
  * @return string Traducción o la clave si no existe
  */
-function t(string $key, ?array $params = null): string {
+function t(string $key, ?array $params = null): string
+{
     global $LANG;
-    
+
     $keys = explode('.', $key);
     $value = $LANG;
-    
+
     foreach ($keys as $k) {
         if (is_array($value) && isset($value[$k])) {
             $value = $value[$k];
@@ -55,17 +56,17 @@ function t(string $key, ?array $params = null): string {
             return $key;
         }
     }
-    
+
     if (!is_string($value)) {
         return $key;
     }
-    
+
     // Reemplazo de parámetros
     if ($params) {
         foreach ($params as $placeholder => $replacement) {
             $value = str_replace($placeholder, $replacement, $value);
         }
     }
-    
+
     return $value;
 }

@@ -572,7 +572,7 @@ function verTicketDevolucion(idDevolucion) {
             const contenido = `
     <html>
     <head>
-        <title>TICKET DE DEVOLUCIÓN - Ticket #${dev.idVenta}</title>
+        <title>${_t('return.ticket_title')} - Ticket #${dev.idVenta}</title>
         <style>
             body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #1a1a1a; max-width: 80mm; margin: 0 auto; line-height: 1.4; }
             .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
@@ -589,33 +589,33 @@ function verTicketDevolucion(idDevolucion) {
     </head>
     <body>
         <div class="header">
-            <h1>TICKET DE DEVOLUCIÓN</h1>
+            <h1>${_t('return.ticket_title')}</h1>
         </div>
         <div class="datos">
             <strong>TPV Bazar — Productos Informáticos</strong><br>
             NIF: B12345678<br>
             C/ Falsa 123, 23000 León<br>
             <div style="margin-top: 10px;">
-                <p><strong>Ticket Original:</strong> ${(dev.serie ? dev.serie : 'T') + String(dev.numero || dev.idVenta || '—').padStart(5, '0')}</p>
-                <p><strong>Fecha:</strong> ${fecha}</p>
-                <p><strong>Empleado:</strong> ${dev.usuario_nombre || '—'}</p>
-                <p><strong>Método Reembolso:</strong> ${dev.metodoPago}</p>
+                <p><strong>${_t('resume.original_ticket')}:</strong> ${(dev.serie ? dev.serie : 'T') + String(dev.numero || dev.idVenta || '—').padStart(5, '0')}</p>
+                <p><strong>${_t('resume.date')}:</strong> ${fecha}</p>
+                <p><strong>${_t('common.employee')}:</strong> ${dev.usuario_nombre || '—'}</p>
+                <p><strong>${_t('return_details.refund_method')}:</strong> ${dev.metodoPago}</p>
             </div>
         </div>
         <table>
             <thead>
-                <tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">P. Unit.</th><th style="text-align:right">Total</th></tr>
+                <tr><th>${_t('return_details.product')}</th><th style="text-align:center">${_t('return_details.quantity')}</th><th style="text-align:right">${_t('return_details.price')}</th><th style="text-align:right">${_t('return_details.amount')}</th></tr>
             </thead>
             <tbody>${filasHtml}</tbody>
         </table>
         <div class="total-row" style="color: #dc2626;">
-            TOTAL REEMBOLSADO: -${totalFmt} €
+            ${_t('return_details.total_returned')}: -${totalFmt} €
         </div>
-        ${motivo ? '<div style="margin-top: 15px; font-size: 0.8rem;"><strong>Motivo:</strong> ' + motivo + '</div>' : ''}
+        ${motivo ? '<div style="margin-top: 15px; font-size: 0.8rem;"><strong>' + _t('return_details.reason') + ':</strong> ' + motivo + '</div>' : ''}
         <div class="footer">
-            <p>Las cantidades han sido reembolsadas mediante ${dev.metodoPago}.</p>
-            <p>Conserve este ticket como justificante.</p>
-        </div>
+                <p>' + _t('return.ticket_footer1').replace('%method%', dev.metodoPago) + '</p>
+                <p>' + _t('return.ticket_footer2') + '</p>
+            </div>
     </body>
     </html>`;
 
