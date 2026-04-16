@@ -79,6 +79,10 @@ $cambio = $datos['cambio'] ?? '0,00';
 
 $pagoMixtoDesglose = $datos['pagoMixtoDesglose'] ?? null;
 
+// IDIOMA DEL DOCUMENTO
+$lang = $datos['lang'] ?? 'es';
+require_once __DIR__ . '/../lang/lang.php';
+
 // Datos opcionales del cliente (necesarios para facturas)
 $clienteNif = $datos['clienteNif'] ?? '';
 $clienteNombre = $datos['clienteNombre'] ?? '';
@@ -127,11 +131,11 @@ $isFactura = ($tipoDocumento === 'factura');
 $isDevolucion = ($tipoDocumento === 'devolucion');
 
 if ($isFactura) {
-    $tipoTitulo = 'FACTURA';
+    $tipoTitulo = t('print.factura_title');
 } elseif ($isDevolucion) {
-    $tipoTitulo = 'TICKET DE DEVOLUCIÓN';
+    $tipoTitulo = t('return_success.title');
 } else {
-    $tipoTitulo = 'TICKET DE VENTA (FACTURA SIMPLIFICADA)';
+    $tipoTitulo = t('print.ticket_title');
 }
 
 /**
@@ -151,7 +155,7 @@ $emisorHtml = "
 $receptorHtml = '';
 if ($isFactura || $clienteNif || $clienteNombre) {
     $receptorHtml = "<div style='margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc;'>
-        <strong>Datos del Cliente:</strong><br>";
+        <strong>" . t('client_data.title') . ":</strong><br>";
     if ($clienteNombre)
         $receptorHtml .= htmlspecialchars($clienteNombre) . "<br>"; // Mostramos el nombre del cliente
     if ($clienteNif)
@@ -262,7 +266,7 @@ if ($importeDescuentoTarifaTotal > 0.01) {
         $descFmt = number_format($importe, 2, ',', '.');
         $totalesHtml .= "
         <tr>
-            <td style='border: none; color: #16a34a;'><strong>Ahorro {$nombre}:</strong></td>
+            <td style='border: none; color: #16a34a;'><strong>" . t('common.savings') . " {$nombre}:</strong></td>
             <td style='border: none; text-align:right; color: #16a34a;'>- {$descFmt} €*</td>
         </tr>";
     }
@@ -273,7 +277,7 @@ if ($importeDescuentoManual > 0.01 && $textoDescuentoManual) {
     $descManualFmt = number_format($importeDescuentoManual, 2, ',', '.');
     $totalesHtml .= "
     <tr>
-        <td style='border: none; color: #16a34a;'><strong>Descuento ({$textoDescuentoManual}):</strong></td>
+        <td style='border: none; color: #16a34a;'><strong>" . t('common.discount') . " ({$textoDescuentoManual}):</strong></td>
         <td style='border: none; text-align:right; color: #16a34a;'>- {$descManualFmt} €</td>
     </tr>";
 }
@@ -281,7 +285,7 @@ if ($importeDescuentoManual > 0.01 && $textoDescuentoManual) {
 
 $totalesHtml .= "
     <tr style='border-top: 1px solid #eee;'>
-        <td colspan='2' style='border: none; padding-top:10px;'><strong>Desglose Fiscal:</strong></td>
+        <td colspan='2' style='border: none; padding-top:10px;'><strong>" . t('common.fiscal_breakdown') . ":</strong></td>
     </tr>";
 
 ksort($desgloseIva);
@@ -306,7 +310,7 @@ $totalFinalPVFmt = number_format($totalFinalPVP, 2, ',', '.');
 
 $totalesHtml .= "
     <tr style='border-top: 1px solid #000;'>
-        <td style='border: none; font-size: 1.1rem; padding-top:10px;'><strong>TOTAL:</strong></td>
+        <td style='border: none; font-size: 1.1rem; padding-top:10px;'><strong>" . t('common.total') . ":</strong></td>
         <td style='border: none; font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:10px;'>{$totalFinalPVFmt} €</td>
     </tr>
 </table>
@@ -315,7 +319,7 @@ $totalesHtml .= "
 // E. Bloque de observaciones (si existen)
 $obsHtml = '';
 if ($clienteObs) {
-    $tituloObs = $isDevolucion ? 'Motivo' : 'Observaciones';
+    $tituloObs = $isDevolucion ? t('return_success.reason') : t('client_data.observations');
     $obsHtml = "<div style='margin-top: 15px; font-size: 13px;'><strong>{$tituloObs}:</strong> " . htmlspecialchars($clienteObs) . "</div>";
 }
 
@@ -324,19 +328,19 @@ $puntosHtml = '';
 if ($puntosGanados > 0 || $puntosCanjeados > 0 || $puntosBalance > 0) {
     $puntosHtml = "
     <div style='margin-top: 20px; padding: 15px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 0.9rem;'>
-        <div style='color: #d97706; font-weight: bold; margin-bottom: 8px;'>★ Programa de Puntos</div>
+        <div style='color: #d97706; font-weight: bold; margin-bottom: 8px;'>★ " . t('points.earn_title') . "</div>
         <table style='width:100%; border:none; margin: 0;'>";
 
     if ($puntosGanados > 0) {
-        $puntosHtml .= "<tr><td style='padding:3px 0; color:#16a34a;'>Puntos ganados en esta compra:</td><td style='padding:3px 0; text-align:right; color:#16a34a;'>+ " . number_format($puntosGanados, 0, ',', '.') . "</td></tr>";
+        $puntosHtml .= "<tr><td style='padding:3px 0; color:#16a34a;'>" . t('points.earned_points') . ":</td><td style='padding:3px 0; text-align:right; color:#16a34a;'>+ " . number_format($puntosGanados, 0, ',', '.') . "</td></tr>";
     }
     if ($puntosCanjeados > 0) {
-        $puntosHtml .= "<tr><td style='padding:3px 0; color:#ef4444;'>Puntos canjeados en esta compra:</td><td style='padding:3px 0; text-align:right; color:#ef4444;'>- " . number_format($puntosCanjeados, 0, ',', '.') . "</td></tr>";
+        $puntosHtml .= "<tr><td style='padding:3px 0; color:#ef4444;'>" . t('points.redeemed_points') . ":</td><td style='padding:3px 0; text-align:right; color:#ef4444;'>- " . number_format($puntosCanjeados, 0, ',', '.') . "</td></tr>";
     }
 
     $puntosHtml .= "
             <tr>
-                <td style='padding-top: 8px; border-top: 1px solid #fde68a;'><strong>Saldo disponible:</strong></td>
+                <td style='padding-top: 8px; border-top: 1px solid #fde68a;'><strong>" . t('points.total_available') . ":</strong></td>
                 <td style='padding-top: 8px; border-top: 1px solid #fde68a; text-align:right;'><strong>" . number_format($puntosBalance, 0, ',', '.') . "</strong></td>
             </tr>
         </table>
@@ -348,31 +352,31 @@ if ($puntosGanados > 0 || $puntosCanjeados > 0 || $puntosBalance > 0) {
  * 5B. RENDERIZACIÓN DE MÉTODO DE PAGO
  * ────────────────────────────────────────────────────────────────────────────
  */
-$metodoPagoHtmlFactura = "<p><strong>Método de pago:</strong> " . strtoupper($metodoPago) . "</p>";
-$metodoPagoHtmlTicket = "<p><strong>Método de pago:</strong> " . strtoupper($metodoPago) . "</p>";
+$metodoPagoHtmlFactura = "<p><strong>" . t('print.payment_method') . ":</strong> " . strtoupper($metodoPago) . "</p>";
+$metodoPagoHtmlTicket = "<p><strong>" . t('print.payment_method') . ":</strong> " . strtoupper($metodoPago) . "</p>";
 
 if ($metodoPago === 'mixto' && is_array($pagoMixtoDesglose)) {
     $rows = "";
     if (isset($pagoMixtoDesglose['efectivo']) && $pagoMixtoDesglose['efectivo'] > 0) {
-        $rows .= "<tr><td style='padding:3px 0;'>💵 Efectivo</td><td style='text-align:right; padding:3px 0;'>" . number_format($pagoMixtoDesglose['efectivo'], 2, ',', '.') . " €</td></tr>";
+        $rows .= "<tr><td style='padding:3px 0;'>💵 " . t('ticket.cash') . "</td><td style='text-align:right; padding:3px 0;'>" . number_format($pagoMixtoDesglose['efectivo'], 2, ',', '.') . " €</td></tr>";
     }
     if (isset($pagoMixtoDesglose['tarjeta']) && $pagoMixtoDesglose['tarjeta'] > 0) {
-        $rows .= "<tr><td style='padding:3px 0;'>💳 Tarjeta</td><td style='text-align:right; padding:3px 0;'>" . number_format($pagoMixtoDesglose['tarjeta'], 2, ',', '.') . " €</td></tr>";
+        $rows .= "<tr><td style='padding:3px 0;'>💳 " . t('ticket.card') . "</td><td style='text-align:right; padding:3px 0;'>" . number_format($pagoMixtoDesglose['tarjeta'], 2, ',', '.') . " €</td></tr>";
     }
     if (isset($pagoMixtoDesglose['bizum']) && $pagoMixtoDesglose['bizum'] > 0) {
-        $rows .= "<tr><td style='padding:3px 0;'>📱 Bizum</td><td style='text-align:right; padding:3px 0;'>" . number_format($pagoMixtoDesglose['bizum'], 2, ',', '.') . " €</td></tr>";
+        $rows .= "<tr><td style='padding:3px 0;'>📱 " . t('ticket.bizum') . "</td><td style='text-align:right; padding:3px 0;'>" . number_format($pagoMixtoDesglose['bizum'], 2, ',', '.') . " €</td></tr>";
     }
     if (isset($pagoMixtoDesglose['cambio']) && $pagoMixtoDesglose['cambio'] > 0) {
-        $rows .= "<tr><td style='padding:3px 0; color:#888;'>Cambio devuelto</td><td style='text-align:right; padding:3px 0; color:#888;'>-" . number_format($pagoMixtoDesglose['cambio'], 2, ',', '.') . " €</td></tr>";
+        $rows .= "<tr><td style='padding:3px 0; color:#888;'>" . t('print.change_returned') . "</td><td style='text-align:right; padding:3px 0; color:#888;'>-" . number_format($pagoMixtoDesglose['cambio'], 2, ',', '.') . " €</td></tr>";
     }
 
     $metodoPagoHtmlFactura = "
-        <p style='font-size:13px; color:#444; font-weight:bold; margin-bottom:6px;'>Forma de pago: MIXTO</p>
+        <p style='font-size:13px; color:#444; font-weight:bold; margin-bottom:6px;'>" . t('ticket.mixed') . "</p>
         <table style='width:auto; border-collapse:collapse;'>$rows</table>
     ";
 
     $metodoPagoHtmlTicket = "
-        <div style='font-size:12px; font-weight:bold; margin-bottom:4px;'>FORMA DE PAGO: MIXTO</div>
+        <div style='font-size:12px; font-weight:bold; margin-bottom:4px;'>" . t('ticket.mixed') . "</div>
         <table style='width:100%; border-collapse:collapse;'>$rows</table>
     ";
 }
@@ -418,7 +422,7 @@ if ($isFactura) {
     
     <div class=\"two-col\">
         <div class=\"col\">
-            <h3>Emisor</h3>
+            <h3>" . t('print.emitter') . "</h3>
             <p><strong>TPV Bazar — Productos Informáticos</strong></p>
             <p>NIF: B12345678</p>
             <p>C/ Falsa 123, 28000 Madrid</p>
@@ -427,7 +431,7 @@ if ($isFactura) {
         </div>
         <div class=\"col num-doc\">
             <div class=\"numero\">Nº {$ventaId}</div>
-            <div class=\"fecha\">Fecha: {$fecha}</div>
+            <div class=\"fecha\">" . t('print.date') . ": {$fecha}</div>
         </div>
     </div>
     
@@ -436,11 +440,11 @@ if ($isFactura) {
     <table class=\"tabla-lineas\">
         <thead>
             <tr>
-                <th style=\"width:50%\">Descripción</th>
-                <th style=\"text-align:center;width:10%\">Cantidad</th>
-                <th style=\"text-align:right;width:15%\">Precio Unit.</th>
-                <th style=\"text-align:center;width:10%\">IVA %</th>
-                <th style=\"text-align:right;width:15%\">Importe</th>
+                <th style=\"width:50%\">" . t('print.description_th') . "</th>
+                <th style=\"text-align:center;width:10%\">" . t('print.quantity_th') . "</th>
+                <th style=\"text-align:right;width:15%\">" . t('print.unit_price') . "</th>
+                <th style=\"text-align:center;width:10%\">" . t('common.vat') . " %</th>
+                <th style=\"text-align:right;width:15%\">" . t('print.amount') . "</th>
             </tr>
         </thead>
         <tbody>{$filasLineas}</tbody>
@@ -468,7 +472,7 @@ if ($isFactura) {
     " : "") . "
 
     <div class=\"nota\">
-        <p>Los precios incluyen IVA. Esta factura está sujeta a las condiciones generales de venta.</p>
+        <p>" . t('print.invoice_terms') . "</p>
     </div>
     
     <div class=\"footer\">
@@ -505,8 +509,8 @@ if ($isFactura) {
         <div class='datos'>
             {$emisorHtml}
             <div style='margin-top: 10px;'>
-                <p><strong>Nº Factura/Ticket:</strong> {$ventaId}</p>
-                <p><strong>Fecha Operación y Expedición:</strong> {$fecha}</p>
+                <p><strong>" . t('print.ticket_number') . ":</strong> {$ventaId}</p>
+                <p><strong>" . t('print.operation_date') . ":</strong> {$fecha}</p>
                 <div style='margin-top:5px;'>{$metodoPagoHtmlTicket}</div>
             </div>
             {$receptorHtml}
@@ -514,7 +518,7 @@ if ($isFactura) {
 
         <table class='tabla-lineas'>
             <thead>
-                <tr><th>Desc.</th><th style='text-align:center;'>Cant</th><th style='text-align:right;'>Base</th><th style='text-align:center;'>IVA</th><th style='text-align:right;'>PVP</th></tr>
+                <tr><th>" . t('print.dto') . "</th><th style='text-align:center;'>" . t('print.quantity_th') . "</th><th style='text-align:right;'>" . t('print.base_th') . "</th><th style='text-align:center;'>" . t('common.vat') . "</th><th style='text-align:right;'>PVP</th></tr>
             </thead>
             <tbody>{$filasLineas}</tbody>
         </table>
@@ -525,12 +529,12 @@ if ($isFactura) {
 
         " . ($isDevolucion ? "
         <div style='font-size: 13px; margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px; text-align:right;'>
-            <p style='margin: 3px 0; color: #dc2626; font-weight: bold;'><strong>TOTAL REEMBOLSADO:</strong> -{$totalFinalPVFmt} €</p>
+            <p style='margin: 3px 0; color: #dc2626; font-weight: bold;'><strong>" . t('return_success.refunded_amount') . ":</strong> -{$totalFinalPVFmt} €</p>
         </div>
         " : "
         <div style='font-size: 13px; margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px; text-align:right;'>
-            <p style='margin: 3px 0;'><strong>Entregado:</strong> {$entregado} €</p>
-            <p style='margin: 3px 0;'><strong>Cambio devuelto:</strong> {$cambio} €</p>
+            <p style='margin: 3px 0;'><strong>" . t('print.delivered') . ":</strong> {$entregado} €</p>
+            <p style='margin: 3px 0;'><strong>" . t('print.change_returned') . ":</strong> {$cambio} €</p>
         </div>
         ") . "
         
@@ -544,8 +548,8 @@ if ($isFactura) {
         " : "") . "
 
         <div class='footer'>
-            <p style='font-weight:bold;'>GRACIAS POR SU COMPRA</p>
-            <p>Los precios mostrados incluyen IVA.</p>
+            <p style='font-weight:bold;'>" . t('print.thanks_for_purchase') . "</p>
+            <p>" . t('print.prices_include_vat') . "</p>
         </div>
     </div>
 </body>

@@ -15,6 +15,11 @@ class Producto
 
     private $id;
     private $nombre;
+    private $nombre_es;
+    private $nombre_en;
+    private $nombre_fr;
+    private $nombre_de;
+    private $nombre_ru;
     private $descripcion;
     private $precio;
     private $stock;
@@ -37,7 +42,84 @@ class Producto
 
     public function getNombre()
     {
-        return $this->nombre;
+        // Leer idioma directamente sin dependencias externas
+        $lang = 'es';
+
+        if (isset($_SESSION['lang']))
+            $lang = $_SESSION['lang'];
+        elseif (isset($_COOKIE['lang']))
+            $lang = $_COOKIE['lang'];
+        elseif (defined('CURRENT_LANG'))
+            $lang = CURRENT_LANG;
+
+        // Fallback orden correcto
+        switch ($lang) {
+            case 'ru':
+                if (!empty($this->nombre_ru))
+                    return $this->nombre_ru;
+                break;
+            case 'de':
+                if (!empty($this->nombre_de))
+                    return $this->nombre_de;
+                break;
+            case 'fr':
+                if (!empty($this->nombre_fr))
+                    return $this->nombre_fr;
+                break;
+            case 'en':
+                if (!empty($this->nombre_en))
+                    return $this->nombre_en;
+                break;
+            case 'es':
+                if (!empty($this->nombre_es))
+                    return $this->nombre_es;
+                break;
+        }
+
+        // Fallback final
+        return !empty($this->nombre_es) ? $this->nombre_es : $this->nombre;
+    }
+
+    public function getNombreEs()
+    {
+        return $this->nombre_es;
+    }
+    public function getNombreEn()
+    {
+        return $this->nombre_en;
+    }
+    public function getNombreFr()
+    {
+        return $this->nombre_fr;
+    }
+    public function getNombreDe()
+    {
+        return $this->nombre_de;
+    }
+    public function getNombreRu()
+    {
+        return $this->nombre_ru;
+    }
+
+    public function setNombreEs($val)
+    {
+        $this->nombre_es = $val;
+    }
+    public function setNombreEn($val)
+    {
+        $this->nombre_en = $val;
+    }
+    public function setNombreFr($val)
+    {
+        $this->nombre_fr = $val;
+    }
+    public function setNombreDe($val)
+    {
+        $this->nombre_de = $val;
+    }
+    public function setNombreRu($val)
+    {
+        $this->nombre_ru = $val;
     }
 
     public function getDescripcion()
@@ -188,7 +270,7 @@ class Producto
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta con JOIN a la tabla iva
         $stmt = $conexion->prepare(
-            "SELECT p.*, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
+            "SELECT p.id, p.nombre, p.nombre_es, p.nombre_en, p.nombre_fr, p.nombre_de, p.nombre_ru, p.descripcion, p.precio, p.stock, p.idCategoria, p.imagen, p.activo, p.idIva, p.decimales, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
              FROM productos p 
              LEFT JOIN iva i ON p.idIva = i.id 
              WHERE p.id = :id"
@@ -217,7 +299,7 @@ class Producto
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta con JOIN a la tabla iva
         $stmt = $conexion->query(
-            "SELECT p.*, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
+            "SELECT p.id, p.nombre, p.nombre_es, p.nombre_en, p.nombre_fr, p.nombre_de, p.nombre_ru, p.descripcion, p.precio, p.stock, p.idCategoria, p.imagen, p.activo, p.idIva, p.decimales, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
              FROM productos p 
              LEFT JOIN iva i ON p.idIva = i.id 
              WHERE p.activo = 1 ORDER BY p.nombre"
@@ -245,7 +327,7 @@ class Producto
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta con JOIN a la tabla iva
         $stmt = $conexion->prepare(
-            "SELECT p.*, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
+            "SELECT p.id, p.nombre, p.nombre_es, p.nombre_en, p.nombre_fr, p.nombre_de, p.nombre_ru, p.descripcion, p.precio, p.stock, p.idCategoria, p.imagen, p.activo, p.idIva, p.decimales, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
              FROM productos p 
              LEFT JOIN iva i ON p.idIva = i.id 
              ORDER BY p.nombre ASC"
@@ -274,7 +356,7 @@ class Producto
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta con JOIN a la tabla iva
         $stmt = $conexion->prepare(
-            "SELECT p.*, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
+            "SELECT p.id, p.nombre, p.nombre_es, p.nombre_en, p.nombre_fr, p.nombre_de, p.nombre_ru, p.descripcion, p.precio, p.stock, p.idCategoria, p.imagen, p.activo, p.idIva, p.decimales, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
              FROM productos p 
              LEFT JOIN iva i ON p.idIva = i.id 
              WHERE p.idCategoria = :idCategoria AND p.activo = 1 ORDER BY p.nombre"
@@ -309,7 +391,7 @@ class Producto
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta con JOIN a la tabla iva
         $stmt = $conexion->prepare(
-            "SELECT p.*, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
+            "SELECT p.id, p.nombre, p.nombre_es, p.nombre_en, p.nombre_fr, p.nombre_de, p.nombre_ru, p.descripcion, p.precio, p.stock, p.idCategoria, p.imagen, p.activo, p.idIva, p.decimales, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
              FROM productos p 
              LEFT JOIN iva i ON p.idIva = i.id 
              WHERE p.nombre LIKE :nombre AND p.activo = 1 ORDER BY p.nombre"
@@ -345,7 +427,7 @@ class Producto
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta con JOIN a la tabla iva
         $stmt = $conexion->prepare(
-            "SELECT p.*, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
+            "SELECT p.id, p.nombre, p.nombre_es, p.nombre_en, p.nombre_fr, p.nombre_de, p.nombre_ru, p.descripcion, p.precio, p.stock, p.idCategoria, p.imagen, p.activo, p.idIva, p.decimales, i.porcentaje as ivaPorcentaje, i.nombre as ivaNombre 
              FROM productos p 
              LEFT JOIN iva i ON p.idIva = i.id 
              WHERE p.nombre LIKE :nombre AND p.idCategoria = :categoria AND p.activo = 1 ORDER BY p.nombre"
@@ -555,6 +637,11 @@ class Producto
         // Asignamos los valores del array al producto
         $producto->setId($fila['id']);
         $producto->setNombre($fila['nombre']);
+        $producto->setNombreEs($fila['nombre_es'] ?? null);
+        $producto->setNombreEn($fila['nombre_en'] ?? null);
+        $producto->setNombreFr($fila['nombre_fr'] ?? null);
+        $producto->setNombreDe($fila['nombre_de'] ?? null);
+        $producto->setNombreRu($fila['nombre_ru'] ?? null);
         $producto->setDescripcion($fila['descripcion']);
         $producto->setPrecio($fila['precio']);
         $producto->setStock($fila['stock']);

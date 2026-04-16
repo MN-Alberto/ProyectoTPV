@@ -78,14 +78,49 @@
                         </svg>
                     </a>
                     <a href="?lang=en&ctl=<?php echo $currentPage; ?>"
-                        class="lang-btn <?php echo $currentLang === 'en' ? 'active' : ''; ?>" title="English">
+                        class="lang-btn <?php echo $currentLang === 'en' ? 'active' : ''; ?>" title="English (USA)">
                         <svg width="20" height="15" viewBox="0 0 20 15">
-                            <rect width="20" height="15" fill="#012169" />
-                            <path d="M0,0 L20,15 M20,0 L0,15" stroke="#fff" stroke-width="2" />
-                            <rect x="0" y="6" width="20" height="3" fill="#fff" />
-                            <rect x="8" y="0" width="3" height="15" fill="#fff" />
-                            <rect x="0" y="7" width="20" height="1" fill="#C8102E" />
-                            <rect x="9" y="0" width="1" height="15" fill="#C8102E" />
+                            <rect width="20" height="15" fill="#B22234" />
+                            <rect width="20" y="1" height="1" fill="white" />
+                            <rect width="20" y="3" height="1" fill="white" />
+                            <rect width="20" y="5" height="1" fill="white" />
+                            <rect width="20" y="7" height="1" fill="white" />
+                            <rect width="20" y="9" height="1" fill="white" />
+                            <rect width="20" y="11" height="1" fill="white" />
+                            <rect width="8" height="9" fill="#3C3B6E" />
+                            <circle cx="2" cy="2" r="0.5" fill="white" />
+                            <circle cx="4" cy="2" r="0.5" fill="white" />
+                            <circle cx="6" cy="2" r="0.5" fill="white" />
+                            <circle cx="2" cy="4.5" r="0.5" fill="white" />
+                            <circle cx="4" cy="4.5" r="0.5" fill="white" />
+                            <circle cx="6" cy="4.5" r="0.5" fill="white" />
+                            <circle cx="2" cy="7" r="0.5" fill="white" />
+                            <circle cx="4" cy="7" r="0.5" fill="white" />
+                            <circle cx="6" cy="7" r="0.5" fill="white" />
+                        </svg>
+                    </a>
+                    <a href="?lang=fr&ctl=<?php echo $currentPage; ?>"
+                        class="lang-btn <?php echo $currentLang === 'fr' ? 'active' : ''; ?>" title="Français">
+                        <svg width="20" height="15" viewBox="0 0 20 15">
+                            <rect x="0" width="7" height="15" fill="#0055A4" />
+                            <rect x="7" width="6" height="15" fill="#FFFFFF" />
+                            <rect x="13" width="7" height="15" fill="#EF4135" />
+                        </svg>
+                    </a>
+                    <a href="?lang=de&ctl=<?php echo $currentPage; ?>"
+                        class="lang-btn <?php echo $currentLang === 'de' ? 'active' : ''; ?>" title="Deutsch">
+                        <svg width="20" height="15" viewBox="0 0 20 15">
+                            <rect y="0" width="20" height="5" fill="#000000" />
+                            <rect y="5" width="20" height="5" fill="#FF0000" />
+                            <rect y="10" width="20" height="5" fill="#FFCE00" />
+                        </svg>
+                    </a>
+                    <a href="?lang=ru&ctl=<?php echo $currentPage; ?>"
+                        class="lang-btn <?php echo $currentLang === 'ru' ? 'active' : ''; ?>" title="Русский">
+                        <svg width="20" height="15" viewBox="0 0 20 15">
+                            <rect y="0" width="20" height="5" fill="#FFFFFF" stroke="#ddd" />
+                            <rect y="5" width="20" height="5" fill="#0039A6" />
+                            <rect y="10" width="20" height="5" fill="#D52B1E" />
                         </svg>
                     </a>
                 </div>

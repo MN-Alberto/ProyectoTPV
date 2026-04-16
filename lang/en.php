@@ -111,6 +111,8 @@ return [
         'client_default_tarifa' => 'Client',
         'error_cart_not_available' => 'Error: The cart is not available.',
         'add_to_cart' => 'Add to Cart',
+        'mixed_remaining_assign' => 'Remaining to assign',
+        'mixed_distribute_full' => 'Distribute full total',
     ],
 
     // ======================== MODAL: CASH CHANGE ========================
@@ -192,14 +194,21 @@ return [
         'title' => 'Client Data',
         'subtitle' => 'Fill in the data (Optional for Ticket)',
         'search_by_dni' => 'Search Client by ID',
+        'search_dni' => 'Search by DNI',
+        'search_btn' => 'Search',
         'search' => 'Search',
         'nif' => 'Tax ID / NIF',
+        'nif_cif' => 'NIF / CIF',
         'name' => 'Company / Name',
+        'name_company' => 'Company / Name',
         'name_placeholder' => 'Company or person name',
         'address' => 'Fiscal Address',
+        'fiscal_address' => 'Fiscal Address',
         'address_placeholder' => 'Street, Number, Zip Code, City',
         'notes' => 'Notes (Tax regime, Exempt, etc.)',
+        'observations' => 'Observations',
         'notes_placeholder' => 'Optional',
+        'observations_placeholder' => 'Optional',
         'error_required' => 'Please fill in all required fields (*).',
         'back' => 'Back',
         'accept' => 'Accept',
@@ -283,7 +292,10 @@ return [
         'title' => 'Sale recorded!',
         'invoice_word' => 'Invoice',
         'ticket_word' => 'Ticket',
+        'ticket' => 'Ticket',
+        'invoice' => 'Invoice',
         'total_word' => 'Total',
+        'total' => 'Total',
         'earned_points' => 'The customer earned',
         'redeemed_points' => 'The customer redeemed',
         'discount_word' => 'discount',
@@ -291,6 +303,7 @@ return [
         'send_email' => 'Send by email',
         'email_label' => 'Email address:',
         'email_placeholder' => 'customer@example.com',
+        'email' => 'Email',
         'send' => 'Send',
         'accept' => 'Accept',
     ],
@@ -352,11 +365,7 @@ return [
         'send_email' => 'Email',
         'accept' => 'Accept',
     ],
-    'sale_success' => [
-        'email' => 'Email',
-        'print' => 'Print',
-        'accept' => 'Accept',
-    ],
+
 
     // ======================== MODAL: WITHDRAW ========================
     'withdraw' => [
@@ -373,6 +382,12 @@ return [
         'success_title' => 'Withdrawal Completed',
         'success_subtitle' => 'The amount has been deducted from the register cash correctly.',
         'error_title' => 'Withdrawal error',
+    ],
+
+    'withdraw_success' => [
+        'title' => 'Withdrawal Completed',
+        'subtitle' => 'Money has been successfully withdrawn from the register.',
+        'accept' => 'Accept',
     ],
 
     // ======================== MODAL: CLOSE REGISTER ========================
@@ -644,6 +659,10 @@ return [
         'optional' => 'Optional',
         'error_loading' => 'Error loading data',
         'error_searching' => 'Error searching',
+        'savings' => 'Savings',
+        'discount' => 'Discount',
+        'fiscal_breakdown' => 'Fiscal Breakdown',
+        'total' => 'TOTAL',
     ],
 
     // ======================== PRODUCTS = [EXISTING] ========================
@@ -692,11 +711,13 @@ return [
 
     // ======================== CART (EXTENDED) ========================
     'cart' => [
+        'empty_message' => 'Add products to make a sale',
         'postponed_success1' => 'Sale successfully postponed with',
         'postponed_success2' => 'products. You can recover it anytime.',
         'postponed_sales_title' => 'Postponed Sales',
         'product_s' => 'Products',
         'no_customer' => 'No customer',
+        'no_customer_assigned' => 'No customer assigned',
         'recover_btn' => 'Recover',
         'delete_btn' => 'Delete',
         'alert_recovered' => 'Sale recovered successfully',
@@ -726,6 +747,8 @@ return [
         'tarifa' => 'Rate',
         'error_cart_not_available' => 'Cart is not available',
         'add_to_cart' => 'Add to Cart',
+        'mixed_remaining_assign' => 'Remaining to assign',
+        'mixed_distribute_full' => 'Distribute full total',
     ],
 
     // ======================== PRINT ========================
@@ -759,6 +782,16 @@ return [
         'total_th' => 'Total',
         'client' => 'Client',
         'thanks_for_purchase' => 'Thank you for your purchase!',
+        'ticket_number' => 'Invoice/Ticket No.',
+        'operation_date' => 'Operation & Shipping Date',
+        'dto' => 'Desc.',
+        'quantity_th' => 'Qty',
+        'base_th' => 'Base',
+        'delivered' => 'Delivered',
+        'prices_include_vat' => 'Prices shown include VAT.',
+        'unit_price' => 'Unit Price',
+        'amount' => 'Amount',
+        'invoice_terms' => 'All prices include VAT. This invoice is subject to our general terms and conditions of sale.',
     ],
 
     // ======================== RETURNS (EXTENDED) ========================
@@ -786,6 +819,9 @@ return [
         'sales' => 'Sales',
         'returns' => 'Returns',
         'close' => 'Close',
+        'no_sales' => 'No sales registered today',
+        'no_returns' => 'No returns registered today',
+        'total' => 'Total',
     ],
 
     'sale_details' => [
@@ -797,6 +833,27 @@ return [
         'price' => 'Price',
         'amount' => 'Amount',
         'total' => 'Total',
+    ],
+
+    'return_details' => [
+        'title' => 'Return Details',
+        'return_name' => 'Return',
+        'payment' => 'Refund Method',
+        'refund_method' => 'Refund Method',
+        'reason' => 'Reason',
+        'no_reason' => 'No reason specified',
+        'product' => 'Product',
+        'quantity' => 'Quantity',
+        'price' => 'Price',
+        'amount' => 'Amount',
+        'total_returned' => 'Total returned',
+        'keep_ticket' => 'Keep Ticket',
+        'close' => 'Close',
+    ],
+
+    'resume' => [
+        'original_ticket' => 'Original ticket',
+        'date' => 'Date',
     ],
 
     'new_client' => [
@@ -830,10 +887,13 @@ return [
         'reason_placeholder' => 'Optional. Eg: Defective product, change of mind...',
         'original_sale_total' => 'Original sale total',
         'refund_total' => 'Total to refund',
-        'insufficient_cash' => 'Insufficient cash in register (Available):',
+        'insufficient_cash' => 'Insufficient cash in register (Available:',
         'available' => 'Available',
         'cancel' => 'Cancel',
         'confirm' => 'Confirm Return',
+        'ticket_title' => 'RETURN TICKET',
+        'ticket_footer1' => 'Amounts have been refunded via %method%.',
+        'ticket_footer2' => 'Please keep this ticket as proof.',
     ],
 
     // ======================== CASH COUNT ========================
@@ -871,6 +931,10 @@ return [
         'cancel' => 'Cancel',
         'confirm' => 'Confirm Close',
         'signature' => 'Signature and stamp:',
+        'closed_success' => '✅ Register closed successfully',
+        'closed_message' => 'Daily summary has been saved correctly.',
+        'print' => 'Print Summary',
+        'accept' => 'Accept',
     ],
 
 ];
