@@ -52,9 +52,8 @@ function registrarLogUsuario($pdo, $tipo, $usuario_id, $usuario_nombre, $descrip
             ':descripcion' => $descripcion,
             ':detalles' => $detalles ? (is_array($detalles) ? json_encode($detalles, JSON_UNESCAPED_UNICODE) : $detalles) : null
         ]);
-    }
-    catch (Exception $e) {
-    // Silenciar errores de logging
+    } catch (Exception $e) {
+        // Silenciar errores de logging
     }
 }
 
@@ -70,7 +69,7 @@ function registrarLogUsuario($pdo, $tipo, $usuario_id, $usuario_nombre, $descrip
  */
 if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
     // Obtenemos el id del usuario a eliminar
-    $id = isset($_GET['eliminar']) ? (int)$_GET['eliminar'] : 0;
+    $id = isset($_GET['eliminar']) ? (int) $_GET['eliminar'] : 0;
 
     // Si el id es válido
     if ($id > 0) {
@@ -95,13 +94,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
 
             http_response_code(200);
             echo json_encode(['ok' => true]);
-        }
-        else {
+        } else {
             http_response_code(400);
             echo json_encode(['ok' => false, 'error' => 'No se pudo eliminar el usuario.']);
         }
-    }
-    else {
+    } else {
         http_response_code(400);
         echo json_encode(['ok' => false, 'error' => 'ID de usuario inválido.']);
     }
@@ -210,8 +207,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mail->send();
 
             echo json_encode(['ok' => true, 'message' => 'Código enviado correctamente.']);
-        }
-        catch (Exception $e) {
+        } catch (Exception $e) {
             error_log('Error al enviar correo: ' . $mail->ErrorInfo);
             echo json_encode(['ok' => false, 'error' => 'Error al enviar el correo. Inténtalo más tarde.']);
         }
@@ -309,8 +305,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             registrarLogUsuario($pdo, 'cambio_password', $usuario->getId(), $nombreUsuario, 'Cambio de contraseña mediante recuperación');
 
             echo json_encode(['ok' => true, 'message' => 'Contraseña actualizada correctamente.']);
-        }
-        catch (Exception $e) {
+        } catch (Exception $e) {
             echo json_encode(['ok' => false, 'error' => 'Error al actualizar la contraseña.']);
         }
         exit();
@@ -320,13 +315,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // FIN DE RECUPERACIÓN DE CONTRASEÑA
     // ────────────────────────────────────────────────────────────────────────────
 
-    $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+    $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
     $nombre = trim($_POST['nombre'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $rol = $_POST['rol'] ?? 'empleado';
-    $activo = isset($_POST['activo']) ? (int)$_POST['activo'] : 1;
-    $permisos = $_POST['permisos'] ?? null;
+    $activo = isset($_POST['activo']) ? (int) $_POST['activo'] : 1;
+    $permisos = $_POST['permisos'] ?? '';
 
     // Validaciones básicas
     if (empty($nombre) || empty($email)) {
@@ -363,8 +358,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'nombre' => $usuario->getNombre(),
             'email' => $usuario->getEmail(),
             'rol' => $usuario->getRol(),
-            'activo' => (bool)$usuario->getActivo(),
-            'permisos' => $usuario->getPermisos()
+            'activo' => (int) $usuario->getActivo(),
+            'permisos' => $usuario->getPermisos() ?? ''
         );
 
         $usuario->setNombre($nombre);
@@ -381,7 +376,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         try {
-            if ($usuario->actualizar()) {
+            $resultado_actualizacion = $usuario->actualizar();
+
+            if ($resultado_actualizacion === false) {
+                http_response_code(400);
+                echo json_encode(['ok' => false, 'error' => 'Ya existe otro usuario con este nombre de usuario.']);
+                exit();
+            }
+
+            if ($resultado_actualizacion) {
                 // Registrar log de modificación de usuario con detalles de cambios
                 $adminId = $_SESSION['id'] ?? null;
                 $adminNombre = $_SESSION['nombre'] ?? 'Admin';
@@ -397,33 +400,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($valoresAnteriores['rol'] !== $rol) {
                     $cambios['rol'] = array('antes' => $valoresAnteriores['rol'], 'después' => $rol);
                 }
-                if ($valoresAnteriores['activo'] !== (bool)$activo) {
+                if ($valoresAnteriores['activo'] !== (int) $activo) {
                     $cambios['activo'] = array('antes' => $valoresAnteriores['activo'] ? 'Sí' : 'No', 'después' => $activo ? 'Sí' : 'No');
                 }
                 if ($passwordCambiada) {
                     $cambios['password'] = array('antes' => '(oculta)', 'después' => '(nueva)');
                 }
-                if ($valoresAnteriores['permisos'] !== $permisos) {
+                if ($valoresAnteriores['permisos'] !== ($permisos ?? '')) {
                     $cambios['permisos'] = array('antes' => $valoresAnteriores['permisos'], 'después' => $permisos);
                 }
 
                 $detalles = count($cambios) > 0 ? $cambios : null;
                 registrarLogUsuario($pdo, 'modificacion_usuario', $adminId, $adminNombre, 'Usuario modificado: ' . $nombre . ' (ID: ' . $id . ')', $detalles);
 
+                // ✅ CORRECCION FINAL: Actualizar la SESION DEL USUARIO SI ESTA LOGEADO
+                // Si el usuario que estamos modificando es el mismo que tiene la sesion abierta, actualizamos los permisos en vivo
+                if (isset($_SESSION['idUsuario']) && $_SESSION['idUsuario'] == $id) {
+                    $_SESSION['permisosUsuario'] = $permisos;
+                }
+
                 http_response_code(200);
                 echo json_encode(['ok' => true]);
-            }
-            else {
+            } else {
                 http_response_code(400);
                 echo json_encode(['ok' => false, 'error' => 'No se pudo actualizar el usuario.']);
             }
-        }
-        catch (Exception $e) {
+        } catch (Exception $e) {
             http_response_code(400);
             echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
         }
-    }
-    else {
+    } else {
         // Es un nuevo usuario
         if (empty($password)) {
             http_response_code(400);
@@ -440,7 +446,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $nuevoUsuario->setPermisos($permisos);
         $nuevoUsuario->setFechaAlta(date('Y-m-d H:i:s'));
 
-        if ($nuevoUsuario->insertar()) {
+        $resultado_insercion = $nuevoUsuario->insertar();
+
+        if ($resultado_insercion === false) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'Ya existe un usuario con este nombre de usuario.']);
+            exit();
+        }
+
+        if ($resultado_insercion) {
             // Registrar log de creación de usuario con detalles
             $adminId = $_SESSION['id'] ?? null;
             $adminNombre = $_SESSION['nombre'] ?? 'Admin';
@@ -448,15 +462,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'nombre' => $nombre,
                 'email' => $email,
                 'rol' => $rol,
-                'activo' => (bool)$activo,
+                'activo' => (bool) $activo,
                 'permisos' => $permisos
             );
             registrarLogUsuario($pdo, 'creacion_usuario', $adminId, $adminNombre, 'Usuario creado: ' . $nombre . ' (' . $email . ')', $detallesUsuario);
 
             http_response_code(201);
             echo json_encode(['ok' => true]);
-        }
-        else {
+        } else {
             http_response_code(400);
             echo json_encode(['ok' => false, 'error' => 'No se pudo crear el usuario.']);
         }
@@ -468,7 +481,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Si se busca un usuario específico
 if (isset($_GET['id']) && !empty($_GET['id'])) {
-    $usuario = Usuario::buscarPorId((int)$_GET['id']);
+    $usuario = Usuario::buscarPorId((int) $_GET['id']);
     if ($usuario) {
         echo json_encode([
             'id' => $usuario->getId(),
@@ -476,13 +489,12 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
             'email' => $usuario->getEmail(),
             'rol' => $usuario->getRol(),
             'fechaAlta' => $usuario->getFechaAlta(),
-            'activo' => (int)$usuario->getActivo(),
+            'activo' => (int) $usuario->getActivo(),
             'total_descansos' => $usuario->getTotalDescansos(),
             'total_turnos' => $usuario->getTotalTurnos(),
             'permisos' => $usuario->getPermisos()
         ]);
-    }
-    else {
+    } else {
         http_response_code(404);
         echo json_encode(['ok' => false, 'error' => 'Usuario no encontrado.']);
     }
@@ -492,16 +504,15 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
 // Si se busca por nombre - soporte de paginación
 if (isset($_GET['buscar']) && !empty(trim($_GET['buscar']))) {
     $busqueda = trim($_GET['buscar']);
-    $pagina = isset($_GET['pagina']) ? max(1, (int)$_GET['pagina']) : 1;
-    $porPagina = isset($_GET['porPagina']) ? max(1, (int)$_GET['porPagina']) : 6;
+    $pagina = isset($_GET['pagina']) ? max(1, (int) $_GET['pagina']) : 1;
+    $porPagina = isset($_GET['porPagina']) ? max(1, (int) $_GET['porPagina']) : 6;
 
     $resultado = Usuario::buscarPorNombreParcialPaginado($busqueda, $pagina, $porPagina);
     $usuarios = $resultado['usuarios'];
-}
-else {
+} else {
     // Obtener todos los usuarios con paginación
-    $pagina = isset($_GET['pagina']) ? max(1, (int)$_GET['pagina']) : 1;
-    $porPagina = isset($_GET['porPagina']) ? max(1, (int)$_GET['porPagina']) : 6;
+    $pagina = isset($_GET['pagina']) ? max(1, (int) $_GET['pagina']) : 1;
+    $porPagina = isset($_GET['porPagina']) ? max(1, (int) $_GET['porPagina']) : 6;
 
     $resultado = Usuario::obtenerTodosPaginados($pagina, $porPagina);
     $usuarios = $resultado['usuarios'];
@@ -516,7 +527,7 @@ foreach ($usuarios as $usr) {
         'email' => $usr->getEmail(),
         'rol' => $usr->getRol(),
         'fechaAlta' => $usr->getFechaAlta(),
-        'activo' => (int)$usr->getActivo(),
+        'activo' => (int) $usr->getActivo(),
         'total_descansos' => $usr->getTotalDescansos(),
         'total_turnos' => $usr->getTotalTurnos(),
         'permisos' => $usr->getPermisos()
@@ -532,8 +543,7 @@ if (isset($_GET['buscar']) && !empty(trim($_GET['buscar']))) {
         'porPagina' => $resultado['porPagina'],
         'totalPaginas' => $resultado['totalPaginas']
     ]);
-}
-else {
+} else {
     echo json_encode([
         'usuarios' => $formateado,
         'total' => $resultado['total'],

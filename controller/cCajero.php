@@ -22,6 +22,23 @@ if (!isset($_SESSION['idUsuario'])) {
     exit();
 }
 
+// ✅ SOLUCION FINAL DEFINITIVA: Comprobamos UNA VEZ POR CARGA si los permisos han cambiado en BD
+// Si es asi actualizamos la sesion AUTOMATICAMENTE cuando el usuario pulsa F5
+// No es necesario cerrar sesion nunca mas.
+$usuarioActual = Usuario::buscarPorId($_SESSION['idUsuario']);
+if ($usuarioActual) {
+    $_SESSION['permisosUsuario'] = $usuarioActual->getPermisos();
+}
+
+// Cargar permisos del usuario logueado DESDE LA SESION (no consultar BD cada vez)
+$permisosUsuario = isset($_SESSION['permisosUsuario']) ? $_SESSION['permisosUsuario'] : '';
+// ✅ SOLUCION: Quitar espacios y normalizar permisos
+$permisosUsuario = str_replace(' ', '', $permisosUsuario);
+// ✅ COMPATIBILIDAD PHP 7.x: Usar strpos en vez de str_contains (funciona en todas las versiones)
+$puedeModificarPrecios = $_SESSION['rolUsuario'] === 'admin' || (strpos($permisosUsuario, 'modificar_precios') !== false);
+$puedeProductoComodin = $_SESSION['rolUsuario'] === 'admin' || (strpos($permisosUsuario, 'producto_comodin') !== false);
+$puedeRetirarDinero = $_SESSION['rolUsuario'] === 'admin' || (strpos($permisosUsuario, 'retirar_dinero') !== false);
+
 // Si el usuario solicita cerrar sesión destruimos la sesión completamente
 if (isset($_REQUEST['cerrarSesion'])) {
     /**
@@ -216,7 +233,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $precTotal = 2;
             foreach ($carrito as $it) {
                 $d = isset($it['decimales']) ? (int) $it['decimales'] : 2;
-                if ($d > $precTotal) $precTotal = $d;
+                if ($d > $precTotal)
+                    $precTotal = $d;
             }
 
             // Descuento total (Ya no hay importeDescuentoTarifa global porque es por producto)
@@ -758,7 +776,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                     $precDevTotal = 2;
                     foreach ($productos as $p) {
                         $d = isset($p['decimales']) ? (int) $p['decimales'] : 2;
-                        if ($d > $precDevTotal) $precDevTotal = $d;
+                        if ($d > $precDevTotal)
+                            $precDevTotal = $d;
                     }
 
                     // Redondear el total a su precisión
@@ -853,6 +872,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
         exit();
     }
 }
+
+// Pasar permisos a la vista CORRECTAMENTE
+// ✅ AHORA SI ESTARAN DISPONIBLES EN vCajero.php
+$puedeModificarPrecios = $_SESSION['rolUsuario'] === 'admin' || (strpos($permisosUsuario, 'modificar_precios') !== false);
+$puedeProductoComodin = $_SESSION['rolUsuario'] === 'admin' || (strpos($permisosUsuario, 'producto_comodin') !== false);
+$puedeRetirarDinero = $_SESSION['rolUsuario'] === 'admin' || (strpos($permisosUsuario, 'retirar_dinero') !== false);
 
 // Llamamos a la vista del cajero
 require_once $view['Layout'];

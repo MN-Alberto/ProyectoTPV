@@ -241,21 +241,28 @@ function renderProductos(productos) {
                 </div>`;
     });
 
-    // Insertar todo el HTML generado en la cuadrícula de productos, preceded by the Producto Comodín card
-    const comodinCard = `
-        <div class="producto-card producto-comodin" onclick="abrirModalProductoComodin()"
-             style="cursor: pointer; border: 2px dashed #6366f1; background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);">
-            <div class="producto-nombre" style="color: #6366f1; font-weight: 700;">
-                <i class="fas fa-plus-circle"></i> ${t('products.comodin_title')}
-            </div>
-            <div class="producto-imagen" style="display: flex; align-items: center; justify-content: center; height: 120px;">
-                <i class="fas fa-tag" style="font-size: 3rem; color: #6366f1;"></i>
-            </div>
-            <div class="producto-info-inferior" style="text-align: center;">
-                <span class="producto-precio" style="color: #6366f1;">${t('products.comodin_subtitle')}</span>
-            </div>
-        </div>`;
-    grid.innerHTML = comodinCard + html;
+    // Insertar todo el HTML generado en la cuadrícula de productos
+    let contenidoGrid = html;
+
+    // Añadir Producto Comodín SOLAMENTE si el usuario tiene permiso
+    if (window.PUEDE_PRODUCTO_COMODIN === true) {
+        const comodinCard = `
+            <div class="producto-card producto-comodin" onclick="abrirModalProductoComodin()"
+                 style="cursor: pointer; border: 2px dashed #6366f1; background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);">
+                <div class="producto-nombre" style="color: #6366f1; font-weight: 700;">
+                    <i class="fas fa-plus-circle"></i> ${t('products.comodin_title')}
+                </div>
+                <div class="producto-imagen" style="display: flex; align-items: center; justify-content: center; height: 120px;">
+                    <i class="fas fa-tag" style="font-size: 3rem; color: #6366f1;"></i>
+                </div>
+                <div class="producto-info-inferior" style="text-align: center;">
+                    <span class="producto-precio" style="color: #6366f1;">${t('products.comodin_subtitle')}</span>
+                </div>
+            </div>`;
+        contenidoGrid = comodinCard + contenidoGrid;
+    }
+
+    grid.innerHTML = contenidoGrid;
 }
 
 /**

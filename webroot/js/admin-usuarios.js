@@ -191,6 +191,17 @@ function verUsuario(id) {
             document.getElementById('verUsuarioCrearProductos').innerHTML = crearProductos
                 ? '<span class="admin-badge badge-activo">Sí</span>'
                 : '<span class="admin-badge badge-inactivo">No</span>';
+
+            const productoComodin = data.permisos && data.permisos.includes('producto_comodin');
+            document.getElementById('verUsuarioProductoComodin').innerHTML = productoComodin
+                ? '<span class="admin-badge badge-activo">Sí</span>'
+                : '<span class="admin-badge badge-inactivo">No</span>';
+
+            const retirarDinero = data.permisos && data.permisos.includes('retirar_dinero');
+            document.getElementById('verUsuarioRetirarDinero').innerHTML = retirarDinero
+                ? '<span class="admin-badge badge-activo">Sí</span>'
+                : '<span class="admin-badge badge-inactivo">No</span>';
+
             document.getElementById('verUsuarioTotalDescansos').textContent = data.total_descansos || 0;
             document.getElementById('verUsuarioTotalTurnos').textContent = data.total_turnos || 0;
             abrirModal('modalVerUsuario');
@@ -221,6 +232,12 @@ function editarUsuario(id) {
             actualizarVisibilidadPermisos(data.rol);
             document.getElementById('editUsuarioPermisoCrearProductos').checked =
                 (data.permisos || '').includes('crear_productos');
+            document.getElementById('editUsuarioPermisoModificarPrecios').checked =
+                (data.permisos || '').includes('modificar_precios');
+            document.getElementById('editUsuarioPermisoProductoComodin').checked =
+                (data.permisos || '').includes('producto_comodin');
+            document.getElementById('editUsuarioPermisoRetirarDinero').checked =
+                (data.permisos || '').includes('retirar_dinero');
             document.getElementById('editUsuarioTitulo').textContent = 'Editar Usuario';
             abrirModal('modalEditarUsuario');
         })
@@ -239,11 +256,14 @@ function guardarCambiosUsuario() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Por favor ingresa un email válido.'); return; }
     if (id == 1) { rol = 'admin'; activo = '1'; }
 
-    let permisos = '';
+    let permisos = [];
     if (rol === 'empleado') {
-        const cb = document.getElementById('editUsuarioPermisoCrearProductos');
-        if (cb && cb.checked) permisos = 'crear_productos';
+        if (document.getElementById('editUsuarioPermisoCrearProductos')?.checked) permisos.push('crear_productos');
+        if (document.getElementById('editUsuarioPermisoModificarPrecios')?.checked) permisos.push('modificar_precios');
+        if (document.getElementById('editUsuarioPermisoProductoComodin')?.checked) permisos.push('producto_comodin');
+        if (document.getElementById('editUsuarioPermisoRetirarDinero')?.checked) permisos.push('retirar_dinero');
     }
+    permisos = permisos.join(',');
 
     const fd = new FormData();
     if (id) fd.append('id', id);
