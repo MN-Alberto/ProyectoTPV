@@ -250,8 +250,8 @@ class Usuario
             return false;
         }
         // Los permisos están almacenados como una cadena separada por comas
-        $permisosArray = explode(',', $this->permisos);
-        return in_array($permiso, $permisosArray);
+        $permisosArray = array_map('trim', explode(',', $this->permisos));
+        return in_array(trim($permiso), $permisosArray);
     }
 
     // ======================== MÉTODOS CRUD ========================
@@ -370,7 +370,7 @@ class Usuario
 
         // Obtener total de registros (usando índice)
         $stmtCount = $conexion->query("SELECT COUNT(*) as total FROM usuarios");
-        $total = (int)$stmtCount->fetch()['total'];
+        $total = (int) $stmtCount->fetch()['total'];
 
         // Calcular OFFSET
         $offset = ($pagina - 1) * $porPagina;
@@ -391,7 +391,7 @@ class Usuario
             'total' => $total,
             'pagina' => $pagina,
             'porPagina' => $porPagina,
-            'totalPaginas' => (int)ceil($total / $porPagina)
+            'totalPaginas' => (int) ceil($total / $porPagina)
         ];
     }
 
@@ -412,7 +412,7 @@ class Usuario
         $stmtCount = $pdo->prepare("SELECT COUNT(*) as total FROM usuarios WHERE nombre LIKE :nombre");
         $stmtCount->bindParam(':nombre', $busqueda);
         $stmtCount->execute();
-        $total = (int)$stmtCount->fetch()['total'];
+        $total = (int) $stmtCount->fetch()['total'];
 
         $offset = ($pagina - 1) * $porPagina;
 
@@ -433,7 +433,7 @@ class Usuario
             'total' => $total,
             'pagina' => $pagina,
             'porPagina' => $porPagina,
-            'totalPaginas' => (int)ceil($total / $porPagina)
+            'totalPaginas' => (int) ceil($total / $porPagina)
         ];
     }
 
@@ -466,6 +466,13 @@ class Usuario
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
+
+        // ✅ Comprobamos que el NOMBRE no exista ya
+        $stmtCheck = $conexion->prepare("SELECT COUNT(*) as total FROM usuarios WHERE nombre = :nombre");
+        $stmtCheck->execute([':nombre' => $this->nombre]);
+        if ($stmtCheck->fetchColumn() > 0) {
+            return false;
+        }
         // Preparamos la consulta
         $stmt = $conexion->prepare(
             "INSERT INTO usuarios (nombre, email, password, rol, fechaAlta, activo, total_descansos, total_turnos, permisos)
@@ -477,7 +484,7 @@ class Usuario
         $stmt->bindParam(':password', $this->password);
         $stmt->bindParam(':rol', $this->rol);
         $stmt->bindParam(':fechaAlta', $this->fechaAlta);
-        $stmt->bindParam(':activo', $this->activo, PDO::PARAM_BOOL);
+        $stmt->bindParam(':activo', $this->activo, PDO::PARAM_INT);
         $stmt->bindParam(':total_descansos', $this->totalDescansos, PDO::PARAM_INT);
         $stmt->bindParam(':total_turnos', $this->totalTurnos, PDO::PARAM_INT);
         $stmt->bindParam(':permisos', $this->permisos);
@@ -488,8 +495,7 @@ class Usuario
             $this->id = $conexion->lastInsertId();
             // Devolvemos el resultado
             return $resultado;
-        }
-        catch (PDOException $e) {
+        } catch (PDOException $e) {
             // Verificar si es un error de duplicado (clave única)
             if ($e->getCode() == 1062 || strpos($e->getMessage(), 'Duplicate entry') !== false) {
                 throw new Exception("Ya existe un usuario con este email.");
@@ -507,27 +513,66 @@ class Usuario
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta
-        $stmt = $conexion->prepare(
-            "UPDATE usuarios SET nombre = :nombre, email = :email, password = :password, 
-             rol = :rol, activo = :activo, total_descansos = :total_descansos, 
-             total_turnos = :total_turnos, permisos = :permisos WHERE id = :id"
-        );
-        // Vinculamos los parámetros
-        $stmt->bindParam(':nombre', $this->nombre);
-        $stmt->bindParam(':email', $this->email);
-        $stmt->bindParam(':password', $this->password);
-        $stmt->bindParam(':rol', $this->rol);
-        $stmt->bindParam(':activo', $this->activo, PDO::PARAM_BOOL);
-        $stmt->bindParam(':total_descansos', $this->totalDescansos, PDO::PARAM_INT);
-        $stmt->bindParam(':total_turnos', $this->totalTurnos, PDO::PARAM_INT);
-        $stmt->bindParam(':permisos', $this->permisos);
-        $stmt->bindParam(':id', $this->id, PDO::PARAM_INT);
+
+        // ✅ Comprobamos que el NOMBRE no exista ya EN OTRO USUARIO
+        $stmtCheck = $conexion->prepare("SELECT COUNT(*) as total FROM usuarios WHERE nombre = :nombre AND id != :id");
+        $stmtCheck->execute([':nombre' => $this->nombre, ':id' => $this->id]);
+        if ($stmtCheck->fetchColumn() > 0) {
+            return false;
+        }
+
+        // Construimos la consulta DINAMICAMENTE solo con los campos que tenemos valor
+        $campos = [];
+        $parametros = [];
+
+        $campos[] = "nombre = :nombre";
+        $parametros[':nombre'] = $this->nombre;
+
+        $campos[] = "email = :email";
+        $parametros[':email'] = $this->email;
+
+        // SOLO actualizamos PASSWORD SI NO ESTA VACIO / NULL
+        if ($this->password !== null && $this->password !== '') {
+            $campos[] = "password = :password";
+            $parametros[':password'] = $this->password;
+        }
+
+        $campos[] = "rol = :rol";
+        $parametros[':rol'] = $this->rol;
+
+        $campos[] = "activo = :activo";
+        $parametros[':activo'] = $this->activo;
+
+        $campos[] = "total_descansos = :total_descansos";
+        $parametros[':total_descansos'] = $this->totalDescansos;
+
+        $campos[] = "total_turnos = :total_turnos";
+        $parametros[':total_turnos'] = $this->totalTurnos;
+
+        $campos[] = "permisos = :permisos";
+        $parametros[':permisos'] = $this->permisos;
+
+        $parametros[':id'] = $this->id;
+
+        // Preparamos la consulta final
+        $sql = "UPDATE usuarios SET " . implode(', ', $campos) . " WHERE id = :id";
+        $stmt = $conexion->prepare($sql);
+
+        // Vinculamos TODOS los parametros dinamicamente
+        foreach ($parametros as $clave => $valor) {
+            if (in_array($clave, [':activo', ':total_descansos', ':total_turnos', ':id'])) {
+                $stmt->bindValue($clave, $valor, PDO::PARAM_INT);
+            } else {
+                $stmt->bindValue($clave, $valor);
+            }
+        }
+
         // Ejecutamos la consulta
         try {
+            // ✅ NO PASAR PARAMETROS A EXECUTE SI YA HEMOS HECHO bindValue()
+            // PDO borra todos los binds si le pasas array aqui: ERROR 0 FILAS ACTUALIZADAS
             return $stmt->execute();
-        }
-        catch (PDOException $e) {
+        } catch (PDOException $e) {
             // Verificar si es un error de duplicado (clave única)
             if ($e->getCode() == 1062 || strpos($e->getMessage(), 'Duplicate entry') !== false) {
                 throw new Exception("Ya existe un usuario con este email.");

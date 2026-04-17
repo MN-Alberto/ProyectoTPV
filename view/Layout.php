@@ -61,79 +61,81 @@
             </div>
             <h1><?php echo t('app.title'); ?></h1>
         </div>
-        <!-- Si el id del usuario está guardado en la sesión, mostramos el nombre del usuario y el botón de cerrar sesión -->
-        <?php if (isset($_SESSION['idUsuario'])): ?>
-            <div class="header-usuario">
-                <!-- Selector de idioma -->
-                <div class="lang-toggle" title="<?php echo t('header.language'); ?>">
-                    <?php
-                    $currentPage = $_SESSION['paginaEnCurso'] ?? 'login';
-                    $currentLang = $_SESSION['lang'] ?? 'es';
-                    ?>
-                    <a href="?lang=es&ctl=<?php echo $currentPage; ?>"
-                        class="lang-btn <?php echo $currentLang === 'es' ? 'active' : ''; ?>" title="Español">
-                        <svg width="20" height="15" viewBox="0 0 20 15">
-                            <rect width="20" height="15" fill="#AA151B" />
-                            <rect y="5" width="20" height="5" fill="#F1BF00" />
-                        </svg>
-                    </a>
-                    <a href="?lang=en&ctl=<?php echo $currentPage; ?>"
-                        class="lang-btn <?php echo $currentLang === 'en' ? 'active' : ''; ?>" title="English (USA)">
-                        <svg width="20" height="15" viewBox="0 0 20 15">
-                            <rect width="20" height="15" fill="#B22234" />
-                            <rect width="20" y="1" height="1" fill="white" />
-                            <rect width="20" y="3" height="1" fill="white" />
-                            <rect width="20" y="5" height="1" fill="white" />
-                            <rect width="20" y="7" height="1" fill="white" />
-                            <rect width="20" y="9" height="1" fill="white" />
-                            <rect width="20" y="11" height="1" fill="white" />
-                            <rect width="8" height="9" fill="#3C3B6E" />
-                            <circle cx="2" cy="2" r="0.5" fill="white" />
-                            <circle cx="4" cy="2" r="0.5" fill="white" />
-                            <circle cx="6" cy="2" r="0.5" fill="white" />
-                            <circle cx="2" cy="4.5" r="0.5" fill="white" />
-                            <circle cx="4" cy="4.5" r="0.5" fill="white" />
-                            <circle cx="6" cy="4.5" r="0.5" fill="white" />
-                            <circle cx="2" cy="7" r="0.5" fill="white" />
-                            <circle cx="4" cy="7" r="0.5" fill="white" />
-                            <circle cx="6" cy="7" r="0.5" fill="white" />
-                        </svg>
-                    </a>
-                    <a href="?lang=fr&ctl=<?php echo $currentPage; ?>"
-                        class="lang-btn <?php echo $currentLang === 'fr' ? 'active' : ''; ?>" title="Français">
-                        <svg width="20" height="15" viewBox="0 0 20 15">
-                            <rect x="0" width="7" height="15" fill="#0055A4" />
-                            <rect x="7" width="6" height="15" fill="#FFFFFF" />
-                            <rect x="13" width="7" height="15" fill="#EF4135" />
-                        </svg>
-                    </a>
-                    <a href="?lang=de&ctl=<?php echo $currentPage; ?>"
-                        class="lang-btn <?php echo $currentLang === 'de' ? 'active' : ''; ?>" title="Deutsch">
-                        <svg width="20" height="15" viewBox="0 0 20 15">
-                            <rect y="0" width="20" height="5" fill="#000000" />
-                            <rect y="5" width="20" height="5" fill="#FF0000" />
-                            <rect y="10" width="20" height="5" fill="#FFCE00" />
-                        </svg>
-                    </a>
-                    <a href="?lang=ru&ctl=<?php echo $currentPage; ?>"
-                        class="lang-btn <?php echo $currentLang === 'ru' ? 'active' : ''; ?>" title="Русский">
-                        <svg width="20" height="15" viewBox="0 0 20 15">
-                            <rect y="0" width="20" height="5" fill="#FFFFFF" stroke="#ddd" />
-                            <rect y="5" width="20" height="5" fill="#0039A6" />
-                            <rect y="10" width="20" height="5" fill="#D52B1E" />
-                        </svg>
-                    </a>
-                </div>
-                <div class="theme-toggle" title="<?php echo t('header.change_theme'); ?>">
-                    <button class="theme-btn" id="btnModoClaro" onclick="setTheme('light')"
-                        title="<?php echo t('header.light_mode'); ?>">
-                        <i class="fas fa-sun"></i>
-                    </button>
-                    <button class="theme-btn" id="btnModoOscuro" onclick="setTheme('dark')"
-                        title="<?php echo t('header.dark_mode'); ?>">
-                        <i class="fas fa-moon"></i>
-                    </button>
-                </div>
+
+        <div class="header-usuario">
+            <!-- Selector de idioma - SIEMPRE VISIBLE incluso sin login -->
+            <div class="lang-toggle"
+                title="<?php echo isset($_SESSION['idUsuario']) ? t('header.language') : 'Idioma'; ?>">
+                <?php
+                $currentPage = $_SESSION['paginaEnCurso'] ?? 'login';
+                $currentLang = $_SESSION['lang'] ?? (isset($_COOKIE['lang']) ? $_COOKIE['lang'] : 'es');
+                ?>
+                <a href="?lang=es&ctl=<?php echo $currentPage; ?>"
+                    class="lang-btn <?php echo $currentLang === 'es' ? 'active' : ''; ?>" title="Español">
+                    <svg width="20" height="15" viewBox="0 0 20 15">
+                        <rect width="20" height="15" fill="#AA151B" />
+                        <rect y="5" width="20" height="5" fill="#F1BF00" />
+                    </svg>
+                </a>
+                <a href="?lang=en&ctl=<?php echo $currentPage; ?>"
+                    class="lang-btn <?php echo $currentLang === 'en' ? 'active' : ''; ?>" title="English (USA)">
+                    <svg width="20" height="15" viewBox="0 0 20 15">
+                        <rect width="20" height="15" fill="#B22234" />
+                        <rect width="20" y="1" height="1" fill="white" />
+                        <rect width="20" y="3" height="1" fill="white" />
+                        <rect width="20" y="5" height="1" fill="white" />
+                        <rect width="20" y="7" height="1" fill="white" />
+                        <rect width="20" y="9" height="1" fill="white" />
+                        <rect width="20" y="11" height="1" fill="white" />
+                        <rect width="8" height="9" fill="#3C3B6E" />
+                        <circle cx="2" cy="2" r="0.5" fill="white" />
+                        <circle cx="4" cy="2" r="0.5" fill="white" />
+                        <circle cx="6" cy="2" r="0.5" fill="white" />
+                        <circle cx="2" cy="4.5" r="0.5" fill="white" />
+                        <circle cx="4" cy="4.5" r="0.5" fill="white" />
+                        <circle cx="6" cy="4.5" r="0.5" fill="white" />
+                        <circle cx="2" cy="7" r="0.5" fill="white" />
+                        <circle cx="4" cy="7" r="0.5" fill="white" />
+                        <circle cx="6" cy="7" r="0.5" fill="white" />
+                    </svg>
+                </a>
+                <a href="?lang=fr&ctl=<?php echo $currentPage; ?>"
+                    class="lang-btn <?php echo $currentLang === 'fr' ? 'active' : ''; ?>" title="Français">
+                    <svg width="20" height="15" viewBox="0 0 20 15">
+                        <rect x="0" width="7" height="15" fill="#0055A4" />
+                        <rect x="7" width="6" height="15" fill="#FFFFFF" />
+                        <rect x="13" width="7" height="15" fill="#EF4135" />
+                    </svg>
+                </a>
+                <a href="?lang=de&ctl=<?php echo $currentPage; ?>"
+                    class="lang-btn <?php echo $currentLang === 'de' ? 'active' : ''; ?>" title="Deutsch">
+                    <svg width="20" height="15" viewBox="0 0 20 15">
+                        <rect y="0" width="20" height="5" fill="#000000" />
+                        <rect y="5" width="20" height="5" fill="#FF0000" />
+                        <rect y="10" width="20" height="5" fill="#FFCE00" />
+                    </svg>
+                </a>
+                <a href="?lang=ru&ctl=<?php echo $currentPage; ?>"
+                    class="lang-btn <?php echo $currentLang === 'ru' ? 'active' : ''; ?>" title="Русский">
+                    <svg width="20" height="15" viewBox="0 0 20 15">
+                        <rect y="0" width="20" height="5" fill="#FFFFFF" stroke="#ddd" />
+                        <rect y="5" width="20" height="5" fill="#0039A6" />
+                        <rect y="10" width="20" height="5" fill="#D52B1E" />
+                    </svg>
+                </a>
+            </div>
+            <div class="theme-toggle"
+                title="<?php echo isset($_SESSION['idUsuario']) ? t('header.change_theme') : 'Cambiar tema'; ?>">
+                <button class="theme-btn" id="btnModoClaro" onclick="setTheme('light')" title="Modo Claro">
+                    <i class="fas fa-sun"></i>
+                </button>
+                <button class="theme-btn" id="btnModoOscuro" onclick="setTheme('dark')" title="Modo Oscuro">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+
+            <!-- Si el id del usuario está guardado en la sesión, mostramos el nombre del usuario y el botón de cerrar sesión -->
+            <?php if (isset($_SESSION['idUsuario'])): ?>
                 <?php if (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'admin'): ?>
                     <a href="?ctl=cajero" class="btn-ir-cajero" title="<?php echo t('header.go_cashier'); ?>">
                         <i class="fas fa-cash-register"></i> <?php echo t('header.cashier'); ?>
@@ -153,7 +155,7 @@
                 </form>
             </div>
             <?php
-        endif; ?>
+            endif; ?>
     </header>
     <?php
 

@@ -126,7 +126,9 @@
             <div style="display:flex;align-items:center;gap:15px">
                 <h2>Panel de Control</h2>
                 <!-- Indicador Global de Tareas -->
-                <div id="adminTaskIndicator" class="task-indicator" onclick="abrirCentroTareas()" title="Ver tareas en curso" style="display:none;cursor:pointer;background:var(--bg-secondary);padding:5px 12px;border-radius:20px;border:1px solid var(--border-main);align-items:center;gap:8px;font-size:0.85rem">
+                <div id="adminTaskIndicator" class="task-indicator" onclick="abrirCentroTareas()"
+                    title="Ver tareas en curso"
+                    style="display:none;cursor:pointer;background:var(--bg-secondary);padding:5px 12px;border-radius:20px;border:1px solid var(--border-main);align-items:center;gap:8px;font-size:0.85rem">
                     <i class="fas fa-cog fa-spin" style="color:var(--accent-main)"></i>
                     <span id="taskCountText">1 tarea activa</span>
                 </div>
@@ -363,7 +365,9 @@
                 </div>
                 <div class="editar-prod-fila">
                     <label>Precio (€)</label>
-                    <input type="number" id="editProductoPrecio" step="0.0001" min="0" oninput="validarPrecisionDinamica(this, 'editProductoDecimales')" onblur="validarPrecisionDinamica(this, 'editProductoDecimales')">
+                    <input type="number" id="editProductoPrecio" step="0.0001" min="0"
+                        oninput="validarPrecisionDinamica(this, 'editProductoDecimales')"
+                        onblur="validarPrecisionDinamica(this, 'editProductoDecimales')">
                 </div>
                 <div class="editar-prod-fila">
                     <label>Stock</label>
@@ -384,7 +388,7 @@
                 </div>
                 <div class="editar-prod-fila">
                     <label>Decimales (máx 4)</label>
-                    <input type="number" id="editProductoDecimales" min="0" max="4" step="1" value="2" 
+                    <input type="number" id="editProductoDecimales" min="0" max="4" step="1" value="2"
                         oninput="validarDecimalesRango(this, 'editProductoPrecio')">
                 </div>
             </div>
@@ -430,6 +434,14 @@
             <div class="ver-prod-fila">
                 <span class="ver-prod-label">Crear Productos</span>
                 <span id="verUsuarioCrearProductos" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Producto Comodín</span>
+                <span id="verUsuarioProductoComodin" class="ver-prod-valor"></span>
+            </div>
+            <div class="ver-prod-fila">
+                <span class="ver-prod-label">Retirar Dinero Caja</span>
+                <span id="verUsuarioRetirarDinero" class="ver-prod-valor"></span>
             </div>
             <div class="ver-prod-fila">
                 <span class="ver-prod-label">Total Descansos</span>
@@ -545,7 +557,23 @@
                         style="width: auto;">
                     <span>Permitir crear productos</span>
                 </div>
-                <p style="font-size: 0.8rem; color: #6b7280; margin-top: 4px;">El empleado podrá añadir productos desde
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                    <input type="checkbox" id="editUsuarioPermisoModificarPrecios" value="modificar_precios"
+                        style="width: auto;">
+                    <span>Permitir modificar precios en caja</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                    <input type="checkbox" id="editUsuarioPermisoProductoComodin" value="producto_comodin"
+                        style="width: auto;">
+                    <span>Permitir usar Producto Comodín</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                    <input type="checkbox" id="editUsuarioPermisoRetirarDinero" value="retirar_dinero"
+                        style="width: auto;">
+                    <span>Permitir Retirar Dinero de Caja</span>
+                </div>
+                <p style="font-size: 0.8rem; color: #6b7280; margin-top: 4px;">El empleado podrá añadir productos y
+                    modificar precios desde
                     su vista de cajero</p>
             </div>
         </div>
@@ -653,12 +681,14 @@
 
             <div class="editar-prod-fila">
                 <label>Precio Proveedor (€) <span style="color:red">*</span></label>
-                <input type="number" id="asociarProvPrecio" step="0.0001" min="0" value="0.00" oninput="validar4Decimales(this)" onblur="validar4Decimales(this)" required>
+                <input type="number" id="asociarProvPrecio" step="0.0001" min="0" value="0.00"
+                    oninput="validar4Decimales(this)" onblur="validar4Decimales(this)" required>
             </div>
 
             <div class="editar-prod-fila">
                 <label>Recargo Equivalencia (%) <span style="color:red">*</span></label>
-                <input type="number" id="asociarProvRecargo" step="0.0001" min="0" value="0.00" oninput="validar4Decimales(this)" onblur="validar4Decimales(this)" required>
+                <input type="number" id="asociarProvRecargo" step="0.0001" min="0" value="0.00"
+                    oninput="validar4Decimales(this)" onblur="validar4Decimales(this)" required>
             </div>
         </div>
 
@@ -1356,15 +1386,18 @@
     <div class="modal-content" style="max-width: 600px; width: 90%;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
             <h3 style="margin:0"><i class="fas fa-tasks"></i> Centro de Tareas</h3>
-            <button class="btn-tpv" onclick="cerrarModal('modalCentroTareas')" style="background:none;color:var(--text-main);font-size:1.2rem;padding:5px;border:none"><i class="fas fa-times"></i></button>
+            <button class="btn-tpv" onclick="cerrarModal('modalCentroTareas')"
+                style="background:none;color:var(--text-main);font-size:1.2rem;padding:5px;border:none"><i
+                    class="fas fa-times"></i></button>
         </div>
         <p class="modal-subtitulo">Estado de los procesos en segundo plano</p>
-        
+
         <div id="listaTareasAdmin" style="margin-top:20px;max-height:400px;overflow-y:auto">
             <div class="reports-loading"><i class="fas fa-spinner fa-spin"></i> Cargando tareas...</div>
         </div>
 
-        <div style="display: flex; justify-content: center; margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--border-main);">
+        <div
+            style="display: flex; justify-content: center; margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--border-main);">
             <button class="btn-modal-cancelar" onclick="cerrarModal('modalCentroTareas')" style="min-width: 120px;">
                 Cerrar
             </button>
@@ -1373,17 +1406,78 @@
 </div>
 
 <style>
-.task-item { display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid var(--border-main); gap:15px; }
-.task-item:last-child { border-bottom:none; }
-.task-info { flex:1; }
-.task-name { font-weight:600; font-size:0.95rem; display:block; }
-.task-meta { font-size:0.75rem; color:#64748b; }
-.task-status { padding:4px 8px; border-radius:4px; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.02em; }
-.status-pendiente { background:#f1f5f9; color:#475569; }
-.status-procesando { background:#e0f2fe; color:#0369a1; }
-.status-completado { background:#dcfce7; color:#15803d; }
-.status-error { background:#fee2e2; color:#b91c1c; }
+    .task-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        border-bottom: 1px solid var(--border-main);
+        gap: 15px;
+    }
 
-@keyframes task-pulse { 0% { opacity:0.6; } 50% { opacity:1; } 100% { opacity:0.6; } }
-.task-indicator { animation: task-pulse 2s infinite ease-in-out; }
-</style>
+    .task-item:last-child {
+        border-bottom: none;
+    }
+
+    .task-info {
+        flex: 1;
+    }
+
+    .task-name {
+        font-weight: 600;
+        font-size: 0.95rem;
+        display: block;
+    }
+
+    .task-meta {
+        font-size: 0.75rem;
+        color: #64748b;
+    }
+
+    .task-status {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+
+    .status-pendiente {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .status-procesando {
+        background: #e0f2fe;
+        color: #0369a1;
+    }
+
+    .status-completado {
+        background: #dcfce7;
+        color: #15803d;
+    }
+
+    .status-error {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    @keyframes task-pulse {
+        0% {
+            opacity: 0.6;
+        }
+
+        50% {
+            opacity: 1;
+        }
+
+        100% {
+            opacity: 0.6;
+        }
+    }
+
+    .task-indicator {
+        animation: task-pulse 2s infinite ease-in-out;
+    }
+</style>

@@ -20,6 +20,7 @@
 <!-- Inyectar traducciones para JS -->
 <script>
     const LANG = <?php echo json_encode($LANG); ?>;
+    window.PUEDE_PRODUCTO_COMODIN = <?php echo $puedeProductoComodin ? 'true' : 'false'; ?>;
 </script>
 
 <!-- ##=========================== SECCIÓN PRINCIPAL DEL CAJERO ===========================## -->
@@ -131,16 +132,18 @@
                     </button>
 
                     <!-- Botón RETIRAR DINERO -->
-                    <button type="button" class="btn-retiro" id="btnRetiro" onclick="mostrarModalRetiro()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
-                        style="<?php echo !$sesionCaja ? 'opacity: 0.3; background: #ea580c; cursor: not-allowed;' : ''; ?>">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    <?php if ($puedeRetirarDinero): ?>
+                        <button type="button" class="btn-retiro" id="btnRetiro" onclick="mostrarModalRetiro()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                            style="<?php echo !$sesionCaja ? 'opacity: 0.3; background: #ea580c; cursor: not-allowed;' : ''; ?>">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect width="20" height="12" x="2" y="6" rx="2"></rect>
                             <circle cx="12" cy="12" r="2"></circle>
                             <path d="M6 12h.01M18 12h.01"></path>
-                        </svg>
-                        <?php echo t('cajero.withdraw_money'); ?>
-                    </button>
+                            </svg>
+                            <?php echo t('cajero.withdraw_money'); ?>
+                        </button>
+                    <?php endif; ?>
 
                     <!-- Botón HISTORIAL DE VENTAS -->
                     <button type="button" class="btn-historial" id="btnHistorial" onclick="mostrarHistorialVentas()"
@@ -193,16 +196,19 @@
                     </button>
 
                     <!-- Botón CAMBIAR PRECIOS: abre el modal para cambiar precios base/tarifas -->
-                    <button type="button" class="btn-nuevo-producto" id="btnCambiarPrecios"
-                        onclick="mostrarModalCambiarPrecios()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
-                        style="<?php echo !$sesionCaja ? 'opacity: 0.3; cursor: not-allowed;' : ''; ?>">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="1" x2="12" y2="23"></line>
-                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                        </svg>
-                        <?php echo t('cajero.change_prices'); ?>
-                    </button>
+                    <?php if ($puedeModificarPrecios): ?>
+                        <button type="button" class="btn-nuevo-producto" id="btnCambiarPrecios"
+                            onclick="mostrarModalCambiarPrecios()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
+                            style="<?php echo !$sesionCaja ? 'opacity: 0.3; cursor: not-allowed;' : ''; ?>">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="1" x2="12" y2="23"></line>
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                            </svg>
+                            <?php echo t('cajero.change_prices'); ?>
+                        </button>
+                    <?php endif; ?>
+
                 </div>
             </div>
 
