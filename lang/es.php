@@ -113,6 +113,11 @@ return [
         'add_to_cart' => 'Añadir al Carrito',
         'mixed_remaining_assign' => 'Restante por asignar',
         'mixed_distribute_full' => 'Distribuir total completo',
+        'alert_cash_limit_exceeded' => '⚠️ Límite de efectivo superado. No se permite pagar más de 1.000€ en efectivo',
+        'mixed_total_covered' => '✅ Total cubierto',
+        'mixed_exact_assigned' => '✅ Importe asignado exactamente',
+        'mixed_error_cash_limit' => '⚠️ No se puede asignar más de 1.000€ en efectivo',
+        'alert_no_stock_available' => '❌ No hay stock suficiente de este producto',
     ],
 
     // ======================== MODAL: CAMBIO EFECTIVO ========================
@@ -315,6 +320,7 @@ return [
         'recover_change' => 'Recuperar cambio anterior:',
         'new_change' => 'Introducir nuevo cambio',
         'initial_fund' => 'Fondo de caja inicial (€)',
+        'initial_cash' => 'Efectivo inicial en caja',
         'cancel' => 'Cancelar',
         'confirm' => 'Confirmar Apertura',
     ],
@@ -606,6 +612,13 @@ return [
     ],
 
     // ======================== COMMON / BOTONES ========================
+    'tarifas' => [
+        'cliente' => 'Cliente',
+        'cliente_registrado' => 'Cliente Registrado',
+        'mayorista_nivel_1' => 'Mayorista Nivel 1',
+        'mayorista_nivel_2' => 'Mayorista Nivel 2'
+    ],
+
     'common' => [
         'save' => 'Guardar',
         'save_changes' => 'Guardar Cambios',
@@ -909,6 +922,7 @@ return [
         'continue' => 'Continuar',
         'shortage' => 'Faltante',
         'surplus' => 'Sobrante',
+        'correct' => '✅ Correcto',
     ],
 
     // ======================== CIERRE DE CAJA / RESUMEN ========================

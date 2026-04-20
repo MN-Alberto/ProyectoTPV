@@ -119,6 +119,9 @@ class Venta
     // Desglose de pago mixto (JSON)
     private $desglosePago;
 
+    // Idioma del ticket
+    private $idioma_ticket;
+
     // ======================== GETTERS ========================
 
     /** 
@@ -234,6 +237,15 @@ class Venta
     public function getDesglosePago()
     {
         return $this->desglosePago;
+    }
+
+    /**
+     * Obtiene el idioma seleccionado para el ticket.
+     * @return string|null
+     */
+    public function getIdiomaTicket()
+    {
+        return $this->idioma_ticket;
     }
 
     // ======================== SETTERS ========================
@@ -375,6 +387,15 @@ class Venta
     public function setDesglosePago($v)
     {
         $this->desglosePago = $v;
+    }
+
+    /**
+     * Establece el idioma del ticket.
+     * @param string $v 'es', 'en', 'fr', 'de', 'ru'
+     */
+    public function setIdiomaTicket($v)
+    {
+        $this->idioma_ticket = $v;
     }
 
     public function getImporteEntregado()
@@ -691,8 +712,8 @@ class Venta
 
             // 4. Insertar en la tabla real correspondiente (tickets o facturas) con el ID obtenido
             $tabla = $this->getTabla();
-            $sql = "INSERT INTO {$tabla} (id, idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni, cliente_nombre, cliente_direccion, cliente_observaciones, mensaje_personalizado, desglose_pago, idSesionCaja, puntos_ganados, puntos_canjeados, puntos_balance) 
-                  VALUES (:id, :idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni, :clienteNombre, :clienteDireccion, :clienteObservaciones, :mensajePersonalizado, :desglosePago, :idSesionCaja, :puntosGanados, :puntosCanjeados, :puntosBalance)";
+            $sql = "INSERT INTO {$tabla} (id, idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni, cliente_nombre, cliente_direccion, cliente_observaciones, mensaje_personalizado, desglose_pago, idSesionCaja, puntos_ganados, puntos_canjeados, puntos_balance, idioma_ticket) 
+                  VALUES (:id, :idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni, :clienteNombre, :clienteDireccion, :clienteObservaciones, :mensajePersonalizado, :desglosePago, :idSesionCaja, :puntosGanados, :puntosCanjeados, :puntosBalance, :idiomaTicket)";
 
             $stmt = $conexion->prepare($sql);
 
@@ -728,6 +749,7 @@ class Venta
             $stmt->bindParam(':puntosGanados', $this->puntosGanados, PDO::PARAM_INT);
             $stmt->bindParam(':puntosCanjeados', $this->puntosCanjeados, PDO::PARAM_INT);
             $stmt->bindParam(':puntosBalance', $this->puntosBalance, PDO::PARAM_INT);
+            $stmt->bindParam(':idiomaTicket', $this->idioma_ticket, PDO::PARAM_STR);
 
             // Ejecutamos la consulta de inserción
             try {
@@ -1061,6 +1083,9 @@ class Venta
         }
         if (isset($fila['desglose_pago'])) {
             $venta->setDesglosePago($fila['desglose_pago']);
+        }
+        if (isset($fila['idioma_ticket'])) {
+            $venta->setIdiomaTicket($fila['idioma_ticket']);
         }
         return $venta;
     }

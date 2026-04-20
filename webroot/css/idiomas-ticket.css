@@ -1,0 +1,45 @@
+/* Estilos para selector de idiomas en modal finalizar venta */
+.idiomas-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    grid-auto-flow: column !important;
+    grid-template-rows: 1fr !important;
+    gap: 8px;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    flex-wrap: nowrap !important;
+    flex-direction: row !important;
+}
+
+.idioma-option-card {
+    min-width: unset !important;
+    min-height: 56px;
+    width: 100% !important;
+    height: 100%;
+    padding: 10px 6px;
+    border-radius: 10px;
+    border: 2px solid var(--border-main);
+    background: var(--bg-card);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 32px;
+    line-height: 1;
+    grid-row: 1 !important;
+}
+
+.idioma-option-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.idioma-option-card.active {
+    border-color: var(--accent);
+    background: var(--bg-accent);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    transform: scale(1.05);
+}
