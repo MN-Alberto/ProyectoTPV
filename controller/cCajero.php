@@ -304,14 +304,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $clienteDireccion = $_POST['clienteDireccion'] ?? '';
             $observaciones = $_POST['observaciones'] ?? '';
             $mensajePersonalizado = trim($_POST['mensajePersonalizado'] ?? '');
+            $idiomaTicket = trim($_POST['idioma_ticket'] ?? 'es');
 
-            error_log("Datos del cliente recibidos: NIF='$clienteNif', Nombre='$clienteNombre'");
+            error_log("Datos del cliente recibidos: NIF='$clienteNif', Nombre='$clienteNombre', IdiomaTicket='$idiomaTicket'");
 
             $venta->setClienteDni($clienteNif);
             $venta->setClienteNombre($clienteNombre);
             $venta->setClienteDireccion($clienteDireccion);
             $venta->setClienteObservaciones($observaciones);
             $venta->setMensajePersonalizado($mensajePersonalizado);
+            $venta->setIdiomaTicket($idiomaTicket);
 
             // Desglose de pago mixto
             $desglosePagoStr = $_POST['desglosePago'] ?? '';
@@ -413,7 +415,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                     $ivaItem = isset($item['iva']) ? (float) $item['iva'] : 21;
                 } else {
                     $linea->setIdProducto($item['idProducto']);
+                    // ✅ USAR NOMBRE TRADUCIDO DEL MODELO, NO EL QUE VIENE DEL CARRITO
+                    $nombreTraducido = $producto ? $producto->getNombre() : $item['nombre'];
+                    $linea->setNombreProducto($nombreTraducido);
                     $ivaItem = $producto ? (float) $producto->getIvaPorcentaje() : 21;
+                    // Sobrescribimos también el nombre en el item para que se guarde correctamente en la sesión
+                    $item['nombre'] = $nombreTraducido;
                 }
 
                 // Indicamos la cantidad

@@ -113,6 +113,12 @@ return [
         'add_to_cart' => 'Add to Cart',
         'mixed_remaining_assign' => 'Remaining to assign',
         'mixed_distribute_full' => 'Distribute full total',
+        'saving' => 'Savings',
+        'alert_cash_limit_exceeded' => '⚠️ Cash limit exceeded. Cash payments over €1,000 are not allowed',
+        'mixed_total_covered' => '✅ Total covered',
+        'mixed_exact_assigned' => '✅ Amount exactly assigned',
+        'mixed_error_cash_limit' => '⚠️ Cannot assign more than €1,000 in cash',
+        'alert_no_stock_available' => '❌ Insufficient stock for this product',
     ],
 
     // ======================== MODAL: CASH CHANGE ========================
@@ -315,6 +321,7 @@ return [
         'recover_change' => 'Recover previous change:',
         'new_change' => 'Enter new change',
         'initial_fund' => 'Initial cash fund (€)',
+        'initial_cash' => 'Initial cash in register',
         'cancel' => 'Cancel',
         'confirm' => 'Confirm Opening',
     ],
@@ -605,6 +612,14 @@ return [
         'loading_tasks' => 'Loading tasks...',
     ],
 
+    // ======================== TARIFAS / RATES ========================
+    'tarifas' => [
+        'cliente' => 'Customer',
+        'cliente_registrado' => 'Registered Customer',
+        'mayorista_nivel_1' => 'Wholesaler Level 1',
+        'mayorista_nivel_2' => 'Wholesaler Level 2'
+    ],
+
     // ======================== COMMON / BUTTONS ========================
     'common' => [
         'save' => 'Save',
@@ -749,6 +764,12 @@ return [
         'add_to_cart' => 'Add to Cart',
         'mixed_remaining_assign' => 'Remaining to assign',
         'mixed_distribute_full' => 'Distribute full total',
+        'saving' => 'Savings',
+        'alert_cash_limit_exceeded' => '⚠️ Cash limit exceeded. Cash payments over €1,000 are not allowed',
+        'mixed_total_covered' => '✅ Total covered',
+        'mixed_exact_assigned' => '✅ Amount exactly assigned',
+        'mixed_error_cash_limit' => '⚠️ Cannot assign more than €1,000 in cash',
+        'alert_no_stock_available' => '❌ Insufficient stock for this product',
     ],
 
     // ======================== PRINT ========================
@@ -909,6 +930,7 @@ return [
         'continue' => 'Continue',
         'shortage' => 'Shortage',
         'surplus' => 'Surplus',
+        'correct' => '✅ Correct',
     ],
 
     // ======================== CASH SUMMARY ========================
@@ -935,6 +957,14 @@ return [
         'closed_message' => 'Daily summary has been saved correctly.',
         'print' => 'Print Summary',
         'accept' => 'Accept',
+    ],
+
+    'search_client' => [
+        'title' => 'Search Client',
+        'subtitle' => 'Enter client ID to search',
+        'dni' => 'Client ID',
+        'cancel' => 'Cancel',
+        'search' => 'Search',
     ],
 
 ];

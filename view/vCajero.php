@@ -19,7 +19,18 @@
      ============================================================================ -->
 <!-- Inyectar traducciones para JS -->
 <script>
-    const LANG = <?php echo json_encode($LANG); ?>;
+    // Cargar TODOS los idiomas disponibles para el ticket
+    const IDIOMAS_TICKET = {
+        es: <?php echo json_encode(include __DIR__ . '/../lang/es.php'); ?>,
+        en: <?php echo json_encode(include __DIR__ . '/../lang/en.php'); ?>,
+        fr: <?php echo json_encode(include __DIR__ . '/../lang/fr.php'); ?>,
+        de: <?php echo json_encode(include __DIR__ . '/../lang/de.php'); ?>,
+        ru: <?php echo json_encode(include __DIR__ . '/../lang/ru.php'); ?>
+    };
+
+    let LANG = IDIOMAS_TICKET.es; // Idioma por defecto del cajero
+    let idiomaTicketSeleccionado = 'es';
+
     window.PUEDE_PRODUCTO_COMODIN = <?php echo $puedeProductoComodin ? 'true' : 'false'; ?>;
 </script>
 
@@ -135,11 +146,11 @@
                     <?php if ($puedeRetirarDinero): ?>
                         <button type="button" class="btn-retiro" id="btnRetiro" onclick="mostrarModalRetiro()" <?php echo !$sesionCaja ? 'disabled' : ''; ?>
                             style="<?php echo !$sesionCaja ? 'opacity: 0.3; background: #ea580c; cursor: not-allowed;' : ''; ?>">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect width="20" height="12" x="2" y="6" rx="2"></rect>
-                            <circle cx="12" cy="12" r="2"></circle>
-                            <path d="M6 12h.01M18 12h.01"></path>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect width="20" height="12" x="2" y="6" rx="2"></rect>
+                                <circle cx="12" cy="12" r="2"></circle>
+                                <path d="M6 12h.01M18 12h.01"></path>
                             </svg>
                             <?php echo t('cajero.withdraw_money'); ?>
                         </button>
@@ -263,6 +274,11 @@
                     <!-- Si el stock es 0, la tarjeta se muestra con opacidad reducida y sin interacción -->
                     <div class="producto-card" data-id="<?php echo $prod->getId(); ?>"
                         data-nombre="<?php echo htmlspecialchars($prod->getNombre()); ?>"
+                        data-nombre_es="<?php echo htmlspecialchars($prod->getNombreEs() ?? $prod->getNombre()); ?>"
+                        data-nombre_en="<?php echo htmlspecialchars($prod->getNombreEn() ?? $prod->getNombre()); ?>"
+                        data-nombre_fr="<?php echo htmlspecialchars($prod->getNombreFr() ?? $prod->getNombre()); ?>"
+                        data-nombre_de="<?php echo htmlspecialchars($prod->getNombreDe() ?? $prod->getNombre()); ?>"
+                        data-nombre_ru="<?php echo htmlspecialchars($prod->getNombreRu() ?? $prod->getNombre()); ?>"
                         data-precio="<?php echo $precioBaseEfectivo; ?>"
                         data-precio-original="<?php echo $prod->getPrecio(); ?>" data-pvp="<?php echo $precioPVP_fmt; ?>"
                         data-iva="<?php echo $prod->getIvaPorcentaje(); ?>"
@@ -300,7 +316,7 @@
                                     <option value="<?php echo $tarifa['descuento_porcentaje']; ?>"
                                         data-requiere-cliente="<?php echo $tarifa['requiere_cliente']; ?>"
                                         data-tarifa-id="<?php echo $tarifa['id']; ?>" <?php echo ($tarifa['nombre'] === 'Cliente') ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($tarifa['nombre']); ?>
+                                        <?php echo t('tarifas.' . strtolower(str_replace(' ', '_', $tarifa['nombre']))); ?>
                                     </option>
                                     <?php
                                 endforeach; ?>
@@ -505,6 +521,7 @@
         <input type="hidden" name="mensajePersonalizado" id="inputMensajePersonalizado">
         <!-- Desglose de pago mixto (JSON) -->
         <input type="hidden" name="desglosePago" id="inputDesglosePago">
+        <input type="hidden" name="idioma_ticket" id="inputIdiomaTicket" value="es">
     </form>
 </section>
 
@@ -945,6 +962,38 @@
                         <span
                             style="width: 8px; height: 8px; background: #16a34a; border-radius: 50%; flex-shrink: 0; animation: pulse 2s infinite;"></span>
                         <?php echo t('checkout.printer_ready'); ?>
+                    </div>
+                </div>
+
+                <!-- Sección: Idioma del Ticket -->
+                <div class="control-group">
+                    <div class="control-section-title">Idioma del Ticket</div>
+                    <div class="idiomas-grid">
+                        <div class="idioma-option-card active" data-idioma="es" onclick="cambiarIdiomaTicket('es')"
+                            title="Español">
+                            <img src="https://flagcdn.com/w40/es.png" alt="Español" width="32" height="24"
+                                style="border-radius: 4px;">
+                        </div>
+                        <div class="idioma-option-card" data-idioma="en" onclick="cambiarIdiomaTicket('en')"
+                            title="Inglés">
+                            <img src="https://flagcdn.com/w40/gb.png" alt="Inglés" width="32" height="24"
+                                style="border-radius: 4px;">
+                        </div>
+                        <div class="idioma-option-card" data-idioma="fr" onclick="cambiarIdiomaTicket('fr')"
+                            title="Francés">
+                            <img src="https://flagcdn.com/w40/fr.png" alt="Francés" width="32" height="24"
+                                style="border-radius: 4px;">
+                        </div>
+                        <div class="idioma-option-card" data-idioma="de" onclick="cambiarIdiomaTicket('de')"
+                            title="Alemán">
+                            <img src="https://flagcdn.com/w40/de.png" alt="Alemán" width="32" height="24"
+                                style="border-radius: 4px;">
+                        </div>
+                        <div class="idioma-option-card" data-idioma="ru" onclick="cambiarIdiomaTicket('ru')"
+                            title="Ruso">
+                            <img src="https://flagcdn.com/w40/ru.png" alt="Ruso" width="32" height="24"
+                                style="border-radius: 4px;">
+                        </div>
                     </div>
                 </div>
 
@@ -3662,6 +3711,11 @@ endif; ?>
     function agregarAlCarrito(elemento) {
         const id = parseInt(elemento.dataset.id) || 0;
         const nombre = elemento.dataset.nombre || 'Producto sin nombre';
+        const nombre_es = elemento.dataset.nombre_es || nombre;
+        const nombre_en = elemento.dataset.nombre_en || nombre;
+        const nombre_fr = elemento.dataset.nombre_fr || nombre;
+        const nombre_de = elemento.dataset.nombre_de || nombre;
+        const nombre_ru = elemento.dataset.nombre_ru || nombre;
         const precioBase = parseFloat(elemento.dataset.precio) || 0;
         const iva = parseInt(elemento.dataset.iva || 21);
 
@@ -3708,6 +3762,11 @@ endif; ?>
             carrito.push({
                 idProducto: id,
                 nombre: nombre,
+                nombre_es: elemento.dataset.nombre_es || nombre,
+                nombre_en: elemento.dataset.nombre_en || nombre,
+                nombre_fr: elemento.dataset.nombre_fr || nombre,
+                nombre_de: elemento.dataset.nombre_de || nombre,
+                nombre_ru: elemento.dataset.nombre_ru || nombre,
                 precio: precioBase,
                 pvpOriginalUnitario: pvpOriginalUnitario,
                 pvpUnitario: pvpActual,
@@ -4769,6 +4828,50 @@ endif; ?>
     let proximosNumeros = { ticket: 'T00000', factura: 'F00000' };
 
     /**
+     * cambiarIdiomaTicket(idioma)
+     * Cambia el idioma seleccionado para el ticket, actualiza la selección visual 
+     * y regenera la vista previa en el nuevo idioma
+     */
+    function cambiarIdiomaTicket(idioma) {
+        // Actualizar variable global
+        idiomaTicketSeleccionado = idioma;
+
+        // ✅ Actualizar variable de traducciones
+        LANG = IDIOMAS_TICKET[idioma];
+
+        // Actualizar estado visual de los botones
+        document.querySelectorAll('.idioma-option-card').forEach(el => {
+            el.classList.remove('active');
+        });
+        document.querySelector(`.idioma-option-card[data-idioma="${idioma}"]`).classList.add('active');
+
+        // Actualizar campo oculto del formulario
+        document.getElementById('inputIdiomaTicket').value = idioma;
+
+        // ✅ ACTUALIZAR NOMBRES DE TODOS LOS PRODUCTOS EN EL CARRITO
+        if (typeof carrito !== 'undefined' && carrito.length > 0) {
+            carrito.forEach(item => {
+                // Buscar el nombre correspondiente al idioma seleccionado
+                const campoNombre = `nombre_${idioma}`;
+                if (item[campoNombre] && item[campoNombre].trim() !== '') {
+                    item.nombre = item[campoNombre];
+                } else {
+                    // Fallback: si no tiene traduccion usar nombre español, si tampoco nombre base
+                    if (item.nombre_es && item.nombre_es.trim() !== '') {
+                        item.nombre = item.nombre_es;
+                    }
+                }
+            });
+
+            // ✅ Volver a renderizar el carrito en el panel derecho
+            actualizarTicket();
+        }
+
+        // Regenerar vista previa del ticket con el nuevo idioma
+        renderizarVistaPreviaTicket();
+    }
+
+    /**
      * abrirModalFinalizarVenta()
      * Inicializa y muestra el nuevo modal de finalización con vista previa.
      */
@@ -4778,6 +4881,14 @@ endif; ?>
         // Resetear selecciones
         tipoDocumentoActual = 'ticket';
         metodoEntregaActual = 'imprimir';
+        idiomaTicketSeleccionado = 'es';
+
+        // Resetear selección de idioma a Español por defecto
+        document.querySelectorAll('.idioma-option-card').forEach(el => {
+            el.classList.remove('active');
+        });
+        document.querySelector('.idioma-option-card[data-idioma="es"]').classList.add('active');
+        document.getElementById('inputIdiomaTicket').value = 'es';
 
         // Fetch de los próximos números para la vista previa
         fetch('api/ventas.php?accion=proximos_numeros')
@@ -4898,15 +5009,29 @@ endif; ?>
         const direccion = document.getElementById('clienteDireccion').value.trim();
         const observaciones = document.getElementById('clienteObservaciones').value.trim();
         const mensajePersonalizado = document.getElementById('mensajePersonalizadoVenta').value.trim();
+        const idiomaTicket = idiomaTicketSeleccionado;
 
         // Clonar y preparar líneas de carrito
-        const lineas = carrito.map(item => ({
-            ...item,
-            precio: parseFloat(item.precio),
-            pvpUnitario: parseFloat(item.pvpUnitario),
-            cantidad: parseFloat(item.cantidad),
-            iva: (item.iva !== undefined && item.iva !== null && item.iva !== "") ? parseInt(item.iva) : 21
-        }));
+        const lineas = carrito.map(item => {
+            // Obtener nombre en el idioma seleccionado actualmente
+            const campoNombre = `nombre_${idiomaTicketSeleccionado}`;
+            let nombreFinal = item.nombre;
+
+            if (item[campoNombre] && item[campoNombre].trim() !== '') {
+                nombreFinal = item[campoNombre];
+            } else if (item.nombre_es && item.nombre_es.trim() !== '') {
+                nombreFinal = item.nombre_es;
+            }
+
+            return {
+                ...item,
+                nombre: nombreFinal,
+                precio: parseFloat(item.precio),
+                pvpUnitario: parseFloat(item.pvpUnitario),
+                cantidad: parseFloat(item.cantidad),
+                iva: (item.iva !== undefined && item.iva !== null && item.iva !== "") ? parseInt(item.iva) : 21
+            };
+        });
 
         return {
             id: proximosNumeros[tipoDoc],
@@ -4957,26 +5082,30 @@ endif; ?>
      * Genera el HTML para la sección de método de pago en el comprobante.
      * Si es pago mixto, muestra el desglose por método; si no, muestra una línea simple.
      */
-    function generarDesgloseFormaPago(datosVenta, isFactura) {
-        const metodoLabels = { efectivo: '💵 <?php echo t('print.cash'); ?>', tarjeta: '💳 <?php echo t('print.card'); ?>', bizum: '📱 <?php echo t('print.bizum'); ?>' };
+    function generarDesgloseFormaPago(T, datosVenta, isFactura) {
+        const metodoLabels = {
+            efectivo: '💵 ' + T.print.cash,
+            tarjeta: '💳 ' + T.print.card,
+            bizum: '📱 ' + T.print.bizum
+        };
         const precTotal = 2;
 
         if (datosVenta.metodoPago === 'mixto' && datosVenta.pagoMixtoDesglose) {
             const d = datosVenta.pagoMixtoDesglose;
             let rows = '';
-            if (d.efectivo > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">💵 <?php echo t('print.cash'); ?></td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">${d.efectivo.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
-            if (d.tarjeta > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">💳 <?php echo t('print.card'); ?></td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">${d.tarjeta.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
-            if (d.bizum > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">📱 <?php echo t('print.bizum'); ?></td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">${d.bizum.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
-            if (d.cambio > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'}; color:#888;"><?php echo t('print.change_returned'); ?></td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'}; color:#888;">-${d.cambio.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
+            if (d.efectivo > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">💵 ${T.print.cash}</td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">${d.efectivo.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
+            if (d.tarjeta > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">💳 ${T.print.card}</td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">${d.tarjeta.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
+            if (d.bizum > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">📱 ${T.print.bizum}</td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">${d.bizum.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
+            if (d.cambio > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'}; color:#888;">${T.print.change_returned}</td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'}; color:#888;">-${d.cambio.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
 
             if (isFactura) {
                 return `<div style="clear:both; margin-top:30px;">
-                    <p style="font-size:13px; color:#444; font-weight:bold; margin-bottom:6px;"><?php echo mb_strtoupper(t('print.payment_method')); ?>: MIXTO</p>
+                    <p style="font-size:13px; color:#444; font-weight:bold; margin-bottom:6px;">${T.print.payment_method.toUpperCase()}: MIXTO</p>
                     <table style="width:auto; border-collapse:collapse;">${rows}</table>
                 </div>`;
             } else {
                 return `<div style="margin-top:10px; border-top:1px dashed #000; padding-top:6px;">
-                    <div style="font-size:10px; font-weight:bold; margin-bottom:4px;"><?php echo mb_strtoupper(t('print.payment_method')); ?>: MIXTO</div>
+                    <div style="font-size:10px; font-weight:bold; margin-bottom:4px;">${T.print.payment_method.toUpperCase()}: MIXTO</div>
                     <table style="width:100%; border-collapse:collapse;">${rows}</table>
                 </div>`;
             }
@@ -4985,9 +5114,9 @@ endif; ?>
         // Pago simple
         const label = metodoLabels[datosVenta.metodoPago] || datosVenta.metodoPago.toUpperCase();
         if (isFactura) {
-            return `<p style="clear:both; margin-top:30px; font-size:12px; color:#666;"><?php echo t('print.payment_method'); ?>: ${label}</p>`;
+            return `<p style="clear:both; margin-top:30px; font-size:12px; color:#666;">${T.print.payment_method}: ${label}</p>`;
         } else {
-            return `<div style="margin-top:8px; font-size:10px; text-align:center;"><?php echo t('print.payment_method'); ?>: ${label}</div>`;
+            return `<div style="margin-top:8px; font-size:10px; text-align:center;">${T.print.payment_method}: ${label}</div>`;
         }
     }
 
@@ -4997,8 +5126,11 @@ endif; ?>
      * ÚNICA FUENTE DE VERDAD para el formato de impresión.
      */
     function generarHTMLComprobante(datosVenta) {
+        // Obtener las traducciones del idioma seleccionado
+        const T = IDIOMAS_TICKET[idiomaTicketSeleccionado];
+
         const isFactura = (datosVenta.tipo === 'factura');
-        const tipoTitulo = isFactura ? '<?php echo t('print.factura_title'); ?>' : '<?php echo t('print.ticket_title'); ?>';
+        const tipoTitulo = isFactura ? T.print.factura_title : T.print.ticket_title;
 
         // --- LÓGICA DE CÁLCULO ---
         const precTotal = 2; // Siempre 2 para ticket/factura impresos
@@ -5029,9 +5161,13 @@ endif; ?>
             desgloseIva[ivaPorc].base += subtotalBase;
             desgloseIva[ivaPorc].cuota += subtotalIva;
 
-            // Fila para TICKET: 5 columnas (Art, Ud, Base, IVA%, Total)
+            // Obtener nombre traducido segun idioma seleccionado (fuera del bucle)
+            // ✅ CORREGIDO: YA NO VOLVEMOS A TRADUCIR AQUI, EL NOMBRE YA VIENE CORRECTAMENTE TRADUCIDO desde construirObjetoVentaTemporal()
+            // Eliminada la doble traduccion que siempre devolvia español cuando no habia traduccion especifica
+            let nombreProducto = item.nombre;
+
             lineasHtmlTicket += `<tr>
-                <td style="padding: 6px 4px; font-size: 11px;">${item.nombre}</td>
+                <td style="padding: 6px 4px; font-size: 11px;">${nombreProducto}</td>
                 <td style="text-align:center; font-size: 11px;">${cant}</td>
                 <td style="text-align:right; font-size: 11px; padding-right: 12px;">${precioBaseUnitario.toFixed(dec).replace('.', ',')}€</td>
                 <td style="text-align:center; font-size: 11px; padding-left: 12px;">${ivaPorc}%</td>
@@ -5039,8 +5175,11 @@ endif; ?>
             </tr>`;
 
             // Fila para FACTURA: 5 columnas (Descripción, Cant, Unitario_Base, IVA%, Importe)
+            // ✅ CORREGIDO: Mismo fix para factura, usamos el nombre ya traducido
+            nombreProducto = item.nombre;
+
             lineasHtmlFactura += `<tr>
-                <td style="padding: 10px 5px;">${item.nombre}</td>
+                <td style="padding: 10px 5px;">${nombreProducto}</td>
                 <td style="text-align:center">${cant}</td>
                 <td style="text-align:right">${precioBaseUnitario.toFixed(dec).replace('.', ',')} €</td>
                 <td style="text-align:center">${ivaPorc}%</td>
@@ -5052,11 +5191,11 @@ endif; ?>
         Object.keys(desgloseIva).sort().forEach(porc => {
             totalesHtml += `
                 <tr style="font-size: 0.8rem; color: #444;">
-                    <td><?php echo t('print.base_at'); ?> ${porc}%:</td>
+                    <td>${T.print.base_at} ${porc}%:</td>
                     <td style="text-align:right">${desgloseIva[porc].base.toFixed(precTotal).replace('.', ',')} €</td>
                 </tr>
                 <tr style="font-size: 0.8rem; color: #444;">
-                    <td><?php echo t('print.iva_quote'); ?> (${porc}%):</td>
+                    <td>${T.print.iva_quote} (${porc}%):</td>
                     <td style="text-align:right">${desgloseIva[porc].cuota.toFixed(precTotal).replace('.', ',')} €</td>
                 </tr>`;
         });
@@ -5067,10 +5206,10 @@ endif; ?>
             let descLabel = '';
             if (datosVenta.descuentoTipo === 'porcentaje') {
                 descImporte = round2(sumaTotalesNumeric * (datosVenta.descuentoValor / 100));
-                descLabel = `<?php echo t('print.dto'); ?> (${datosVenta.descuentoValor}%):`;
+                descLabel = `${T.print.dto} (${datosVenta.descuentoValor}%):`;
             } else {
                 descImporte = datosVenta.descuentoValor;
-                descLabel = '<?php echo t('print.discount'); ?>:';
+                descLabel = `${T.print.discount}:`;
             }
             totalesHtml += `
                 <tr style="font-size: 0.85rem; color: #d32f2f;">
@@ -5082,14 +5221,14 @@ endif; ?>
         if (datosVenta.puntosCanjeados) {
             totalesHtml += `
                 <tr style="font-size: 0.85rem; color: #d32f2f;">
-                    <td><?php echo t('print.points_exchange'); ?> (${datosVenta.puntosCanjeados.puntos} pts):</td>
+                    <td>${T.print.points_exchange} (${datosVenta.puntosCanjeados.puntos} pts):</td>
                     <td style="text-align:right">-${parseFloat(datosVenta.puntosCanjeados.descuento).toFixed(precTotal).replace('.', ',')} €</td>
                 </tr>`;
         }
 
         totalesHtml += `
             <tr style="border-top: 2px solid #000;">
-                <td style="font-size: 1.1rem; padding-top:8px;"><strong><?php echo t('print.total'); ?>:</strong></td>
+                <td style="font-size: 1.1rem; padding-top:8px;"><strong>${T.print.total}:</strong></td>
                 <td style="font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:8px;">${parseEsp(datosVenta.total).toFixed(precTotal).replace('.', ',')} €</td>
             </tr>
         </table>`;
@@ -5105,8 +5244,8 @@ endif; ?>
 
         const puntosFooterHtml = datosVenta.clienteNif ? `
             <div style="margin-top:10px; border-top:1px dashed #ccc; padding-top:5px; font-size:10px;">
-                ${datosVenta.puntosGanados > 0 ? `<div><?php echo t('print.earned_points'); ?>: <strong>+${datosVenta.puntosGanados}</strong></div>` : ''}
-                <div><?php echo t('print.new_balance'); ?>: <strong>${finalPuntosBalance.toLocaleString('es-ES')}</strong></div>
+                ${datosVenta.puntosGanados > 0 ? `<div>${T.print.earned_points}: <strong>+${datosVenta.puntosGanados}</strong></div>` : ''}
+                <div>${T.print.new_balance}: <strong>${finalPuntosBalance.toLocaleString('es-ES')}</strong></div>
             </div>` : '';
 
         if (isFactura) {
@@ -5122,19 +5261,19 @@ endif; ?>
                 td { padding: 10px 5px; border-bottom: 1px solid #e5e7eb; }
             </style></head><body>
                 <div class="header"><h1>${tipoTitulo}</h1></div>
-                <div class="two-col"><div class="col"><h3><?php echo t('print.emitter'); ?></h3><p><strong>TPV Bazar</strong></p><p>NIF: B12345678</p><p>C/ Falsa 123, Madrid</p></div>
-                <div class="col" style="text-align:right"><div style="font-size: 18px; font-weight: bold;">Nº ${numComprobante}</div><div style="color:#666"><?php echo t('print.date'); ?>: ${datosVenta.fecha}</div></div></div>
+                <div class="two-col"><div class="col"><h3>${T.print.emitter}</h3><p><strong>TPV Bazar</strong></p><p>NIF: B12345678</p><p>C/ Falsa 123, Madrid</p></div>
+                <div class="col" style="text-align:right"><div style="font-size: 18px; font-weight: bold;">Nº ${numComprobante}</div><div style="color:#666">${T.print.date}: ${datosVenta.fecha}</div></div></div>
                 <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px;">
-                    <h3><?php echo t('print.receiver'); ?></h3>
-                    <p><strong>${datosVenta.clienteNombre || '<?php echo t('print.no_name'); ?>'}</strong></p>
+                    <h3>${T.print.receiver}</h3>
+                    <p><strong>${datosVenta.clienteNombre || T.print.no_name}</strong></p>
                     ${datosVenta.clienteNif ? `<p>NIF: ${datosVenta.clienteNif}</p>` : ''}
                     ${datosVenta.clienteDir ? `<p>${datosVenta.clienteDir}</p>` : ''}
                     ${puntosFooterHtml ? `<div style="margin-top:10px; padding-top:10px; border-top:1px solid #e5e7eb;">${puntosFooterHtml}</div>` : ''}
                 </div>
-                <table><thead><tr><th><?php echo t('print.description_th'); ?></th><th style="text-align:center"><?php echo t('print.cant_th'); ?></th><th style="text-align:right"><?php echo t('print.base_ud_th'); ?></th><th style="text-align:center">IVA</th><th style="text-align:right"><?php echo t('print.importe_th'); ?></th></tr></thead>
+                <table><thead><tr><th>${T.print.description_th}</th><th style="text-align:center">${T.print.cant_th}</th><th style="text-align:right">${T.print.base_ud_th}</th><th style="text-align:center">IVA</th><th style="text-align:right">${T.print.importe_th}</th></tr></thead>
                 <tbody>${lineasHtmlFactura}</tbody></table>
                  <div style="float:right; width: 45%;">${totalesHtml}</div>
-                 ${generarDesgloseFormaPago(datosVenta, true)}
+                 ${generarDesgloseFormaPago(T, datosVenta, true)}
                  
                  
         ${datosVenta.mensajePersonalizado ? `
@@ -5158,21 +5297,21 @@ endif; ?>
                 .flex-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 10px; }
             </style></head><body>
                 <div class="ticket-container">
-                    <div class="header">
-                        <h1>TPV Bazar</h1>
-                        <div style="font-size:9px;">NIF: B12345678 | C/ Falsa 123, Madrid</div>
-                        <div style="font-size:10px; margin-top:4px; font-weight:bold;">${tipoTitulo}</div>
-                    </div>
+                <div class="header">
+                    <h1>TPV Bazar</h1>
+                    <div style="font-size:9px;">NIF: B12345678 | C/ Falsa 123, Madrid</div>
+                    <div style="font-size:10px; margin-top:4px; font-weight:bold;">${tipoTitulo}</div>
+                </div>
                     <div class="flex-row"><span>Nº: ${numComprobante}</span><span>${datosVenta.fecha}</span></div>
                     ${datosVenta.clienteNombre ? `<div style="margin-bottom:8px; font-size:10px; border:1px solid #eee; padding:4px;"><strong><?php echo t('print.client'); ?>:</strong> ${datosVenta.clienteNombre}</div>` : ''}
                     <table>
                         <thead>
                             <tr>
-                                <th style="width: 35%;"><?php echo t('print.art_th'); ?></th>
-                                <th style="text-align:center; width: 10%;"><?php echo t('print.ud_th'); ?></th>
-                                <th style="text-align:right; width: 20%; padding-right: 5px;"><?php echo t('print.base_th'); ?></th>
+                                <th style="width: 35%;">${T.print.art_th}</th>
+                                <th style="text-align:center; width: 10%;">${T.print.ud_th}</th>
+                                <th style="text-align:right; width: 20%; padding-right: 5px;">${T.print.base_th}</th>
                                 <th style="text-align:center; width: 15%; padding-left: 5px;">IVA</th>
-                                <th style="text-align:right; width: 20%;"><?php echo t('print.total_th'); ?></th>
+                                <th style="text-align:right; width: 20%;">${T.print.total_th}</th>
                             </tr>
                         </thead>
                         <tbody>${lineasHtmlTicket}</tbody>
@@ -5186,9 +5325,9 @@ endif; ?>
             </div>
         ` : ''}
 
-        ${generarDesgloseFormaPago(datosVenta, false)}
+        ${generarDesgloseFormaPago(T, datosVenta, false)}
 
-        <div class="footer"><p><?php echo t('print.thanks_for_purchase'); ?></p></div>
+        <div class="footer"><p>${T.print.thanks_for_purchase}</p></div>
                 </div>
             </body></html>`;
         }

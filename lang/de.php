@@ -106,6 +106,12 @@ return [
         'add_to_cart' => 'Zum Warenkorb hinzufügen',
         'mixed_remaining_assign' => 'Verbleibend zuzuordnen',
         'mixed_distribute_full' => 'Gesamtbetrag vollständig verteilen',
+        'saving' => 'Ersparnis',
+        'alert_cash_limit_exceeded' => '⚠️ Bargeldlimit überschritten. Barzahlungen über 1.000€ sind nicht erlaubt',
+        'mixed_total_covered' => '✅ Gesamtbetrag gedeckt',
+        'mixed_exact_assigned' => '✅ Betrag exakt zugeordnet',
+        'mixed_error_cash_limit' => '⚠️ Es können nicht mehr als 1.000€ in Bargeld zugeordnet werden',
+        'alert_no_stock_available' => '❌ Unzureichender Bestand für dieses Produkt',
     ],
 
     // ======================== MODAL: BARGELD WECHSELGELD ========================
@@ -306,6 +312,7 @@ return [
         'recover_change' => 'Vorherigen Fond wiederherstellen:',
         'new_change' => 'Neuen Fond eingeben',
         'initial_fund' => 'Anfangsfonds (€)',
+        'initial_cash' => 'Anfängliches Bargeld in der Kasse',
         'cancel' => 'Abbrechen',
         'confirm' => 'Öffnung bestätigen',
     ],
@@ -580,6 +587,14 @@ return [
         'loading_tasks' => 'Aufgaben werden geladen...',
     ],
 
+    // ======================== TARIFAS / TARIFE ========================
+    'tarifas' => [
+        'cliente' => 'Kunde',
+        'cliente_registrado' => 'Registrierter Kunde',
+        'mayorista_nivel_1' => 'Großhändler Stufe 1',
+        'mayorista_nivel_2' => 'Großhändler Stufe 2'
+    ],
+
     // ======================== ALLGEMEIN / KNÖPFE ========================
     'common' => [
         'save' => 'Speichern',
@@ -724,6 +739,12 @@ return [
         'add_to_cart' => 'Zum Warenkorb hinzufügen',
         'mixed_remaining_assign' => 'Verbleibend zuzuordnen',
         'mixed_distribute_full' => 'Gesamtbetrag vollständig verteilen',
+        'saving' => 'Ersparnis',
+        'alert_cash_limit_exceeded' => '⚠️ Bargeldlimit überschritten. Barzahlungen über 1.000€ sind nicht erlaubt',
+        'mixed_total_covered' => '✅ Gesamtbetrag gedeckt',
+        'mixed_exact_assigned' => '✅ Betrag exakt zugeordnet',
+        'mixed_error_cash_limit' => '⚠️ Es können nicht mehr als 1.000€ in Bargeld zugeordnet werden',
+        'alert_no_stock_available' => '❌ Unzureichender Bestand für dieses Produkt',
     ],
 
     // ======================== DRUCKEN ========================
@@ -881,6 +902,7 @@ return [
         'continue' => 'Fortfahren',
         'shortage' => 'Fehlbetrag',
         'surplus' => 'Überschuss',
+        'correct' => '✅ Korrekt',
     ],
 
     // ======================== KASSENZUSAMMENFASSUNG ========================
@@ -907,6 +929,14 @@ return [
         'closed_message' => 'Die Tageszusammenfassung wurde korrekt gespeichert.',
         'print' => 'Zusammenfassung drucken',
         'accept' => 'Akzeptieren',
+    ],
+
+    'search_client' => [
+        'title' => 'Kunde suchen',
+        'subtitle' => 'Geben Sie die Kunden-ID ein um zu suchen',
+        'dni' => 'Kunden-ID',
+        'cancel' => 'Abbrechen',
+        'search' => 'Suchen',
     ],
 
 ];

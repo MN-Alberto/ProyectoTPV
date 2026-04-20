@@ -211,10 +211,11 @@ function renderProductos(productos) {
 
         tarifasDisponibles.forEach(tarifa => {
             const selected = tarifa.nombre === 'Cliente' ? 'selected' : '';
+            const claveTraduccion = 'tarifas.' + tarifa.nombre.toLowerCase().replaceAll(' ', '_');
             selectorTarifas += `<option value="${tarifa.descuento_porcentaje}" 
                                         data-requiere-cliente="${tarifa.requiere_cliente}" 
                                         data-tarifa-id="${tarifa.id}"
-                                        ${selected}>${tarifa.nombre}</option>`;
+                                        ${selected}>${t(claveTraduccion)}</option>`;
         });
         selectorTarifas += `</select>`;
 

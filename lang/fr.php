@@ -106,6 +106,12 @@ return [
         'add_to_cart' => 'Ajouter au panier',
         'mixed_remaining_assign' => 'Restant à attribuer',
         'mixed_distribute_full' => 'Distribuer le total complet',
+        'saving' => 'Économies',
+        'alert_cash_limit_exceeded' => '⚠️ Limite de espèces dépassée. Paiements en espèces supérieurs à 1.000€ interdits',
+        'mixed_total_covered' => '✅ Total couvert',
+        'mixed_exact_assigned' => '✅ Montant exactement attribué',
+        'mixed_error_cash_limit' => '⚠️ Impossible d\'attribuer plus de 1.000€ en espèces',
+        'alert_no_stock_available' => '❌ Stock insuffisant pour ce produit',
     ],
 
     // ======================== MODAL: CHANGEMENT ESPÈCES ========================
@@ -306,6 +312,7 @@ return [
         'recover_change' => 'Récupérer fond précédent :',
         'new_change' => 'Saisir nouveau fonds',
         'initial_fund' => 'Fonds de caisse initial (€)',
+        'initial_cash' => 'Espèces initiales en caisse',
         'cancel' => 'Annuler',
         'confirm' => 'Confirmer ouverture',
     ],
@@ -580,6 +587,14 @@ return [
         'loading_tasks' => 'Chargement tâches...',
     ],
 
+    // ======================== TARIFAS / TARIFS ========================
+    'tarifas' => [
+        'cliente' => 'Client',
+        'cliente_registrado' => 'Client Enregistré',
+        'mayorista_nivel_1' => 'Grossiste Niveau 1',
+        'mayorista_nivel_2' => 'Grossiste Niveau 2'
+    ],
+
     // ======================== COMMUN / BOUTONS ========================
     'common' => [
         'save' => 'Enregistrer',
@@ -724,6 +739,12 @@ return [
         'add_to_cart' => 'Ajouter au panier',
         'mixed_remaining_assign' => 'Restant à attribuer',
         'mixed_distribute_full' => 'Distribuer le total complet',
+        'saving' => 'Économies',
+        'alert_cash_limit_exceeded' => '⚠️ Limite de espèces dépassée. Paiements en espèces supérieurs à 1.000€ interdits',
+        'mixed_total_covered' => '✅ Total couvert',
+        'mixed_exact_assigned' => '✅ Montant exactement attribué',
+        'mixed_error_cash_limit' => '⚠️ Impossible d\'attribuer plus de 1.000€ en espèces',
+        'alert_no_stock_available' => '❌ Stock insuffisant pour ce produit',
     ],
 
     // ======================== IMPRESSION ========================
@@ -881,6 +902,7 @@ return [
         'continue' => 'Continuer',
         'shortage' => 'Manquant',
         'surplus' => 'Excédent',
+        'correct' => '✅ Correct',
     ],
 
     // ======================== RÉSUMÉ CAISSE ========================
@@ -907,6 +929,14 @@ return [
         'closed_message' => 'Le résumé journalier a été enregistré correctement.',
         'print' => 'Imprimer résumé',
         'accept' => 'Accepter',
+    ],
+
+    'search_client' => [
+        'title' => 'Rechercher client',
+        'subtitle' => 'Entrez l\'ID client pour rechercher',
+        'dni' => 'ID client',
+        'cancel' => 'Annuler',
+        'search' => 'Rechercher',
     ],
 
 ];
