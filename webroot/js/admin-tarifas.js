@@ -417,6 +417,34 @@ function eliminarIva(id) {
         });
 }
 
+function switchIvaSubSeccion(sub) {
+    const btnTipos = document.getElementById('tabIvaTipos');
+    const btnMasivo = document.getElementById('tabIvaMasivo');
+    const secTipos = document.getElementById('ivaSeccionTipos');
+    const secMasivo = document.getElementById('ivaSeccionMasivo');
+    if (!btnTipos || !btnMasivo || !secTipos || !secMasivo) return;
+
+    if (sub === 'tipos') {
+        btnTipos.classList.add('active');
+        btnTipos.style.background = '#6366f1';
+        btnTipos.style.color = 'white';
+        btnMasivo.classList.remove('active');
+        btnMasivo.style.background = 'transparent';
+        btnMasivo.style.color = 'var(--text-muted)';
+        secTipos.style.display = 'block';
+        secMasivo.style.display = 'none';
+    } else {
+        btnMasivo.classList.add('active');
+        btnMasivo.style.background = '#6366f1';
+        btnMasivo.style.color = 'white';
+        btnTipos.classList.remove('active');
+        btnTipos.style.background = 'transparent';
+        btnTipos.style.color = 'var(--text-muted)';
+        secTipos.style.display = 'none';
+        secMasivo.style.display = 'flex';
+    }
+}
+
 function mostrarPanelCambiarIVA() {
     productosExcluidos = [];
     const contenedor = document.getElementById('adminContenido');
@@ -427,10 +455,10 @@ function mostrarPanelCambiarIVA() {
         tiposIva.map(t => `<option value="${t.id}">${t.porcentaje}% (${t.nombre})</option>`).join('');
     let filasTablaIva = tiposIva.map(t => `
         <tr>
-            <td style="text-align:center;width:40px;">${t.id}</td>
+            <td style="text-align:center;width:60px;">${t.id}</td>
             <td>${t.nombre}</td>
-            <td style="text-align:center;font-weight:600;width:80px;">${t.porcentaje}%</td>
-            <td style="text-align:center;width:100px;">
+            <td style="text-align:center;font-weight:600;width:120px;">${t.porcentaje}%</td>
+            <td style="text-align:center;width:150px;">
                 <button class="btn-admin-accion" onclick="editarIva(${t.id},'${t.nombre}',${t.porcentaje})"><i class="fas fa-pen"></i></button>
                 <button class="btn-admin-accion btn-eliminar" onclick="eliminarIva(${t.id})"><i class="fas fa-trash"></i></button>
             </td>
@@ -438,49 +466,40 @@ function mostrarPanelCambiarIVA() {
 
     contenedor.innerHTML = `
         <div class="iva-panel-container">
-            <div class="iva-panel-header">
-                <h2><i class="fas fa-percentage"></i> Cambiar IVA General</h2>
-                <p class="iva-panel-subtitle">Cambia el IVA de todos los productos de forma masiva</p>
+            <div class="iva-panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <div>
+                    <h2><i class="fas fa-percentage"></i> Cambiar IVA General</h2>
+                    <p class="iva-panel-subtitle">Gestión de tipos de IVA y actualización masiva de productos</p>
+                </div>
+                <div class="iva-tabs" style="display: flex; background: var(--bg-input); padding: 5px; border-radius: 12px; border: 1px solid var(--border-main);">
+                    <button id="tabIvaTipos" onclick="switchIvaSubSeccion('tipos')" class="active" style="padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s; background: #6366f1; color: white;">
+                        <i class="fas fa-tags"></i> Tipos de IVA
+                    </button>
+                    <button id="tabIvaMasivo" onclick="switchIvaSubSeccion('masivo')" style="padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s; background: transparent; color: var(--text-muted);">
+                        <i class="fas fa-magic"></i> Actualización Masiva
+                    </button>
+                </div>
             </div>
             
             <div class="iva-panel-content">
-                <div class="iva-panel-left">
-                    <div class="iva-panel-card">
-                        <h3><i class="fas fa-cog"></i> Configuración</h3>
-                        <div class="iva-form-group">
-                            <label for="nuevoIVA">Nuevo tipo de IVA:</label>
-                            <select id="nuevoIVA" class="iva-select" onchange="actualizarPrevisualizacionIVAAuto()">
-                                ${opcionesIva}
-                            </select>
-                        </div>
-                        <div class="iva-actions">
-                            <button onclick="aplicarCambioIVA()" class="iva-btn-aplicar">
-                                <i class="fas fa-check"></i> Aplicar Cambio
-                            </button>
-                            <button onclick="abrirModalProgramarIVA()" class="iva-btn-secondary">
-                                <i class="fas fa-clock"></i> Programar
-                            </button>
-                            <button onclick="abrirModalVerCambiosProgramados()" class="iva-btn-secondary">
-                                <i class="fas fa-list"></i> Ver Programados
-                            </button>
-                        </div>
-                    </div>
-
+                
+                <!-- SECCIÓN 1: TABLA DE TIPOS DE IVA -->
+                <div id="ivaSeccionTipos" class="iva-panel-section-1">
                     <div class="iva-panel-card">
                         <div class="iva-tipos-header">
-                            <h3><i class="fas fa-tags"></i> Tipos de IVA</h3>
-                            <button onclick="abrirModalNuevoIva()" class="btn-admin-accion btn-nuevo">
-                                <i class="fas fa-plus"></i> Añadir
+                            <h3 style="font-size: 16px; margin-bottom: 15px;"><i class="fas fa-tags"></i> Tipos de IVA Registrados</h3>
+                            <button onclick="abrirModalNuevoIva()" class="btn-admin-accion btn-nuevo" style="padding: 8px 15px;">
+                                <i class="fas fa-plus"></i> Nuevo Tipo de IVA
                             </button>
                         </div>
-                        <div class="iva-tipos-table-wrapper">
+                        <div class="iva-tipos-table-wrapper" style="max-height: 500px; border: 1px solid var(--border-main); border-radius: 8px; overflow: hidden;">
                             <table class="iva-tipos-tabla">
                                 <thead>
                                     <tr>
-                                        <th>ID</th>
-                                        <th>Nombre</th>
-                                        <th>%</th>
-                                        <th>Acción</th>
+                                        <th style="width: 60px; text-align: center;">ID</th>
+                                        <th>Nombre Informativo</th>
+                                        <th style="text-align: center; width: 120px;">Porcentaje (%)</th>
+                                        <th style="text-align: center; width: 150px;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>${filasTablaIva}</tbody>
@@ -489,8 +508,45 @@ function mostrarPanelCambiarIVA() {
                     </div>
                 </div>
 
-                <div class="iva-panel-right">
-                    <div id="previsualizacionCambios"></div>
+                <!-- SECCIÓN 2: PANEL DE CAMBIO Y PREVIEW -->
+                <div id="ivaSeccionMasivo" class="iva-panel-section-2" style="display: none; gap: 20px; align-items: flex-start;">
+                    
+                    <!-- Columna Izquierda: Configuración -->
+                    <div class="iva-panel-card" style="width: 380px; flex-shrink: 0; position: sticky; top: 10px;">
+                        <h3 style="font-size: 16px; margin-bottom: 20px;"><i class="fas fa-magic"></i> Actualización Masiva</h3>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">
+                            Selecciona un nuevo tipo de IVA para aplicarlo a todos los productos (puedes excluir productos específicos en la tabla de la derecha).
+                        </p>
+                        
+                        <div class="iva-form-group" style="margin-bottom: 25px;">
+                            <label for="nuevoIVA" style="font-weight: 700; display: block; margin-bottom: 10px;">Nuevo tipo de IVA a aplicar:</label>
+                            <select id="nuevoIVA" class="iva-select" onchange="actualizarPrevisualizacionIVAAuto()" style="padding: 12px; font-size: 14px; border-width: 2px;">
+                                ${opcionesIva}
+                            </select>
+                        </div>
+                        
+                        <div class="iva-actions" style="display: flex; flex-direction: column; gap: 12px;">
+                            <button onclick="aplicarCambioIVA()" class="iva-btn-aplicar" style="padding: 14px; font-size: 14px; width: 100%;">
+                                <i class="fas fa-check-circle"></i> Aplicar a Productos Seleccionados
+                            </button>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <button onclick="abrirModalProgramarIVA()" class="iva-btn-secondary" style="padding: 10px;">
+                                    <i class="fas fa-clock"></i> Programar
+                                </button>
+                                <button onclick="abrirModalVerCambiosProgramados()" class="iva-btn-secondary" style="padding: 10px;">
+                                    <i class="fas fa-list-ul"></i> Ver Tareas
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Columna Derecha: Previsualización -->
+                    <div id="previsualizacionCambios" style="flex: 1; min-height: 400px; background: var(--bg-main); border-radius: 12px; border: 1px dashed var(--border-main); display: flex; align-items: center; justify-content: center; position: relative;">
+                         <div style="text-align: center; color: var(--text-muted); padding: 40px;">
+                            <i class="fas fa-eye" style="font-size: 3rem; opacity: 0.2; margin-bottom: 15px; display: block;"></i>
+                            <p>Selecciona un IVA para ver la previsualización de los cambios</p>
+                         </div>
+                    </div>
                 </div>
             </div>
         </div>`;
@@ -520,8 +576,8 @@ function previsualizarCambioIVA() {
 function mostrarTablaPrevisualizacionIVA(productos, nuevoIVA) {
     const contenedor = document.getElementById('previsualizacionCambios');
     let html = `
-        <div class="previsualizacion-tabla-container">
-            <div class="previsualizacion-tabla-header">
+        <div class="previsualizacion-tabla-container" style="width: 100%; display: flex; flex-direction: column;">
+            <div class="previsualizacion-tabla-header" style="width: 100%; box-sizing: border-box;">
                 <h3>Previsualización del cambio de IVA (${nuevoIVA}%)</h3>
                 <div class="previsualizacion-botones">
                     <span class="previsualizacion-hint">💡 Clic en fila para excluir</span>
@@ -529,8 +585,8 @@ function mostrarTablaPrevisualizacionIVA(productos, nuevoIVA) {
                     <button class="btn-incluir-todos" onclick="incluirTodosProductos('iva')">Incluir todos</button>
                 </div>
             </div>
-            <div class="previsualizacion-tabla-wrapper">
-                <table class="previsualizacion-tabla">
+            <div class="previsualizacion-tabla-wrapper" style="width: 100%; overflow-x: auto; flex: 1;">
+                <table class="previsualizacion-tabla" style="width: 100%; border-collapse: collapse;">
                     <thead><tr>
                         <th style="width:30px;">#</th><th>ID</th><th>Producto</th>
                         <th style="text-align:right;">Precio</th>
@@ -647,8 +703,8 @@ function mostrarTablaPrevisualizacionPrecios(productos, porcentaje) {
     const claseDif = esSubida ? 'diferencia-subida' : 'diferencia-bajada';
 
     let html = `
-        <div class="previsualizacion-tabla-container">
-            <div class="previsualizacion-tabla-header">
+        <div class="previsualizacion-tabla-container" style="width: 100%; display: flex; flex-direction: column;">
+            <div class="previsualizacion-tabla-header" style="width: 100%; box-sizing: border-box;">
                 <h3>Previsualización del ajuste (${porcentaje}%)</h3>
                 <div class="previsualizacion-botones">
                     <span class="previsualizacion-hint">💡 Clic en fila para excluir</span>
@@ -656,8 +712,8 @@ function mostrarTablaPrevisualizacionPrecios(productos, porcentaje) {
                     <button class="btn-incluir-todos" onclick="incluirTodosProductos('precios')">Incluir todos</button>
                 </div>
             </div>
-            <div class="previsualizacion-tabla-wrapper">
-                <table class="previsualizacion-tabla">
+            <div class="previsualizacion-tabla-wrapper" style="width: 100%; overflow-x: auto; flex: 1;">
+                <table class="previsualizacion-tabla" style="width: 100%; border-collapse: collapse;">
                     <thead><tr>
                         <th style="width:30px;">#</th><th>ID</th><th>Producto</th>
                         <th style="text-align:right;">Precio Actual</th>

@@ -242,7 +242,9 @@ if (isset($_GET['detalleVenta'])) {
 
         // Obtener las líneas de venta
         $stmtLineas = $conexion->prepare("
-            SELECT lv.*, COALESCE(lv.nombreProducto, p.nombre) as producto_nombre, i.porcentaje as iva_producto
+            SELECT lv.*, COALESCE(lv.nombreProducto, p.nombre) as producto_nombre, 
+                   p.nombre_es, p.nombre_en, p.nombre_fr, p.nombre_de, p.nombre_ru,
+                   i.porcentaje as iva_producto
             FROM lineasVenta lv
             LEFT JOIN productos p ON lv.idProducto = p.id
             LEFT JOIN iva i ON p.idIva = i.id
@@ -276,6 +278,20 @@ if (isset($_GET['detalleVenta'])) {
                 }
             }
         }
+
+        // Generar QR de Verifactu
+        require_once(__DIR__ . '/../core/Verifactu.php');
+        $nif = Verifactu::getConfig('TPV_NIF');
+        $serieStr = $venta['serie'] ?? '';
+        $numeroStr = $venta['numero'] ?? '';
+        $numSerie = preg_replace('/\s+/', '', $serieStr . $numeroStr);
+        $params = [
+            'nif' => $nif,
+            'numserie' => $numSerie,
+            'fecha' => date('d-m-Y', strtotime($venta['fecha'])),
+            'importe' => number_format($venta['total'], 2, '.', '')
+        ];
+        $venta['qrUrl'] = Verifactu::getQRBaseUrl() . '?' . http_build_query($params);
 
         echo json_encode([
             'venta' => $venta,

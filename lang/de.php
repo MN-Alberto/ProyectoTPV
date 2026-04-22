@@ -786,6 +786,7 @@ return [
         'unit_price' => 'Einzelpreis',
         'amount' => 'Betrag',
         'invoice_terms' => 'Alle Preise enthalten die MwSt. Diese Rechnung unterliegt unseren allgemeinen Geschäftsbedingungen.',
+        'verifactu_verify' => 'Rechnung überprüfbar im elektronischen Hauptsitz der AEAT',
     ],
 
     // ======================== RETOUREN ========================

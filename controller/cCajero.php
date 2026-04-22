@@ -14,6 +14,7 @@ require_once(__DIR__ . '/../model/LineaVenta.php');
 require_once(__DIR__ . '/../model/Caja.php');
 require_once(__DIR__ . '/../model/Usuario.php');
 require_once(__DIR__ . '/../core/conexionDB.php');
+require_once(__DIR__ . '/../core/Verifactu.php');
 
 // Verificamos que el usuario está guardado en la sesión, si no lo está redirigimos al login
 if (!isset($_SESSION['idUsuario'])) {
@@ -165,6 +166,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             if ($sesionCaja) {
                 $venta->setIdSesionCaja($sesionCaja->getId());
             }
+
+            // Indicamos el idioma del ticket
+            $venta->setIdiomaTicket($_POST['idioma_ticket'] ?? 'es');
 
             //Calculamos el total y validamos el stock.
             $total = 0;
@@ -463,6 +467,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 // Guardamos la línea de venta para la sesión (impresión)
                 $lineasVenta[] = [
                     'nombre' => $item['nombre'],
+                    'nombre_es' => $producto ? $producto->getNombreEs() : ($item['nombre_es'] ?? ''),
+                    'nombre_en' => $producto ? $producto->getNombreEn() : ($item['nombre_en'] ?? ''),
+                    'nombre_fr' => $producto ? $producto->getNombreFr() : ($item['nombre_fr'] ?? ''),
+                    'nombre_de' => $producto ? $producto->getNombreDe() : ($item['nombre_de'] ?? ''),
+                    'nombre_ru' => $producto ? $producto->getNombreRu() : ($item['nombre_ru'] ?? ''),
                     'cantidad' => $item['cantidad'],
                     'precio' => $precioBaseCalculado,
                     'pvpUnitario' => $pvpUnitarioItem,
@@ -473,18 +482,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 ];
             }
 
-            // Guardamos los datos de la venta en la sesión
-            $_SESSION['ventaExito'] = true;
-            $_SESSION['ultimaVentaId'] = $venta->getId();
-            $_SESSION['ultimaVentaTotal'] = $total;
-            $_SESSION['ultimaVentaTipo'] = $_POST['tipoDocumento'] ?? 'ticket';
-
             // Obtener serie y número correlativo de la venta desde ventas_ids
             require_once(__DIR__ . '/../core/conexionDB.php');
             $conexion = ConexionDB::getInstancia()->getConexion();
             $stmtIds = $conexion->prepare("SELECT serie, numero FROM ventas_ids WHERE id = ?");
             $stmtIds->execute([$venta->getId()]);
             $idsData = $stmtIds->fetch(PDO::FETCH_ASSOC);
+
+            if ($idsData) {
+                $venta->setSerie($idsData['serie'] ?: ($_POST['tipoDocumento'] === 'factura' ? 'F' : 'T'));
+                $venta->setNumero($idsData['numero'] ?: $venta->getId());
+            } else {
+                $venta->setSerie($_POST['tipoDocumento'] === 'factura' ? 'F' : 'T');
+                $venta->setNumero($venta->getId());
+            }
+
+            // --- Verifactu: generar XML y enviar a AEAT (después de insertar líneas) ---
+            try {
+                $venta->enviarVerifactu();
+                require_once(__DIR__ . '/../core/Verifactu.php');
+                $_SESSION['ultimaVentaQR'] = Verifactu::generarURLQR($venta);
+            } catch (Exception $e) {
+                error_log("Error Verifactu: " . $e->getMessage());
+                $_SESSION['ultimaVentaQR'] = '';
+            }
+
+            // Guardamos los datos de la venta en la sesión
+            $_SESSION['ventaExito'] = true;
+            $_SESSION['ultimaVentaId'] = $venta->getId();
+            $_SESSION['ultimaVentaTotal'] = $total;
+            $_SESSION['ultimaVentaTipo'] = $_POST['tipoDocumento'] ?? 'ticket';
 
             if ($idsData) {
                 $_SESSION['ultimaVentaSerie'] = $idsData['serie'] ?: ($_POST['tipoDocumento'] === 'factura' ? 'F' : 'T');
@@ -523,12 +550,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $_SESSION['ultimaVentaDescuentoManualValor'] = (float) ($_POST['descuentoManualValor'] ?? 0);
             $_SESSION['ultimaVentaDescuentoManualCupon'] = $_POST['descuentoManualCupon'] ?? '';
 
+            // Guardamos el idioma del ticket en la sesión
+            $_SESSION['ultimaVentaIdiomaTicket'] = $_POST['idioma_ticket'] ?? 'es';
+
             // Guardamos los datos del cliente en la sesión
             $_SESSION['ultimaVentaClienteNif'] = $_POST['clienteNif'] ?? '';
             $_SESSION['ultimaVentaClienteNombre'] = $_POST['clienteNombre'] ?? '';
             $_SESSION['ultimaVentaClienteDir'] = $_POST['clienteDireccion'] ?? '';
             $_SESSION['ultimaVentaClienteObs'] = $_POST['observaciones'] ?? '';
             $_SESSION['ultimaVentaMensajePersonalizado'] = $mensajePersonalizado;
+            $_SESSION['ultimaVentaQR'] = $venta->getURLQR();
             header('Location: index.php');
             exit();
         }

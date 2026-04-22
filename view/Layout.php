@@ -29,6 +29,7 @@
     <!-- Si la pagina en curso solicitada es la del cajero y la solicita el cajero o el admin, cargamos la hoja de estilos de cajero -->
     <?php if (isset($_SESSION['paginaEnCurso']) && ($_SESSION['paginaEnCurso'] === 'cajero' || $_SESSION['paginaEnCurso'] === 'admin')): ?>
         <link href="webroot/css/cajero.css" rel="stylesheet" type="text/css">
+        <link href="webroot/css/idiomas-ticket.css" rel="stylesheet" type="text/css">
         <?php
     endif; ?>
     <!-- Si la pagina en curso solicitada es la del admin o cajero, cargamos la hoja de estilos de admin (para modales) -->
@@ -59,7 +60,10 @@
                     <path d="M9 20v2"></path>
                 </svg>
             </div>
-            <h1><?php echo t('app.title'); ?></h1>
+            <div style="display: flex; align-items: baseline; gap: 12px;">
+                <h1 style="margin: 0;"><?php echo t('app.title'); ?></h1>
+                <span style="font-size: 10px; background: #ecfdf5; color: #059669; border: 1px solid #10b981; padding: 2px 6px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">VERI*FACTU</span>
+            </div>
         </div>
 
         <div class="header-usuario">

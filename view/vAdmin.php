@@ -10,7 +10,27 @@
 <script src="webroot/js/admin-tarifas.js"></script>
 <script src="webroot/js/admin-usuarios.js"></script>
 <script src="webroot/js/admin-utils.js"></script>
-<script src="webroot/js/admin-ventas.js?v=3"></script>
+<script src="webroot/js/admin-verifactu.js"></script>
+<script src="webroot/js/lib/qrcode.min.js"></script>
+<script src="webroot/js/shared-impresion.js"></script>
+<script src="webroot/js/admin-ventas.js?v=4"></script>
+
+<script>
+    // Configuración global del TPV para impresión y fiscalidad
+    window.TPV_CONFIG = <?php 
+        require_once 'core/Verifactu.php';
+        echo json_encode(Verifactu::publicGetConfig()); 
+    ?>;
+
+    // Traducciones para tickets y facturas (compartido)
+    window.IDIOMAS_TICKET = {
+        'es': <?php echo json_encode(include __DIR__ . '/../lang/es.php'); ?>,
+        'en': <?php echo json_encode(include __DIR__ . '/../lang/en.php'); ?>,
+        'fr': <?php echo json_encode(include __DIR__ . '/../lang/fr.php'); ?>,
+        'de': <?php echo json_encode(include __DIR__ . '/../lang/de.php'); ?>,
+        'ru': <?php echo json_encode(include __DIR__ . '/../lang/ru.php'); ?>
+    };
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -112,9 +132,9 @@
                     style="width: 100%; text-align: left; font-size: 13px;">
                     <i class="fas fa-cogs" style="margin-right: 10px;"></i> Acciones
                 </button>
-                <button class="cat-btn submenu-btn" data-seccion="config-ajustes"
+                <button class="cat-btn submenu-btn" data-seccion="config-fiscal"
                     style="width: 100%; text-align: left; font-size: 13px;">
-                    <i class="fas fa-sliders-h" style="margin-right: 10px;"></i> Ajustes
+                    <i class="fas fa-file-invoice" style="margin-right: 10px;"></i> Fiscal / Verifactu
                 </button>
             </div>
         </div>

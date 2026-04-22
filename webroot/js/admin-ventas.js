@@ -85,7 +85,11 @@ function generarFilaVenta(venta) {
             <td class="col-total" style="text-align:right;font-weight:700;color:#059669;">${total} €</td>
             <td class="col-acciones">
                 <button class="btn-admin-accion btn-ver" onclick="event.stopPropagation(); verDetalleVenta(${venta.id})" title="Ver Detalles">
-                    <i class="fas fa-eye"></i></button>
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn-admin-accion btn-imprimir" onclick="event.stopPropagation(); imprimirVentaDesdeHistorial(${venta.id})" title="Reimprimir Ticket" style="background: #0ea5e9;">
+                    <i class="fas fa-print"></i>
+                </button>
             </td>
         </tr>`;
 }
@@ -731,4 +735,106 @@ function renderCajaSesionesAdmin(sesiones, esPrimeraVez = true, orden = 'fecha_d
             actualizarPaginacionDOM(contenedor, getPaginacionSesionesHTML(totalPaginas));
         }
     }
+}
+
+/**
+ * imprimirVentaDesdeHistorial(idVenta)
+ * Recupera los detalles de una venta y la imprime usando el motor compartido.
+ */
+function imprimirVentaDesdeHistorial(idVenta) {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: 'Generando documento...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+    }
+
+    fetch(`api/ventas.php?detalleVenta=${idVenta}`)
+        .then(r => r.json())
+        .then(data => {
+            if (typeof Swal !== 'undefined') Swal.close();
+            if (data.error) {
+                if (typeof Swal !== 'undefined') Swal.fire('Error', data.error, 'error');
+                else alert(data.error);
+                return;
+            }
+
+            const { venta, lineas, descuentos = {} } = data;
+
+            const carrito = lineas.map(l => ({
+                id: l.producto_id,
+                nombre: l.producto_nombre,
+                nombre_es: l.nombre_es,
+                nombre_en: l.nombre_en,
+                nombre_fr: l.nombre_fr,
+                nombre_de: l.nombre_de,
+                nombre_ru: l.nombre_ru,
+                cantidad: l.cantidad,
+                precio: l.precio_base,
+                iva: l.iva_porcentaje,
+                importeTotal: l.subtotal,
+                pvpUnitario: l.precio_unitario
+            }));
+
+            // QR para Verifactu
+            const nifTpv = (window.TPV_CONFIG && window.TPV_CONFIG.nif) ? window.TPV_CONFIG.nif : '';
+            
+            // Construir numserie: SERIE + número padded (ej: T00001, F00003)
+            const serie = venta.serie || (venta.tipoDocumento === 'factura' ? 'F' : 'T');
+            // Usar numero de ventas_ids, o id de la venta si no existe numero
+            // Intentamos buscar ID en diferentes claves por si acaso (id, ID, idVenta)
+            const idBruto = venta.numero || venta.id || venta.ID || venta.idVenta || idVenta;
+            const nReal = (idBruto && !isNaN(idBruto)) ? idBruto : idVenta;
+            
+            const num = String(nReal).padStart(5, '0');
+            const numserie = serie + num;
+
+            const qrParams = new URLSearchParams({
+                nif: nifTpv,
+                numserie: numserie,
+                fecha: new Date(venta.fecha).toLocaleDateString('es-ES').split('/').join('-'),
+                importe: parseFloat(venta.total).toFixed(2)
+            });
+
+            const datosVenta = {
+                id: nReal,
+                serie: serie,
+                numero: nReal,
+                fecha: new Date(venta.fecha).toLocaleString('es-ES'),
+                tipo: venta.tipoDocumento || 'ticket',
+                idioma_ticket: venta.idioma_ticket || 'es',
+                total: venta.total,
+                metodoPago: venta.metodoPago,
+                desglose_pago: venta.desglose_pago,
+                clienteNombre: venta.cliente_nombre,
+                clienteNif: venta.cliente_dni,
+                clienteDir: venta.cliente_direccion,
+                carrito: carrito,
+                descuentoTipo: descuentos.descuentoManualTipo || 'porcentaje',
+                descuentoValor: descuentos.descuentoManualValor || 0,
+                descuentoCupon: descuentos.descuentoManualCupon || null,
+                qrUrl: ((window.TPV_CONFIG && window.TPV_CONFIG.qrBaseUrl) || 'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR') + '?' + qrParams.toString()
+            };
+
+            const html = generarHTMLComprobante(datosVenta, venta.idioma_ticket || 'es');
+            const iframe = document.createElement('iframe');
+            iframe.style.position = 'absolute';
+            iframe.style.top = '-10000px';
+            document.body.appendChild(iframe);
+            iframe.contentDocument.write(html);
+            iframe.contentDocument.close();
+            iframe.onload = function() {
+                iframe.contentWindow.print();
+                setTimeout(() => { if (iframe.parentNode) iframe.remove(); }, 1000);
+            };
+        })
+        .catch(err => {
+            if (typeof Swal !== 'undefined') {
+                Swal.close();
+                Swal.fire('Error', 'No se pudo conectar con el servidor', 'error');
+            } else {
+                alert('No se pudo conectar con el servidor');
+            }
+        });
 }

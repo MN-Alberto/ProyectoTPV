@@ -786,6 +786,7 @@ return [
         'unit_price' => 'Prix unitaire',
         'amount' => 'Montant',
         'invoice_terms' => 'Tous les prix incluent la TVA. Cette facture est soumise à nos conditions générales de vente.',
+        'verifactu_verify' => 'Facture vérifiable au siège électronique de l\'AEAT',
     ],
 
     // ======================== RETOURS ========================

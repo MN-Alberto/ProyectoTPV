@@ -9,6 +9,7 @@
 
 // Requerimos el fichero de conexión a la base de datos
 require_once(__DIR__ . '/../core/conexionDB.php');
+require_once(__DIR__ . '/../core/Verifactu.php');
 
 class Venta
 {
@@ -66,6 +67,11 @@ class Venta
      */
     private $idSesionCaja; // ID de la sesión de caja en la que se realizó la venta
 
+    // Campos de cliente extendidos
+    private $clienteNombre;
+    private $clienteDireccion;
+    private $clienteObservaciones;
+
     // Campos de descuento
     /** 
      * @var string|null Tipo de bonificación general aplicada (ej: 'porcentaje', 'fijo'). 
@@ -121,6 +127,14 @@ class Venta
 
     // Idioma del ticket
     private $idioma_ticket;
+
+    // Verifactu
+    private $hash;
+    private $hashPrevio;
+    private $xmlDatos;
+    private $estadoAeat;
+    private $csvAeat;
+    private $errorAeat;
 
     // ======================== GETTERS ========================
 
@@ -239,14 +253,16 @@ class Venta
         return $this->desglosePago;
     }
 
-    /**
-     * Obtiene el idioma seleccionado para el ticket.
-     * @return string|null
-     */
     public function getIdiomaTicket()
     {
         return $this->idioma_ticket;
     }
+
+    public function getHash() { return $this->hash; }
+    public function getHashPrevio() { return $this->hashPrevio; }
+    public function getXmlDatos() { return $this->xmlDatos; }
+    public function getEstadoAeat() { return $this->estadoAeat; }
+    public function getCsvAeat() { return $this->csvAeat; }
 
     // ======================== SETTERS ========================
     /** 
@@ -710,10 +726,15 @@ class Venta
             // Obtenemos el ID generado
             $this->id = $conexion->lastInsertId();
 
-            // 4. Insertar en la tabla real correspondiente (tickets o facturas) con el ID obtenido
+            // --- Lógica Verifactu Encadenamiento ---
             $tabla = $this->getTabla();
-            $sql = "INSERT INTO {$tabla} (id, idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni, cliente_nombre, cliente_direccion, cliente_observaciones, mensaje_personalizado, desglose_pago, idSesionCaja, puntos_ganados, puntos_canjeados, puntos_balance, idioma_ticket) 
-                  VALUES (:id, :idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni, :clienteNombre, :clienteDireccion, :clienteObservaciones, :mensajePersonalizado, :desglosePago, :idSesionCaja, :puntosGanados, :puntosCanjeados, :puntosBalance, :idiomaTicket)";
+            $stmtPrev = $conexion->prepare("SELECT hash FROM {$tabla} ORDER BY fecha_registro DESC LIMIT 1");
+            $stmtPrev->execute();
+            $this->hashPrevio = $stmtPrev->fetchColumn() ?: null;
+
+            // 4. Insertar en la tabla real correspondiente (tickets o facturas) con el ID obtenido
+            $sql = "INSERT INTO {$tabla} (id, idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni, cliente_nombre, cliente_direccion, cliente_observaciones, mensaje_personalizado, desglose_pago, idSesionCaja, puntos_ganados, puntos_canjeados, puntos_balance, idioma_ticket, hash_previo) 
+                  VALUES (:id, :idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni, :clienteNombre, :clienteDireccion, :clienteObservaciones, :mensajePersonalizado, :desglosePago, :idSesionCaja, :puntosGanados, :puntosCanjeados, :puntosBalance, :idiomaTicket, :hashPrevio)";
 
             $stmt = $conexion->prepare($sql);
 
@@ -750,6 +771,7 @@ class Venta
             $stmt->bindParam(':puntosCanjeados', $this->puntosCanjeados, PDO::PARAM_INT);
             $stmt->bindParam(':puntosBalance', $this->puntosBalance, PDO::PARAM_INT);
             $stmt->bindParam(':idiomaTicket', $this->idioma_ticket, PDO::PARAM_STR);
+            $stmt->bindParam(':hashPrevio', $this->hashPrevio, PDO::PARAM_STR);
 
             // Ejecutamos la consulta de inserción
             try {
@@ -770,7 +792,7 @@ class Venta
 
                     // Refrescar la vista 'ventas' usando columnas explícitas para evitar desalineación
                     $conexion->exec("DROP VIEW IF EXISTS ventas");
-                    $cols = "id,idUsuario,fecha,total,descuentoTipo,descuentoValor,descuentoCupon,descuentoTarifaTipo,descuentoTarifaValor,descuentoTarifaCupon,descuentoManualTipo,descuentoManualValor,descuentoManualCupon,metodoPago,estado,tipoDocumento,importeEntregado,cambioDevuelto,cerrada,idSesionCaja,idTarifa,cliente_dni,cliente_nombre,cliente_direccion,cliente_observaciones,mensaje_personalizado,desglose_pago,puntos_ganados,puntos_canjeados,puntos_balance";
+                    $cols = "id,idUsuario,fecha,total,descuentoTipo,descuentoValor,descuentoCupon,descuentoTarifaTipo,descuentoTarifaValor,descuentoTarifaCupon,descuentoManualTipo,descuentoManualValor,descuentoManualCupon,metodoPago,estado,tipoDocumento,importeEntregado,cambioDevuelto,cerrada,idSesionCaja,idTarifa,cliente_dni,cliente_nombre,cliente_direccion,cliente_observaciones,mensaje_personalizado,desglose_pago,puntos_ganados,puntos_canjeados,puntos_balance,idioma_ticket";
                     $conexion->exec("CREATE VIEW ventas AS SELECT $cols FROM tickets UNION ALL SELECT $cols FROM facturas");
 
                     // Re-intentar la inserción
@@ -780,7 +802,7 @@ class Venta
                 }
             }
 
-            // Confirmamos la transacción
+            // Confirmamos la transacción (líneas se insertan después en cCajero)
             $conexion->commit();
             return true;
 
@@ -792,6 +814,39 @@ class Venta
             error_log("Error en Venta::insertar: " . $e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * Genera XML Verifactu, calcula hash, envía a AEAT y actualiza BD.
+     * DEBE llamarse DESPUÉS de insertar las líneas de venta.
+     */
+    public function enviarVerifactu()
+    {
+        require_once(__DIR__ . '/../core/Verifactu.php');
+        $conexion = ConexionDB::getInstancia()->getConexion();
+        $tabla = self::getTablaById($this->id);
+        if (!$tabla) return;
+
+        // Obtener líneas de venta (ya insertadas)
+        $stmtLines = $conexion->prepare("SELECT * FROM lineasVenta WHERE idVenta = ?");
+        $stmtLines->execute([$this->id]);
+        $lineasParaXML = $stmtLines->fetchAll(PDO::FETCH_ASSOC);
+
+        $this->xmlDatos = Verifactu::generarXML($this, $lineasParaXML);
+        $this->hash = Verifactu::calcularHashEncadenado($this->xmlDatos, $this->hashPrevio);
+
+        // Actualizar registro con Hash y XML
+        $stmtVeri = $conexion->prepare("UPDATE {$tabla} SET hash = ?, xml_datos = ? WHERE id = ?");
+        $stmtVeri->execute([$this->hash, $this->xmlDatos, $this->id]);
+
+        // Envío a AEAT
+        $resAeat = Verifactu::enviarAEAT($this->xmlDatos);
+        $this->estadoAeat = $resAeat['success'] ? 'enviado' : 'error';
+        $this->csvAeat = $resAeat['csv'] ?? null;
+        $this->errorAeat = $resAeat['success'] ? null : $resAeat['message'];
+
+        $stmtRes = $conexion->prepare("UPDATE {$tabla} SET estado_aeat = ?, csv_aeat = ?, error_aeat = ? WHERE id = ?");
+        $stmtRes->execute([$this->estadoAeat, $this->csvAeat, $this->errorAeat, $this->id]);
     }
 
     /**
@@ -833,7 +888,26 @@ class Venta
     public function anular()
     {
         $this->estado = 'anulada';
-        return $this->actualizar();
+        $res = $this->actualizar();
+        
+        if ($res) {
+            // --- Verifactu: Registro de Anulación ---
+            $xmlAnu = Verifactu::generarXMLAnulacion($this);
+            $resAeat = Verifactu::enviarAEAT($xmlAnu);
+            
+            $this->estadoAeat = $resAeat['success'] ? 'enviado' : 'error';
+            $this->csvAeat = $resAeat['csv'] ?? null;
+            $this->errorAeat = $resAeat['success'] ? null : $resAeat['message'];
+            
+            $tabla = self::getTablaById($this->id);
+            if ($tabla) {
+                $conexion = ConexionDB::getInstancia()->getConexion();
+                $stmt = $conexion->prepare("UPDATE {$tabla} SET estado_aeat = ?, csv_aeat = ?, error_aeat = ?, xml_datos_anu = ? WHERE id = ?");
+                $stmt->execute([$this->estadoAeat, $this->csvAeat, $this->errorAeat, $xmlAnu, $this->id]);
+            }
+        }
+        
+        return $res;
     }
 
     /**
@@ -1087,7 +1161,25 @@ class Venta
         if (isset($fila['idioma_ticket'])) {
             $venta->setIdiomaTicket($fila['idioma_ticket']);
         }
+        if (isset($fila['cliente_nombre'])) {
+            $venta->setClienteNombre($fila['cliente_nombre']);
+        }
+        if (isset($fila['cliente_direccion'])) {
+            $venta->setClienteDireccion($fila['cliente_direccion']);
+        }
+        if (isset($fila['cliente_observaciones'])) {
+            $venta->setClienteObservaciones($fila['cliente_observaciones']);
+        }
         return $venta;
+    }
+
+    /**
+     * Obtiene la URL del código QR para Verifactu.
+     * @return string
+     */
+    public function getURLQR() {
+        require_once(__DIR__ . '/../core/Verifactu.php');
+        return Verifactu::generarURLQR($this);
     }
 }
 
