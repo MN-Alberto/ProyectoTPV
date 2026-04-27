@@ -85,8 +85,6 @@ if ($method === 'GET') {
             SELECT cs.id, cs.idUsuario, cs.fechaApertura, cs.fechaCierre, 
                    cs.importeInicial, cs.importeActual, cs.cambio, cs.estado,
                    u.nombre as usuario_nombre,
-                   COALESCE(v.qty, 0) as totalVentas,
-                   COALESCE(p.qty, 0) as totalProductos,
                    COALESCE(r.total, 0) as totalRetiros,
                    COALESCE(d.total, 0) as totalDevoluciones,
                    COALESCE(ac.diferencia, 0) as desajuste,
@@ -94,20 +92,6 @@ if ($method === 'GET') {
                    COALESCE(u2.nombre, '') as usuario_cierre_nombre
             FROM caja_sesiones cs
             LEFT JOIN usuarios u ON cs.idUsuario = u.id
-            LEFT JOIN (
-                SELECT idSesionCaja, SUM(qty) as qty FROM (
-                    SELECT idSesionCaja, COUNT(*) as qty FROM tickets WHERE idSesionCaja IS NOT NULL GROUP BY idSesionCaja
-                    UNION ALL
-                    SELECT idSesionCaja, COUNT(*) as qty FROM facturas WHERE idSesionCaja IS NOT NULL GROUP BY idSesionCaja
-                ) vsub GROUP BY idSesionCaja
-            ) v ON v.idSesionCaja = cs.id
-            LEFT JOIN (
-                SELECT idSesionCaja, SUM(qty) as qty FROM (
-                    SELECT t.idSesionCaja, SUM(lv.cantidad) as qty FROM lineasVenta lv JOIN tickets t ON lv.idVenta = t.id WHERE t.idSesionCaja IS NOT NULL GROUP BY t.idSesionCaja
-                    UNION ALL
-                    SELECT f.idSesionCaja, SUM(lv.cantidad) as qty FROM lineasVenta lv JOIN facturas f ON lv.idVenta = f.id WHERE f.idSesionCaja IS NOT NULL GROUP BY f.idSesionCaja
-                ) psub GROUP BY idSesionCaja
-            ) p ON p.idSesionCaja = cs.id
             LEFT JOIN (SELECT idCajaSesion, SUM(importe) as total FROM retiros GROUP BY idCajaSesion) r ON r.idCajaSesion = cs.id
             LEFT JOIN (SELECT idSesionCaja, SUM(importeTotal) as total FROM devoluciones GROUP BY idSesionCaja) d ON d.idSesionCaja = cs.id
             LEFT JOIN (

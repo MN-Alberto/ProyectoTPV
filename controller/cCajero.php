@@ -857,6 +857,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                     'fecha' => date('d/m/Y H:i'),
                     'metodoPago' => $metodoPago
                 );
+
+                // --- Verifactu: Generar factura rectificativa (R1/R5) ---
+                try {
+                    require_once(__DIR__ . '/../core/Verifactu.php');
+                    
+                    // Preparar líneas para rectificativa
+                    $lineasRect = [];
+                    foreach ($lineasReembolso as $lr) {
+                        $lineasRect[] = [
+                            'idProducto' => $lr['idProducto'] ?? null,
+                            'nombre' => $lr['nombre'] ?? 'Producto',
+                            'cantidad' => $lr['cantidad'] ?? 1,
+                            'precioUnitario' => $lr['precioBase'] ?? $lr['precioUnitario'] ?? 0,
+                            'iva' => $lr['iva'] ?? 21
+                        ];
+                    }
+                    
+                    $idSesionCajaActual = isset($sesionCaja) ? $sesionCaja->getId() : null;
+                    $resRect = Venta::rectificarDocumento(
+                        $serie,
+                        (int)$num,
+                        $lineasRect,
+                        $_SESSION['idUsuario'],
+                        $idSesionCajaActual
+                    );
+                    
+                    // Guardar resultado en sesión para mostrar al usuario
+                    $_SESSION['devolucionDetalles']['rectificativa'] = [
+                        'success' => $resRect['success'],
+                        'serieNumero' => $resRect['serieNumero'] ?? null,
+                        'tipoFactura' => $resRect['tipoFactura'] ?? null,
+                        'csv' => $resRect['csv'] ?? null,
+                        'message' => $resRect['message'] ?? null
+                    ];
+                } catch (Exception $e) {
+                    // No bloquear devolución si falla Verifactu
+                    error_log('Verifactu rectificativa error: ' . $e->getMessage());
+                    $_SESSION['devolucionDetalles']['rectificativa'] = [
+                        'success' => false,
+                        'message' => 'Error al generar rectificativa: ' . $e->getMessage()
+                    ];
+                }
             } else {
                 $_SESSION['ventaError'] = "Error al procesar algunas líneas de la devolución.";
             }

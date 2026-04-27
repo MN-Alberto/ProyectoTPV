@@ -539,7 +539,7 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
                 $stmtCount->bindValue($i + 1 + count($subParametros), $p);
             }
             $stmtCount->execute();
-            $totalVentas = (int)$stmtCount->fetchColumn();
+            $totalVentas = (int) $stmtCount->fetchColumn();
         }
 
         // ✅ DETERMINAR ORDEN
@@ -558,23 +558,48 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
         $limitPlusOffset = $offset + $porPagina;
 
         switch ($orden) {
-            case 'fecha_asc':    $orderBy = $invertirOrden ? "fecha DESC, id DESC" : "fecha ASC, id ASC"; break;
-            case 'importe_desc': $orderBy = $invertirOrden ? "total ASC, id ASC" : "total DESC, id DESC"; break;
-            case 'importe_asc':  $orderBy = $invertirOrden ? "total DESC, id DESC" : "total ASC, id ASC"; break;
-            case 'cantidad_desc':$orderBy = $invertirOrden ? "cantidad_productos ASC, id ASC" : "cantidad_productos DESC, id DESC"; break;
-            case 'cantidad_asc': $orderBy = $invertirOrden ? "cantidad_productos DESC, id DESC" : "cantidad_productos ASC, id ASC"; break;
-            case 'id_desc':      $orderBy = $invertirOrden ? "id ASC" : "id DESC"; break;
-            case 'id_asc':       $orderBy = $invertirOrden ? "id DESC" : "id ASC"; break;
-            default:             $orderBy = $invertirOrden ? "fecha ASC, id ASC" : "fecha DESC, id DESC"; break;
+            case 'fecha_asc':
+                $orderBy = $invertirOrden ? "fecha DESC, id DESC" : "fecha ASC, id ASC";
+                break;
+            case 'importe_desc':
+                $orderBy = $invertirOrden ? "total ASC, id ASC" : "total DESC, id DESC";
+                break;
+            case 'importe_asc':
+                $orderBy = $invertirOrden ? "total DESC, id DESC" : "total ASC, id ASC";
+                break;
+            case 'cantidad_desc':
+                $orderBy = $invertirOrden ? "cantidad_productos ASC, id ASC" : "cantidad_productos DESC, id DESC";
+                break;
+            case 'cantidad_asc':
+                $orderBy = $invertirOrden ? "cantidad_productos DESC, id DESC" : "cantidad_productos ASC, id ASC";
+                break;
+            case 'id_desc':
+                $orderBy = $invertirOrden ? "id ASC" : "id DESC";
+                break;
+            case 'id_asc':
+                $orderBy = $invertirOrden ? "id DESC" : "id ASC";
+                break;
+            default:
+                $orderBy = $invertirOrden ? "fecha ASC, id ASC" : "fecha DESC, id DESC";
+                break;
         }
 
         // ✅ DETERMINAR COLUMNAS DE ORDEN (Para el Lean Union)
         // Necesitamos incluir el ID y la columna por la que estamos ordenando en el interior del UNION.
-        $sortCol = "fecha"; 
+        $sortCol = "fecha";
         switch ($orden) {
-            case 'importe_desc': case 'importe_asc': $sortCol = "total"; break;
-            case 'cantidad_desc': case 'cantidad_asc': $sortCol = "cantidad_productos"; break;
-            case 'id_desc': case 'id_asc': $sortCol = "id"; break;
+            case 'importe_desc':
+            case 'importe_asc':
+                $sortCol = "total";
+                break;
+            case 'cantidad_desc':
+            case 'cantidad_asc':
+                $sortCol = "cantidad_productos";
+                break;
+            case 'id_desc':
+            case 'id_asc':
+                $sortCol = "id";
+                break;
         }
 
         // ✅ ETAPA 1: OBTENER SOLO LOS IDs (Y la columna de orden) - MUY RÁPIDO
@@ -591,9 +616,17 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
 
         $stmtIds = $conexion->prepare($sqlIds);
         $idx = 1;
-        if (!empty($subParametros)) { foreach ($subParametros as $p) { $stmtIds->bindValue($idx++, $p); } }
+        if (!empty($subParametros)) {
+            foreach ($subParametros as $p) {
+                $stmtIds->bindValue($idx++, $p);
+            }
+        }
         $stmtIds->bindValue($idx++, $limitPlusOffset, PDO::PARAM_INT);
-        if (!empty($subParametros)) { foreach ($subParametros as $p) { $stmtIds->bindValue($idx++, $p); } }
+        if (!empty($subParametros)) {
+            foreach ($subParametros as $p) {
+                $stmtIds->bindValue($idx++, $p);
+            }
+        }
         $stmtIds->bindValue($idx++, $limitPlusOffset, PDO::PARAM_INT);
         $stmtIds->bindValue($idx++, $porPagina, PDO::PARAM_INT);
         $stmtIds->bindValue($idx++, $offset, PDO::PARAM_INT);
@@ -603,8 +636,11 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
 
         if (empty($targetIds)) {
             echo json_encode([
-                'ventas' => [], 'total' => $totalVentas, 'pagina' => $pagina, 
-                'porPagina' => $porPagina, 'totalPaginas' => (int)ceil($totalVentas / $porPagina)
+                'ventas' => [],
+                'total' => $totalVentas,
+                'pagina' => $pagina,
+                'porPagina' => $porPagina,
+                'totalPaginas' => (int) ceil($totalVentas / $porPagina)
             ]);
             exit();
         }
@@ -629,8 +665,12 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
         $stmtFinal = $conexion->prepare($sqlFinal);
         $idx = 1;
         // Bindeamos los IDs dos veces (una para cada rama del UNION principal de detalles)
-        foreach ($targetIds as $id) { $stmtFinal->bindValue($idx++, $id); }
-        foreach ($targetIds as $id) { $stmtFinal->bindValue($idx++, $id); }
+        foreach ($targetIds as $id) {
+            $stmtFinal->bindValue($idx++, $id);
+        }
+        foreach ($targetIds as $id) {
+            $stmtFinal->bindValue($idx++, $id);
+        }
 
         $stmtFinal->execute();
         $ventas = $stmtFinal->fetchAll(PDO::FETCH_ASSOC);
@@ -645,7 +685,7 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
             'total' => $totalVentas,
             'pagina' => $pagina,
             'porPagina' => $porPagina,
-            'totalPaginas' => $totalVentas > 0 ? (int)ceil($totalVentas / $porPagina) : 1
+            'totalPaginas' => $totalVentas > 0 ? (int) ceil($totalVentas / $porPagina) : 1
         ]);
     } catch (Exception $e) {
         http_response_code(500);
@@ -654,53 +694,135 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
     exit();
 }
 
+/**
+ * ENDPOINT: Anular documento Verifactu.
+ * POST con JSON body: { "serie": "T", "numero": 1 }
+ * Envía RegistroAnulacion a AEAT y marca como anulado en BD.
+ */
+if (isset($_GET['accion']) && $_GET['accion'] === 'anularDocumento') {
+    try {
+        require_once(__DIR__ . '/../core/Verifactu.php');
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        $serie = $input['serie'] ?? null;
+        $numero = $input['numero'] ?? null;
+
+        if (!$serie || !$numero) {
+            echo json_encode(['success' => false, 'message' => 'Serie y número son obligatorios.']);
+            exit;
+        }
+
+        $resultado = Venta::anularDocumento($serie, (int) $numero);
+        echo json_encode($resultado);
+    } catch (Exception $e) {
+        error_log("Error al anular documento: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Error interno: ' . $e->getMessage()]);
+    }
+    exit;
+}
+
+/**
+ * ENDPOINT: Crear factura rectificativa (R1/R5).
+ * POST con JSON body: { "serie": "T", "numero": 1, "lineas": [...], "idUsuario": 1 }
+ * Genera rectificativa con importes negativos y envía a AEAT como RegistroAlta.
+ */
+if (isset($_GET['accion']) && $_GET['accion'] === 'rectificarDocumento') {
+    try {
+        require_once(__DIR__ . '/../core/Verifactu.php');
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        $serie = $input['serie'] ?? null;
+        $numero = $input['numero'] ?? null;
+        $lineas = $input['lineas'] ?? [];
+        $idUsuario = $input['idUsuario'] ?? null;
+        $idSesionCaja = $input['idSesionCaja'] ?? null;
+
+        if (!$serie || !$numero) {
+            echo json_encode(['success' => false, 'message' => 'Serie y número son obligatorios.']);
+            exit;
+        }
+        if (empty($lineas)) {
+            echo json_encode(['success' => false, 'message' => 'Debe incluir al menos una línea de devolución.']);
+            exit;
+        }
+        if (!$idUsuario) {
+            echo json_encode(['success' => false, 'message' => 'ID de usuario obligatorio.']);
+            exit;
+        }
+
+        $resultado = Venta::rectificarDocumento($serie, (int) $numero, $lineas, (int) $idUsuario, $idSesionCaja);
+
+        // No serializar objeto Venta completo
+        if (isset($resultado['venta'])) {
+            $v = $resultado['venta'];
+            $resultado['rectificativa'] = [
+                'id' => $v->getId(),
+                'serie' => $v->getSerie(),
+                'numero' => $v->getNumero(),
+                'total' => $v->getTotal(),
+                'tipo' => $v->getTipoFacturaVerifactu()
+            ];
+            unset($resultado['venta']);
+        }
+
+        echo json_encode($resultado);
+    } catch (Exception $e) {
+        error_log("Error al rectificar documento: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Error interno: ' . $e->getMessage()]);
+    }
+    exit;
+}
+
 // ✅ Cache 5 minutos para las graficas del dashboard
-try {
-    $cache = Cache::get('grafico_ventas_7dias');
+// ✅ SOLO SE EJECUTA SI NO SE HA SALIDO YA CON OTRO ENDPOINT
+if (!headers_sent()) {
+    try {
+        $cache = Cache::get('grafico_ventas_7dias');
 
-    if ($cache === null) {
-        // Ventas de los últimos 7 días agrupadas por día
-        // Obtenemos la conexión a la base de datos
-        $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta para obtener las ventas de los últimos 7 días agrupadas por día
-        $stmt = $conexion->prepare("
-                        SELECT 
-                            DATE(fecha) as dia,
-                            SUM(total) as total,
-                            COUNT(*) as pedidos
-                        FROM ventas
-                        WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-                        GROUP BY DATE(fecha)
-                        ORDER BY dia ASC
-                    ");
-        // Ejecutamos la consulta
-        $stmt->execute();
-        // Obtenemos los resultados en forma de array asociativo
-        $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($cache === null) {
+            // Ventas de los últimos 7 días agrupadas por día
+            // Obtenemos la conexión a la base de datos
+            $conexion = ConexionDB::getInstancia()->getConexion();
+            // Preparamos la consulta para obtener las ventas de los últimos 7 días agrupadas por día
+            $stmt = $conexion->prepare("
+                            SELECT 
+                                DATE(fecha) as dia,
+                                SUM(total) as total,
+                                COUNT(*) as pedidos
+                            FROM ventas
+                            WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+                            GROUP BY DATE(fecha)
+                            ORDER BY dia ASC
+                        ");
+            // Ejecutamos la consulta
+            $stmt->execute();
+            // Obtenemos los resultados en forma de array asociativo
+            $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Rellenamos los días vacíos para que siempre salgan 7 días
+            // Rellenamos los días vacíos para que siempre salgan 7 días
+            $resultado = [];
+            for ($i = 6; $i >= 0; $i--) {
+                $dia = date('Y-m-d', strtotime("-$i days"));
+                $resultado[$dia] = ['dia' => $dia, 'total' => 0, 'pedidos' => 0];
+            }
+            foreach ($filas as $fila) {
+                $resultado[$fila['dia']] = $fila;
+            }
+
+            $json = json_encode(array_values($resultado));
+            Cache::set('grafico_ventas_7dias', $json);
+            echo $json;
+        } else {
+            echo $cache;
+        }
+    } catch (Exception $e) {
+        // Fallback seguro: devolver array vacio si algo falla
         $resultado = [];
         for ($i = 6; $i >= 0; $i--) {
             $dia = date('Y-m-d', strtotime("-$i days"));
-            $resultado[$dia] = ['dia' => $dia, 'total' => 0, 'pedidos' => 0];
+            $resultado[] = ['dia' => $dia, 'total' => 0, 'pedidos' => 0];
         }
-        foreach ($filas as $fila) {
-            $resultado[$fila['dia']] = $fila;
-        }
-
-        $json = json_encode(array_values($resultado));
-        Cache::set('grafico_ventas_7dias', $json);
-        echo $json;
-    } else {
-        echo $cache;
+        echo json_encode($resultado);
     }
-} catch (Exception $e) {
-    // Fallback seguro: devolver array vacio si algo falla
-    $resultado = [];
-    for ($i = 6; $i >= 0; $i--) {
-        $dia = date('Y-m-d', strtotime("-$i days"));
-        $resultado[] = ['dia' => $dia, 'total' => 0, 'pedidos' => 0];
-    }
-    echo json_encode($resultado);
 }
 ?>

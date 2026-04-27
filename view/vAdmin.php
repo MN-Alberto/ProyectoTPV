@@ -1,5 +1,5 @@
 <script src="webroot/js/admin-backups.js"></script>
-<script src="webroot/js/admin-caja.js?v=3"></script>
+<script src="webroot/js/admin-caja.js?v=4"></script>
 <script src="webroot/js/admin-clientes.js"></script>
 <script src="webroot/js/admin-configuracion.js"></script>
 <script src="webroot/js/admin-informes.js"></script>
@@ -17,10 +17,13 @@
 
 <script>
     // Configuración global del TPV para impresión y fiscalidad
-    window.TPV_CONFIG = <?php 
-        require_once 'core/Verifactu.php';
-        echo json_encode(Verifactu::publicGetConfig()); 
-    ?>;
+    window.TPV_CONFIG = {
+        nif: '<?php require_once "core/Verifactu.php";
+        echo addslashes(Verifactu::getConfig("TPV_NIF", "")); ?>',
+        nombre: '<?php echo addslashes(Verifactu::getConfig("TPV_RAZON_SOCIAL", "")); ?>',
+        direccion: '<?php echo addslashes(Verifactu::getConfig("TPV_DIRECCION", "")); ?>',
+        qrBaseUrl: '<?php echo addslashes(Verifactu::getQRBaseUrl()); ?>'
+    };
 
     // Traducciones para tickets y facturas (compartido)
     window.IDIOMAS_TICKET = {

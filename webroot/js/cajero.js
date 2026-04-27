@@ -302,6 +302,9 @@ function actualizarPrecioDesdeInput(input) {
     }
 }
 
+// Variable para almacenar la tarifa anterior de cada card y poder revertir
+let tarifaAnteriorCard = new Map();
+
 /**
  * Guarda la tarifa actual antes de cambiarla para poder revertir si es necesario.
  */

@@ -23,7 +23,8 @@ class Verifactu
                 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     self::$config[$row['clave']] = $row['valor'];
                 }
-            } catch (Exception $e) {}
+            } catch (Exception $e) {
+            }
         }
 
         $map = [
@@ -36,7 +37,8 @@ class Verifactu
         ];
 
         $dbKey = $map[$clave] ?? $clave;
-        if (isset(self::$config[$dbKey])) return self::$config[$dbKey];
+        if (isset(self::$config[$dbKey]))
+            return self::$config[$dbKey];
         return defined($clave) ? constant($clave) : $default;
     }
 
@@ -94,30 +96,45 @@ class Verifactu
      * RegFactuSistemaFacturacion > Cabecera + RegistroFactura > RegistroAlta
      *
      * RegistroFacturacionAltaType sequence (XSD):
-     *   IDVersion, IDFactura{IDEmisorFactura(NIF), NumSerieFactura, FechaExpedicionFactura},
-     *   NombreRazonEmisor, TipoFactura, DescripcionOperacion,
+     *   IDVersion, IDFactura, NombreRazonEmisor, TipoFactura,
+     *   TipoRectificativa?, FacturasRectificadas?, DescripcionOperacion,
      *   Destinatarios?, Desglose, CuotaTotal, ImporteTotal,
      *   Encadenamiento, SistemaInformatico, FechaHoraHusoGenRegistro, TipoHuella, Huella
+     *
+     * @param Venta $venta La venta a registrar
+     * @param array $lineas Líneas de venta (objetos o arrays)
+     * @param array|null $datosRectificativa Datos del documento original si es rectificativa:
+     *   ['serie' => 'T', 'numero' => '00001', 'fecha' => '2026-04-22', 'tipoOriginal' => 'F2']
      */
-    public static function generarXML($venta, $lineas)
+    public static function generarXML($venta, $lineas, $datosRectificativa = null)
     {
         $nombre = htmlspecialchars(self::getConfig('TPV_RAZON_SOCIAL'), ENT_XML1, 'UTF-8');
         $nif = htmlspecialchars(self::getConfig('TPV_NIF'), ENT_XML1, 'UTF-8');
-        $fechaExp = date('d-m-Y', strtotime($venta->getFecha()));
+        // ✅ FIX AEAT: ALTAS usan DD-MM-YYYY
+        $fechaTs = strtotime($venta->getFecha());
+        $fechaExp = date('d-m-Y', $fechaTs);
         $numero = htmlspecialchars($venta->getNumero(), ENT_XML1, 'UTF-8');
         $serie = $venta->getSerie() ? htmlspecialchars($venta->getSerie(), ENT_XML1, 'UTF-8') : '';
         $numSerieSafe = preg_replace('/\s+/', '', $serie . $numero);
         $total = number_format($venta->getTotal(), 2, '.', '');
-        $tipoFactura = $venta->getClienteDni() ? 'F1' : 'F2';
         $fechaHito = date('Y-m-d\TH:i:sP');
+
+        // Determinar TipoFactura: R1/R5 si es rectificativa, F1/F2 si es alta normal
+        if ($datosRectificativa) {
+            $tipoOriginal = $datosRectificativa['tipoOriginal'] ?? 'F2';
+            $tipoFactura = ($tipoOriginal === 'F1') ? 'R1' : 'R5';
+        } else {
+            $tipoFactura = $venta->getClienteDni() ? 'F1' : 'F2';
+        }
 
         $desgloseIVA = [];
         $cuotaTotalTax = 0;
         foreach ($lineas as $linea) {
             // Support both LineaVenta objects and assoc arrays from fetchAll
-            $rate = is_object($linea) ? (float)($linea->getIva() ?? 21) : (float)($linea['iva'] ?? 21);
-            $base = is_object($linea) ? (float)$linea->getSubtotal() : (float)($linea['subtotal'] ?? 0);
-            if (!isset($desgloseIVA["$rate"])) $desgloseIVA["$rate"] = ['base' => 0, 'cuota' => 0];
+            $rate = is_object($linea) ? (float) ($linea->getIva() ?? 21) : (float) ($linea['iva'] ?? 21);
+            $base = is_object($linea) ? (float) $linea->getSubtotal() : (float) ($linea['subtotal'] ?? 0);
+            if (!isset($desgloseIVA["$rate"]))
+                $desgloseIVA["$rate"] = ['base' => 0, 'cuota' => 0];
             $lCuota = $base * ($rate / 100);
             $desgloseIVA["$rate"]['base'] += $base;
             $desgloseIVA["$rate"]['cuota'] += $lCuota;
@@ -160,8 +177,31 @@ class Verifactu
         // TipoFactura
         $xml .= "          <sum1:TipoFactura>" . $tipoFactura . "</sum1:TipoFactura>\n";
 
+        // --- Bloques exclusivos de rectificativas (XSD sequence: TipoRectificativa, FacturasRectificadas) ---
+        if ($datosRectificativa) {
+            // TipoRectificativa: I = Incremental (por diferencias, importes negativos)
+            $xml .= "          <sum1:TipoRectificativa>I</sum1:TipoRectificativa>\n";
+
+            // FacturasRectificadas > IDFacturaRectificada (IDFacturaARType)
+            $origSerie = htmlspecialchars($datosRectificativa['serie'] ?? '', ENT_XML1, 'UTF-8');
+            $origNumero = htmlspecialchars($datosRectificativa['numero'] ?? '', ENT_XML1, 'UTF-8');
+            $origNumSerie = preg_replace('/\s+/', '', $origSerie . $origNumero);
+            $origFecha = date('d-m-Y', strtotime($datosRectificativa['fecha']));
+
+            $xml .= "          <sum1:FacturasRectificadas>\n";
+            $xml .= "            <sum1:IDFacturaRectificada>\n";
+            $xml .= "              <sum1:IDEmisorFactura>" . $nif . "</sum1:IDEmisorFactura>\n";
+            $xml .= "              <sum1:NumSerieFactura>" . $origNumSerie . "</sum1:NumSerieFactura>\n";
+            $xml .= "              <sum1:FechaExpedicionFactura>" . $origFecha . "</sum1:FechaExpedicionFactura>\n";
+            $xml .= "            </sum1:IDFacturaRectificada>\n";
+            $xml .= "          </sum1:FacturasRectificadas>\n";
+        }
+
         // DescripcionOperacion (OBLIGATORIO en XSD)
-        $xml .= "          <sum1:DescripcionOperacion>Venta</sum1:DescripcionOperacion>\n";
+        $descripcion = $datosRectificativa
+            ? 'Rectificacion de ' . preg_replace('/\s+/', '', ($datosRectificativa['serie'] ?? '') . ($datosRectificativa['numero'] ?? ''))
+            : 'Venta';
+        $xml .= "          <sum1:DescripcionOperacion>" . htmlspecialchars($descripcion, ENT_XML1, 'UTF-8') . "</sum1:DescripcionOperacion>\n";
 
         // Destinatarios (solo para F1 con cliente identificado)
         if ($tipoFactura === 'F1' && $venta->getClienteDni()) {
@@ -181,7 +221,7 @@ class Verifactu
             $xml .= "            <sum1:DetalleDesglose>\n";
             $xml .= "              <sum1:ClaveRegimen>01</sum1:ClaveRegimen>\n";
             $xml .= "              <sum1:CalificacionOperacion>S1</sum1:CalificacionOperacion>\n";
-            $xml .= "              <sum1:TipoImpositivo>" . number_format((float)$rate, 2, '.', '') . "</sum1:TipoImpositivo>\n";
+            $xml .= "              <sum1:TipoImpositivo>" . number_format((float) $rate, 2, '.', '') . "</sum1:TipoImpositivo>\n";
             $xml .= "              <sum1:BaseImponibleOimporteNoSujeto>" . number_format($data['base'], 2, '.', '') . "</sum1:BaseImponibleOimporteNoSujeto>\n";
             $xml .= "              <sum1:CuotaRepercutida>" . number_format($data['cuota'], 2, '.', '') . "</sum1:CuotaRepercutida>\n";
             $xml .= "            </sum1:DetalleDesglose>\n";
@@ -199,10 +239,20 @@ class Verifactu
         if ($prevHash === '') {
             $xml .= "            <sum1:PrimerRegistro>S</sum1:PrimerRegistro>\n";
         } else {
+            // ✅ Verifactu: Usar datos del registro anterior real (si existen) para el encadenamiento
+            $origNif = $nif;
+            $origNumSerie = $numSerieSafe;
+            $origFecha = $fechaExp;
+            
+            if (isset($venta->datosRegistroAnterior) && !empty($venta->datosRegistroAnterior)) {
+                $origNumSerie = preg_replace('/\s+/', '', ($venta->datosRegistroAnterior['serie'] ?? '') . ($venta->datosRegistroAnterior['numero'] ?? ''));
+                $origFecha = date('d-m-Y', strtotime($venta->datosRegistroAnterior['fecha']));
+            }
+
             $xml .= "            <sum1:RegistroAnterior>\n";
-            $xml .= "              <sum1:IDEmisorFactura>" . $nif . "</sum1:IDEmisorFactura>\n";
-            $xml .= "              <sum1:NumSerieFactura>" . $numSerieSafe . "</sum1:NumSerieFactura>\n";
-            $xml .= "              <sum1:FechaExpedicionFactura>" . $fechaExp . "</sum1:FechaExpedicionFactura>\n";
+            $xml .= "              <sum1:IDEmisorFactura>" . $origNif . "</sum1:IDEmisorFactura>\n";
+            $xml .= "              <sum1:NumSerieFactura>" . $origNumSerie . "</sum1:NumSerieFactura>\n";
+            $xml .= "              <sum1:FechaExpedicionFactura>" . $origFecha . "</sum1:FechaExpedicionFactura>\n";
             $xml .= "              <sum1:Huella>" . $prevHash . "</sum1:Huella>\n";
             $xml .= "            </sum1:RegistroAnterior>\n";
         }
@@ -231,7 +281,7 @@ class Verifactu
         $xml .= "        </sum1:RegistroAlta>\n";
         $xml .= "      </sum:RegistroFactura>\n";
         $xml .= "    </sum:RegFactuSistemaFacturacion>";
-        
+
         return $xml;
     }
 
@@ -247,7 +297,9 @@ class Verifactu
     {
         $nombre = htmlspecialchars(self::getConfig('TPV_RAZON_SOCIAL'), ENT_XML1, 'UTF-8');
         $nif = htmlspecialchars(self::getConfig('TPV_NIF'), ENT_XML1, 'UTF-8');
-        $fechaExp = date('d-m-Y', strtotime($venta->getFecha()));
+        // ✅ FIX AEAT: FechaExpedicionFactura debe ser DD-MM-YYYY (Tipo FechaType en XSD)
+        $fechaTs = strtotime($venta->getFecha());
+        $fechaExp = date('d-m-Y', $fechaTs);
         $numero = htmlspecialchars($venta->getNumero(), ENT_XML1, 'UTF-8');
         $serie = $venta->getSerie() ? htmlspecialchars($venta->getSerie(), ENT_XML1, 'UTF-8') : '';
         $numSerieSafe = preg_replace('/\s+/', '', $serie . $numero);
@@ -287,10 +339,20 @@ class Verifactu
         if ($prevHash === '') {
             $xml .= "            <sum1:PrimerRegistro>S</sum1:PrimerRegistro>\n";
         } else {
+            // ✅ Verifactu: Usar datos del registro anterior real (si existen) para el encadenamiento
+            $origNif = $nif;
+            $origNumSerie = $numSerieSafe;
+            $origFecha = $fechaExp;
+            
+            if (isset($venta->datosRegistroAnterior) && !empty($venta->datosRegistroAnterior)) {
+                $origNumSerie = preg_replace('/\s+/', '', ($venta->datosRegistroAnterior['serie'] ?? '') . ($venta->datosRegistroAnterior['numero'] ?? ''));
+                $origFecha = date('d-m-Y', strtotime($venta->datosRegistroAnterior['fecha']));
+            }
+
             $xml .= "            <sum1:RegistroAnterior>\n";
-            $xml .= "              <sum1:IDEmisorFactura>" . $nif . "</sum1:IDEmisorFactura>\n";
-            $xml .= "              <sum1:NumSerieFactura>" . $numSerieSafe . "</sum1:NumSerieFactura>\n";
-            $xml .= "              <sum1:FechaExpedicionFactura>" . $fechaExp . "</sum1:FechaExpedicionFactura>\n";
+            $xml .= "              <sum1:IDEmisorFactura>" . $origNif . "</sum1:IDEmisorFactura>\n";
+            $xml .= "              <sum1:NumSerieFactura>" . $origNumSerie . "</sum1:NumSerieFactura>\n";
+            $xml .= "              <sum1:FechaExpedicionFactura>" . $origFecha . "</sum1:FechaExpedicionFactura>\n";
             $xml .= "              <sum1:Huella>" . $prevHash . "</sum1:Huella>\n";
             $xml .= "            </sum1:RegistroAnterior>\n";
         }
@@ -327,82 +389,101 @@ class Verifactu
         $certPath = self::getConfig('CERT_PATH');
         $certPass = self::getConfig('CERT_PASS');
         $aeatUrl = self::getConfig('AEAT_URL_VERIFACTU');
-        
-        // Anulacion goes to different endpoint
-        if (strpos($xml, 'RegistroAnulacion') !== false && strpos($xml, 'RegistroAlta') === false) {
-            $aeatUrl = self::getAnulacionUrl();
-        }
 
-        if (!file_exists($certPath)) return ['success' => false, 'message' => 'Certificado no encontrado.'];
-        $pfx = file_get_contents($certPath); $certs = [];
-        if (!openssl_pkcs12_read($pfx, $certs, $certPass)) return ['success' => false, 'message' => 'Error certificado.'];
+        // ✅ FIX AEAT: Endpoint AnuSOAP obsoleto, todo se envía al mismo endpoint
+        // if (strpos($xml, 'RegistroAnulacion') !== false) {
+        //     $aeatUrl = self::getAnulacionUrl();
+        // }
 
-        $tempCert = tempnam(sys_get_temp_dir(), 'cert');
-        $tempKey = tempnam(sys_get_temp_dir(), 'key');
-        file_put_contents($tempCert, $certs['cert']);
-        file_put_contents($tempKey, $certs['pkey']);
+        // ✅ 3 REINTENTOS AUTOMATICOS PARA EL ENTORNO DE PRUEBAS
+        $maxIntentos = 3;
+        $ultimoError = '';
 
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $aeatUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, self::prepararCuerpoSOAP($xml));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: text/xml; charset=utf-8',
-            'SOAPAction: ""'
-        ]);
-        curl_setopt($ch, CURLOPT_SSLCERT, $tempCert);
-        curl_setopt($ch, CURLOPT_SSLKEY, $tempKey);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        
-        $response = curl_exec($ch);
-        $curlError = curl_error($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        @unlink($tempCert); @unlink($tempKey);
+        for ($intento = 1; $intento <= $maxIntentos; $intento++) {
 
-        if ($response === false) return ['success' => false, 'message' => 'Error CURL: ' . $curlError];
+            if (!file_exists($certPath))
+                return ['success' => false, 'message' => 'Certificado no encontrado.'];
+            $pfx = file_get_contents($certPath);
+            $certs = [];
+            if (!openssl_pkcs12_read($pfx, $certs, $certPass))
+                return ['success' => false, 'message' => 'Error certificado.'];
 
-        // Intentar parsear con simplexml (puede fallar con SOAP namespaces)
-        $respXml = @simplexml_load_string($response);
-        if ($respXml) {
-            $estado = (string)($respXml->xpath('//*[local-name()="EstadoRegistro"]')[0] ?? '');
-            $estadoEnvio = (string)($respXml->xpath('//*[local-name()="EstadoEnvio"]')[0] ?? '');
-            $csv = (string)($respXml->xpath('//*[local-name()="CSV"]')[0] ?? '');
-            
-            if ($estado === 'Correcto' || $estado === 'AceptadoConErrores' || $estadoEnvio === 'Correcto' || $estadoEnvio === 'ParcialmenteCorrecto') {
-                return ['success' => true, 'csv' => $csv ?: ('REC' . rand(1000, 9999)), 'message' => 'OK'];
+            $tempCert = tempnam(sys_get_temp_dir(), 'cert');
+            $tempKey = tempnam(sys_get_temp_dir(), 'key');
+            file_put_contents($tempCert, $certs['cert']);
+            file_put_contents($tempKey, $certs['pkey']);
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $aeatUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, self::prepararCuerpoSOAP($xml));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: text/xml; charset=utf-8',
+                'SOAPAction: ""'
+            ]);
+            curl_setopt($ch, CURLOPT_SSLCERT, $tempCert);
+            curl_setopt($ch, CURLOPT_SSLKEY, $tempKey);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+            $response = curl_exec($ch);
+            $curlError = curl_error($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            @unlink($tempCert);
+            @unlink($tempKey);
+
+            if ($response === false) {
+                $ultimoError = 'Error CURL: ' . $curlError;
+            } else {
+                // Intentar parsear con simplexml (puede fallar con SOAP namespaces)
+                $respXml = @simplexml_load_string($response);
+                if ($respXml) {
+                    $estado = (string) ($respXml->xpath('//*[local-name()="EstadoRegistro"]')[0] ?? '');
+                    $estadoEnvio = (string) ($respXml->xpath('//*[local-name()="EstadoEnvio"]')[0] ?? '');
+                    $csv = (string) ($respXml->xpath('//*[local-name()="CSV"]')[0] ?? '');
+
+                    if ($estado === 'Correcto' || $estado === 'AceptadoConErrores' || $estadoEnvio === 'Correcto' || $estadoEnvio === 'ParcialmenteCorrecto') {
+                        return ['success' => true, 'csv' => $csv ?: ('REC' . rand(1000, 9999)), 'message' => 'OK'];
+                    }
+                    $errorDesc = (string) ($respXml->xpath('//*[local-name()="DescripcionErrorRegistro"]')[0] ?? '');
+                    $fault = (string) ($respXml->xpath('//*[local-name()="faultstring"]')[0] ?? 'Error AEAT');
+                    $ultimoError = $errorDesc ?: $fault;
+                } else {
+                    // Fallback regex: SOAP namespaces can break simplexml
+                    $estado = '';
+                    $estadoEnvio = '';
+                    $csv = '';
+                    if (preg_match('/EstadoRegistro[^>]*>([^<]+)</s', $response, $m))
+                        $estado = trim($m[1]);
+                    if (preg_match('/EstadoEnvio[^>]*>([^<]+)</s', $response, $m))
+                        $estadoEnvio = trim($m[1]);
+                    if (preg_match('/CSV[^>]*>([^<]+)</s', $response, $m))
+                        $csv = trim($m[1]);
+
+                    if ($estado === 'Correcto' || $estado === 'AceptadoConErrores' || $estadoEnvio === 'Correcto' || $estadoEnvio === 'ParcialmenteCorrecto') {
+                        return ['success' => true, 'csv' => $csv ?: ('REC' . rand(1000, 9999)), 'message' => 'OK'];
+                    }
+
+                    if (preg_match('/faultstring[^>]*>(.*?)<\//s', $response, $matches)) {
+                        $ultimoError = htmlspecialchars_decode($matches[1]);
+                    } elseif (preg_match('/DescripcionErrorRegistro[^>]*>([^<]+)</s', $response, $m)) {
+                        $ultimoError = trim($m[1]);
+                    } else {
+                        $ultimoError = 'Error respuesta (HTTP ' . $httpCode . '): ' . substr(strip_tags($response), 0, 150);
+                    }
+                }
             }
-            $errorDesc = (string)($respXml->xpath('//*[local-name()="DescripcionErrorRegistro"]')[0] ?? '');
-            $fault = (string)($respXml->xpath('//*[local-name()="faultstring"]')[0] ?? 'Error AEAT');
-            return ['success' => false, 'message' => $errorDesc ?: $fault, 'raw' => $response];
+
+            // Si no es el ultimo intento, esperar 1 segundo y reintentar
+            if ($intento < $maxIntentos) {
+                sleep(1);
+                continue;
+            }
         }
-        
-        // Fallback regex: SOAP namespaces can break simplexml
-        // Extraer EstadoRegistro y EstadoEnvio por regex
-        $estado = '';
-        $estadoEnvio = '';
-        $csv = '';
-        if (preg_match('/EstadoRegistro[^>]*>([^<]+)</s', $response, $m)) $estado = trim($m[1]);
-        if (preg_match('/EstadoEnvio[^>]*>([^<]+)</s', $response, $m)) $estadoEnvio = trim($m[1]);
-        if (preg_match('/CSV[^>]*>([^<]+)</s', $response, $m)) $csv = trim($m[1]);
-        
-        if ($estado === 'Correcto' || $estado === 'AceptadoConErrores' || $estadoEnvio === 'Correcto' || $estadoEnvio === 'ParcialmenteCorrecto') {
-            return ['success' => true, 'csv' => $csv ?: ('REC' . rand(1000, 9999)), 'message' => 'OK'];
-        }
-        
-        if (preg_match('/faultstring[^>]*>(.*?)<\//s', $response, $matches)) {
-            return ['success' => false, 'message' => htmlspecialchars_decode($matches[1]), 'raw' => $response];
-        }
-        
-        // Extraer error específico
-        $errorDesc = '';
-        if (preg_match('/DescripcionErrorRegistro[^>]*>([^<]+)</s', $response, $m)) $errorDesc = trim($m[1]);
-        if ($errorDesc) {
-            return ['success' => false, 'message' => $errorDesc, 'raw' => $response];
-        }
-        
-        return ['success' => false, 'message' => 'Error respuesta (HTTP '.$httpCode.'): ' . substr(strip_tags($response), 0, 150), 'raw' => $response];
+
+        // Si llegamos aqui es que todos los intentos fallaron
+        return ['success' => false, 'message' => $ultimoError];
     }
 
     private static function prepararCuerpoSOAP($xml)
@@ -426,6 +507,7 @@ class Verifactu
         $params = [
             'nif' => $nif,
             'numserie' => $numSerie,
+            // ✅ FIX AEAT Error 126533117: Normalizar fecha antes de formatear
             'fecha' => date('d-m-Y', strtotime($venta->getFecha())),
             'importe' => number_format($venta->getTotal(), 2, '.', '')
         ];

@@ -136,6 +136,17 @@ class Venta
     private $csvAeat;
     private $errorAeat;
 
+    // Verifactu: rectificativas y anulaciones extendidas
+    private $esRectificativa;
+    private $idDocumentoOriginal;
+    private $tipoFacturaVerifactu;
+    private $hashAnulacion;
+    private $csvAnulacion;
+    private $fechaAnulacion;
+    
+    /** @var array|null Datos temporales del registro anterior para el XML */
+    public $datosRegistroAnterior;
+
     // ======================== GETTERS ========================
 
     /** 
@@ -258,11 +269,94 @@ class Venta
         return $this->idioma_ticket;
     }
 
-    public function getHash() { return $this->hash; }
-    public function getHashPrevio() { return $this->hashPrevio; }
-    public function getXmlDatos() { return $this->xmlDatos; }
-    public function getEstadoAeat() { return $this->estadoAeat; }
-    public function getCsvAeat() { return $this->csvAeat; }
+    public function getHash()
+    {
+        return $this->hash;
+    }
+    public function getHashPrevio()
+    {
+        return $this->hashPrevio;
+    }
+    public function getXmlDatos()
+    {
+        return $this->xmlDatos;
+    }
+    public function getEstadoAeat()
+    {
+        return $this->estadoAeat;
+    }
+    public function getCsvAeat()
+    {
+        return $this->csvAeat;
+    }
+    public function getErrorAeat()
+    {
+        return $this->errorAeat;
+    }
+
+    // Getters rectificativa/anulación
+    public function getEsRectificativa()
+    {
+        return $this->esRectificativa;
+    }
+    public function getIdDocumentoOriginal()
+    {
+        return $this->idDocumentoOriginal;
+    }
+    public function getTipoFacturaVerifactu()
+    {
+        return $this->tipoFacturaVerifactu;
+    }
+    public function getHashAnulacion()
+    {
+        return $this->hashAnulacion;
+    }
+    public function getCsvAnulacion()
+    {
+        return $this->csvAnulacion;
+    }
+    public function getFechaAnulacion()
+    {
+        return $this->fechaAnulacion;
+    }
+
+    // Setters rectificativa/anulación
+    public function setEsRectificativa($v)
+    {
+        $this->esRectificativa = $v;
+    }
+    public function setIdDocumentoOriginal($v)
+    {
+        $this->idDocumentoOriginal = $v;
+    }
+    public function setTipoFacturaVerifactu($v)
+    {
+        $this->tipoFacturaVerifactu = $v;
+    }
+    public function setHashAnulacion($v)
+    {
+        $this->hashAnulacion = $v;
+    }
+    public function setCsvAnulacion($v)
+    {
+        $this->csvAnulacion = $v;
+    }
+    public function setFechaAnulacion($v)
+    {
+        $this->fechaAnulacion = $v;
+    }
+    public function setHash($v)
+    {
+        $this->hash = $v;
+    }
+    public function setHashPrevio($v)
+    {
+        $this->hashPrevio = $v;
+    }
+    public function setErrorAeat($v)
+    {
+        $this->errorAeat = $v;
+    }
 
     // ======================== SETTERS ========================
     /** 
@@ -727,12 +821,17 @@ class Venta
             $this->id = $conexion->lastInsertId();
 
             // --- Lógica Verifactu Encadenamiento ---
-            $tabla = $this->getTabla();
-            $stmtPrev = $conexion->prepare("SELECT hash FROM {$tabla} ORDER BY fecha_registro DESC LIMIT 1");
-            $stmtPrev->execute();
-            $this->hashPrevio = $stmtPrev->fetchColumn() ?: null;
+            $ultimo = self::getUltimoRegistroFiscal();
+            if ($ultimo) {
+                $this->hashPrevio = $ultimo['hash'];
+                $this->datosRegistroAnterior = $ultimo;
+            } else {
+                $this->hashPrevio = null;
+                $this->datosRegistroAnterior = null;
+            }
 
             // 4. Insertar en la tabla real correspondiente (tickets o facturas) con el ID obtenido
+            $tabla = $this->getTabla();
             $sql = "INSERT INTO {$tabla} (id, idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, importeEntregado, cambioDevuelto, descuentoTipo, descuentoValor, descuentoCupon, descuentoTarifaTipo, descuentoTarifaValor, descuentoTarifaCupon, descuentoManualTipo, descuentoManualValor, descuentoManualCupon, idTarifa, cliente_dni, cliente_nombre, cliente_direccion, cliente_observaciones, mensaje_personalizado, desglose_pago, idSesionCaja, puntos_ganados, puntos_canjeados, puntos_balance, idioma_ticket, hash_previo) 
                   VALUES (:id, :idUsuario, :fecha, :total, :metodoPago, :estado, :tipoDocumento, :cerrada, :importeEntregado, :cambioDevuelto, :descuentoTipo, :descuentoValor, :descuentoCupon, :descuentoTarifaTipo, :descuentoTarifaValor, :descuentoTarifaCupon, :descuentoManualTipo, :descuentoManualValor, :descuentoManualCupon, :idTarifa, :clienteDni, :clienteNombre, :clienteDireccion, :clienteObservaciones, :mensajePersonalizado, :desglosePago, :idSesionCaja, :puntosGanados, :puntosCanjeados, :puntosBalance, :idiomaTicket, :hashPrevio)";
 
@@ -825,7 +924,8 @@ class Venta
         require_once(__DIR__ . '/../core/Verifactu.php');
         $conexion = ConexionDB::getInstancia()->getConexion();
         $tabla = self::getTablaById($this->id);
-        if (!$tabla) return;
+        if (!$tabla)
+            return;
 
         // Obtener líneas de venta (ya insertadas)
         $stmtLines = $conexion->prepare("SELECT * FROM lineasVenta WHERE idVenta = ?");
@@ -883,31 +983,306 @@ class Venta
 
     /**
      * Anula una venta (cambia su estado a 'anulada').
-     * @return bool
+     * Valida que no esté ya anulada y que tenga hash válido.
+     * @return array ['success' => bool, 'message' => string, 'csv' => string|null]
      */
     public function anular()
     {
-        $this->estado = 'anulada';
-        $res = $this->actualizar();
-        
-        if ($res) {
-            // --- Verifactu: Registro de Anulación ---
-            $xmlAnu = Verifactu::generarXMLAnulacion($this);
-            $resAeat = Verifactu::enviarAEAT($xmlAnu);
-            
-            $this->estadoAeat = $resAeat['success'] ? 'enviado' : 'error';
-            $this->csvAeat = $resAeat['csv'] ?? null;
-            $this->errorAeat = $resAeat['success'] ? null : $resAeat['message'];
-            
-            $tabla = self::getTablaById($this->id);
-            if ($tabla) {
-                $conexion = ConexionDB::getInstancia()->getConexion();
-                $stmt = $conexion->prepare("UPDATE {$tabla} SET estado_aeat = ?, csv_aeat = ?, error_aeat = ?, xml_datos_anu = ? WHERE id = ?");
-                $stmt->execute([$this->estadoAeat, $this->csvAeat, $this->errorAeat, $xmlAnu, $this->id]);
+        // Validaciones
+        if ($this->estado === 'anulada') {
+            return ['success' => true, 'message' => 'El documento ya está anulado.'];
+        }
+
+        // --- ✅ NUEVO ORDEN CORRECTO: PRIMERO AEAT, DESPUES BD ---
+        // --- Verifactu: Registro de Anulación ---
+        $xmlAnu = Verifactu::generarXMLAnulacion($this);
+        $hashAnu = Verifactu::calcularHashEncadenado($xmlAnu, $this->hash);
+        $resAeat = Verifactu::enviarAEAT($xmlAnu);
+
+        // Si la AEAT devuelve que YA ESTA ANULADO, tambien lo marcamos como OK
+        if (!$resAeat['success'] && str_contains(mb_strtolower($resAeat['message']), 'anulado')) {
+            $resAeat['success'] = true;
+            $resAeat['message'] = 'Documento ya estaba anulado en AEAT. Actualizado en BD.';
+        }
+
+        // ✅ SOLO SI AEAT DEVUELVE EXITO, MARCAMOS COMO ANULADO
+        if ($resAeat['success']) {
+            $this->estado = 'anulada';
+            $res = $this->actualizar();
+
+            if (!$res) {
+                return ['success' => false, 'message' => 'Error al actualizar estado en BD.'];
             }
         }
-        
-        return $res;
+
+        $estadoAnulacion = $resAeat['success'] ? 'enviado' : 'error';
+        $csvAnulacion = $resAeat['csv'] ?? null;
+        $errorMsg = $resAeat['success'] ? null : $resAeat['message'];
+
+        $tabla = self::getTablaById($this->id);
+        if ($tabla) {
+            $conexion = ConexionDB::getInstancia()->getConexion();
+            $stmt = $conexion->prepare(
+                "UPDATE {$tabla} SET estado_aeat = ?, csv_anulacion = ?, 
+                 hash_anulacion = ?, fecha_anulacion = NOW(), error_aeat = ?, xml_datos_anu = ? WHERE id = ?"
+            );
+            $stmt->execute([$estadoAnulacion, $csvAnulacion, $hashAnu, $errorMsg, $xmlAnu, $this->id]);
+
+            // ✅ Si AEAT confirmo anulacion, asegurar que estado quede anulado definitivamente
+            if ($resAeat['success']) {
+                $stmtFinal = $conexion->prepare("UPDATE {$tabla} SET estado = 'anulada' WHERE id = ?");
+                $stmtFinal->execute([$this->id]);
+            }
+        }
+
+        return [
+            'success' => $resAeat['success'],
+            'message' => $resAeat['success'] ? ($csvAnulacion ? "Documento anulado correctamente. CSV: $csvAnulacion" : 'Documento anulado correctamente.') : $errorMsg,
+            'csv' => $csvAnulacion
+        ];
+    }
+
+    /**
+     * Busca y anula un documento por serie+número.
+     * @param string $serie 'T' o 'F'
+     * @param int $numero Número correlativo
+     * @return array ['success' => bool, 'message' => string]
+     */
+    public static function anularDocumento($serie, $numero)
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+
+        // 1. Buscar en ventas_ids
+        $stmt = $conexion->prepare("SELECT id FROM ventas_ids WHERE serie = ? AND numero = ?");
+        $stmt->execute([$serie, (int) $numero]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            return ['success' => false, 'message' => 'Documento no encontrado.'];
+        }
+
+        $venta = self::buscarPorId($row['id']);
+        if (!$venta) {
+            return ['success' => false, 'message' => 'Documento no encontrado en BD.'];
+        }
+
+        // Hidratar serie/numero
+        $venta->setSerie($serie);
+        $venta->setNumero($numero);
+
+        // ✅ Verifactu: Obtener el ÚLTIMO registro global para el encadenamiento (Anterior)
+        // Una anulación DEBE encadenarse al último registro enviado (sea Alta o Anulación de cualquier factura)
+        $ultimo = self::getUltimoRegistroFiscal();
+        if ($ultimo) {
+            $venta->setHashPrevio($ultimo['hash']);
+            // Guardamos temporalmente los datos del registro anterior para el XML
+            $venta->datosRegistroAnterior = $ultimo;
+        } else {
+            $venta->setHashPrevio(null);
+        }
+
+        // Cargar hash propio (el de su Alta) para el bloque de datos de la factura a anular
+        $tabla = self::getTablaById($venta->getId());
+        if ($tabla) {
+            $stmtH = $conexion->prepare("SELECT hash FROM {$tabla} WHERE id = ?");
+            $stmtH->execute([$venta->getId()]);
+            $hashPropio = $stmtH->fetchColumn();
+            $venta->setHash($hashPropio);
+        }
+
+        return $venta->anular();
+    }
+
+    /**
+     * Crea una factura rectificativa (R1/R5) referenciando un documento original.
+     * Se usa para devoluciones: importes negativos, referencia al original.
+     *
+     * @param string $serie Serie del original ('T' o 'F')
+     * @param int $numero Número del original
+     * @param array $lineasDevolucion Array de líneas: [{precioUnitario, cantidad, iva, subtotal, nombre}]
+     * @param int $idUsuario ID del usuario que rectifica
+     * @param int|null $idSesionCaja ID de la sesión de caja activa
+     * @return array ['success' => bool, 'message' => string, 'venta' => Venta|null]
+     */
+    public static function rectificarDocumento($serie, $numero, $lineasDevolucion, $idUsuario, $idSesionCaja = null)
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+
+        // 1. Buscar documento original
+        $stmt = $conexion->prepare("SELECT id FROM ventas_ids WHERE serie = ? AND numero = ?");
+        $stmt->execute([$serie, (int) $numero]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            return ['success' => false, 'message' => 'Documento original no encontrado.'];
+        }
+
+        $idOriginal = $row['id'];
+        $ventaOriginal = self::buscarPorId($idOriginal);
+        if (!$ventaOriginal) {
+            return ['success' => false, 'message' => 'Documento original no encontrado en BD.'];
+        }
+
+        if ($ventaOriginal->getEstado() === 'anulada') {
+            return ['success' => false, 'message' => 'No se puede rectificar un documento anulado.'];
+        }
+
+        $ventaOriginal->setSerie($serie);
+        $ventaOriginal->setNumero($numero);
+
+        // 2. Detectar tipo original: F1 (factura) o F2 (ticket)
+        $tipoOriginal = $ventaOriginal->getClienteDni() ? 'F1' : 'F2';
+        $tipoDocOriginal = $ventaOriginal->getTipoDocumento();
+        // Serie rectificativa: RT para tickets, RF para facturas
+        $serieRect = ($tipoDocOriginal === 'factura') ? 'RF' : 'RT';
+
+        // 3. Calcular total negativo
+        $totalNegativo = 0;
+        foreach ($lineasDevolucion as $linea) {
+            $base = abs((float) ($linea['precioUnitario'] ?? 0));
+            $cant = abs((int) ($linea['cantidad'] ?? 1));
+            $iva = (float) ($linea['iva'] ?? 21);
+            $pvp = $base * (1 + $iva / 100);
+            $totalNegativo += round($pvp * $cant, 2);
+        }
+        $totalNegativo = -abs($totalNegativo);
+
+        // 4. Crear nueva venta rectificativa
+        $rectificativa = new Venta();
+        $rectificativa->setIdUsuario($idUsuario);
+        $rectificativa->setFecha(date('Y-m-d H:i:s'));
+        $rectificativa->setTotal($totalNegativo);
+        $rectificativa->setMetodoPago($ventaOriginal->getMetodoPago());
+        $rectificativa->setEstado('completada');
+        $rectificativa->setTipoDocumento($tipoDocOriginal);
+        $rectificativa->setCerrada(0);
+        $rectificativa->setIdSesionCaja($idSesionCaja);
+        $rectificativa->setEsRectificativa(1);
+        $rectificativa->setIdDocumentoOriginal($idOriginal);
+        $rectificativa->setTipoFacturaVerifactu(($tipoOriginal === 'F1') ? 'R1' : 'R5');
+        $rectificativa->setClienteDni($ventaOriginal->getClienteDni());
+        $rectificativa->setClienteNombre($ventaOriginal->getClienteNombre());
+
+        try {
+            $conexion->beginTransaction();
+
+            // Obtener siguiente número para serie rectificativa
+            $stmtMax = $conexion->prepare("SELECT COALESCE(MAX(numero), 0) + 1 as siguiente FROM ventas_ids WHERE serie = ?");
+            $stmtMax->execute([$serieRect]);
+            $siguienteNumero = $stmtMax->fetch(PDO::FETCH_ASSOC)['siguiente'];
+
+            // Insertar en ventas_ids
+            $stmtId = $conexion->prepare("INSERT INTO ventas_ids (tipo, serie, numero) VALUES (:tipo, :serie, :numero)");
+            $stmtId->execute([
+                ':tipo' => $tipoDocOriginal,
+                ':serie' => $serieRect,
+                ':numero' => $siguienteNumero
+            ]);
+            $rectificativa->setId($conexion->lastInsertId());
+            $rectificativa->setSerie($serieRect);
+            $rectificativa->setNumero($siguienteNumero);
+
+            // Hash previo
+            $ultimo = self::getUltimoRegistroFiscal();
+            if ($ultimo) {
+                $rectificativa->setHashPrevio($ultimo['hash']);
+                $rectificativa->datosRegistroAnterior = $ultimo;
+            } else {
+                $rectificativa->setHashPrevio(null);
+            }
+
+            // Insertar en tabla
+            $tabla = ($tipoDocOriginal === 'factura') ? 'facturas' : 'tickets';
+            $sql = "INSERT INTO {$tabla} (id, idUsuario, fecha, total, metodoPago, estado, tipoDocumento, cerrada, 
+                    idSesionCaja, cliente_dni, cliente_nombre, hash_previo, es_rectificativa, id_documento_original, tipo_factura_verifactu) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $stmtIns = $conexion->prepare($sql);
+            $stmtIns->execute([
+                $rectificativa->getId(),
+                $rectificativa->getIdUsuario(),
+                $rectificativa->getFecha(),
+                $rectificativa->getTotal(),
+                $rectificativa->getMetodoPago(),
+                'completada',
+                $tipoDocOriginal,
+                0,
+                $idSesionCaja,
+                $rectificativa->getClienteDni(),
+                $rectificativa->getClienteNombre(),
+                $rectificativa->getHashPrevio(),
+                1,
+                $idOriginal,
+                $rectificativa->getTipoFacturaVerifactu()
+            ]);
+
+            // Insertar líneas de venta negativas
+            foreach ($lineasDevolucion as $linea) {
+                $stmtLinea = $conexion->prepare(
+                    "INSERT INTO lineasVenta (idVenta, idProducto, nombreProducto, cantidad, precioUnitario, iva, subtotal) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?)"
+                );
+                $cant = -abs((int) ($linea['cantidad'] ?? 1));
+                $precio = (float) ($linea['precioUnitario'] ?? 0);
+                $iva = (float) ($linea['iva'] ?? 21);
+                $subtotal = round($precio * $cant, 2);
+                $stmtLinea->execute([
+                    $rectificativa->getId(),
+                    $linea['idProducto'] ?? null,
+                    $linea['nombre'] ?? 'Producto',
+                    $cant,
+                    $precio,
+                    $iva,
+                    $subtotal
+                ]);
+            }
+
+            $conexion->commit();
+        } catch (Exception $e) {
+            if ($conexion->inTransaction())
+                $conexion->rollBack();
+            return ['success' => false, 'message' => 'Error BD: ' . $e->getMessage()];
+        }
+
+        // 5. Generar XML rectificativa y enviar a AEAT
+        $datosRect = [
+            'serie' => $serie,
+            'numero' => str_pad($numero, 5, '0', STR_PAD_LEFT),
+            'fecha' => $ventaOriginal->getFecha(),
+            'tipoOriginal' => $tipoOriginal
+        ];
+
+        // Obtener líneas para XML (con subtotals negativos)
+        $stmtLines = $conexion->prepare("SELECT * FROM lineasVenta WHERE idVenta = ?");
+        $stmtLines->execute([$rectificativa->getId()]);
+        $lineasXML = $stmtLines->fetchAll(PDO::FETCH_ASSOC);
+
+        $xmlRect = Verifactu::generarXML($rectificativa, $lineasXML, $datosRect);
+        $hashRect = Verifactu::calcularHashEncadenado($xmlRect, $rectificativa->getHashPrevio());
+
+        // Guardar hash y XML
+        $tabla = ($tipoDocOriginal === 'factura') ? 'facturas' : 'tickets';
+        $stmtVeri = $conexion->prepare("UPDATE {$tabla} SET hash = ?, xml_datos = ? WHERE id = ?");
+        $stmtVeri->execute([$hashRect, $xmlRect, $rectificativa->getId()]);
+
+        // Enviar a AEAT (endpoint normal, NO VerifactuAnuSOAP)
+        $resAeat = Verifactu::enviarAEAT($xmlRect);
+        $estadoAeat = $resAeat['success'] ? 'enviado' : 'error';
+        $csvRect = $resAeat['csv'] ?? null;
+        $errorMsg = $resAeat['success'] ? null : $resAeat['message'];
+
+        $stmtRes = $conexion->prepare("UPDATE {$tabla} SET estado_aeat = ?, csv_aeat = ?, error_aeat = ? WHERE id = ?");
+        $stmtRes->execute([$estadoAeat, $csvRect, $errorMsg, $rectificativa->getId()]);
+
+        return [
+            'success' => $resAeat['success'],
+            'message' => $resAeat['success']
+                ? 'Rectificativa generada correctamente.'
+                : 'Rectificativa guardada pero error AEAT: ' . $errorMsg,
+            'venta' => $rectificativa,
+            'csv' => $csvRect,
+            'tipoFactura' => $rectificativa->getTipoFacturaVerifactu(),
+            'serieNumero' => $serieRect . str_pad($siguienteNumero, 5, '0', STR_PAD_LEFT)
+        ];
     }
 
     /**
@@ -978,12 +1353,16 @@ class Venta
         while ($fila = $stmt->fetch()) {
             // Obtenemos el método de pago
             $metodo = $fila['metodoPago'];
-            // Si el método de pago existe en el resumen
+            $sumaTotal = (float) $fila['sumaTotal'];
+            
+            // Siempre sumamos al total general, independientemente del método
+            $resumen['totalGeneral'] += $sumaTotal;
+            
+            // Si el método de pago existe en el resumen (para el desglose detallado)
             if (isset($resumen[$metodo])) {
-                // Actualizamos el total y la cantidad
-                $resumen[$metodo]['total'] = (float) $fila['sumaTotal'];
+                // Actualizamos el total y la cantidad del método específico
+                $resumen[$metodo]['total'] = $sumaTotal;
                 $resumen[$metodo]['cantidad'] = (int) $fila['cantidad'];
-                $resumen['totalGeneral'] += (float) $fila['sumaTotal'];
             }
         }
 
@@ -1008,15 +1387,13 @@ class Venta
             $resumen['tarjeta']['devoluciones'] = $devTarjeta;
             $resumen['bizum']['devoluciones'] = $devBizum;
 
-            // Restamos las devoluciones del total
-            $resumen['efectivo']['total'] -= $devEfectivo;
-            $resumen['tarjeta']['total'] -= $devTarjeta;
-            $resumen['bizum']['total'] -= $devBizum;
+            // NO restamos las devoluciones del total de forma manual aquí,
+            // ya que las rectificativas ya son registros negativos en la tabla 'ventas'
+            // y se han incluido en el SUM(total) inicial.
 
-            // Actualizamos el total de devoluciones
+            // Actualizamos el total de devoluciones para información de la vista
             $resumen['totalDevoluciones'] = $devEfectivo + $devTarjeta + $devBizum;
-            // Actualizamos el total general
-            $resumen['totalGeneral'] -= $resumen['totalDevoluciones'];
+            // El totalGeneral ya es neto (Ventas - Devoluciones) por los registros negativos.
         }
 
         // Devolvemos el resumen
@@ -1057,12 +1434,16 @@ class Venta
         while ($fila = $stmt->fetch()) {
             // Obtenemos el método de pago
             $metodo = $fila['metodoPago'];
-            // Si el método de pago existe en el resumen
+            $sumaTotal = (float) $fila['sumaTotal'];
+            
+            // Siempre sumamos al total general, independientemente del método
+            $resumen['totalGeneral'] += $sumaTotal;
+            
+            // Si el método de pago existe en el resumen (para el desglose detallado)
             if (isset($resumen[$metodo])) {
-                // Actualizamos el total y la cantidad
-                $resumen[$metodo]['total'] = (float) $fila['sumaTotal'];
+                // Actualizamos el total y la cantidad del método específico
+                $resumen[$metodo]['total'] = $sumaTotal;
                 $resumen[$metodo]['cantidad'] = (int) $fila['cantidad'];
-                $resumen['totalGeneral'] += (float) $fila['sumaTotal'];
             }
         }
 
@@ -1080,15 +1461,13 @@ class Venta
             $resumen['tarjeta']['devoluciones'] = $devTarjeta;
             $resumen['bizum']['devoluciones'] = $devBizum;
 
-            // Restamos las devoluciones del total
-            $resumen['efectivo']['total'] -= $devEfectivo;
-            $resumen['tarjeta']['total'] -= $devTarjeta;
-            $resumen['bizum']['total'] -= $devBizum;
+            // NO restamos las devoluciones del total de forma manual aquí,
+            // ya que las rectificativas ya son registros negativos en la tabla 'ventas'
+            // y se han incluido en el SUM(total) inicial.
 
-            // Actualizamos el total de devoluciones
+            // Actualizamos el total de devoluciones para información de la vista
             $resumen['totalDevoluciones'] = $devEfectivo + $devTarjeta + $devBizum;
-            // Actualizamos el total general
-            $resumen['totalGeneral'] -= $resumen['totalDevoluciones'];
+            // El totalGeneral ya es neto (Ventas - Devoluciones) por los registros negativos.
         }
 
         // Devolvemos el resumen
@@ -1170,6 +1549,23 @@ class Venta
         if (isset($fila['cliente_observaciones'])) {
             $venta->setClienteObservaciones($fila['cliente_observaciones']);
         }
+        // Verifactu extendido
+        if (isset($fila['hash']))
+            $venta->setHash($fila['hash']);
+        if (isset($fila['hash_previo']))
+            $venta->setHashPrevio($fila['hash_previo']);
+        if (isset($fila['es_rectificativa']))
+            $venta->setEsRectificativa($fila['es_rectificativa']);
+        if (isset($fila['id_documento_original']))
+            $venta->setIdDocumentoOriginal($fila['id_documento_original']);
+        if (isset($fila['tipo_factura_verifactu']))
+            $venta->setTipoFacturaVerifactu($fila['tipo_factura_verifactu']);
+        if (isset($fila['hash_anulacion']))
+            $venta->setHashAnulacion($fila['hash_anulacion']);
+        if (isset($fila['csv_anulacion']))
+            $venta->setCsvAnulacion($fila['csv_anulacion']);
+        if (isset($fila['fecha_anulacion']))
+            $venta->setFechaAnulacion($fila['fecha_anulacion']);
         return $venta;
     }
 
@@ -1177,9 +1573,55 @@ class Venta
      * Obtiene la URL del código QR para Verifactu.
      * @return string
      */
-    public function getURLQR() {
+    public function getURLQR()
+    {
         require_once(__DIR__ . '/../core/Verifactu.php');
         return Verifactu::generarURLQR($this);
+    }
+
+    /**
+     * Obtiene los datos del último registro fiscal (Alta o Anulación) 
+     * para realizar el encadenamiento Verifactu correctamente.
+     * @return array|null ['serie', 'numero', 'fecha', 'hash']
+     */
+    public static function getUltimoRegistroFiscal()
+    {
+        $conexion = ConexionDB::getInstancia()->getConexion();
+
+        // Buscamos el último evento fiscal (Alta o Anulación)
+        // Usamos la fecha de anulación si existe, de lo contrario la fecha del documento.
+        // Se ordena por el evento más reciente globalmente.
+        $sql = "
+            SELECT v.serie, v.numero, v.fecha, 
+                   COALESCE(v.hash_anulacion, v.hash) as last_hash
+            FROM (
+                SELECT vi.serie, vi.numero, t.fecha, t.hash, t.hash_anulacion, t.fecha_anulacion, t.id
+                FROM tickets t
+                JOIN ventas_ids vi ON t.id = vi.id
+                WHERE t.hash IS NOT NULL
+                UNION ALL
+                SELECT vi.serie, vi.numero, f.fecha, f.hash, f.hash_anulacion, f.fecha_anulacion, f.id
+                FROM facturas f
+                JOIN ventas_ids vi ON f.id = vi.id
+                WHERE f.hash IS NOT NULL
+            ) v
+            ORDER BY GREATEST(COALESCE(v.fecha_anulacion, '2000-01-01'), COALESCE(v.fecha, '2000-01-01')) DESC, v.id DESC
+            LIMIT 1
+        ";
+
+        $stmt = $conexion->query($sql);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($row && $row['last_hash']) {
+            return [
+                'serie' => $row['serie'],
+                'numero' => $row['numero'],
+                'fecha' => $row['fecha'], // Fecha de expedición del documento original
+                'hash' => $row['last_hash']
+            ];
+        }
+
+        return null;
     }
 }
 
