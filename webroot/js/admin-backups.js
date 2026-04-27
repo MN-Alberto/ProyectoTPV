@@ -55,13 +55,13 @@ function mostrarPanelBackups() {
             <div style="padding: 20px; border-bottom: 1px solid ${borderColor}; display: flex; justify-content: space-between; align-items: center;">
                 <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: ${textColor};">Historial de Backups</h3>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button onclick="crearBackupManual()" class="btn-tpv" style="background: #6366f1; font-size: 13px; padding: 8px 15px;">
+                    <button onclick="crearBackupManual()" class="btn-admin-accion btn-nuevo" style="padding: 8px 15px;">
                         <i class="fas fa-plus-circle"></i> Backup Estándar
                     </button>
-                    <button onclick="crearBackupTabla('clientes')" class="btn-tpv" style="background: #059669; font-size: 13px; padding: 8px 15px;" title="Backup de tabla clientes (10.5M+ registros)">
+                    <button onclick="crearBackupTabla('clientes')" class="btn-admin-accion btn-activar" style="padding: 8px 15px;" title="Backup de tabla clientes (10.5M+ registros)">
                         <i class="fas fa-users"></i> Backup Clientes
                     </button>
-                    <button onclick="crearBackupTabla('usuarios')" class="btn-tpv" style="background: #0891b2; font-size: 13px; padding: 8px 15px;" title="Backup de tabla usuarios (100K+ registros)">
+                    <button onclick="crearBackupTabla('usuarios')" class="btn-admin-accion btn-editar" style="padding: 8px 15px;" title="Backup de tabla usuarios (100K+ registros)">
                         <i class="fas fa-user-shield"></i> Backup Usuarios
                     </button>
                 </div>
@@ -177,13 +177,13 @@ function renderBackupPage(page) {
                 <td style="padding: 8px 15px; font-size: 14px; color: ${textColor};">${b.fecha}</td>
                 <td style="padding: 8px 15px; font-size: 14px; color: ${textColor};">${sizeMB} MB</td>
                 <td style="padding: 8px 15px; text-align: right; display: flex; justify-content: flex-end; gap: 8px;">
-                    <button onclick="descargarBackup('${b.nombre}')" class="btn-info" title="Descargar" style="padding: 6px 10px; font-size: 12px;">
+                    <button onclick="descargarBackup('${b.nombre}')" class="btn-admin-accion btn-editar" title="Descargar" style="padding: 6px 10px; font-size: 12px;">
                         <i class="fas fa-download"></i>
                     </button>
-                    <button onclick="confirmarRestauracion('${b.nombre}')" class="btn-tpv" title="Restaurar" style="background: #10b981; padding: 6px 10px; font-size: 12px;">
+                    <button onclick="confirmarRestauracion('${b.nombre}')" class="btn-admin-accion btn-activar" title="Restaurar" style="padding: 6px 10px; font-size: 12px;">
                         <i class="fas fa-undo"></i>
                     </button>
-                    <button onclick="eliminarBackup('${b.nombre}')" class="btn-danger" title="Eliminar" style="padding: 6px 10px; font-size: 12px;">
+                    <button onclick="eliminarBackup('${b.nombre}')" class="btn-admin-accion btn-eliminar" title="Eliminar" style="padding: 6px 10px; font-size: 12px;">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>

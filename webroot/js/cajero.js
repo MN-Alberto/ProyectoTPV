@@ -221,7 +221,12 @@ function renderProductos(productos) {
 
         // Generar la tarjeta del producto.
         html += `<div class="producto-card" data-id="${prod.id}"
-                    data-nombre="${prod.nombre.replace(/"/g, '&quot;')}"
+                    data-nombre="${(prod.nombre || '').replace(/"/g, '&quot;')}"
+                    data-nombre-es="${(prod.nombre_es || '').replace(/"/g, '&quot;')}"
+                    data-nombre-en="${(prod.nombre_en || '').replace(/"/g, '&quot;')}"
+                    data-nombre-fr="${(prod.nombre_fr || '').replace(/"/g, '&quot;')}"
+                    data-nombre-de="${(prod.nombre_de || '').replace(/"/g, '&quot;')}"
+                    data-nombre-ru="${(prod.nombre_ru || '').replace(/"/g, '&quot;')}"
                     data-precio="${precioBaseEfectivo}" 
                     data-precio-original="${precioBaseOriginal}"
                     data-pvp="${roundTo(precioPVP, decimales).toFixed(decimales)}"
@@ -296,6 +301,9 @@ function actualizarPrecioDesdeInput(input) {
         precioSpan.textContent = nuevoPVP.toFixed(decimales).replace('.', ',') + ' €';
     }
 }
+
+// Variable para almacenar la tarifa anterior de cada card y poder revertir
+let tarifaAnteriorCard = new Map();
 
 /**
  * Guarda la tarifa actual antes de cambiarla para poder revertir si es necesario.
@@ -398,6 +406,7 @@ function actualizarPrecioCard(selectElement, precioBase, iva, triggerAutoAdd = t
         nuevoPrecioBase = preciosTarifas[tarifaId].precio;
     } else {
         // Usar descuento porcentual sobre el precio base original
+        // NOTA: Aquí se añadirían los datos de nombre al carrito en la implementación real del push al array carrito
         nuevoPrecioBase = precioBaseOriginal * (1 - (descuento / 100));
     }
 

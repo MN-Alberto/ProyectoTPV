@@ -1268,6 +1268,11 @@ try {
         $resultado[] = [
             'id' => $idProd,
             'nombre' => $prod->getNombre(),
+            'nombre_es' => $prod->getNombreEs(),
+            'nombre_en' => $prod->getNombreEn(),
+            'nombre_fr' => $prod->getNombreFr(),
+            'nombre_de' => $prod->getNombreDe(),
+            'nombre_ru' => $prod->getNombreRu(),
             'precio' => (float) $prod->getPrecio(),
             'stock' => (int) $prod->getStock(),
             'idCategoria' => $idCat,

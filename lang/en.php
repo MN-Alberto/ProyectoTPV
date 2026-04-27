@@ -813,6 +813,7 @@ return [
         'unit_price' => 'Unit Price',
         'amount' => 'Amount',
         'invoice_terms' => 'All prices include VAT. This invoice is subject to our general terms and conditions of sale.',
+        'verifactu_verify' => 'Invoice verifiable at the AEAT electronic headquarters',
     ],
 
     // ======================== RETURNS (EXTENDED) ========================

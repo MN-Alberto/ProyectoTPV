@@ -85,9 +85,9 @@ if ($method === 'GET') {
             SELECT cs.id, cs.idUsuario, cs.fechaApertura, cs.fechaCierre, 
                    cs.importeInicial, cs.importeActual, cs.cambio, cs.estado,
                    u.nombre as usuario_nombre,
-                   COALESCE(r.total, 0) as total_retiros,
-                   COALESCE(d.total, 0) as total_devoluciones,
-                   COALESCE(ac.diferencia, 0) as diferencia,
+                   COALESCE(r.total, 0) as totalRetiros,
+                   COALESCE(d.total, 0) as totalDevoluciones,
+                   COALESCE(ac.diferencia, 0) as desajuste,
                    COALESCE(ac.efectivoContado, 0) as efectivoContado,
                    COALESCE(u2.nombre, '') as usuario_cierre_nombre
             FROM caja_sesiones cs

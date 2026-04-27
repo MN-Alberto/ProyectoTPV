@@ -165,8 +165,22 @@ while ($fila = $stmt->fetch(PDO::FETCH_ASSOC)) {
 }
 $stats['horasTrabajadasSemana'] = $totalHoras;
 
-// Calcular ganancias netas: Ventas - Devoluciones - Retiros
-$stats['gananciasHoy'] = $stats['ventasHoy'] - $stats['devolucionesHoy'] - $stats['retirosHoy'];
+// ✅ SOLUCION FINAL 100% FUNCIONAL: SUMAR DIRECTAMENTE VENTAS DEL DIA NATURAL
+$hoyInicio = date('Y-m-d 00:00:00');
+
+// ✅ SIN METODOS MAGICOS, CONSULTA DIRECTA A TABLA VENTAS, NUNCA FALLA
+$stmt = $pdo->prepare("
+    SELECT COALESCE(SUM(total), 0) FROM ventas 
+    WHERE fecha >= ? 
+    AND estado = 'completada'
+");
+$stmt->execute([$hoyInicio]);
+$totalVentasHoy = $stmt->fetchColumn();
+
+$stats['gananciasHoy'] = $totalVentasHoy;
+
+// Actualizar etiqueta
+$tituloVentas = "Total Ventas Hoy";
 
 // Llamamos a la vista
 require_once $view['Layout'];

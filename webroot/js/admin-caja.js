@@ -182,10 +182,8 @@ function getCajaSesionesTablaHeader(orden = 'fecha_desc') {
                         <th style="width:12%;text-align:center;">Cierre</th>
                         <th style="width:7%;text-align:center;">Importe</th>
                         <th style="width:7%;text-align:center;">Efectivo</th>
-                        <th style="width:7%;text-align:center;">Cambio</th>
-                        <th style="width:7%;text-align:center;">Ventas</th>
-                        <th style="width:9%;text-align:center;">Productos</th>
-                        <th style="width:8%;text-align:center;">Retiros</th>
+                        <th style="width:9%;text-align:center;">Cambio</th>
+                        <th style="width:9%;text-align:center;">Retiros</th>
                         <th style="width:10%;text-align:center;">Devoluciones</th>
                         <th style="width:10%;text-align:center;">Arqueo</th>
                     </tr>
@@ -205,10 +203,10 @@ function cargarCajaSesionesAdmin(orden = 'fecha_desc') {
     const contenedor = document.getElementById('adminContenido');
     const isFirstTime = !contenedor.querySelector('.admin-tabla') || adminTablaHeaderHTML === '';
 
-    let url = 'api/caja-sesiones.php';
-    if (orden !== 'fecha_desc') url += '?orden=' + orden;
+    let url = 'api/caja-sesiones.php?_=' + Date.now();
+    if (orden !== 'fecha_desc') url += '&orden=' + orden;
 
-    fetch(url)
+    fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache" } })
         .then(res => {
             if (!res.ok) return res.json().then(err => { throw new Error(err.error || 'Error al cargar sesiones de caja'); });
             return res.json();
@@ -225,6 +223,13 @@ function cargarCajaSesionesAdmin(orden = 'fecha_desc') {
  */
 function renderCajaSesionesAdmin(sesiones, isFirstTime = true, orden = 'fecha_desc') {
     const contenedor = document.getElementById('adminContenido');
+
+    // ELIMINAR DEFINITIVAMENTE LAS COLUMNAS
+    sesiones.forEach(sesion => {
+        delete sesion.totalVentas;
+        delete sesion.totalProductos;
+    });
+
     sesionesData = sesiones;
 
     if (isFirstTime) paginaActualSesiones = 1;
@@ -233,10 +238,10 @@ function renderCajaSesionesAdmin(sesiones, isFirstTime = true, orden = 'fecha_de
         if (isFirstTime || adminTablaHeaderHTML === '') {
             adminTablaHeaderHTML = getCajaSesionesTablaHeader(orden);
             contenedor.innerHTML = adminTablaHeaderHTML +
-                '<tr><td colspan="12" class="sin-productos">No hay sesiones de caja registradas.</td></tr></tbody></table></div>';
+                '<tr><td colspan="10" class="sin-productos">No hay sesiones de caja registradas.</td></tr></tbody></table></div>';
         } else {
             const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="12" class="sin-productos">No hay sesiones de caja registradas.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="sin-productos">No hay sesiones de caja registradas.</td></tr>';
         }
         return;
     }
@@ -299,8 +304,6 @@ function generarFilaSesion(sesion, index) {
             <td style="text-align:right;">${fmtEur(sesion.importeInicial)}</td>
             <td style="text-align:right;">${fmtEur(sesion.importeActual)}</td>
             <td style="text-align:right;">${fmtEur(sesion.cambio)}</td>
-            <td style="text-align:center;">${sesion.totalVentas ?? '—'}</td>
-            <td style="text-align:center;">${sesion.totalProductos ?? '—'}</td>
             <td style="text-align:right;">${fmtEur(sesion.totalRetiros)}</td>
             <td style="text-align:right;">${fmtEur(sesion.totalDevoluciones)}</td>
             <td style="text-align:right;${desajusteColor}">${desajuste !== null ? fmtEur(desajuste) : '—'}</td>

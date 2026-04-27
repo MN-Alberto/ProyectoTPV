@@ -80,8 +80,15 @@ $cambio = $datos['cambio'] ?? '0,00';
 $pagoMixtoDesglose = $datos['pagoMixtoDesglose'] ?? null;
 
 // IDIOMA DEL DOCUMENTO
-$lang = $datos['lang'] ?? 'es';
-require_once __DIR__ . '/../lang/lang.php';
+$langCode = $datos['lang'] ?? 'es';
+require_once __DIR__ . '/../lang/lang.php'; // Carga el sistema i18n y la función t()
+
+// Sobrescribimos el diccionario global $LANG solo para esta ejecución del script,
+// sin tocar la sesión del usuario, para que las etiquetas salgan traducidas.
+$langFile = __DIR__ . '/../lang/' . $langCode . '.php';
+if (file_exists($langFile)) {
+    $GLOBALS['LANG'] = require $langFile;
+}
 
 // Datos opcionales del cliente (necesarios para facturas)
 $clienteNif = $datos['clienteNif'] ?? '';
@@ -125,6 +132,9 @@ $puntosBalance = (int) ($datos['puntos_balance'] ?? 0);
 
 // Mensaje personalizado
 $mensajePersonalizado = $datos['mensajePersonalizado'] ?? '';
+
+// URL del QR de Verifactu
+$qrUrl = $datos['qrUrl'] ?? '';
 
 // Determinamos el título principal del documento según la elección del usuario
 $isFactura = ($tipoDocumento === 'factura');
@@ -223,9 +233,29 @@ foreach ($lineas as $linea) {
     $pvpFmt = number_format($subtotalPVP, 2, ',', '.');
     $unitarioFmt = number_format($precioBaseUnitarioReal, 2, ',', '.');
 
+    // Intentar traducir el nombre del producto
+    $nombreProducto = $linea['nombre'];
+    
+    // 1. Priorizar traducción directa desde la base de datos (columnas nombre_en, nombre_fr, etc.)
+    $colLang = 'nombre_' . $langCode;
+    if (isset($linea[$colLang]) && !empty($linea[$colLang])) {
+        $nombreProducto = $linea[$colLang];
+    } else {
+        // 2. Fallback al diccionario de idiomas
+        $claveNormalizada = strtolower(str_replace(' ', '_', $nombreProducto));
+        $tradNormalizada = t('products.' . $claveNormalizada);
+        $tradExacta = t('products.' . $nombreProducto);
+        
+        if ($tradNormalizada !== 'products.' . $claveNormalizada) {
+            $nombreProducto = $tradNormalizada;
+        } else if ($tradExacta !== 'products.' . $nombreProducto) {
+            $nombreProducto = $tradExacta;
+        }
+    }
+
     $filasLineas .= "
         <tr>
-            <td>{$linea['nombre']}</td>
+            <td>{$nombreProducto}</td>
             <td style='text-align:center;'>{$cantidad}</td>
             <td style='text-align:right;'>{$unitarioFmt} €</td>
             <td style='text-align:center;'>{$ivaPorc}%</td>
@@ -352,10 +382,31 @@ if ($puntosGanados > 0 || $puntosCanjeados > 0 || $puntosBalance > 0) {
  * 5B. RENDERIZACIÓN DE MÉTODO DE PAGO
  * ────────────────────────────────────────────────────────────────────────────
  */
-$metodoPagoHtmlFactura = "<p><strong>" . t('print.payment_method') . ":</strong> " . strtoupper($metodoPago) . "</p>";
-$metodoPagoHtmlTicket = "<p><strong>" . t('print.payment_method') . ":</strong> " . strtoupper($metodoPago) . "</p>";
+$metodoLabels = [
+    'efectivo' => t('print.cash'),
+    'tarjeta' => t('print.card'),
+    'bizum' => t('print.bizum'),
+    'mixto' => t('ticket.mixed')
+];
+$labelMetodo = isset($metodoLabels[strtolower($metodoPago)]) ? $metodoLabels[strtolower($metodoPago)] : strtoupper($metodoPago);
 
-if ($metodoPago === 'mixto' && is_array($pagoMixtoDesglose)) {
+$metodoPagoHtmlFactura = "<p><strong>" . t('print.payment_method') . ":</strong> " . strtoupper($labelMetodo) . "</p>";
+$metodoPagoHtmlTicket = "<p><strong>" . t('print.payment_method') . ":</strong> " . strtoupper($labelMetodo) . "</p>";
+
+if ($metodoPago === 'efectivo') {
+    $entregadoFloat = is_string($entregado) ? (float)str_replace(',', '.', $entregado) : (float)$entregado;
+    $cambioFloat = is_string($cambio) ? (float)str_replace(',', '.', $cambio) : (float)$cambio;
+    
+    if ($entregadoFloat > 0) {
+        $entregadoStr = number_format($entregadoFloat, 2, ',', '.');
+        $cambioStr = number_format($cambioFloat, 2, ',', '.');
+        $lblEntregado = t('print.delivered');
+        $lblCambio = t('print.change_returned');
+        
+        $metodoPagoHtmlFactura .= "<p style='font-size: 13px; color: #555; margin-top: 5px;'>{$lblEntregado}: {$entregadoStr} € | {$lblCambio}: {$cambioStr} €</p>";
+        $metodoPagoHtmlTicket .= "<p style='font-size: 13px; color: #555; margin-top: 2px;'>{$lblEntregado}: {$entregadoStr} €<br>{$lblCambio}: {$cambioStr} €</p>";
+    }
+} elseif ($metodoPago === 'mixto' && is_array($pagoMixtoDesglose)) {
     $rows = "";
     if (isset($pagoMixtoDesglose['efectivo']) && $pagoMixtoDesglose['efectivo'] > 0) {
         $rows .= "<tr><td style='padding:3px 0;'>💵 " . t('ticket.cash') . "</td><td style='text-align:right; padding:3px 0;'>" . number_format($pagoMixtoDesglose['efectivo'], 2, ',', '.') . " €</td></tr>";
@@ -475,6 +526,16 @@ if ($isFactura) {
         <p>" . t('print.invoice_terms') . "</p>
     </div>
     
+    " . (!empty($qrUrl) ? "
+    <div style=\"clear:both; margin-top:30px; text-align:center;\">
+        <div style=\"display:inline-block; border:1px solid #eee; padding:10px; background:#fff;\">
+            <img src=\"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($qrUrl) . "\" style=\"width:120px; height:120px;\" alt=\"QR Verifactu\">
+            <p style=\"margin:5px 0 0 0; font-size:10px; font-weight:bold; color:#000;\">SISTEMA VERI*FACTU</p>
+        </div>
+        <p style=\"margin:5px 0 0 0; font-size:9px; color:#666;\">" . t('print.verifactu_verify') . "</p>
+    </div>
+    " : "") . "
+    
     <div class=\"footer\">
         <p>TPV Bazar — Productos Informáticos | www.tpvbazar.es</p>
     </div>
@@ -531,12 +592,7 @@ if ($isFactura) {
         <div style='font-size: 13px; margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px; text-align:right;'>
             <p style='margin: 3px 0; color: #dc2626; font-weight: bold;'><strong>" . t('return_success.refunded_amount') . ":</strong> -{$totalFinalPVFmt} €</p>
         </div>
-        " : "
-        <div style='font-size: 13px; margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px; text-align:right;'>
-            <p style='margin: 3px 0;'><strong>" . t('print.delivered') . ":</strong> {$entregado} €</p>
-            <p style='margin: 3px 0;'><strong>" . t('print.change_returned') . ":</strong> {$cambio} €</p>
-        </div>
-        ") . "
+        " : "") . "
         
         {$obsHtml}
 
@@ -544,6 +600,16 @@ if ($isFactura) {
         <div style='margin-top: 15px; padding: 10px; background: #f0f9ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px;'>
             <strong>✉️ Mensaje personalizado:</strong><br>
             " . nl2br(htmlspecialchars($mensajePersonalizado)) . "
+        </div>
+        " : "") . "
+        
+        " . (!empty($qrUrl) ? "
+        <div style='margin-top:15px; text-align:center; padding-bottom:10px;'>
+            <div style='display:inline-block; border:1px solid #000; padding:5px; background:#fff;'>
+                <img src=\"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($qrUrl) . "\" style=\"width:100px; height:100px;\" alt=\"QR Verifactu\">
+                <p style='margin:2px 0 0 0; font-size:9px; font-weight:bold; color:#000;'>SISTEMA VERI*FACTU</p>
+            </div>
+            <p style='margin:5px 0 0 0; font-size:8px; color:#666;'>" . t('print.verifactu_verify') . "</p>
         </div>
         " : "") . "
 

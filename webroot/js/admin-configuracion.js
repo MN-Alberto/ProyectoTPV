@@ -128,44 +128,7 @@ function renderEditorTema(subseccion = 'todas') {
         html += `</div></div>`;
     }
 
-    if (subseccion === 'todas' || subseccion === 'ajustes') {
-        html += `
-        <div class="config-section" style="margin-top: 20px;">
-            <div class="tema-seccion-card">
-                <div class="tema-seccion-header">
-                    <i class="fas fa-store tema-seccion-icono"></i>
-                    <h4 class="tema-seccion-titulo">Datos del TPV</h4>
-                </div>
-                <div class="tema-seccion-body" style="max-width: 600px; margin: 0 auto;">
-                    
-                    <div class="tema-campo">
-                        <label class="tema-label">Nombre del TPV / Negocio</label>
-                        <input type="text" id="tpv_nombre" value="${temaActual.tpv_nombre || TEMA_DEFAULTS.tpv_nombre}" 
-                               class="tema-input" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-main); background: var(--bg-input); color: var(--text-main);">
-                    </div>
-                    
-                    <div class="tema-campo" style="margin-top: 15px;">
-                        <label class="tema-label">Teléfono de Contacto</label>
-                        <input type="text" id="tpv_telefono" value="${temaActual.tpv_telefono || TEMA_DEFAULTS.tpv_telefono}" 
-                               class="tema-input" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-main); background: var(--bg-input); color: var(--text-main);">
-                    </div>
-                    
-                    <div class="tema-campo" style="margin-top: 15px;">
-                        <label class="tema-label">Dirección</label>
-                        <textarea id="tpv_direccion" rows="3"
-                                  class="tema-input" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-main); background: var(--bg-input); color: var(--text-main); resize: vertical;">${temaActual.tpv_direccion || TEMA_DEFAULTS.tpv_direccion}</textarea>
-                    </div>
-                    
-                    <div class="tema-botones" style="margin-top:25px;border-top:1px solid var(--border-main);padding-top:20px;">
-                        <button class="btn-exito tema-btn-guardar" onclick="guardarDatosTPV()">
-                            <i class="fas fa-save"></i> Guardar Datos
-                        </button>
-                    </div>
-                    
-                </div>
-            </div>
-        </div>`;
-    }
+
 
     html += '</div>';
     contenedor.innerHTML = html;
@@ -938,48 +901,7 @@ function verificarAjustesPreciosProgramados() {
         .catch(err => console.error('Error verificando ajustes de precios programados:', err));
 }
 
-/**
- * Guarda los datos del TPV: Nombre, Teléfono y Dirección
- */
-function guardarDatosTPV() {
-    const datos = { ...temaActual };
 
-    datos.tpv_nombre = document.getElementById('tpv_nombre').value;
-    datos.tpv_telefono = document.getElementById('tpv_telefono').value;
-    datos.tpv_direccion = document.getElementById('tpv_direccion').value;
-
-    guardarTemaCompleto(datos);
-}
-
-/**
- * Obtiene los datos del TPV guardados
- * @returns {Object} Datos del TPV { nombre, telefono, direccion }
- */
-function obtenerDatosTPV() {
-    const temaJSON = localStorage.getItem('temaTPV');
-    if (!temaJSON) {
-        return {
-            nombre: TEMA_DEFAULTS.tpv_nombre,
-            telefono: TEMA_DEFAULTS.tpv_telefono,
-            direccion: TEMA_DEFAULTS.tpv_direccion
-        };
-    }
-
-    try {
-        const tema = JSON.parse(temaJSON);
-        return {
-            nombre: tema.tpv_nombre || TEMA_DEFAULTS.tpv_nombre,
-            telefono: tema.tpv_telefono || TEMA_DEFAULTS.tpv_telefono,
-            direccion: tema.tpv_direccion || TEMA_DEFAULTS.tpv_direccion
-        };
-    } catch (e) {
-        return {
-            nombre: TEMA_DEFAULTS.tpv_nombre,
-            telefono: TEMA_DEFAULTS.tpv_telefono,
-            direccion: TEMA_DEFAULTS.tpv_direccion
-        };
-    }
-}
 
 
 

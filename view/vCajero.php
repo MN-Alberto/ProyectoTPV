@@ -31,8 +31,20 @@
     let LANG = IDIOMAS_TICKET.es; // Idioma por defecto del cajero
     let idiomaTicketSeleccionado = 'es';
 
+    // Datos fiscales del TPV para impresión (Dinámicos - Verifactu)
+    const TPV_CONFIG = {
+        nif: '<?php echo addslashes(Verifactu::getConfig('TPV_NIF', 'B00000000')); ?>',
+        nombre: '<?php echo addslashes(Verifactu::getConfig('TPV_RAZON_SOCIAL', 'TPV Bazar')); ?>',
+        direccion: '<?php echo addslashes(Verifactu::getConfig('TPV_DIRECCION', 'C/ Principal 1, Madrid')); ?>'
+    };
+
     window.PUEDE_PRODUCTO_COMODIN = <?php echo $puedeProductoComodin ? 'true' : 'false'; ?>;
 </script>
+
+<!-- Librería local para generación de QR -->
+<script src="webroot/js/lib/qrcode.min.js"></script>
+<script src="webroot/js/shared-impresion.js"></script>
+
 
 <!-- ##=========================== SECCIÓN PRINCIPAL DEL CAJERO ===========================## -->
 <!-- Contenedor principal dividido en dos paneles: productos (izquierda) y ticket (derecha) -->
@@ -956,14 +968,7 @@
                     <input type="email" id="emailCheckout" placeholder="ejemplo@correo.com">
                 </div>
 
-                <!-- Información de Impresora -->
-                <div class="email-delivery-container" id="infoImpresoraCheckout">
-                    <div style="display: flex; align-items: center; gap: 10px; color: #16a34a; font-size: 0.82rem;">
-                        <span
-                            style="width: 8px; height: 8px; background: #16a34a; border-radius: 50%; flex-shrink: 0; animation: pulse 2s infinite;"></span>
-                        <?php echo t('checkout.printer_ready'); ?>
-                    </div>
-                </div>
+
 
                 <!-- Sección: Idioma del Ticket -->
                 <div class="control-group">
@@ -1493,7 +1498,9 @@
             puntosBalance: <?php echo $_SESSION['ultimaVentaPuntosBalance'] ?? 0; ?>,
             puntosCanjeados: <?php echo (isset($_SESSION['ultimaVentaPuntosCanjeados']) && $_SESSION['ultimaVentaPuntosCanjeados'] > 0) ? '{ puntos: ' . ($_SESSION['ultimaVentaPuntosCanjeados']) . ', descuento: ' . ($_SESSION['ultimaVentaDescuentoValor'] ?? 0) . ' }' : 'null'; ?>,
             pagoMixtoDesglose: <?php echo !empty($_SESSION['ultimaVentaDesglosePago']) ? $_SESSION['ultimaVentaDesglosePago'] : 'null'; ?>,
-            mensajePersonalizado: '<?php echo addslashes($_SESSION['ultimaVentaMensajePersonalizado'] ?? ''); ?>'
+            mensajePersonalizado: '<?php echo addslashes($_SESSION['ultimaVentaMensajePersonalizado'] ?? ''); ?>',
+            idioma_ticket: '<?php echo $_SESSION['ultimaVentaIdiomaTicket'] ?? 'es'; ?>',
+            qrUrl: '<?php echo $_SESSION['ultimaVentaQR'] ?? ''; ?>'
         };
     </script>
 
@@ -1535,6 +1542,7 @@
     unset($_SESSION['ultimaVentaFecha']);
     unset($_SESSION['ultimaVentaEntregado']);
     unset($_SESSION['ultimaVentaCambio']);
+    unset($_SESSION['ultimaVentaIdiomaTicket']);
     unset($_SESSION['ultimaVentaDescuentoTipo']);
     unset($_SESSION['ultimaVentaDescuentoValor']);
     unset($_SESSION['ultimaVentaDescuentoCupon']);
@@ -1547,6 +1555,7 @@
     unset($_SESSION['puntosGanados']);
     unset($_SESSION['ultimaVentaPuntosGanados']);
     unset($_SESSION['ultimaVentaPuntosCanjeados']);
+    unset($_SESSION['ultimaVentaQR']);
 ?>
 <?php
 endif; ?>
@@ -3151,14 +3160,37 @@ endif; ?>
 
                 let productosData = [];
                 lineas.forEach(item => {
-                    productosData.push({ nombre: item.producto_nombre, cantidad: item.cantidad, precio: item.precioUnitario, subtotal: item.subtotal });
+                    productosData.push({ 
+                        nombre: item.producto_nombre, 
+                        nombre_es: item.nombre_es,
+                        nombre_en: item.nombre_en,
+                        nombre_fr: item.nombre_fr,
+                        nombre_de: item.nombre_de,
+                        nombre_ru: item.nombre_ru,
+                        cantidad: item.cantidad, 
+                        precio: item.precioUnitario, 
+                        iva: (item.iva !== undefined && item.iva !== null && item.iva !== "") ? parseInt(item.iva) : 21,
+                        subtotal: item.subtotal 
+                    });
                 });
-                formData.append('productos', JSON.stringify(productosData));
-                formData.append('total', venta.total);
-                formData.append('fecha', venta.fecha);
-                formData.append('metodoPago', venta.metodoPago);
 
-                fetch('api/enviarCorreo.php', { method: 'POST', body: formData })
+                const payload = {
+                    ventaId: venta.serie + String(venta.numero || venta.id).padStart(5, '0'),
+                    email: email,
+                    tipoDocumento: venta.tipoDocumento || 'ticket',
+                    lineas: productosData,
+                    total: venta.total,
+                    fecha: venta.fecha,
+                    metodoPago: venta.metodoPago,
+                    lang: venta.idioma_ticket || 'es',
+                    qrUrl: venta.qrUrl || ''
+                };
+
+                fetch('api/enviarCorreo.php', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload) 
+                })
                     .then(res => res.json())
                     .then(response => { alert(response.ok ? 'Ticket enviado correctamente al correo: ' + email : 'Error al enviar el correo'); })
                     .catch(err => { console.error('Error:', err); alert('Error al enviar el correo'); });
@@ -3203,10 +3235,17 @@ endif; ?>
                     } : null,
                     puntosBalance: parseInt(venta.puntos_balance) || 0,
                     mensajePersonalizado: venta.mensaje_personalizado || '',
+                    idioma_ticket: venta.idioma_ticket || 'es',
                     pagoMixtoDesglose: venta.desglose_pago ? JSON.parse(venta.desglose_pago) : null,
+                    qrUrl: venta.qrUrl || '',
                     carrito: lineas.map(l => ({
                         idProducto: l.idProducto,
                         nombre: l.producto_nombre,
+                        nombre_es: l.nombre_es,
+                        nombre_en: l.nombre_en,
+                        nombre_fr: l.nombre_fr,
+                        nombre_de: l.nombre_de,
+                        nombre_ru: l.nombre_ru,
                         precio: parseFloat(l.precioUnitario),
                         iva: (l.iva !== undefined && l.iva !== null && l.iva !== "") ? parseInt(l.iva) : 21,
                         cantidad: l.cantidad
@@ -3256,9 +3295,16 @@ endif; ?>
                         descuento: parseFloat(venta.descuentoValor) || 0
                     } : null,
                     puntosBalance: parseInt(venta.puntos_balance) || 0,
+                    idioma_ticket: venta.idioma_ticket || 'es',
+                    qrUrl: venta.qrUrl || '',
                     carrito: lineas.map(l => ({
                         idProducto: l.idProducto,
                         nombre: l.producto_nombre,
+                        nombre_es: l.nombre_es,
+                        nombre_en: l.nombre_en,
+                        nombre_fr: l.nombre_fr,
+                        nombre_de: l.nombre_de,
+                        nombre_ru: l.nombre_ru,
                         precio: parseFloat(l.precioUnitario),
                         iva: (l.iva !== undefined && l.iva !== null && l.iva !== "") ? parseInt(l.iva) : 21,
                         cantidad: l.cantidad
@@ -3711,11 +3757,11 @@ endif; ?>
     function agregarAlCarrito(elemento) {
         const id = parseInt(elemento.dataset.id) || 0;
         const nombre = elemento.dataset.nombre || 'Producto sin nombre';
-        const nombre_es = elemento.dataset.nombre_es || nombre;
-        const nombre_en = elemento.dataset.nombre_en || nombre;
-        const nombre_fr = elemento.dataset.nombre_fr || nombre;
-        const nombre_de = elemento.dataset.nombre_de || nombre;
-        const nombre_ru = elemento.dataset.nombre_ru || nombre;
+        const nombre_es = elemento.dataset.nombreEs || nombre;
+        const nombre_en = elemento.dataset.nombreEn || nombre;
+        const nombre_fr = elemento.dataset.nombreFr || nombre;
+        const nombre_de = elemento.dataset.nombreDe || nombre;
+        const nombre_ru = elemento.dataset.nombreRu || nombre;
         const precioBase = parseFloat(elemento.dataset.precio) || 0;
         const iva = parseInt(elemento.dataset.iva || 21);
 
@@ -3762,11 +3808,11 @@ endif; ?>
             carrito.push({
                 idProducto: id,
                 nombre: nombre,
-                nombre_es: elemento.dataset.nombre_es || nombre,
-                nombre_en: elemento.dataset.nombre_en || nombre,
-                nombre_fr: elemento.dataset.nombre_fr || nombre,
-                nombre_de: elemento.dataset.nombre_de || nombre,
-                nombre_ru: elemento.dataset.nombre_ru || nombre,
+                nombre_es: nombre_es,
+                nombre_en: nombre_en,
+                nombre_fr: nombre_fr,
+                nombre_de: nombre_de,
+                nombre_ru: nombre_ru,
                 precio: precioBase,
                 pvpOriginalUnitario: pvpOriginalUnitario,
                 pvpUnitario: pvpActual,
@@ -4908,7 +4954,7 @@ endif; ?>
         document.getElementById('optImprimir').classList.add('active');
 
         document.getElementById('emailContainerCheckout').style.display = 'none';
-        document.getElementById('infoImpresoraCheckout').style.display = 'block';
+
 
         // Actualizar resumen de cliente
         actualizarResumenClienteCheckout();
@@ -4990,7 +5036,7 @@ endif; ?>
 
         // Mostrar/ocultar contenedores específicos
         document.getElementById('emailContainerCheckout').style.display = (metodo === 'email') ? 'block' : 'none';
-        document.getElementById('infoImpresoraCheckout').style.display = (metodo === 'imprimir') ? 'block' : 'none';
+
 
         if (metodo === 'email') {
             document.getElementById('emailCheckout').focus();
@@ -5033,15 +5079,28 @@ endif; ?>
             };
         });
 
+        const metodoPagoActual = document.getElementById('metodoPago').value;
+        let entregadoVal = totalPVP;
+        let cambioVal = 0;
+
+        if (metodoPagoActual === 'efectivo') {
+            const inputVal = parseFloat(document.getElementById('inputDineroEntregado').value);
+            if (!isNaN(inputVal) && inputVal >= totalPVP) {
+                entregadoVal = inputVal;
+                cambioVal = inputVal - totalPVP;
+            }
+        }
+
         return {
             id: proximosNumeros[tipoDoc],
             numero: proximosNumeros[tipoDoc].replace(/\D/g, ''),
             serie: proximosNumeros[tipoDoc].replace(/\d/g, ''),
             fecha: new Date().toLocaleDateString('es-ES') + ' ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
             tipo: tipoDoc,
-            metodoPago: document.getElementById('metodoPago').value,
-            entregado: totalPVP,
-            cambio: 0,
+            idioma_ticket: idiomaTicket,
+            metodoPago: metodoPagoActual,
+            entregado: entregadoVal,
+            cambio: cambioVal,
             carrito: lineas,
             total: totalPVP,
             clienteNif: nif,
@@ -5055,18 +5114,15 @@ endif; ?>
             puntosGanados: totalPVP >= 20 ? Math.round(totalPVP * 10) : 0,
             puntosCanjeados: puntosCanjeados,
             mensajePersonalizado: mensajePersonalizado,
-            pagoMixtoDesglose: (document.getElementById('metodoPago').value === 'mixto') ? pagoMixtoDesglose : null
+            pagoMixtoDesglose: (document.getElementById('metodoPago').value === 'mixto') ? pagoMixtoDesglose : null,
+            qrUrl: (TPV_CONFIG.qrBaseUrl || 'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR') + '?' + 
+                   (new URLSearchParams({
+                       nif: TPV_CONFIG.nif,
+                       numserie: (proximosNumeros[tipoDoc] || ''),
+                       fecha: new Date().toLocaleDateString('es-ES').split('/').join('-'),
+                       importe: totalPVP.toFixed(2)
+                   })).toString()
         };
-    }
-
-    /**
-     * parseEsp()
-     * Parsea un numero en formato español (1.234,56) a float de JS (1234.56).
-     */
-    function parseEsp(val) {
-        if (typeof val === 'number') return val;
-        if (!val || typeof val !== 'string') return 0;
-        return parseFloat(val.replace(/\./g, '').replace(',', '.'));
     }
 
     /**
@@ -5075,262 +5131,6 @@ endif; ?>
      */
     function cerrarExito() {
         window.location.href = 'index.php?v=cajero';
-    }
-
-    /**
-     * generarDesgloseFormaPago(datosVenta, isFactura)
-     * Genera el HTML para la sección de método de pago en el comprobante.
-     * Si es pago mixto, muestra el desglose por método; si no, muestra una línea simple.
-     */
-    function generarDesgloseFormaPago(T, datosVenta, isFactura) {
-        const metodoLabels = {
-            efectivo: '💵 ' + T.print.cash,
-            tarjeta: '💳 ' + T.print.card,
-            bizum: '📱 ' + T.print.bizum
-        };
-        const precTotal = 2;
-
-        if (datosVenta.metodoPago === 'mixto' && datosVenta.pagoMixtoDesglose) {
-            const d = datosVenta.pagoMixtoDesglose;
-            let rows = '';
-            if (d.efectivo > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">💵 ${T.print.cash}</td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">${d.efectivo.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
-            if (d.tarjeta > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">💳 ${T.print.card}</td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">${d.tarjeta.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
-            if (d.bizum > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">📱 ${T.print.bizum}</td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'};">${d.bizum.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
-            if (d.cambio > 0) rows += `<tr><td style="padding:3px 0; font-size:${isFactura ? '12px' : '10px'}; color:#888;">${T.print.change_returned}</td><td style="text-align:right; padding:3px 0; font-size:${isFactura ? '12px' : '10px'}; color:#888;">-${d.cambio.toFixed(precTotal).replace('.', ',')} €</td></tr>`;
-
-            if (isFactura) {
-                return `<div style="clear:both; margin-top:30px;">
-                    <p style="font-size:13px; color:#444; font-weight:bold; margin-bottom:6px;">${T.print.payment_method.toUpperCase()}: MIXTO</p>
-                    <table style="width:auto; border-collapse:collapse;">${rows}</table>
-                </div>`;
-            } else {
-                return `<div style="margin-top:10px; border-top:1px dashed #000; padding-top:6px;">
-                    <div style="font-size:10px; font-weight:bold; margin-bottom:4px;">${T.print.payment_method.toUpperCase()}: MIXTO</div>
-                    <table style="width:100%; border-collapse:collapse;">${rows}</table>
-                </div>`;
-            }
-        }
-
-        // Pago simple
-        const label = metodoLabels[datosVenta.metodoPago] || datosVenta.metodoPago.toUpperCase();
-        if (isFactura) {
-            return `<p style="clear:both; margin-top:30px; font-size:12px; color:#666;">${T.print.payment_method}: ${label}</p>`;
-        } else {
-            return `<div style="margin-top:8px; font-size:10px; text-align:center;">${T.print.payment_method}: ${label}</div>`;
-        }
-    }
-
-    /**
-     * generarHTMLComprobante(datosVenta)
-     * Genera el HTML completo (con <style> e <html>) para un ticket o factura.
-     * ÚNICA FUENTE DE VERDAD para el formato de impresión.
-     */
-    function generarHTMLComprobante(datosVenta) {
-        // Obtener las traducciones del idioma seleccionado
-        const T = IDIOMAS_TICKET[idiomaTicketSeleccionado];
-
-        const isFactura = (datosVenta.tipo === 'factura');
-        const tipoTitulo = isFactura ? T.print.factura_title : T.print.ticket_title;
-
-        // --- LÓGICA DE CÁLCULO ---
-        const precTotal = 2; // Siempre 2 para ticket/factura impresos
-        let lineasHtmlTicket = '';
-        let lineasHtmlFactura = '';
-        let sumaTotalesNumeric = 0;
-        let desgloseIva = {};
-
-        datosVenta.carrito.forEach(item => {
-            const cant = parseFloat(item.cantidad) || 0;
-            const dec = 2; // Forzar 2 decimales en ticket/factura
-            const precioBaseUnitario = parseFloat(item.precio) || 0; // Precio sin IVA
-            const ivaPorc = (item.iva !== undefined && item.iva !== null && item.iva !== "") ? parseInt(item.iva) : 21;
-
-            // Si pvpUnitario no viene (ej: historial), lo calculamos del base + iva
-            let pvpUnitario = parseFloat(item.pvpUnitario) || 0;
-            if (pvpUnitario === 0 && precioBaseUnitario > 0) {
-                pvpUnitario = roundTo(precioBaseUnitario * (1 + (ivaPorc / 100)), dec);
-            }
-
-            // Cálculos
-            const subtotalPVP = (item.importeTotal !== undefined) ? parseFloat(item.importeTotal) : roundTo(pvpUnitario * cant, dec);
-            const subtotalBase = roundTo(subtotalPVP / (1 + (ivaPorc / 100)), dec);
-            const subtotalIva = roundTo(subtotalPVP - subtotalBase, dec);
-
-            sumaTotalesNumeric += subtotalPVP;
-            if (!desgloseIva[ivaPorc]) desgloseIva[ivaPorc] = { base: 0, cuota: 0 };
-            desgloseIva[ivaPorc].base += subtotalBase;
-            desgloseIva[ivaPorc].cuota += subtotalIva;
-
-            // Obtener nombre traducido segun idioma seleccionado (fuera del bucle)
-            // ✅ CORREGIDO: YA NO VOLVEMOS A TRADUCIR AQUI, EL NOMBRE YA VIENE CORRECTAMENTE TRADUCIDO desde construirObjetoVentaTemporal()
-            // Eliminada la doble traduccion que siempre devolvia español cuando no habia traduccion especifica
-            let nombreProducto = item.nombre;
-
-            lineasHtmlTicket += `<tr>
-                <td style="padding: 6px 4px; font-size: 11px;">${nombreProducto}</td>
-                <td style="text-align:center; font-size: 11px;">${cant}</td>
-                <td style="text-align:right; font-size: 11px; padding-right: 12px;">${precioBaseUnitario.toFixed(dec).replace('.', ',')}€</td>
-                <td style="text-align:center; font-size: 11px; padding-left: 12px;">${ivaPorc}%</td>
-                <td style="text-align:right; font-size: 11px;">${subtotalPVP.toFixed(dec).replace('.', ',')}€</td>
-            </tr>`;
-
-            // Fila para FACTURA: 5 columnas (Descripción, Cant, Unitario_Base, IVA%, Importe)
-            // ✅ CORREGIDO: Mismo fix para factura, usamos el nombre ya traducido
-            nombreProducto = item.nombre;
-
-            lineasHtmlFactura += `<tr>
-                <td style="padding: 10px 5px;">${nombreProducto}</td>
-                <td style="text-align:center">${cant}</td>
-                <td style="text-align:right">${precioBaseUnitario.toFixed(dec).replace('.', ',')} €</td>
-                <td style="text-align:center">${ivaPorc}%</td>
-                <td style="text-align:right">${subtotalPVP.toFixed(dec).replace('.', ',')} €</td>
-            </tr>`;
-        });
-
-        let totalesHtml = `<table style="width:100%; border-top: 1px solid #000; margin-top:10px;">`;
-        Object.keys(desgloseIva).sort().forEach(porc => {
-            totalesHtml += `
-                <tr style="font-size: 0.8rem; color: #444;">
-                    <td>${T.print.base_at} ${porc}%:</td>
-                    <td style="text-align:right">${desgloseIva[porc].base.toFixed(precTotal).replace('.', ',')} €</td>
-                </tr>
-                <tr style="font-size: 0.8rem; color: #444;">
-                    <td>${T.print.iva_quote} (${porc}%):</td>
-                    <td style="text-align:right">${desgloseIva[porc].cuota.toFixed(precTotal).replace('.', ',')} €</td>
-                </tr>`;
-        });
-
-        // --- DESCUENTOS Y PUNTOS ---
-        if (datosVenta.descuentoValor > 0 && datosVenta.descuentoCupon && !datosVenta.descuentoCupon.startsWith('PUNTOS_')) {
-            let descImporte = 0;
-            let descLabel = '';
-            if (datosVenta.descuentoTipo === 'porcentaje') {
-                descImporte = round2(sumaTotalesNumeric * (datosVenta.descuentoValor / 100));
-                descLabel = `${T.print.dto} (${datosVenta.descuentoValor}%):`;
-            } else {
-                descImporte = datosVenta.descuentoValor;
-                descLabel = `${T.print.discount}:`;
-            }
-            totalesHtml += `
-                <tr style="font-size: 0.85rem; color: #d32f2f;">
-                    <td>${descLabel}</td>
-                    <td style="text-align:right">-${descImporte.toFixed(precTotal).replace('.', ',')} €</td>
-                </tr>`;
-        }
-
-        if (datosVenta.puntosCanjeados) {
-            totalesHtml += `
-                <tr style="font-size: 0.85rem; color: #d32f2f;">
-                    <td>${T.print.points_exchange} (${datosVenta.puntosCanjeados.puntos} pts):</td>
-                    <td style="text-align:right">-${parseFloat(datosVenta.puntosCanjeados.descuento).toFixed(precTotal).replace('.', ',')} €</td>
-                </tr>`;
-        }
-
-        totalesHtml += `
-            <tr style="border-top: 2px solid #000;">
-                <td style="font-size: 1.1rem; padding-top:8px;"><strong>${T.print.total}:</strong></td>
-                <td style="font-size: 1.1rem; font-weight: bold; text-align:right; padding-top:8px;">${parseEsp(datosVenta.total).toFixed(precTotal).replace('.', ',')} €</td>
-            </tr>
-        </table>`;
-
-        const paddedNum = (datosVenta.numero && !isNaN(datosVenta.numero)) ? String(datosVenta.numero).padStart(5, '0') : (datosVenta.numero || datosVenta.id);
-        const numComprobante = (datosVenta.serie || '') + paddedNum;
-
-        // Priorizar el balance guardado en la venta (historial) o calcularlo (para preview)
-        let finalPuntosBalance = parseInt(datosVenta.puntosBalance);
-        if (isNaN(finalPuntosBalance)) {
-            finalPuntosBalance = (parseInt(datosVenta.clientePuntos) || 0) - (parseInt(datosVenta.puntosCanjeados?.puntos) || 0) + (parseInt(datosVenta.puntosGanados) || 0);
-        }
-
-        const puntosFooterHtml = datosVenta.clienteNif ? `
-            <div style="margin-top:10px; border-top:1px dashed #ccc; padding-top:5px; font-size:10px;">
-                ${datosVenta.puntosGanados > 0 ? `<div>${T.print.earned_points}: <strong>+${datosVenta.puntosGanados}</strong></div>` : ''}
-                <div>${T.print.new_balance}: <strong>${finalPuntosBalance.toLocaleString('es-ES')}</strong></div>
-            </div>` : '';
-
-        if (isFactura) {
-            return `<html><head><style>
-                body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 20px; color: #1a1a1a; line-height: 1.4; font-size: 14px; overflow: hidden; }
-                .header { border-bottom: 3px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px; color: #2563eb; }
-                .header h1 { margin: 0; font-size: 24px; text-transform: uppercase; }
-                .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-                .col h3 { font-size: 11px; color: #666; text-transform: uppercase; margin: 0 0 5px 0; border-bottom: 1px solid #eee; }
-                .col p { margin: 2px 0; }
-                table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-                th { text-align: left; background: #f8fafc; padding: 10px 5px; border-bottom: 2px solid #2563eb; }
-                td { padding: 10px 5px; border-bottom: 1px solid #e5e7eb; }
-            </style></head><body>
-                <div class="header"><h1>${tipoTitulo}</h1></div>
-                <div class="two-col"><div class="col"><h3>${T.print.emitter}</h3><p><strong>TPV Bazar</strong></p><p>NIF: B12345678</p><p>C/ Falsa 123, Madrid</p></div>
-                <div class="col" style="text-align:right"><div style="font-size: 18px; font-weight: bold;">Nº ${numComprobante}</div><div style="color:#666">${T.print.date}: ${datosVenta.fecha}</div></div></div>
-                <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px;">
-                    <h3>${T.print.receiver}</h3>
-                    <p><strong>${datosVenta.clienteNombre || T.print.no_name}</strong></p>
-                    ${datosVenta.clienteNif ? `<p>NIF: ${datosVenta.clienteNif}</p>` : ''}
-                    ${datosVenta.clienteDir ? `<p>${datosVenta.clienteDir}</p>` : ''}
-                    ${puntosFooterHtml ? `<div style="margin-top:10px; padding-top:10px; border-top:1px solid #e5e7eb;">${puntosFooterHtml}</div>` : ''}
-                </div>
-                <table><thead><tr><th>${T.print.description_th}</th><th style="text-align:center">${T.print.cant_th}</th><th style="text-align:right">${T.print.base_ud_th}</th><th style="text-align:center">IVA</th><th style="text-align:right">${T.print.importe_th}</th></tr></thead>
-                <tbody>${lineasHtmlFactura}</tbody></table>
-                 <div style="float:right; width: 45%;">${totalesHtml}</div>
-                 ${generarDesgloseFormaPago(T, datosVenta, true)}
-                 
-                 
-        ${datosVenta.mensajePersonalizado ? `
-            <div style="clear:both; margin-top:20px; padding:12px; border-top:1px dashed #ccc; border-bottom:1px dashed #ccc; text-align:center; font-style:italic; color:#444; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.5;">
-                ${datosVenta.mensajePersonalizado.replace(/(.{45})/g, "$1<br>")}
-            </div>
-        ` : ''}
-                 
-             </body></html>`;
-        } else {
-            return `<html><head><style>
-                @page { size: 80mm auto; margin: 0; }
-                body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; color: #000; background: #fff; width: 80mm; }
-                .ticket-container { width: 80mm; padding: 5mm; box-sizing: border-box; font-size: 11px; line-height: 1.3; }
-                .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; }
-                .header h1 { margin: 0; font-size: 15px; text-transform: uppercase; }
-                table { width: 100%; border-collapse: collapse; margin: 8px 0; table-layout: fixed; }
-                th { text-align: left; border-bottom: 1px solid #000; padding: 4px 0; font-size: 10px; }
-                td { padding: 4px 0; border-bottom: 1px dashed #eee; font-size: 10px; word-wrap: break-word; }
-                .footer { text-align: center; margin-top: 15px; font-size: 9px; border-top: 1px solid #000; padding-top: 8px; }
-                .flex-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 10px; }
-            </style></head><body>
-                <div class="ticket-container">
-                <div class="header">
-                    <h1>TPV Bazar</h1>
-                    <div style="font-size:9px;">NIF: B12345678 | C/ Falsa 123, Madrid</div>
-                    <div style="font-size:10px; margin-top:4px; font-weight:bold;">${tipoTitulo}</div>
-                </div>
-                    <div class="flex-row"><span>Nº: ${numComprobante}</span><span>${datosVenta.fecha}</span></div>
-                    ${datosVenta.clienteNombre ? `<div style="margin-bottom:8px; font-size:10px; border:1px solid #eee; padding:4px;"><strong><?php echo t('print.client'); ?>:</strong> ${datosVenta.clienteNombre}</div>` : ''}
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 35%;">${T.print.art_th}</th>
-                                <th style="text-align:center; width: 10%;">${T.print.ud_th}</th>
-                                <th style="text-align:right; width: 20%; padding-right: 5px;">${T.print.base_th}</th>
-                                <th style="text-align:center; width: 15%; padding-left: 5px;">IVA</th>
-                                <th style="text-align:right; width: 20%;">${T.print.total_th}</th>
-                            </tr>
-                        </thead>
-                        <tbody>${lineasHtmlTicket}</tbody>
-                    </table>
-                    ${totalesHtml}
-        ${puntosFooterHtml}
-
-        ${datosVenta.mensajePersonalizado ? `
-            <div style="margin-top:15px; padding:10px; border-top:1px dashed #ccc; border-bottom:1px dashed #ccc; text-align:center; font-style:italic; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.4;">
-                ${datosVenta.mensajePersonalizado.replace(/(.{45})/g, "$1<br>")}
-            </div>
-        ` : ''}
-
-        ${generarDesgloseFormaPago(T, datosVenta, false)}
-
-        <div class="footer"><p>${T.print.thanks_for_purchase}</p></div>
-                </div>
-            </body></html>`;
-        }
     }
 
     /** Estado global de zoom para la vista previa */
@@ -5429,7 +5229,7 @@ endif; ?>
         }
 
         const datosMock = construirObjetoVentaTemporal(tipoDocumentoActual);
-        const fullHTML = generarHTMLComprobante(datosMock);
+        const fullHTML = generarHTMLComprobante(datosMock, idiomaTicketSeleccionado);
 
         previewContainer.className = 'paper-simulation ' + (isFactura ? 'tipo-factura' : 'tipo-ticket');
         badge.textContent = isFactura ? 'FACTURA A4' : 'TICKET TÉRMICO';
@@ -5821,8 +5621,8 @@ endif; ?>
     function imprimirDocumento() {
         if (typeof ultimaVenta === 'undefined') return;
 
-        // Generar el contenido HTML usando la fuente única de verdad
-        const contenido = generarHTMLComprobante(ultimaVenta);
+        // Generar el contenido HTML usando el idioma guardado en la venta o el seleccionado
+        const contenido = generarHTMLComprobante(ultimaVenta, ultimaVenta.idioma_ticket || idiomaTicketSeleccionado);
 
         // Crear un iframe oculto para imprimir sin afectar la página actual
         const iframe = document.createElement('iframe');
@@ -5963,7 +5763,9 @@ endif; ?>
                 puntos_canjeados: ultimaVenta.puntosCanjeados ? ultimaVenta.puntosCanjeados.puntos : 0,
                 puntos_balance: ultimaVenta.puntosBalance || 0,
                 mensajePersonalizado: ultimaVenta.mensajePersonalizado || '',
-                pagoMixtoDesglose: ultimaVenta.pagoMixtoDesglose || null
+                pagoMixtoDesglose: ultimaVenta.pagoMixtoDesglose || null,
+                qrUrl: ultimaVenta.qrUrl || '',
+                lang: ultimaVenta.idioma_ticket || 'es'
             })
         })
             .then(res => res.json())

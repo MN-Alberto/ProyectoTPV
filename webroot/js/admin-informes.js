@@ -597,6 +597,8 @@ function actualizarListaTareas() {
     fetch('api/informes.php?get_tasks=1')
         .then(res => res.json())
         .then(tareas => {
+            if (!lista) return;
+
             if (!tareas || tareas.length === 0) {
                 lista.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b">No hay tareas recientes.</div>';
                 return;
@@ -625,11 +627,13 @@ function actualizarListaTareas() {
             const indicador = document.getElementById('adminTaskIndicator');
             const countText = document.getElementById('taskCountText');
 
-            if (activas > 0) {
-                indicador.style.display = 'flex';
-                countText.textContent = `${activas} ${activas === 1 ? 'tarea activa' : 'tareas activas'}`;
-            } else {
-                indicador.style.display = 'none';
+            if (indicador) {
+                if (activas > 0) {
+                    indicador.style.display = 'flex';
+                    if (countText) countText.textContent = `${activas} ${activas === 1 ? 'tarea activa' : 'tareas activas'}`;
+                } else {
+                    indicador.style.display = 'none';
+                }
             }
         })
         .catch(err => console.error('Error actualizando tareas:', err));

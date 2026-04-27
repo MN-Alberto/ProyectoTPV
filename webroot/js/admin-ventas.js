@@ -73,19 +73,31 @@ function generarFilaVenta(venta) {
     const total = parseFloat(venta.total).toFixed(2).replace('.', ',');
     const pago = { efectivo: '💵 Efectivo', tarjeta: '💳 Tarjeta', bizum: '📱 Bizum', mixto: '🔄 Mixto' }[venta.forma_pago] || (venta.forma_pago || '—');
     const doc = { ticket: '🧾 Ticket', factura: '📄 Factura' }[venta.tipoDocumento] || (venta.tipoDocumento || 'ticket');
+    const esAnulada = venta.estado === 'anulada';
+    const esRect = venta.es_rectificativa == 1;
+    let estadoBadge = '';
+    if (esAnulada) estadoBadge = '<span style="background:#ef4444;color:#fff;padding:2px 6px;border-radius:4px;font-size:0.7rem;margin-left:4px;">ANULADO</span>';
+    else if (esRect) estadoBadge = '<span style="background:#8b5cf6;color:#fff;padding:2px 6px;border-radius:4px;font-size:0.7rem;margin-left:4px;">' + (venta.tipo_factura_verifactu || 'RECT') + '</span>';
     return `
-        <tr>
-            <td class="col-id">${venta.serie || 'T'}${String(venta.numero || venta.id).padStart(5, '0')}</td>
+        <tr style="${esAnulada ? 'opacity:0.6;' : ''}">
+            <td class="col-id">${venta.serie || 'T'}${String(venta.numero || venta.id).padStart(5, '0')}${estadoBadge}</td>
             <td class="col-fecha">${fecha}</td>
             <td class="col-usuario">${venta.usuario_nombre || '—'}</td>
             <td class="col-productos">${venta.cantidad_productos || 0}</td>
             <td class="col-tarifa">${venta.tarifa_nombre || 'Cliente'}</td>
             <td class="col-documento">${doc}</td>
             <td class="col-pago">${pago}</td>
-            <td class="col-total" style="text-align:right;font-weight:700;color:#059669;">${total} €</td>
+            <td class="col-total" style="text-align:right;font-weight:700;color:${parseFloat(venta.total) < 0 ? '#ef4444' : '#059669'};">${total} €</td>
             <td class="col-acciones">
                 <button class="btn-admin-accion btn-ver" onclick="event.stopPropagation(); verDetalleVenta(${venta.id})" title="Ver Detalles">
-                    <i class="fas fa-eye"></i></button>
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn-admin-accion btn-imprimir" onclick="event.stopPropagation(); imprimirVentaDesdeHistorial(${venta.id})" title="Reimprimir Ticket" style="background: #0ea5e9;">
+                    <i class="fas fa-print"></i>
+                </button>
+                ${!esAnulada && !esRect ? `<button class="btn-admin-accion" onclick="event.stopPropagation(); anularVentaAdmin('${venta.serie || 'T'}', ${venta.numero || venta.id})" title="Anular Documento" style="background:#ef4444;">
+                    <i class="fas fa-ban"></i>
+                </button>` : ''}
             </td>
         </tr>`;
 }
@@ -257,12 +269,12 @@ function verDetalleVenta(idVenta) {
                 try {
                     const desc = JSON.parse(venta.desglose_pago);
                     let items = [];
-                    if (desc.efectivo) items.push(`💵 ${parseFloat(desc.efectivo).toFixed(2).replace('.',',')}€`);
-                    if (desc.tarjeta) items.push(`💳 ${parseFloat(desc.tarjeta).toFixed(2).replace('.',',')}€`);
-                    if (desc.bizum) items.push(`📱 ${parseFloat(desc.bizum).toFixed(2).replace('.',',')}€`);
-                    if (desc.cambio > 0) items.push(`<span style="color:#ef4444;font-size:0.85em;">Cambio: -${parseFloat(desc.cambio).toFixed(2).replace('.',',')}€</span>`);
+                    if (desc.efectivo) items.push(`💵 ${parseFloat(desc.efectivo).toFixed(2).replace('.', ',')}€`);
+                    if (desc.tarjeta) items.push(`💳 ${parseFloat(desc.tarjeta).toFixed(2).replace('.', ',')}€`);
+                    if (desc.bizum) items.push(`📱 ${parseFloat(desc.bizum).toFixed(2).replace('.', ',')}€`);
+                    if (desc.cambio > 0) items.push(`<span style="color:#ef4444;font-size:0.85em;">Cambio: -${parseFloat(desc.cambio).toFixed(2).replace('.', ',')}€</span>`);
                     pagoInfo = `🔄 Mixto<br><span style="font-size:0.9em;color:#6b7280;">${items.join(' | ')}</span>`;
-                } catch(e) { console.error('Error parsing desglose_pago:', e); }
+                } catch (e) { console.error('Error parsing desglose_pago:', e); }
             } else if (venta.metodoPago === 'mixto') {
                 pagoInfo = '🔄 Mixto';
             } else {
@@ -731,4 +743,187 @@ function renderCajaSesionesAdmin(sesiones, esPrimeraVez = true, orden = 'fecha_d
             actualizarPaginacionDOM(contenedor, getPaginacionSesionesHTML(totalPaginas));
         }
     }
+}
+
+/**
+ * imprimirVentaDesdeHistorial(idVenta)
+ * Recupera los detalles de una venta y la imprime usando el motor compartido.
+ */
+function imprimirVentaDesdeHistorial(idVenta) {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: 'Generando documento...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+    }
+
+    fetch(`api/ventas.php?detalleVenta=${idVenta}`)
+        .then(r => r.json())
+        .then(data => {
+            if (typeof Swal !== 'undefined') Swal.close();
+            if (data.error) {
+                if (typeof Swal !== 'undefined') Swal.fire('Error', data.error, 'error');
+                else alert(data.error);
+                return;
+            }
+
+            const { venta, lineas, descuentos = {} } = data;
+
+            const carrito = lineas.map(l => ({
+                id: l.idProducto,
+                nombre: l.producto_nombre,
+                nombre_es: l.nombre_es,
+                nombre_en: l.nombre_en,
+                nombre_fr: l.nombre_fr,
+                nombre_de: l.nombre_de,
+                nombre_ru: l.nombre_ru,
+                cantidad: l.cantidad,
+                precio: l.precioOriginal !== undefined ? l.precioOriginal : l.precioUnitario,
+                iva: l.iva,
+                importeTotal: l.subtotal,
+                pvpUnitario: l.precioUnitario * (1 + (l.iva || 0) / 100)
+            }));
+
+            // QR para Verifactu
+            const nifTpv = (window.TPV_CONFIG && window.TPV_CONFIG.nif) ? window.TPV_CONFIG.nif : '';
+
+            // Construir numserie: SERIE + número padded (ej: T00001, F00003)
+            const serie = venta.serie || (venta.tipoDocumento === 'factura' ? 'F' : 'T');
+            // Usar numero de ventas_ids, o id de la venta si no existe numero
+            // Intentamos buscar ID en diferentes claves por si acaso (id, ID, idVenta)
+            const numeroReal = venta.numero || venta.id || venta.ID || venta.idVenta || idVenta;
+            const numserie = serie + numeroReal;
+
+            const qrParams = new URLSearchParams({
+                nif: nifTpv,
+                numserie: numserie,
+                fecha: (() => {
+                    // ✅ FIX: Formato fecha MySQL con espacio no funciona en todos los navegadores, reemplazar por T
+                    const fechaStr = venta.fecha.replace(' ', 'T');
+                    const d = new Date(fechaStr);
+                    return String(d.getDate()).padStart(2, '0') + '-' +
+                        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                        d.getFullYear();
+                })(),
+                importe: parseFloat(venta.total).toFixed(2)
+            });
+
+            // Formatear fecha en formato ISO 2026-04-27 08:20:18
+            const d = new Date(venta.fecha);
+            const fechaFormateada =
+                d.getFullYear() + '-' +
+                String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                String(d.getDate()).padStart(2, '0') + ' ' +
+                String(d.getHours()).padStart(2, '0') + ':' +
+                String(d.getMinutes()).padStart(2, '0') + ':' +
+                String(d.getSeconds()).padStart(2, '0');
+
+            const datosVenta = {
+                id: numeroReal,
+                serie: serie,
+                numero: venta.numero || numeroReal,
+                fecha: fechaFormateada,
+                tipo: venta.tipoDocumento || 'ticket',
+                idioma_ticket: venta.idioma_ticket || 'es',
+                total: parseFloat(venta.total) || 0,
+                metodoPago: venta.metodoPago,
+                desglose_pago: venta.desglose_pago,
+                clienteNombre: venta.cliente_nombre || venta.clienteNombre || null,
+                clienteNif: venta.cliente_dni || venta.clienteDni || null,
+                clienteDir: venta.cliente_direccion || venta.clienteDireccion || null,
+                carrito: carrito,
+                descuentoTipo: descuentos.descuentoManualTipo || 'porcentaje',
+                descuentoValor: parseFloat(descuentos.descuentoManualValor) || 0,
+                descuentoCupon: descuentos.descuentoManualCupon || null,
+                qrUrl: ((window.TPV_CONFIG && window.TPV_CONFIG.qrBaseUrl) || 'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR') + '?' + qrParams.toString()
+            };
+
+            const html = generarHTMLComprobante(datosVenta, venta.idioma_ticket || 'es');
+            const iframe = document.createElement('iframe');
+            iframe.style.position = 'absolute';
+            iframe.style.top = '-10000px';
+            document.body.appendChild(iframe);
+            iframe.contentDocument.write(html);
+            iframe.contentDocument.close();
+            iframe.onload = function () {
+                iframe.contentWindow.print();
+                setTimeout(() => { if (iframe.parentNode) iframe.remove(); }, 1000);
+            };
+        })
+        .catch(err => {
+            if (typeof Swal !== 'undefined') {
+                Swal.close();
+                Swal.fire('Error', 'No se pudo conectar con el servidor', 'error');
+            } else {
+                alert('No se pudo conectar con el servidor');
+            }
+        });
+}
+
+function anularVentaAdmin(serie, numero) {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: '¿Anular Documento?',
+            text: `Vas a anular el documento ${serie}${String(numero).padStart(5, '0')}. Esta acción comunicará la anulación a la AEAT mediante Verifactu y no se puede deshacer.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Sí, Anular',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                ejecutarAnulacionVenta(serie, numero);
+            }
+        });
+    } else {
+        if (confirm(`¿Estás seguro de anular el documento ${serie}${numero}?`)) {
+            ejecutarAnulacionVenta(serie, numero);
+        }
+    }
+}
+
+function ejecutarAnulacionVenta(serie, numero) {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: 'Procesando...',
+            text: 'Comunicando con AEAT...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+    }
+
+    fetch('api/ventas.php?accion=anularDocumento', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serie: serie, numero: numero })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (typeof Swal !== 'undefined') {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Documento Anulado',
+                        text: data.message || 'La anulación se comunicó correctamente a la AEAT.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => cargarVentasAdmin());
+                } else {
+                    Swal.fire('Error al Anular', data.message || 'Error desconocido.', 'error');
+                }
+            } else {
+                alert(data.message || (data.success ? 'Anulado correctamente' : 'Error al anular'));
+                if (data.success) cargarVentasAdmin();
+            }
+        })
+        .catch(err => {
+            console.error("Error en anulación:", err);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire('Error de Conexión', 'No se pudo contactar con el servidor.', 'error');
+            } else {
+                alert('Error de conexión.');
+            }
+        });
 }

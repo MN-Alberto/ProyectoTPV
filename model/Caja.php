@@ -532,9 +532,10 @@ class Caja
         // Obtener retiros
         $retiros = $this->getTotalRetiros();
 
-        // Calcular efectivo esperado
-        // fórmula: fondo inicial + ventas efectivo - devoluciones efectivo - retiros
-        $efectivoEsperado = $this->importeInicial + $ventasEfectivo - $devolucionesEfectivo - $retiros;
+        // calcular efectivo esperado
+        // fórmula: fondo inicial + ventas efectivo (netas) - retiros
+        // NOTA: ventasEfectivo ya tiene restadas las devoluciones porque son registros negativos en la tabla 'ventas'
+        $efectivoEsperado = $this->importeInicial + $ventasEfectivo - $retiros;
 
         return [
             'fondoInicial' => $this->importeInicial,

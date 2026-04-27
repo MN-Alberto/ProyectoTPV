@@ -805,6 +805,7 @@ return [
         'unit_price' => 'Precio Unit.',
         'amount' => 'Importe',
         'invoice_terms' => 'Los precios incluyen IVA. Esta factura está sujeta a las condiciones generales de venta.',
+        'verifactu_verify' => 'Factura verificable en la sede electrónica de la AEAT',
     ],
 
     // ======================== RETURNS (EXTENDED) ========================
