@@ -10,7 +10,7 @@
 <script src="webroot/js/admin-tarifas.js"></script>
 <script src="webroot/js/admin-usuarios.js"></script>
 <script src="webroot/js/admin-utils.js"></script>
-<script src="webroot/js/admin-verifactu.js"></script>
+<script src="webroot/js/admin-verifactu.js?v=1"></script>
 <script src="webroot/js/lib/qrcode.min.js"></script>
 <script src="webroot/js/shared-impresion.js"></script>
 <script src="webroot/js/admin-ventas.js?v=4"></script>
@@ -122,6 +122,10 @@
             </button>
             <button class="cat-btn" data-seccion="historial-precios" style="width: 100%; text-align: left;">
                 <i class="fas fa-chart-area" style="margin-right: 10px;"></i> Historial de Precios
+            </button>
+            <button class="cat-btn" data-seccion="envios-aeat" style="width: 100%; text-align: left; position: relative;">
+                <i class="fas fa-satellite-dish" style="margin-right: 10px;"></i> Envíos AEAT
+                <span id="badgePendientesAeat" style="display:none; position:absolute; right:10px; top:50%; transform:translateY(-50%); background:#dc2626; color:#fff; font-size:11px; font-weight:700; padding:2px 7px; border-radius:10px; min-width:18px; text-align:center;">0</span>
             </button>
             <button class="cat-btn" id="btnConfig" style="width: 100%; text-align: left;">
                 <i class="fas fa-cog" style="margin-right: 10px;"></i> Configuración ▾
@@ -487,51 +491,26 @@
 <!-- ##-----------------------------------MODAL VER DEVOLUCION-----------------------------------## -->
 
 <div class="modal-overlay" id="modalVerDevolucion" style="display:none;">
-    <div class="modal-content modal-verProducto" style="max-width: 420px;">
-        <h3>Detalle de Devolución</h3>
-        <p class="modal-subtitulo">Información de la operación</p>
-
-        <div style="display: flex; flex-direction: column; gap: 15px; margin: 20px 0;">
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">ID Devolución</span>
-                <span id="verDevolucionId" class="ver-prod-valor"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Ticket Original</span>
-                <span id="verDevolucionTicket" class="ver-prod-valor" style="font-weight: 700; color: #1e40af;"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Fecha</span>
-                <span id="verDevolucionFecha" class="ver-prod-valor"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Producto</span>
-                <span id="verDevolucionProducto" class="ver-prod-valor"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Cantidad</span>
-                <span id="verDevolucionCantidad" class="ver-prod-valor"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Importe Total</span>
-                <span id="verDevolucionImporte" class="ver-prod-valor" style="color: #dc2626; font-weight: 700;"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Método Reembolso</span>
-                <span id="verDevolucionMetodo" class="ver-prod-valor"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Empleado</span>
-                <span id="verDevolucionUsuario" class="ver-prod-valor"></span>
+    <div class="modal-content modal-premium" style="max-width: 450px; padding: 0; overflow: hidden;">
+        <div class="modal-header-premium modal-header-red" style="padding: 15px 25px;">
+            <h3 style="margin: 0; font-size: 1.2rem;">Detalle de Devolución</h3>
+            <p class="modal-subtitulo" style="margin: 0; opacity: 0.8;">Vista previa del comprobante fiscal</p>
+        </div>
+        
+        <div id="ticketDevolucionContainer" style="background: white; padding: 20px; max-height: 70vh; overflow-y: auto; border-bottom: 1px solid #eee;">
+            <!-- El ticket se generará aquí con generarHTMLComprobante -->
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                <p>Cargando comprobante...</p>
             </div>
         </div>
 
-        <div style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerDevolucion')" style="min-width: 100px;">
+        <div style="display: flex; justify-content: center; gap: 10px; padding: 15px 25px; background: #f9fafb;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerDevolucion')" style="min-width: 100px; margin: 0;">
                 Cerrar
             </button>
-            <button class="btn-exito" onclick="verTicketDevolucion()" style="min-width: 100px; margin: 0;">
-                <i class="fas fa-receipt"></i> Ver Ticket
+            <button class="btn-exito" onclick="verTicketDevolucion()" style="min-width: 100px; margin: 0; background: #dc2626; border-color: #dc2626;">
+                <i class="fas fa-print"></i> Imprimir
             </button>
         </div>
     </div>
@@ -1235,7 +1214,9 @@
         'historial-precios': 'Historial de Precios',
         'config-tema': 'Configuración: Tema',
         'config-acciones': 'Configuración: Acciones',
-        'config-ajustes': 'Configuración: Ajustes'
+        'config-ajustes': 'Configuración: Ajustes',
+        'envios-aeat': 'Monitor Envíos AEAT',
+        'config-fiscal': 'Configuración Fiscal'
     };
 
     document.querySelectorAll('.cat-btn[data-seccion]').forEach(btn => {
@@ -1335,6 +1316,12 @@
                     break;
                 case 'informe-anual':
                     mostrarSeccionInformes('anual');
+                    break;
+                case 'envios-aeat':
+                    cargarEnviosAeat();
+                    break;
+                case 'config-fiscal':
+                    cargarConfiguracionFiscal();
                     break;
             }
         });

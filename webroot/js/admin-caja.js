@@ -513,119 +513,75 @@ function verDetalleDevolucion(id) {
 function verTicketDevolucion(idDevolucion) {
     console.log('🔴 verTicketDevolucion llamada para id: ', idDevolucion);
 
-    // Cargamos TODOS los datos directamente desde la API, NO DEPENDEMOS DE NINGUNA VARIABLE GLOBAL
     fetch('api/devoluciones.php?todas=1&_=' + Date.now(), {
         cache: 'no-store',
-        headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-        }
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
     })
-        .then(res => res.json())
-        .then(data => {
-            console.log('✅ Datos devoluciones recibidos: ', data);
+    .then(res => res.json())
+    .then(data => {
+        const todas = data.devoluciones || data || [];
+        let dev = idDevolucion ? todas.find(d => d.id == idDevolucion) : window._ultimaDevAdmin;
 
-            const todas = data.devoluciones || data || [];
-            console.log('✅ Lista completa devoluciones: ', todas.length);
+        if (!dev) {
+            alert('No hay datos de devolución');
+            return;
+        }
 
-            let dev;
+        // Agrupar todas las devoluciones del mismo lote (mismo idVenta y misma fecha)
+        const lote = todas.filter(d => d.idVenta == dev.idVenta && d.fecha === dev.fecha);
+        
+        // Preparar carrito para generarHTMLComprobante
+        const carrito = lote.map(linea => ({
+            nombre: linea.producto_nombre || '—',
+            cantidad: linea.cantidad,
+            precio: parseFloat(linea.precioUnitario) || 0,
+            iva: linea.iva || 21,
+            importeTotal: parseFloat(linea.importeTotal) || 0
+        }));
 
-            if (idDevolucion) {
-                dev = todas.find(d => d.id == idDevolucion);
-                console.log('✅ Buscando devolucion id ' + idDevolucion + ' -> ', dev);
-            } else {
-                dev = window._ultimaDevAdmin;
-                console.log('✅ Usando variable global dev: ', dev);
-            }
+        const totalGeneral = carrito.reduce((sum, item) => sum + item.importeTotal, 0);
 
-            if (!dev) {
-                console.log('❌ No se encontro devolucion');
-                alert('No hay datos de devolución');
-                return;
-            }
+        // QR para Verifactu
+        const nifTpv = (window.TPV_CONFIG && window.TPV_CONFIG.nif) ? window.TPV_CONFIG.nif : '';
+        const serie = dev.serie || 'D'; // Devoluciones suelen ir en Serie D
+        const numeroReal = dev.numero || dev.idVenta || dev.id;
+        const numserie = serie + numeroReal;
 
-            // Agrupar todas las devoluciones del mismo lote (mismo idVenta y misma fecha)
-            const loteFiltrado = todas.filter(d => d.idVenta == dev.idVenta && d.fecha === dev.fecha);
-            const lote = loteFiltrado.length > 0 ? loteFiltrado : [dev];
-
-            const fecha = new Date(dev.fecha).toLocaleString('es-ES', {
-                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-            });
-
-            // Generar filas de productos
-            let filasHtml = '';
-            let totalGeneral = 0;
-            lote.forEach(linea => {
-                const importe = parseFloat(linea.importeTotal) || 0;
-                const precioBase = linea.precioUnitario ? parseFloat(linea.precioUnitario).toFixed(2).replace('.', ',') : '—';
-                const importeFmt = importe.toFixed(2).replace('.', ',');
-                totalGeneral += importe;
-                filasHtml += `
-            <tr>
-                <td>${linea.producto_nombre || '—'}</td>
-                <td style="text-align:center">${linea.cantidad}</td>
-                <td style="text-align:right">${precioBase} €</td>
-                <td style="text-align:right">${importeFmt} €</td>
-            </tr>`;
-            });
-
-            const totalFmt = totalGeneral.toFixed(2).replace('.', ',');
-            const motivo = dev.motivo || '';
-
-            const contenido = `
-    <html>
-    <head>
-        <title>DEVOLUCIÓN - Ticket #${dev.idVenta}</title>
-        <style>
-            body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #1a1a1a; max-width: 80mm; margin: 0 auto; line-height: 1.4; }
-            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
-            .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; color: #dc2626; }
-            .datos { margin-bottom: 15px; font-size: 0.85rem; }
-            .datos p { margin: 3px 0; }
-            table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.8rem; }
-            th { background: #f0f0f0; padding: 6px 4px; text-align: left; border-bottom: 1px solid #ccc; }
-            td { padding: 6px 4px; border-bottom: 1px dashed #eee; }
-            .total-row { border-top: 2px solid #000; margin-top: 10px; padding-top: 8px; text-align: right; font-size: 1.1rem; font-weight: bold; }
-            .footer { text-align: center; font-size: 0.75rem; padding-top: 15px; border-top: 1px solid #ccc; margin-top: 20px; }
-            @media print { body { margin: 0; padding: 10px; } }
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>DEVOLUCIÓN</h1>
-        </div>
-        <div class="datos">
-            <strong>TPV Bazar — Productos Informáticos</strong><br>
-            NIF: B12345678<br>
-            C/ Falsa 123, 23000 León<br>
-            <div style="margin-top: 10px;">
-                <p><strong>Ticket original:</strong> ${(dev.serie ? dev.serie : 'T') + String(dev.numero || dev.idVenta || '—').padStart(5, '0')}</p>
-                <p><strong>Fecha:</strong> ${fecha}</p>
-                <p><strong>Empleado:</strong> ${dev.usuario_nombre || '—'}</p>
-                <p><strong>Método de devolución:</strong> ${dev.metodoPago}</p>
-            </div>
-        </div>
-        <table>
-            <thead>
-                <tr><th>Producto</th><th style="text-align:center">Cantidad</th><th style="text-align:right">Precio</th><th style="text-align:right">Importe</th></tr>
-            </thead>
-            <tbody>${filasHtml}</tbody>
-        </table>
-        <div class="total-row" style="color: #dc2626;">
-            Total devuelto: -${totalFmt} €
-        </div>
-        ${motivo ? '<div style="margin-top: 15px; font-size: 0.8rem;"><strong>Motivo:</strong> ' + motivo + '</div>' : ''}
-        <div class="footer">
-                <p>Importe devuelto mediante: ${dev.metodoPago}</p>
-                <p>Gracias por su confianza</p>
-            </div>
-    </body>
-    </html>`;
-
-            const ventana = window.open('', '_blank', 'width=400,height=600');
-            ventana.document.write(contenido);
-            ventana.document.close();
+        const qrParams = new URLSearchParams({
+            nif: nifTpv,
+            numserie: numserie,
+            fecha: (() => {
+                const d = new Date(dev.fecha);
+                return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
+            })(),
+            importe: (-totalGeneral).toFixed(2)
         });
+
+        const datosVenta = {
+            id: numeroReal,
+            serie: serie,
+            numero: numeroReal,
+            fecha: new Date(dev.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            tipo: 'ticket',
+            es_rectificativa: true,
+            id_original: dev.idVenta,
+            serie_original: dev.serie_original || 'T',
+            total: -totalGeneral,
+            metodoPago: dev.metodoPago,
+            carrito: carrito,
+            usuario_nombre: dev.usuario_nombre,
+            qrUrl: ((window.TPV_CONFIG && window.TPV_CONFIG.qrBaseUrl) || 'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR') + '?' + qrParams.toString()
+        };
+
+        const html = generarHTMLComprobante(datosVenta, 'es');
+        const ventana = window.open('', '_blank', 'width=400,height=600');
+        ventana.document.write(html);
+        ventana.document.close();
+    })
+    .catch(err => {
+        console.error('Error al ver ticket de devolución:', err);
+        alert('Error al cargar datos');
+    });
 }
 
 /**

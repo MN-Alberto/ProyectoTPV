@@ -174,11 +174,11 @@ if ($method === 'GET') {
 
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
-            // Query con joins para obtener serie y numero del ticket original
+            // 1. Obtener detalles básicos de la devolución
             $sql = "SELECT
                 d.id, d.idVenta, d.idProducto, d.cantidad, d.precioUnitario, d.iva,
                 d.importeTotal, d.motivo, d.fecha, d.metodoPago,
-                vi.serie, vi.numero
+                vi.serie as orig_serie, vi.numero as orig_numero
             FROM devoluciones d
             LEFT JOIN ventas_ids vi ON d.idVenta = vi.id
             WHERE d.idVenta = ?
@@ -187,7 +187,50 @@ if ($method === 'GET') {
             $stmt->execute([$idVenta]);
             $detalle = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Obtener nombres de productos
+            if (empty($detalle)) {
+                echo json_encode([]);
+                exit;
+            }
+
+            // 2. Buscar datos de la rectificativa (Serie D) de forma eficiente
+            // Usamos una consulta separada para evitar JOINs pesados con subconsultas
+            $sqlRect = "SELECT v.id, vi.serie, vi.numero, v.fecha, v.total
+                        FROM (
+                            SELECT id, fecha, total FROM tickets WHERE id_documento_original = ? AND es_rectificativa = 1
+                            UNION ALL
+                            SELECT id, fecha, total FROM facturas WHERE id_documento_original = ? AND es_rectificativa = 1
+                        ) v
+                        JOIN ventas_ids vi ON v.id = vi.id
+                        LIMIT 1";
+            $stmtRect = $conexion->prepare($sqlRect);
+            $stmtRect->execute([$idVenta, $idVenta]);
+            $rectData = $stmtRect->fetch(PDO::FETCH_ASSOC);
+
+            // 3. Generar QR si existe la rectificativa
+            $qrUrl = null;
+            if ($rectData) {
+                require_once(__DIR__ . '/../core/Verifactu.php');
+                // Simulamos objeto Venta para el generador de QR para no instanciar el modelo completo
+                $ventaDummy = new stdClass();
+                $ventaDummy->serie = $rectData['serie'];
+                $ventaDummy->numero = $rectData['numero'];
+                $ventaDummy->fecha = $rectData['fecha'];
+                $ventaDummy->total = $rectData['total'];
+                
+                // Métodos que requiere Verifactu::generarURLQR
+                $ventaProxy = new class($ventaDummy) {
+                    private $v;
+                    public function __construct($v) { $this->v = $v; }
+                    public function getSerie() { return $this->v->serie; }
+                    public function getNumero() { return $this->v->numero; }
+                    public function getFecha() { return $this->v->fecha; }
+                    public function getTotal() { return $this->v->total; }
+                };
+                
+                $qrUrl = Verifactu::generarURLQR($ventaProxy);
+            }
+
+            // 4. Mapear nombres de productos y adjuntar datos extra
             $sqlProductos = "SELECT id, nombre FROM productos";
             $stmtProductos = $conexion->query($sqlProductos);
             $productos = [];
@@ -195,10 +238,12 @@ if ($method === 'GET') {
                 $productos[$p['id']] = $p['nombre'];
             }
 
-            // Agregar nombre de producto
             foreach ($detalle as &$d) {
                 $idProd = $d['idProducto'];
                 $d['producto_nombre'] = $productos[$idProd] ?? 'Producto #' . $idProd;
+                $d['rect_serie'] = $rectData['serie'] ?? null;
+                $d['rect_numero'] = $rectData['numero'] ?? null;
+                $d['qrUrl'] = $qrUrl;
             }
 
             echo json_encode($detalle);

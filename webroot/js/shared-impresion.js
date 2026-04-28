@@ -127,7 +127,12 @@ function generarDesgloseFormaPago(T, datosVenta, isFactura) {
 function generarHTMLComprobante(datosVenta, idioma = 'es') {
     const T = IDIOMAS_TICKET[idioma] || IDIOMAS_TICKET['es'];
     const isFactura = (datosVenta.tipo === 'factura');
-    const tipoTitulo = isFactura ? T.print.factura_title : T.print.ticket_title;
+    const isRectificativa = !!datosVenta.es_rectificativa;
+    
+    let tipoTitulo = isFactura ? T.print.factura_title : T.print.ticket_title;
+    if (isRectificativa) {
+        tipoTitulo = T.print.rectificativa_title || 'FACTURA RECTIFICATIVA';
+    }
 
     const precTotal = 2; 
     let lineasHtmlTicket = '';
@@ -263,7 +268,15 @@ function generarHTMLComprobante(datosVenta, idioma = 'es') {
         </style></head><body>
             <div class="header"><h1>${tipoTitulo}</h1></div>
             <div class="two-col"><div class="col"><h3>${T.print.emitter}</h3><p><strong>${TPV_CONFIG.nombre}</strong></p><p>NIF: ${TPV_CONFIG.nif}</p><p>${TPV_CONFIG.direccion}</p></div>
-            <div class="col" style="text-align:right"><div style="font-size: 18px; font-weight: bold;">Nº ${numComprobante}</div><div style="color:#666">${T.print.date}: ${datosVenta.fecha}</div></div></div>
+            <div class="col" style="text-align:right">
+                <div style="font-size: 18px; font-weight: bold;">Nº ${numComprobante}</div>
+                <div style="color:#666">${T.print.date}: ${datosVenta.fecha}</div>
+                ${isRectificativa && datosVenta.id_original ? `
+                    <div style="margin-top:5px; font-size:12px; font-weight:bold; color:#dc2626;">
+                        ${T.print.rectificativa_original_ref || 'Rectifica a:'} ${datosVenta.serie_original || 'T'}${String(datosVenta.id_original).padStart(5, '0')}
+                    </div>
+                ` : ''}
+            </div></div>
             <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px;">
                 <h3>${T.print.receiver}</h3>
                 <p><strong>${datosVenta.clienteNombre || T.print.no_name}</strong></p>
@@ -312,6 +325,11 @@ function generarHTMLComprobante(datosVenta, idioma = 'es') {
                 <div style="font-size:10px; margin-top:4px; font-weight:bold;">${tipoTitulo}</div>
             </div>
                 <div class="flex-row"><span>Nº: ${numComprobante}</span><span>${datosVenta.fecha}</span></div>
+                ${isRectificativa && datosVenta.id_original ? `
+                    <div style="margin-bottom:8px; font-size:10px; font-weight:bold; color:#dc2626;">
+                        ${T.print.rectificativa_original_ref || 'Rectifica a:'} ${datosVenta.serie_original || 'T'}${String(datosVenta.id_original).padStart(5, '0')}
+                    </div>
+                ` : ''}
                 ${datosVenta.clienteNombre ? `<div style="margin-bottom:8px; font-size:10px; border:1px solid #eee; padding:4px;"><strong>Cliente:</strong> ${datosVenta.clienteNombre}</div>` : ''}
                 <table>
                     <thead>

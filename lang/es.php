@@ -767,6 +767,7 @@ return [
     // ======================== PRINT ========================
     'print' => [
         'factura_title' => 'FACTURA',
+        'rectificativa_title' => 'FACTURA RECTIFICATIVA',
         'ticket_title' => 'TICKET DE VENTA',
         'cash' => 'Efectivo',
         'card' => 'Tarjeta',
@@ -797,9 +798,7 @@ return [
         'thanks_for_purchase' => '¡Gracias por su compra!',
         'ticket_number' => 'Nº Factura/Ticket',
         'operation_date' => 'Fecha Operación y Expedición',
-        'dto' => 'Desc.',
-        'quantity_th' => 'Cant',
-        'base_th' => 'Base',
+        'rectificativa_original_ref' => 'Rectifica a:',
         'delivered' => 'Entregado',
         'prices_include_vat' => 'Los precios mostrados incluyen IVA.',
         'unit_price' => 'Precio Unit.',

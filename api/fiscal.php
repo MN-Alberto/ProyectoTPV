@@ -73,7 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'aeat_url_verifactu',
         'tpv_direccion',
         'cert_path',
-        'cert_pass'
+        'cert_pass',
+        'verifactu_intervalo_reintento'
     ];
 
     try {

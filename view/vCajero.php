@@ -1515,7 +1515,6 @@
                 // Pequeño retardo para asegurar que el modal y JS de ticket están listos
                 setTimeout(() => {
                     if (config.imprimir) {
-                        console.log('Post-venta: Ejecutando impresión automática...');
                         imprimirDocumento();
                     } else if (config.email && config.emailDestino) {
                         console.log('Post-venta: Ejecutando envío de email automático a', config.emailDestino);
@@ -1841,7 +1840,9 @@ endif; ?>
 <!-- Se muestra automáticamente cuando $_SESSION['devolucionExito'] está definida -->
 <!-- Confirma que la devolución se ha procesado correctamente -->
 <?php
-// Debug: mostrar si la sesión está definida
+/**
+ * Debug: mostrar si la sesión está definida
+ */
 // var_dump(isset($_SESSION['devolucionExito']));
 // var_dump($_SESSION['devolucionExito'] ?? 'no definido');
 // var_dump($_SESSION['devolucionDetalles'] ?? 'no definido');
@@ -1886,6 +1887,11 @@ endif; ?>
                             style="color: #f87171; font-weight: bold;">-<?php echo number_format($_SESSION['devolucionDetalles']['total'] ?? 0, 2, ',', '.'); ?>
                             €</span>
                     </p>
+                    <?php if (isset($_SESSION['devolucionDetalles']['rectificativa']) && !$_SESSION['devolucionDetalles']['rectificativa']['success']): ?>
+                        <div style="margin-top: 10px; padding: 10px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px; color: #9a3412; font-size: 0.8rem;">
+                            <strong>⚠️ Error Fiscal (AEAT):</strong> <?php echo htmlspecialchars($_SESSION['devolucionDetalles']['rectificativa']['message'] ?? 'Error desconocido'); ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
@@ -1920,7 +1926,8 @@ endif; ?>
                         metodoPago: '<?php echo $_SESSION['devolucionDetalles']['metodoPago'] ?? "Efectivo"; ?>',
                         total: '<?php echo number_format($_SESSION['devolucionDetalles']['total'] ?? 0, 2, ".", ""); ?>',
                         motivo: '<?php echo addslashes($_SESSION['devolucionDetalles']['motivo'] ?? ""); ?>',
-                        lineas: <?php echo json_encode($_SESSION['devolucionDetalles']['lineas'] ?? []); ?>
+                        lineas: <?php echo json_encode($_SESSION['devolucionDetalles']['lineas'] ?? []); ?>,
+                        qrUrl: '<?php echo $_SESSION['devolucionDetalles']['qrUrl'] ?? ""; ?>'
                     };
                 </script>
                 <?php unset($_SESSION['devolucionDetalles']); ?>
@@ -3512,12 +3519,16 @@ endif; ?>
                 if (!data || data.length === 0) { alert('<?php echo t('return_details.alert_not_found'); ?>'); return; }
 
                 const primera = data[0];
-                const serie = primera.serie || 'T';
-                const numero = primera.numero || idVenta;
+                const orig_serie = primera.orig_serie || 'T';
+                const orig_numero = primera.orig_numero || idVenta;
+                
                 devolucionHistorialTemporal = {
                     id: idVenta,
-                    serie: serie,
-                    numero: numero,
+                    orig_serie: orig_serie,
+                    orig_numero: orig_numero,
+                    serie: primera.rect_serie || 'D', // Usar serie rectificativa (D)
+                    numero: primera.rect_numero || '',
+                    qrUrl: primera.qrUrl || null,
                     fecha: primera.fecha,
                     metodoPago: primera.metodoPago || 'Efectivo',
                     total: data.reduce((sum, item) => sum + parseFloat(item.importeTotal || 0), 0),
@@ -3548,103 +3559,43 @@ endif; ?>
             return;
         }
 
-        const fecha = new Date(devolucion.fecha).toLocaleString('es-ES');
+        // Preparar carrito para generarHTMLComprobante
+        const carrito = (devolucion.lineas || []).map(linea => ({
+            nombre: linea.nombre || linea.producto_nombre || 'Producto',
+            cantidad: linea.cantidad,
+            precio: parseFloat(linea.precioUnitario || linea.precio) || 0,
+            iva: (linea.iva !== undefined) ? parseInt(linea.iva) : 21,
+            importeTotal: parseFloat(linea.importeTotal || linea.importe) || 0
+        }));
 
-        let lineasHtml = '';
-        if (devolucion.lineas && devolucion.lineas.length > 0) {
-            devolucion.lineas.forEach(linea => {
-                const cant = linea.cantidad || 0;
-                const prec = linea.precioUnitario || 0;
-                const imp = linea.importeTotal || 0;
-                const precFmt = parseFloat(prec).toFixed(2).replace('.', ',');
-                const impFmt = parseFloat(imp).toFixed(2).replace('.', ',');
-                lineasHtml += `
-                    <tr>
-                        <td>${linea.nombre || 'Producto'}</td>
-                        <td style="text-align:center">${cant}</td>
-                        <td style="text-align:right">${precFmt} €</td>
-                        <td style="text-align:right">${impFmt} €</td>
-                    </tr>
-                `;
-            });
-        }
+        const totalGeneral = carrito.reduce((sum, item) => sum + item.importeTotal, 0);
 
-        const totalesHtml = `
-            <table style="width: 100%; border-top: 2px solid #000; margin-top: 10px; padding-top: 5px;">
-                <tr>
-                    <td style="font-size: 1.2rem; font-weight: bold;">TOTAL DEVUELTO:</td>
-                    <td style="font-size: 1.2rem; font-weight: bold; text-align:right; color: #dc2626;">-${parseFloat(devolucion.total).toFixed(2).replace('.', ',')} €</td>
-                </tr>
-            </table>
-        `;
+        const datosVenta = {
+            id: devolucion.numero || devolucion.id || '—',
+            serie: devolucion.serie || 'D',
+            numero: devolucion.numero || devolucion.id || '—',
+            fecha: new Date(devolucion.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            tipo: 'ticket',
+            es_rectificativa: true,
+            id_original: devolucion.orig_numero || devolucion.idVenta,
+            serie_original: devolucion.orig_serie || devolucion.serie_original || 'T',
+            total: -totalGeneral,
+            metodoPago: devolucion.metodoPago,
+            carrito: carrito,
+            usuario_nombre: devolucion.usuario_nombre,
+            qrUrl: devolucion.qrUrl
+        };
 
-        let obsHtml = '';
-        if (devolucion.motivo) {
-            obsHtml = `<div style="margin-top: 15px; font-size: 0.8rem;"><strong>Motivo:</strong> ${devolucion.motivo}</div>`;
-        }
-
-        const ticketOriginal = (devolucion.serie || '') + String(devolucion.numero || devolucion.id || '').padStart(5, '0');
-
-        const contenido = `
-        <html>
-        <head>
-            <title>TICKET DE DEVOLUCIÓN ${ticketOriginal}</title>
-            <style>
-                body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #1a1a1a; max-width: 80mm; margin: 0 auto; line-height: 1.4; }
-                .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
-                .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; color: #dc2626; }
-                .header h2 { margin: 5px 0 0; font-size: 0.9rem; font-weight: normal;}
-                .datos { margin-bottom: 15px; font-size: 0.85rem; }
-                .datos p { margin: 3px 0; }
-                table.tabla-lineas { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.8rem; }
-                table.tabla-lineas th { background: #f0f0f0; padding: 6px 4px; text-align: left; border-bottom: 1px solid #ccc;  }
-                table.tabla-lineas td { padding: 6px 4px; border-bottom: 1px dashed #eee; }
-                .footer { text-align: center; font-size: 0.75rem; padding-top: 15px; border-top: 1px solid #ccc; margin-top: 20px;}
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1><?php echo mb_strtoupper(t('return_details.title')); ?></h1>
-            </div>
-            
-            <div class="datos">
-                <strong>TPV Bazar — Productos Informáticos</strong><br>
-                NIF: B12345678<br>
-                C/ Falsa 123, 23000 León<br>
-                <div style="margin-top: 10px;">
-                    <p><strong><?php echo t('resume.original_ticket'); ?>:</strong> ${ticketOriginal}</p>
-                    <p><strong><?php echo t('resume.date'); ?>:</strong> ${fecha}</p>
-                    <p><strong><?php echo t('return_details.payment'); ?>:</strong> ${devolucion.metodoPago}</p>
-                </div>
-            </div>
-
-            <table class="tabla-lineas">
-                <thead>
-                    <tr><th><?php echo t('return_details.product'); ?></th><th style="text-align:center"><?php echo t('return_details.quantity'); ?></th><th style="text-align:right"><?php echo t('return_details.price'); ?></th><th style="text-align:right"><?php echo t('return_details.amount'); ?></th></tr>
-                </thead>
-                <tbody>${lineasHtml}</tbody>
-            </table>
-            
-            ${totalesHtml}
-            ${obsHtml}
-
-            <div class="footer">
-                <p><?php echo t('return_details.refund_method'); ?> ${devolucion.metodoPago}.</p>
-                <p><?php echo t('return_details.keep_ticket'); ?></p>
-            </div>
-        </body>
-        </html>
-        `;
-
+        const html = generarHTMLComprobante(datosVenta, 'es');
         const printWindow = window.open('', '_blank', 'width=400,height=600');
-        if (!printWindow) {
-            alert('<?php echo t('print.allow_popups'); ?>');
-            return;
+        if (printWindow) {
+            printWindow.document.write(html);
+            printWindow.document.close();
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 500);
         }
-
-        printWindow.document.write(contenido);
-        printWindow.document.close();
-        printWindow.print();
     }
 
     /**
@@ -5112,7 +5063,7 @@ endif; ?>
             descuentoValor: descuento.valor,
             descuentoCupon: descuento.cupon,
             puntosGanados: totalPVP >= 20 ? Math.round(totalPVP * 10) : 0,
-            puntosCanjeados: puntosCanjeados,
+            puntosCanjeados: (descuento.cupon && descuento.cupon.startsWith('PUNTOS_')) ? parseInt(descuento.cupon.split('_')[1]) : 0,
             mensajePersonalizado: mensajePersonalizado,
             pagoMixtoDesglose: (document.getElementById('metodoPago').value === 'mixto') ? pagoMixtoDesglose : null,
             qrUrl: (TPV_CONFIG.qrBaseUrl || 'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR') + '?' + 
@@ -5825,11 +5776,16 @@ endif; ?>
                 email: email,
                 tipoDocumento: 'devolucion',
                 ventaId: ultimaDevolucion.id || '',
+                serie: ultimaDevolucion.serie || 'D',
+                numero: ultimaDevolucion.numero || '',
+                orig_serie: ultimaDevolucion.orig_serie || '',
+                orig_numero: ultimaDevolucion.orig_numero || '',
                 total: ultimaDevolucion.total,
                 lineas: ultimaDevolucion.lineas,
                 fecha: ultimaDevolucion.fecha,
                 metodoPago: ultimaDevolucion.metodoPago,
-                clienteObs: ultimaDevolucion.motivo // pasamos el motivo como observaciones
+                clienteObs: ultimaDevolucion.motivo, // pasamos el motivo como observaciones
+                qrUrl: ultimaDevolucion.qrUrl || ''
             })
         })
             .then(res => res.json())
@@ -5856,113 +5812,9 @@ endif; ?>
     * Genera un iframe oculto e imprime el ticket de devolución usando ultimaDevolucion.
     */
     function imprimirTicketDevolucion() {
-        if (typeof ultimaDevolucion === 'undefined') return;
-
-        let lineasHtml = '';
-        const dec = 2; // Redondear a 2 para ticket de devolución
-        if (ultimaDevolucion.lineas && ultimaDevolucion.lineas.length > 0) {
-            ultimaDevolucion.lineas.forEach(linea => {
-                const dec = 2; // Forzar 2 decimales en ticket de devolución
-                // Formatting depending on the object fields
-                const cant = linea.cantidad || 0;
-                const prec = linea.precio || 0;
-                const imp = linea.importe || 0;
-
-                // Formatear precios (asegurar que es numérico y usar replace para la coma)
-                const precFmt = parseFloat(prec).toFixed(dec).replace('.', ',');
-                const impFmt = parseFloat(imp).toFixed(dec).replace('.', ',');
-
-                lineasHtml += `
-                    <tr>
-                        <td>${linea.nombre || 'Producto'}</td>
-                        <td style="text-align:center">${cant}</td>
-                        <td style="text-align:right">${precFmt} €</td>
-                        <td style="text-align:right">${impFmt} €</td>
-                    </tr>
-                `;
-            });
-        }
-
-        const totalesHtml = `
-            <table style="width: 100%; border-top: 2px solid #000; margin-top: 10px; padding-top: 5px;">
-                <tr>
-                    <td style="font-size: 1.2rem; font-weight: bold;">TOTAL DEVUELTO:</td>
-                    <td style="font-size: 1.2rem; font-weight: bold; text-align:right; color: #dc2626;">-${parseFloat(ultimaDevolucion.total).toFixed(2).replace('.', ',')} €</td>
-                </tr>
-            </table>
-        `;
-
-        let obsHtml = '';
-        if (ultimaDevolucion.motivo) {
-            obsHtml = `<div style="margin-top: 15px; font-size: 0.8rem;"><strong>Motivo:</strong> ${ultimaDevolucion.motivo}</div>`;
-        }
-
-        const contenido = `
-        <html>
-        <head>
-            <title>TICKET DE DEVOLUCIÓN ${ultimaDevolucion.serie || 'T'}${String(ultimaDevolucion.numero || ultimaDevolucion.id || '').padStart(5, '0')}</title>
-            <style>
-                body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #1a1a1a; max-width: 80mm; margin: 0 auto; line-height: 1.4; }
-                .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
-                .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; color: #dc2626; }
-                .header h2 { margin: 5px 0 0; font-size: 0.9rem; font-weight: normal;}
-                .datos { margin-bottom: 15px; font-size: 0.85rem; }
-                .datos p { margin: 3px 0; }
-                table.tabla-lineas { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.8rem; }
-                table.tabla-lineas th { background: #f0f0f0; padding: 6px 4px; text-align: left; border-bottom: 1px solid #ccc;  }
-                table.tabla-lineas td { padding: 6px 4px; border-bottom: 1px dashed #eee; }
-                .footer { text-align: center; font-size: 0.75rem; padding-top: 15px; border-top: 1px solid #ccc; margin-top: 20px;}
-            </style>
-        </head>
-        <body>
-            <div class="header">
-        <h1>${_t('return.ticket_title')}</h1>
-            </div>
-            
-            <div class="datos">
-                <strong>TPV Bazar — Productos Informáticos</strong><br>
-                NIF: B12345678<br>
-                C/ Falsa 123, 23000 León<br>
-                <div style="margin-top: 10px;">
-<p><strong>Nº Ticket Original:</strong> ${ultimaDevolucion.serie || 'T'}${String(ultimaDevolucion.numero || ultimaDevolucion.id || '').padStart(5, '0')}</p>
-                    <p><strong>Fecha Operación:</strong> ${ultimaDevolucion.fecha}</p>
-                    <p><strong>Método de pago:</strong> ${ultimaDevolucion.metodoPago}</p>
-                </div>
-            </div>
-
-            <table class="tabla-lineas">
-                <thead>
-                    <tr><th>Desc.</th><th style="text-align:center">Cant</th><th style="text-align:right">Precio Base</th><th style="text-align:right">Subt.</th></tr>
-                </thead>
-                <tbody>${lineasHtml}</tbody>
-            </table>
-            
-            ${totalesHtml}
-            ${obsHtml}
-
-            <div class="footer">
-                <p>Las cantidades han sido reembolsadas mediante ${ultimaDevolucion.metodoPago}.</p>
-                <p>Conserve este ticket como justificante.</p>
-            </div>
-        </body>
-        </html>
-        `;
-
-        // Crear un iframe oculto para imprimir sin afectar la página actual
-        const iframe = document.createElement('iframe');
-        iframe.style.position = 'absolute';
-        iframe.style.top = '-10000px';
-        document.body.appendChild(iframe);
-        iframe.contentDocument.write(contenido);
-        iframe.contentDocument.close();
-
-        // Cuando el iframe cargue, ejecutar la impresión y luego eliminarlo
-        iframe.onload = function () {
-            iframe.contentWindow.print();
-            setTimeout(() => iframe.remove(), 1000);
-        };
+        if (typeof ultimaDevolucion === 'undefined' || !ultimaDevolucion) return;
+        imprimirDocumentoDevolucionConDatos(ultimaDevolucion);
     }
-
     // ======================== CAJA ========================
 
     /**
