@@ -869,7 +869,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                             'idProducto' => $lr['idProducto'] ?? null,
                             'nombre' => $lr['nombre'] ?? 'Producto',
                             'cantidad' => $lr['cantidad'] ?? 1,
-                            'precioUnitario' => $lr['precioBase'] ?? $lr['precioUnitario'] ?? 0,
+                            'precioUnitario' => $lr['precio'] ?? $lr['precioBase'] ?? $lr['precioUnitario'] ?? 0,
                             'iva' => $lr['iva'] ?? 21
                         ];
                     }
@@ -889,8 +889,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                         'serieNumero' => $resRect['serieNumero'] ?? null,
                         'tipoFactura' => $resRect['tipoFactura'] ?? null,
                         'csv' => $resRect['csv'] ?? null,
+                        'qrUrl' => $resRect['qrUrl'] ?? null,
                         'message' => $resRect['message'] ?? null
                     ];
+                    // Actualizar serie y número para el ticket que se imprimirá
+                    if (isset($resRect['venta'])) {
+                        $_SESSION['devolucionDetalles']['serie'] = $resRect['venta']->getSerie();
+                        $_SESSION['devolucionDetalles']['numero'] = $resRect['venta']->getNumero();
+                        $_SESSION['devolucionDetalles']['qrUrl'] = $resRect['qrUrl'] ?? null;
+                    }
                 } catch (Exception $e) {
                     // No bloquear devolución si falla Verifactu
                     error_log('Verifactu rectificativa error: ' . $e->getMessage());

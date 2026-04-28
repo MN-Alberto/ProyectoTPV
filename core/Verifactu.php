@@ -390,23 +390,30 @@ class Verifactu
         $certPass = self::getConfig('CERT_PASS');
         $aeatUrl = self::getConfig('AEAT_URL_VERIFACTU');
 
-        // ✅ FIX AEAT: Endpoint AnuSOAP obsoleto, todo se envía al mismo endpoint
-        // if (strpos($xml, 'RegistroAnulacion') !== false) {
-        //     $aeatUrl = self::getAnulacionUrl();
-        // }
+        // Errores CURL que indican fallo de conexión (no internet / servidor caído)
+        $erroresConexion = [
+            CURLE_COULDNT_CONNECT,
+            CURLE_COULDNT_RESOLVE_HOST,
+            CURLE_COULDNT_RESOLVE_PROXY,
+            CURLE_OPERATION_TIMEOUTED,
+            CURLE_GOT_NOTHING,
+            CURLE_SEND_ERROR,
+            CURLE_RECV_ERROR,
+        ];
 
-        // ✅ 3 REINTENTOS AUTOMATICOS PARA EL ENTORNO DE PRUEBAS
         $maxIntentos = 3;
         $ultimoError = '';
+        $esErrorConexion = false;
+        $codigoError = null;
 
         for ($intento = 1; $intento <= $maxIntentos; $intento++) {
 
             if (!file_exists($certPath))
-                return ['success' => false, 'message' => 'Certificado no encontrado.'];
+                return ['success' => false, 'message' => 'Certificado no encontrado.', 'es_error_conexion' => false, 'codigo_error' => 'CERT_NOT_FOUND'];
             $pfx = file_get_contents($certPath);
             $certs = [];
             if (!openssl_pkcs12_read($pfx, $certs, $certPass))
-                return ['success' => false, 'message' => 'Error certificado.'];
+                return ['success' => false, 'message' => 'Error certificado.', 'es_error_conexion' => false, 'codigo_error' => 'CERT_INVALID'];
 
             $tempCert = tempnam(sys_get_temp_dir(), 'cert');
             $tempKey = tempnam(sys_get_temp_dir(), 'key');
@@ -425,9 +432,12 @@ class Verifactu
             curl_setopt($ch, CURLOPT_SSLCERT, $tempCert);
             curl_setopt($ch, CURLOPT_SSLKEY, $tempKey);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
 
             $response = curl_exec($ch);
             $curlError = curl_error($ch);
+            $curlErrno = curl_errno($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
             @unlink($tempCert);
@@ -435,22 +445,26 @@ class Verifactu
 
             if ($response === false) {
                 $ultimoError = 'Error CURL: ' . $curlError;
+                $esErrorConexion = in_array($curlErrno, $erroresConexion);
+                $codigoError = 'CURL_' . $curlErrno;
             } else {
-                // Intentar parsear con simplexml (puede fallar con SOAP namespaces)
+                $esErrorConexion = false;
+                // Intentar parsear con simplexml
                 $respXml = @simplexml_load_string($response);
                 if ($respXml) {
                     $estado = (string) ($respXml->xpath('//*[local-name()="EstadoRegistro"]')[0] ?? '');
                     $estadoEnvio = (string) ($respXml->xpath('//*[local-name()="EstadoEnvio"]')[0] ?? '');
                     $csv = (string) ($respXml->xpath('//*[local-name()="CSV"]')[0] ?? '');
+                    $codigoError = (string) ($respXml->xpath('//*[local-name()="CodigoErrorRegistro"]')[0] ?? null);
 
                     if ($estado === 'Correcto' || $estado === 'AceptadoConErrores' || $estadoEnvio === 'Correcto' || $estadoEnvio === 'ParcialmenteCorrecto') {
-                        return ['success' => true, 'csv' => $csv ?: ('REC' . rand(1000, 9999)), 'message' => 'OK'];
+                        return ['success' => true, 'csv' => $csv ?: ('REC' . rand(1000, 9999)), 'message' => 'OK', 'es_error_conexion' => false, 'codigo_error' => null];
                     }
                     $errorDesc = (string) ($respXml->xpath('//*[local-name()="DescripcionErrorRegistro"]')[0] ?? '');
                     $fault = (string) ($respXml->xpath('//*[local-name()="faultstring"]')[0] ?? 'Error AEAT');
                     $ultimoError = $errorDesc ?: $fault;
                 } else {
-                    // Fallback regex: SOAP namespaces can break simplexml
+                    // Fallback regex
                     $estado = '';
                     $estadoEnvio = '';
                     $csv = '';
@@ -460,9 +474,11 @@ class Verifactu
                         $estadoEnvio = trim($m[1]);
                     if (preg_match('/CSV[^>]*>([^<]+)</s', $response, $m))
                         $csv = trim($m[1]);
+                    if (preg_match('/CodigoErrorRegistro[^>]*>([^<]+)</s', $response, $m))
+                        $codigoError = trim($m[1]);
 
                     if ($estado === 'Correcto' || $estado === 'AceptadoConErrores' || $estadoEnvio === 'Correcto' || $estadoEnvio === 'ParcialmenteCorrecto') {
-                        return ['success' => true, 'csv' => $csv ?: ('REC' . rand(1000, 9999)), 'message' => 'OK'];
+                        return ['success' => true, 'csv' => $csv ?: ('REC' . rand(1000, 9999)), 'message' => 'OK', 'es_error_conexion' => false, 'codigo_error' => null];
                     }
 
                     if (preg_match('/faultstring[^>]*>(.*?)<\//s', $response, $matches)) {
@@ -475,15 +491,16 @@ class Verifactu
                 }
             }
 
-            // Si no es el ultimo intento, esperar 1 segundo y reintentar
+            // Si es error de conexión, no reintentar inmediatamente (será encolado)
+            if ($esErrorConexion && $intento >= 2) break;
+
             if ($intento < $maxIntentos) {
                 sleep(1);
                 continue;
             }
         }
 
-        // Si llegamos aqui es que todos los intentos fallaron
-        return ['success' => false, 'message' => $ultimoError];
+        return ['success' => false, 'message' => $ultimoError, 'es_error_conexion' => $esErrorConexion, 'codigo_error' => $codigoError];
     }
 
     private static function prepararCuerpoSOAP($xml)
@@ -507,10 +524,359 @@ class Verifactu
         $params = [
             'nif' => $nif,
             'numserie' => $numSerie,
-            // ✅ FIX AEAT Error 126533117: Normalizar fecha antes de formatear
             'fecha' => date('d-m-Y', strtotime($venta->getFecha())),
             'importe' => number_format($venta->getTotal(), 2, '.', '')
         ];
         return self::getQRBaseUrl() . '?' . http_build_query($params);
+    }
+
+    // ======================== VALIDACIÓN PRE-ENVÍO ========================
+
+    /**
+     * Valida NIF español (persona física o jurídica).
+     * @return bool
+     */
+    public static function validarNIF($nif)
+    {
+        if (!$nif || strlen($nif) !== 9) return false;
+        // Persona física: 12345678A
+        if (preg_match('/^\d{8}[A-Z]$/i', $nif)) return true;
+        // CIF jurídica: A12345678 o A1234567B
+        if (preg_match('/^[ABCDEFGHJKLMNPQRSUVW]\d{7}[0-9A-J]$/i', $nif)) return true;
+        // NIE: X/Y/Z + 7 dígitos + letra
+        if (preg_match('/^[XYZ]\d{7}[A-Z]$/i', $nif)) return true;
+        return false;
+    }
+
+    /**
+     * Comprueba coherencia NIF↔Nombre.
+     * NIF jurídica (A-H,J,N,P-S,U,V,W) → nombre no debe estar vacío.
+     * NIF persona física → nombre no debe parecer razón social.
+     * @return array ['valid' => bool, 'warning' => string|null]
+     */
+    public static function validarNIFNombre($nif, $nombre)
+    {
+        if (!$nif || !$nombre) {
+            return ['valid' => false, 'warning' => 'NIF y Nombre son obligatorios.'];
+        }
+        $primeraLetra = strtoupper(substr($nif, 0, 1));
+        $letrasJuridica = ['A','B','C','D','E','F','G','H','J','N','P','Q','R','S','U','V','W'];
+        $esJuridica = in_array($primeraLetra, $letrasJuridica);
+
+        if ($esJuridica && strlen(trim($nombre)) < 3) {
+            return ['valid' => false, 'warning' => 'NIF jurídico requiere razón social (nombre demasiado corto).'];
+        }
+        return ['valid' => true, 'warning' => null];
+    }
+
+    /**
+     * Valida todos los campos obligatorios antes de generar XML.
+     * @param Venta $venta
+     * @param array $lineas
+     * @return array ['valid' => bool, 'errors' => [...]]
+     */
+    public static function validarDatosPreEnvio($venta, $lineas)
+    {
+        $errors = [];
+        $nif = self::getConfig('TPV_NIF');
+        $nombre = self::getConfig('TPV_RAZON_SOCIAL');
+
+        // VAL_001: NIF formato
+        if (!self::validarNIF($nif)) {
+            $errors[] = ['code' => 'VAL_001', 'field' => 'NIF', 'message' => "NIF inválido: '$nif'. Debe tener 9 caracteres con formato válido."];
+        }
+
+        // VAL_001b: NIF↔Nombre coherencia
+        $nifNom = self::validarNIFNombre($nif, $nombre);
+        if (!$nifNom['valid']) {
+            $errors[] = ['code' => 'VAL_001b', 'field' => 'NIF/Nombre', 'message' => $nifNom['warning']];
+        }
+
+        // VAL_002: NumSerieFactura
+        $serie = $venta->getSerie() ?: '';
+        $numero = $venta->getNumero() ?: '';
+        $numSerie = preg_replace('/\s+/', '', $serie . $numero);
+        if (empty($numSerie)) {
+            $errors[] = ['code' => 'VAL_002', 'field' => 'NumSerieFactura', 'message' => 'Número de serie/factura vacío.'];
+        } elseif (strlen($numSerie) > 60) {
+            $errors[] = ['code' => 'VAL_002', 'field' => 'NumSerieFactura', 'message' => 'NumSerieFactura excede 60 caracteres.'];
+        }
+
+        // VAL_003: Fecha
+        $fecha = $venta->getFecha();
+        if (!$fecha || !strtotime($fecha)) {
+            $errors[] = ['code' => 'VAL_003', 'field' => 'Fecha', 'message' => 'Fecha de expedición inválida.'];
+        } elseif (strtotime($fecha) > time() + 86400) {
+            $errors[] = ['code' => 'VAL_003', 'field' => 'Fecha', 'message' => 'La fecha de expedición no puede ser futura.'];
+        }
+
+        // VAL_004: ImporteTotal
+        $total = $venta->getTotal();
+        if (!is_numeric($total)) {
+            $errors[] = ['code' => 'VAL_004', 'field' => 'ImporteTotal', 'message' => 'Importe total no es numérico.'];
+        }
+
+        // VAL_005: Desglose IVA
+        if (!$lineas || count($lineas) === 0) {
+            $errors[] = ['code' => 'VAL_005', 'field' => 'Desglose', 'message' => 'No hay líneas de venta para el desglose IVA.'];
+        }
+
+        // VAL_006: Cuota coherente
+        if ($lineas && count($lineas) > 0) {
+            $cuotaCalc = 0;
+            foreach ($lineas as $l) {
+                $rate = is_object($l) ? (float)($l->getIva() ?? 21) : (float)($l['iva'] ?? 21);
+                $base = is_object($l) ? (float)$l->getSubtotal() : (float)($l['subtotal'] ?? 0);
+                $cuotaCalc += $base * ($rate / 100);
+            }
+            $baseTotal = 0;
+            foreach ($lineas as $l) {
+                $baseTotal += is_object($l) ? (float)$l->getSubtotal() : (float)($l['subtotal'] ?? 0);
+            }
+            $totalEsperado = round($baseTotal + $cuotaCalc, 2);
+            if (abs($totalEsperado - (float)$total) > 0.05) {
+                $errors[] = ['code' => 'VAL_006', 'field' => 'CuotaTotal', 'message' => "Cuota incoherente: esperado $totalEsperado, recibido $total (diferencia > 0.05€)."];
+            }
+        }
+
+        // VAL_007: TipoFactura (se calcula en generarXML, validamos prerequisitos)
+        $clienteDni = $venta->getClienteDni();
+        if ($clienteDni && !self::validarNIF($clienteDni)) {
+            $errors[] = ['code' => 'VAL_007', 'field' => 'ClienteNIF', 'message' => "NIF del destinatario inválido: '$clienteDni'."];
+        }
+
+        // VAL_008: Certificado
+        $certPath = self::getConfig('CERT_PATH');
+        if (!$certPath || !file_exists($certPath)) {
+            $errors[] = ['code' => 'VAL_008', 'field' => 'Certificado', 'message' => 'Certificado digital no encontrado: ' . ($certPath ?: 'ruta vacía')];
+        }
+
+        // VAL_009: URL AEAT
+        $url = self::getConfig('AEAT_URL_VERIFACTU');
+        if (!$url || !filter_var($url, FILTER_VALIDATE_URL)) {
+            $errors[] = ['code' => 'VAL_009', 'field' => 'URL_AEAT', 'message' => 'URL del endpoint AEAT inválida o vacía.'];
+        }
+
+        return ['valid' => count($errors) === 0, 'errors' => $errors];
+    }
+
+    // ======================== COLA DE ENVÍOS ========================
+
+    /**
+     * Encola un envío pendiente para reintento automático.
+     */
+    public static function encolarEnvio($idDocumento, $tablaOrigen, $tipoEnvio, $xml, $error = '', $codigoError = null, $esConexion = false, $numDocumento = null, $estado = 'pendiente')
+    {
+        error_log("DEBUG Verifactu: Encolando envio para documento $numDocumento ($idDocumento $tablaOrigen)...");
+        $pdo = ConexionDB::getInstancia()->getConexion();
+        $intervalo = (int)(self::getConfig('verifactu_intervalo_reintento') ?: 15);
+        $proximo = date('Y-m-d H:i:s', strtotime("+{$intervalo} minutes"));
+
+        $stmt = $pdo->prepare(
+            "INSERT INTO verifactu_cola_envios 
+             (id_documento, num_documento, tabla_origen, tipo_envio, xml_contenido, estado, ultimo_error, codigo_error_aeat, es_error_conexion, proximo_reintento)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        );
+        $stmt->execute([$idDocumento, $numDocumento, $tablaOrigen, $tipoEnvio, $xml, $estado, $error, $codigoError, $esConexion ? 1 : 0, $proximo]);
+        $idCola = $pdo->lastInsertId();
+        error_log("DEBUG Verifactu: Encolado con exito. ID Cola: $idCola");
+        return $idCola;
+    }
+
+    /**
+     * Procesa la cola de envíos pendientes (llamado por timer cada X minutos).
+     * @return array Resumen del procesamiento
+     */
+    public static function procesarColaPendientes()
+    {
+        $pdo = ConexionDB::getInstancia()->getConexion();
+        $maxLote = (int)(self::getConfig('verifactu_max_lote') ?: 100);
+
+        $stmt = $pdo->prepare(
+            "SELECT * FROM verifactu_cola_envios 
+             WHERE estado IN ('pendiente', 'error_temporal') 
+               AND (proximo_reintento IS NULL OR proximo_reintento <= NOW())
+               AND intentos < max_intentos
+             ORDER BY fecha_creacion ASC
+             LIMIT :limit"
+        );
+        $stmt->bindValue(':limit', $maxLote, PDO::PARAM_INT);
+        $stmt->execute();
+        $pendientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $resumen = ['procesados' => 0, 'exitosos' => 0, 'fallidos' => 0];
+
+        foreach ($pendientes as $envio) {
+            $resumen['procesados']++;
+
+            // Marcar como "enviando"
+            $pdo->prepare("UPDATE verifactu_cola_envios SET estado = 'enviando', fecha_ultimo_intento = NOW() WHERE id = ?")
+                ->execute([$envio['id']]);
+
+            $res = self::enviarAEAT($envio['xml_contenido']);
+            $intentos = $envio['intentos'] + 1;
+            $intervalo = (int)(self::getConfig('verifactu_intervalo_reintento') ?: 15);
+
+            if ($res['success']) {
+                $resumen['exitosos']++;
+                $pdo->prepare(
+                    "UPDATE verifactu_cola_envios SET estado = 'enviado', intentos = ?, fecha_envio_exitoso = NOW(), ultimo_error = NULL WHERE id = ?"
+                )->execute([$intentos, $envio['id']]);
+
+                // Actualizar documento original
+                $pdo->prepare(
+                    "UPDATE {$envio['tabla_origen']} SET estado_aeat = 'enviado', csv_aeat = ?, error_aeat = NULL WHERE id = ?"
+                )->execute([$res['csv'], $envio['id_documento']]);
+
+                self::registrarEvento('reintento_ok', $envio['id_documento'], $envio['tabla_origen'],
+                    "Reenvío exitoso tras {$intentos} intento(s). CSV: " . ($res['csv'] ?? ''));
+            } else {
+                $resumen['fallidos']++;
+                $nuevoEstado = ($intentos >= $envio['max_intentos']) ? 'error_permanente' : 'error_temporal';
+                $proximo = date('Y-m-d H:i:s', strtotime("+{$intervalo} minutes"));
+
+                $pdo->prepare(
+                    "UPDATE verifactu_cola_envios SET estado = ?, intentos = ?, ultimo_error = ?, codigo_error_aeat = ?, es_error_conexion = ?, proximo_reintento = ? WHERE id = ?"
+                )->execute([
+                    $nuevoEstado, $intentos, $res['message'],
+                    $res['codigo_error'] ?? null,
+                    ($res['es_error_conexion'] ?? false) ? 1 : 0,
+                    $proximo, $envio['id']
+                ]);
+
+                self::registrarEvento('reintento', $envio['id_documento'], $envio['tabla_origen'],
+                    "Reintento #{$intentos} fallido: " . $res['message'],
+                    ['codigo' => $res['codigo_error'], 'conexion' => $res['es_error_conexion'] ?? false]);
+            }
+        }
+
+        if ($resumen['procesados'] > 0) {
+            self::registrarEvento('cola_procesada', null, null,
+                "Cola procesada: {$resumen['exitosos']}/{$resumen['procesados']} exitosos.");
+        }
+
+        return $resumen;
+    }
+
+    // ======================== LIBRO DE EVENTOS ========================
+
+    /**
+     * Registra un evento en el Libro de Eventos (obligatorio RD 1007/2023).
+     */
+    public static function registrarEvento($tipo, $idDocumento, $tablaOrigen, $descripcion, $datosExtra = null)
+    {
+        try {
+            $pdo = ConexionDB::getInstancia()->getConexion();
+            $stmt = $pdo->prepare(
+                "INSERT INTO verifactu_eventos (tipo, id_documento, tabla_origen, descripcion, datos_extra) VALUES (?, ?, ?, ?, ?)"
+            );
+            $stmt->execute([$tipo, $idDocumento, $tablaOrigen, $descripcion, $datosExtra ? json_encode($datosExtra) : null]);
+        } catch (Exception $e) {
+            error_log('Verifactu::registrarEvento error: ' . $e->getMessage());
+        }
+    }
+
+    // ======================== SUBSANACIÓN ========================
+
+    /**
+     * Subsana un documento rechazado: regenera XML con datos actuales y lo encola.
+     * @return array ['success' => bool, 'message' => string]
+     */
+    public static function subsanarDocumento($idDocumento, $tablaOrigen)
+    {
+        try {
+            require_once(__DIR__ . '/../model/Venta.php');
+            
+            $pdo = ConexionDB::getInstancia()->getConexion();
+            
+            // Buscar la venta en la tabla específica (tickets o facturas)
+            $stmtVenta = $pdo->prepare("SELECT * FROM {$tablaOrigen} WHERE id = ?");
+            $stmtVenta->execute([$idDocumento]);
+            $fila = $stmtVenta->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$fila) {
+                return ['success' => false, 'message' => "Documento $idDocumento no encontrado en $tablaOrigen."];
+            }
+            
+            // Cargar serie y numero desde ventas_ids
+            $stmtIds = $pdo->prepare("SELECT serie, numero FROM ventas_ids WHERE id = ?");
+            $stmtIds->execute([$idDocumento]);
+            $ids = $stmtIds->fetch(PDO::FETCH_ASSOC);
+            if ($ids) {
+                $fila['serie'] = $ids['serie'];
+                $fila['numero'] = $ids['numero'];
+            }
+            
+            $venta = Venta::crearDesdeArray($fila);
+            
+            // Recuperar líneas de venta
+            $stmtLines = $pdo->prepare("SELECT * FROM lineasVenta WHERE idVenta = ?");
+            $stmtLines->execute([$idDocumento]);
+            $lineas = $stmtLines->fetchAll(PDO::FETCH_ASSOC);
+
+            // Validar antes de regenerar
+            $validacion = self::validarDatosPreEnvio($venta, $lineas);
+            if (!$validacion['valid']) {
+                $msg = 'Subsanación rechazada: ' . json_encode($validacion['errors']);
+                self::registrarEvento('validacion_fallida', $idDocumento, $tablaOrigen, $msg);
+                return ['success' => false, 'message' => 'Validación fallida', 'errors' => $validacion['errors']];
+            }
+
+            // Regenerar XML
+            $xmlNuevo = self::generarXML($venta, $lineas);
+            $hashNuevo = self::calcularHashEncadenado($xmlNuevo, $venta->getHashPrevio());
+
+            // Actualizar hash y XML en documento
+            $pdo->prepare("UPDATE {$tablaOrigen} SET xml_datos = ?, hash = ? WHERE id = ?")
+                ->execute([$xmlNuevo, $hashNuevo, $idDocumento]);
+
+            // Obtener Serie+Numero para la cola
+            $stmtIds = $pdo->prepare("SELECT serie, numero FROM ventas_ids WHERE id = ?");
+            $stmtIds->execute([$idDocumento]);
+            $ids = $stmtIds->fetch(PDO::FETCH_ASSOC);
+            $numDoc = ($ids['serie'] ?? '') . ($ids['numero'] ?? '');
+
+            // Encolar como subsanación
+            $colaId = self::encolarEnvio($idDocumento, $tablaOrigen, 'subsanacion', $xmlNuevo, '', null, false, $numDoc);
+
+            // LIMPIEZA: Borrar físicamente todos los intentos anteriores de este documento que fallaron
+            $pdo->prepare("DELETE FROM verifactu_cola_envios WHERE id_documento = ? AND tabla_origen = ? AND id != ?")
+                ->execute([$idDocumento, $tablaOrigen, $colaId]);
+
+            self::registrarEvento('subsanacion', $idDocumento, $tablaOrigen,
+                "Documento subsanado y encolado (cola ID: $colaId). Intentos anteriores descartados.");
+
+            return ['success' => true, 'message' => 'Documento subsanado y encolado para reenvío.', 'cola_id' => $colaId];
+            
+        } catch (Exception $e) {
+            error_log("Error en subsanarDocumento: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Error interno: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Obtiene estadísticas de la cola de envíos.
+     */
+    public static function getEstadisticasCola()
+    {
+        $pdo = ConexionDB::getInstancia()->getConexion();
+        $stats = [];
+
+        $stmt = $pdo->query("SELECT estado, COUNT(*) as total FROM verifactu_cola_envios GROUP BY estado");
+        $porEstado = [];
+        while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $porEstado[$r['estado']] = (int)$r['total'];
+        }
+        $stats['por_estado'] = $porEstado;
+        $stats['pendientes'] = ($porEstado['pendiente'] ?? 0) + ($porEstado['error_temporal'] ?? 0);
+        $stats['errores_permanentes'] = $porEstado['error_permanente'] ?? 0;
+
+        $stmt = $pdo->query("SELECT COUNT(*) FROM verifactu_cola_envios WHERE estado = 'enviado' AND DATE(fecha_envio_exitoso) = CURDATE()");
+        $stats['enviados_hoy'] = (int)$stmt->fetchColumn();
+
+        $stmt = $pdo->query("SELECT COUNT(*) FROM verifactu_cola_envios WHERE es_error_conexion = 1 AND estado IN ('pendiente','error_temporal')");
+        $stats['sin_conexion'] = (int)$stmt->fetchColumn();
+
+        return $stats;
     }
 }

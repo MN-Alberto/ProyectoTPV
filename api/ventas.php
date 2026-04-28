@@ -136,7 +136,7 @@ if (isset($_GET['historialCaja'])) {
             FROM ventas v
             LEFT JOIN usuarios u ON v.idUsuario = u.id
             LEFT JOIN ventas_ids vi ON v.id = vi.id
-            WHERE v.fecha >= ?
+            WHERE v.fecha >= ? AND v.es_rectificativa = 0
             ORDER BY v.fecha DESC
         ");
         $stmt->execute([$fechaApertura]);
@@ -437,7 +437,7 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
         $conexion = ConexionDB::getInstancia()->getConexion();
 
         // Construir condiciones de filtro
-        $condiciones = [];
+        $condiciones = ["es_rectificativa = 0"];
         $parametros = [];
 
         // Filtro por método de pago
@@ -525,22 +525,17 @@ if (isset($_GET['todas']) || isset($_GET['limpiarVentas'])) {
             $subParametros = $parametros;
         }
 
-        if (empty($condiciones)) {
-            // Conteo ultra-rápido si no hay filtros
-            $totalVentas = $conexion->query("SELECT (SELECT COUNT(*) FROM tickets) + (SELECT COUNT(*) FROM facturas)")->fetchColumn();
-        } else {
-            $sqlCount = "
-                SELECT (SELECT COUNT(*) FROM tickets v $wherePart) + (SELECT COUNT(*) FROM facturas v $wherePart) as total
-            ";
-            $stmtCount = $conexion->prepare($sqlCount);
-            foreach ($subParametros as $i => $p) {
-                // El mismo parámetro se usa dos veces (una para cada tabla)
-                $stmtCount->bindValue($i + 1, $p);
-                $stmtCount->bindValue($i + 1 + count($subParametros), $p);
-            }
-            $stmtCount->execute();
-            $totalVentas = (int) $stmtCount->fetchColumn();
+        $sqlCount = "
+            SELECT (SELECT COUNT(*) FROM tickets v $wherePart) + (SELECT COUNT(*) FROM facturas v $wherePart) as total
+        ";
+        $stmtCount = $conexion->prepare($sqlCount);
+        foreach ($subParametros as $i => $p) {
+            // El mismo parámetro se usa dos veces (una para cada tabla)
+            $stmtCount->bindValue($i + 1, $p);
+            $stmtCount->bindValue($i + 1 + count($subParametros), $p);
         }
+        $stmtCount->execute();
+        $totalVentas = (int) $stmtCount->fetchColumn();
 
         // ✅ DETERMINAR ORDEN
         $orden = $_GET['orden'] ?? 'fecha_desc';

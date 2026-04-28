@@ -136,6 +136,12 @@ $mensajePersonalizado = $datos['mensajePersonalizado'] ?? '';
 // URL del QR de Verifactu
 $qrUrl = $datos['qrUrl'] ?? '';
 
+// Datos de Serie y Número (Verifactu)
+$serie = $datos['serie'] ?? '';
+$numero = $datos['numero'] ?? '';
+$origSerie = $datos['orig_serie'] ?? '';
+$origNumero = $datos['orig_numero'] ?? '';
+
 // Determinamos el título principal del documento según la elección del usuario
 $isFactura = ($tipoDocumento === 'factura');
 $isDevolucion = ($tipoDocumento === 'devolucion');
@@ -569,9 +575,20 @@ if ($isFactura) {
         
         <div class='datos'>
             {$emisorHtml}
-            <div style='margin-top: 10px;'>
-                <p><strong>" . t('print.ticket_number') . ":</strong> {$ventaId}</p>
+            <div style='margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee;'>";
+    
+    if ($isDevolucion) {
+        $cuerpo .= "
+                <p style=\"font-size: 1.1rem; margin-bottom: 5px;\"><strong>Nº Rectificativa:</strong> <span style=\"font-weight: bold;\">{$serie}{$numero}</span></p>
                 <p><strong>" . t('print.operation_date') . ":</strong> {$fecha}</p>
+                <p style=\"font-size: 12px; color: #666; margin-top: 5px;\">Rectifica al documento: {$origSerie}{$origNumero}</p>";
+    } else {
+        $cuerpo .= "
+                <p><strong>" . t('print.ticket_number') . ":</strong> {$ventaId}</p>
+                <p><strong>" . t('print.operation_date') . ":</strong> {$fecha}</p>";
+    }
+    
+    $cuerpo .= "
                 <div style='margin-top:5px;'>{$metodoPagoHtmlTicket}</div>
             </div>
             {$receptorHtml}

@@ -92,10 +92,10 @@ function generarFilaVenta(venta) {
                 <button class="btn-admin-accion btn-ver" onclick="event.stopPropagation(); verDetalleVenta(${venta.id})" title="Ver Detalles">
                     <i class="fas fa-eye"></i>
                 </button>
-                <button class="btn-admin-accion btn-imprimir" onclick="event.stopPropagation(); imprimirVentaDesdeHistorial(${venta.id})" title="Reimprimir Ticket" style="background: #0ea5e9;">
+                <button class="btn-admin-accion btn-editar" onclick="event.stopPropagation(); imprimirVentaDesdeHistorial(${venta.id})" title="Reimprimir Ticket">
                     <i class="fas fa-print"></i>
                 </button>
-                ${!esAnulada && !esRect ? `<button class="btn-admin-accion" onclick="event.stopPropagation(); anularVentaAdmin('${venta.serie || 'T'}', ${venta.numero || venta.id})" title="Anular Documento" style="background:#ef4444;">
+                ${!esAnulada && !esRect ? `<button class="btn-admin-accion btn-eliminar" onclick="event.stopPropagation(); anularVentaAdmin('${venta.serie || 'T'}', ${venta.numero || venta.id})" title="Anular Documento">
                     <i class="fas fa-ban"></i>
                 </button>` : ''}
             </td>
@@ -473,6 +473,15 @@ function buscarDevolucionesPorTicket() {
 }
 
 function verDetalleDevolucion(id) {
+    const container = document.getElementById('ticketDevolucionContainer');
+    if (container) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                <p>Cargando comprobante...</p>
+            </div>`;
+    }
+
     fetch('api/devoluciones.php?todas=1')
         .then(r => r.json())
         .then(data => {
@@ -480,22 +489,62 @@ function verDetalleDevolucion(id) {
             const dev = lista.find(d => d.id == id);
             if (!dev) { alert('No se encontró la devolución'); return; }
 
-            // Guardar para el botón "Ver Ticket" (dev individual + lista completa para agrupar por lote)
+            // Guardar para el botón "Imprimir" (antes Ver Ticket)
             window._ultimaDevAdmin = dev;
             window._todasDevolucionesAdmin = lista;
 
-            const fecha = new Date(dev.fecha).toLocaleString('es-ES',
-                { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            // Agrupar lote
+            const lote = lista.filter(d => d.idVenta == dev.idVenta && d.fecha === dev.fecha);
+            
+            const carrito = lote.map(linea => ({
+                nombre: linea.producto_nombre || '—',
+                cantidad: linea.cantidad,
+                precio: parseFloat(linea.precioUnitario) || 0,
+                iva: linea.iva || 21,
+                importeTotal: parseFloat(linea.importeTotal) || 0
+            }));
 
-            document.getElementById('verDevolucionId').textContent = dev.id;
-            const t = document.getElementById('verDevolucionTicket');
-            if (t) t.textContent = (dev.serie || 'T') + String(dev.numero || dev.idVenta || '—').padStart(5, '0');
-            document.getElementById('verDevolucionFecha').textContent = fecha;
-            document.getElementById('verDevolucionProducto').textContent = dev.producto_nombre || '—';
-            document.getElementById('verDevolucionCantidad').textContent = dev.cantidad;
-            document.getElementById('verDevolucionImporte').textContent = '-' + parseFloat(dev.importeTotal).toFixed(2).replace('.', ',') + ' €';
-            document.getElementById('verDevolucionMetodo').textContent = dev.metodoPago;
-            document.getElementById('verDevolucionUsuario').textContent = dev.usuario_nombre || '—';
+            const totalGeneral = carrito.reduce((sum, item) => sum + item.importeTotal, 0);
+
+            const nifTpv = (window.TPV_CONFIG && window.TPV_CONFIG.nif) ? window.TPV_CONFIG.nif : '';
+            const serie = dev.serie || 'D';
+            const numeroReal = dev.numero || dev.idVenta || dev.id;
+            const numserie = serie + numeroReal;
+
+            const qrParams = new URLSearchParams({
+                nif: nifTpv,
+                numserie: numserie,
+                fecha: (() => {
+                    const d = new Date(dev.fecha);
+                    return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
+                })(),
+                importe: (-totalGeneral).toFixed(2)
+            });
+
+            const datosVenta = {
+                id: numeroReal,
+                serie: serie,
+                numero: numeroReal,
+                fecha: new Date(dev.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                tipo: 'ticket',
+                es_rectificativa: true,
+                id_original: dev.idVenta,
+                serie_original: dev.serie_original || 'T',
+                total: -totalGeneral,
+                metodoPago: dev.metodoPago,
+                carrito: carrito,
+                usuario_nombre: dev.usuario_nombre,
+                qrUrl: ((window.TPV_CONFIG && window.TPV_CONFIG.qrBaseUrl) || 'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR') + '?' + qrParams.toString()
+            };
+
+            const html = generarHTMLComprobante(datosVenta, 'es');
+            if (container) {
+                // Insertar solo el body del ticket generado para que se vea bien en el modal
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const bodyContent = doc.body.innerHTML;
+                container.innerHTML = `<div class="ticket-preview-wrapper" style="transform: scale(0.95); transform-origin: top center;">${bodyContent}</div>`;
+            }
             abrirModal('modalVerDevolucion');
         })
         .catch(() => alert('Error al cargar detalles'));

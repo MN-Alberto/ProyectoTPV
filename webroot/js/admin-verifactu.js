@@ -2,6 +2,8 @@
  * admin-verifactu.js
  * Gestión de la configuración fiscal y cumplimiento Verifactu.
  */
+console.log("DEBUG: admin-verifactu.js is being loaded...");
+
 
 function cargarConfiguracionFiscal() {
     seccionActual = 'configuracion-fiscal';
@@ -46,8 +48,6 @@ function renderEditorFiscal(config) {
                         </div>
                     </div>
 
-                        </div>
-                    </div>
                     <div class="tema-campo" style="margin-top: 20px;">
                         <label class="tema-label">Dirección Fiscal / Local comercial</label>
                         <input type="text" id="fiscal_tpv_direccion" value="${config.tpv_direccion || ''}" 
@@ -58,10 +58,19 @@ function renderEditorFiscal(config) {
                     <div class="tema-campo" style="margin-top: 20px;">
                         <label class="tema-label">URL Endpoint AEAT (Entorno)</label>
                         <select id="fiscal_aeat_url" class="tema-input" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-main); background: var(--bg-input); color: var(--text-main);">
-                            <option value="https://prewww1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP" ${config.aeat_url_verifactu?.includes('prewww1') ? 'selected' : ''}>PRE-PRODUCCIÓN (Pruebas)</option>
-                            <option value="https://www1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP" ${!config.aeat_url_verifactu?.includes('prewww1') ? 'selected' : ''}>PRODUCCIÓN (Real)</option>
+                            <option value="https://prewww1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP" ${(config.aeat_url_verifactu && config.aeat_url_verifactu.indexOf('prewww1') !== -1) ? 'selected' : ''}>PRE-PRODUCCIÓN (Pruebas Reales)</option>
+                            <option value="https://www1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP" ${(!config.aeat_url_verifactu || (config.aeat_url_verifactu.indexOf('prewww1') === -1 && config.aeat_url_verifactu.indexOf('servidor-falso') === -1)) ? 'selected' : ''}>PRODUCCIÓN (Envío Real)</option>
+                            <option value="https://servidor-falso.aeat.es/VerifactuSOAP" ${config.aeat_url_verifactu && config.aeat_url_verifactu.indexOf('servidor-falso') !== -1 ? 'selected' : ''}>⚠️ SIMULAR ERROR (URL inexistente)</option>
                         </select>
                         <p class="tema-ayuda" style="margin-top: 5px; font-size: 0.8rem; color: #6b7280;">Use el entorno de pruebas para validar la conexión antes de pasar a producción.</p>
+                    </div>
+
+                    <div class="tema-campo" style="margin-top: 20px;">
+                        <label class="tema-label">Intervalo de Reintento (minutos)</label>
+                        <input type="number" id="fiscal_verifactu_intervalo_reintento" value="${config.verifactu_intervalo_reintento || 15}" 
+                               class="tema-input" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-main); background: var(--bg-input); color: var(--text-main);"
+                               min="1" max="1440">
+                        <p class="tema-ayuda" style="margin-top: 5px; font-size: 0.8rem; color: #6b7280;">Tiempo de espera antes de reintentar envíos fallidos automáticamente.</p>
                     </div>
 
                     <div style="margin-top: 30px; border-top: 1px solid var(--border-main); padding-top: 20px;">
@@ -104,7 +113,8 @@ function guardarConfiguracionFiscal() {
         tpv_direccion: document.getElementById('fiscal_tpv_direccion').value.trim(),
         aeat_url_verifactu: document.getElementById('fiscal_aeat_url').value,
         cert_path: document.getElementById('fiscal_cert_path').value.trim(),
-        cert_pass: document.getElementById('fiscal_cert_pass').value
+        cert_pass: document.getElementById('fiscal_cert_pass').value,
+        verifactu_intervalo_reintento: document.getElementById('fiscal_verifactu_intervalo_reintento').value
     };
 
     if (!datos.tpv_nif || !datos.tpv_razon_social || !datos.cert_path) {
@@ -146,11 +156,526 @@ function togglePassword(id) {
     }
 }
 
-// Hook para inyectar en la navegación principal (admin.js)
-// Debemos asegurarnos de que la función cargarseccion('config-fiscal') llame a cargarConfiguracionFiscal()
-document.addEventListener('click', function(e) {
-    const btn = e.target.closest('[data-seccion="config-fiscal"]');
-    if (btn) {
-        cargarConfiguracionFiscal();
+// El enrutamiento se maneja ahora desde vAdmin.php switch
+// ======================== ENVÍOS AEAT ========================
+
+let verifactuTabActual = 'cola';
+let verifactuPaginaActual = 1;
+const verifactuLimitePorPagina = 5;
+
+function cargarEnviosAeat() {
+    seccionActual = 'envios-aeat';
+    renderEnviosAeatLayout();
+    cargarTabEnvios(verifactuTabActual);
+}
+
+function renderEnviosAeatLayout() {
+    const contenedor = document.getElementById('adminContenido');
+    contenedor.innerHTML = `
+    <div class="verifactu-dashboard">
+        <div class="verifactu-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2><i class="fas fa-satellite-dish" style="color:var(--accent-main)"></i> Monitor Verifactu AEAT</h2>
+            <div>
+                <button class="btn-primario" onclick="procesarColaManual()" id="btnProcesarCola" style="padding: 8px 15px; border-radius: 6px; border: none; background: var(--accent-main); color: white; cursor: pointer; font-weight: 500;">
+                    <i class="fas fa-sync-alt"></i> Procesar Pendientes Ahora
+                </button>
+            </div>
+        </div>
+
+        <div class="verifactu-tabs" style="display:flex; gap:10px; margin-bottom:20px; border-bottom: 1px solid var(--border-main); padding-bottom: 10px;">
+            <button class="v-tab-btn ${verifactuTabActual === 'cola' ? 'active' : ''}" onclick="cargarTabEnvios('cola')" style="padding: 8px 15px; border: none; background: transparent; cursor: pointer; font-weight: 600; color: ${verifactuTabActual === 'cola' ? 'var(--accent-main)' : 'var(--text-muted)'}; border-bottom: ${verifactuTabActual === 'cola' ? '2px solid var(--accent-main)' : 'none'};">
+                <i class="fas fa-list"></i> Cola de Envíos
+            </button>
+            <button class="v-tab-btn ${verifactuTabActual === 'eventos' ? 'active' : ''}" onclick="cargarTabEnvios('eventos')" style="padding: 8px 15px; border: none; background: transparent; cursor: pointer; font-weight: 600; color: ${verifactuTabActual === 'eventos' ? 'var(--accent-main)' : 'var(--text-muted)'}; border-bottom: ${verifactuTabActual === 'eventos' ? '2px solid var(--accent-main)' : 'none'};">
+                <i class="fas fa-book"></i> Libro de Eventos
+            </button>
+            <button class="v-tab-btn ${verifactuTabActual === 'stats' ? 'active' : ''}" onclick="cargarTabEnvios('stats')" style="padding: 8px 15px; border: none; background: transparent; cursor: pointer; font-weight: 600; color: ${verifactuTabActual === 'stats' ? 'var(--accent-main)' : 'var(--text-muted)'}; border-bottom: ${verifactuTabActual === 'stats' ? '2px solid var(--accent-main)' : 'none'};">
+                <i class="fas fa-chart-pie"></i> Estadísticas
+            </button>
+        </div>
+
+        <div id="verifactuContenidoTab" style="background: var(--bg-secondary); border: 1px solid var(--border-main); border-radius: 8px; padding: 20px;">
+            <div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
+        </div>
+    </div>
+    `;
+}
+
+function cargarTabEnvios(tab, pagina = 1) {
+    verifactuTabActual = tab;
+    verifactuPaginaActual = pagina;
+    
+    // Actualizar UI tabs
+    document.querySelectorAll('.v-tab-btn').forEach(btn => {
+        btn.style.color = 'var(--text-muted)';
+        btn.style.borderBottom = 'none';
+    });
+    const activeBtn = document.querySelector(`.v-tab-btn[onclick="cargarTabEnvios('${tab}')"]`);
+    if (activeBtn) {
+        activeBtn.style.color = 'var(--accent-main)';
+        activeBtn.style.borderBottom = '2px solid var(--accent-main)';
     }
+
+    const contenedor = document.getElementById('verifactuContenidoTab');
+    contenedor.innerHTML = '<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+
+    if (tab === 'cola') {
+        fetch(`api/verifactu-cola.php?pendientes=1&page=${verifactuPaginaActual}&limit=${verifactuLimitePorPagina}`)
+            .then(r => r.json())
+            .then(data => renderColaEnvios(data))
+            .catch(e => contenedor.innerHTML = '<p style="color:red">Error cargando cola.</p>');
+    } else if (tab === 'eventos') {
+        fetch(`api/verifactu-cola.php?eventos=1&page=${verifactuPaginaActual}`)
+            .then(r => r.json())
+            .then(data => renderLibroEventos(data.eventos))
+            .catch(e => contenedor.innerHTML = '<p style="color:red">Error cargando eventos.</p>');
+    } else if (tab === 'stats') {
+        fetch('api/verifactu-cola.php?estadisticas=1')
+            .then(r => r.json())
+            .then(data => renderStatsEnvios(data))
+            .catch(e => contenedor.innerHTML = '<p style="color:red">Error cargando estadísticas.</p>');
+    }
+}
+
+function renderColaEnvios(data) {
+    const envios = data.envios || [];
+    const totalPages = data.pages || 1;
+    const contenedor = document.getElementById('verifactuContenidoTab');
+    
+    if (!envios || envios.length === 0) {
+        contenedor.innerHTML = `
+            <div style="text-align:center; padding: 50px; color: var(--text-muted);">
+                <i class="fas fa-check-circle fa-4x" style="color: #10b981; margin-bottom: 20px;"></i>
+                <h3>Cola Vacía</h3>
+                <p>Todos los documentos han sido enviados a la AEAT correctamente.</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = `
+        <table class="tema-tabla" style="width:100%; border-collapse: collapse;">
+            <thead style="position: sticky; top: 0; z-index: 10; background: #374151; color: white;">
+                <tr>
+                    <th style="padding: 12px; text-align: left;">ID Doc</th>
+                    <th style="padding: 12px; text-align: left;">Origen</th>
+                    <th style="padding: 12px; text-align: left;">Estado</th>
+                    <th style="padding: 12px; text-align: center;">Intentos</th>
+                    <th style="padding: 12px; text-align: left;">Próx. Reintento</th>
+                    <th style="padding: 12px; text-align: left;">Último Error</th>
+                    <th style="padding: 12px; text-align: right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    envios.forEach(e => {
+        let badgeColor = '#6b7280';
+        if (e.estado === 'pendiente') badgeColor = '#f59e0b';
+        if (e.estado === 'enviando') badgeColor = '#3b82f6';
+        if (e.estado === 'error_temporal') badgeColor = '#ef4444';
+        if (e.estado === 'error_permanente') badgeColor = '#991b1b';
+        if (e.estado === 'enviado') badgeColor = '#10b981';
+
+        const esErrorAEAT = e.codigo_error_aeat ? true : false;
+        
+        html += `
+            <tr style="border-bottom: 1px solid var(--border-main); background: ${e.es_error_conexion === 1 ? 'rgba(245, 158, 11, 0.05)' : 'transparent'};">
+                <td style="padding: 12px; font-weight: bold;">${e.display_num || e.num_documento || '#' + e.id_documento}</td>
+                <td style="padding: 12px; text-transform: capitalize;">${e.tabla_origen}</td>
+                <td style="padding: 12px;">
+                    <span style="background: ${badgeColor}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">
+                        ${e.estado.replace('_', ' ').toUpperCase()}
+                    </span>
+                    ${e.es_error_conexion == 1 ? '<i class="fas fa-wifi" style="color:#ef4444; margin-left:5px;" title="Error de Conexión"></i>' : ''}
+                </td>
+                <td style="padding: 12px; text-align: center;">${e.intentos}/${e.max_intentos}</td>
+                <td style="padding: 12px; font-size: 0.85rem;">${e.proximo_reintento || '-'}</td>
+                <td style="padding: 12px; font-size: 0.85rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${e.ultimo_error || ''}">
+                    ${e.codigo_error_aeat ? `<b>[${e.codigo_error_aeat}]</b> ` : ''}${e.ultimo_error || '-'}
+                </td>
+                <td style="padding: 12px; text-align: right;">
+                    ${e.estado !== 'enviado' ? `
+                        <button onclick="reenviarEnvioManual(${e.id})" title="Forzar Reintento" style="background:transparent; border:none; color:#3b82f6; cursor:pointer; margin-right:8px;"><i class="fas fa-redo"></i></button>
+                    ` : ''}
+                    <button class="btn-admin-accion btn-editar" onclick="abrirEditorDocumentoAeat(${e.id_documento}, '${e.tabla_origen}', '${e.display_num || e.num_documento}')" title="Editar datos del documento" style="background:transparent; border:none; color:#6b7280; cursor:pointer; margin-right:8px;">
+                        <i class="fas fa-pencil-alt"></i>
+                    </button>
+                    ${e.estado === 'error_permanente' || esErrorAEAT ? `
+                        <button onclick="subsanarDocumentoManual(${e.id_documento}, '${e.tabla_origen}')" title="Subsanar" style="background:transparent; border:none; color:#10b981; cursor:pointer; margin-right:8px;"><i class="fas fa-tools"></i></button>
+                        <button onclick="descartarEnvioManual(${e.id})" title="Descartar (Ignorar)" style="background:transparent; border:none; color:#ef4444; cursor:pointer;"><i class="fas fa-trash"></i></button>
+                    ` : ''}
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `</tbody></table>`;
+
+    // Añadir controles de paginación
+    html += `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; padding-top:15px; border-top:1px solid var(--border-main);">
+            <div style="color:var(--text-muted); font-size:0.9rem;">
+                Página <b>${verifactuPaginaActual}</b> de <b>${totalPages}</b>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button onclick="cargarTabEnvios('cola', ${verifactuPaginaActual - 1})" 
+                        ${verifactuPaginaActual <= 1 ? 'disabled' : ''} 
+                        style="padding:6px 12px; border-radius:6px; border:1px solid var(--border-main); background:var(--bg-panel); cursor:${verifactuPaginaActual <= 1 ? 'not-allowed' : 'pointer'}; opacity:${verifactuPaginaActual <= 1 ? '0.5' : '1'};">
+                    <i class="fas fa-chevron-left"></i> Anterior
+                </button>
+                <button onclick="cargarTabEnvios('cola', ${verifactuPaginaActual + 1})" 
+                        ${verifactuPaginaActual >= totalPages ? 'disabled' : ''} 
+                        style="padding:6px 12px; border-radius:6px; border:1px solid var(--border-main); background:var(--bg-panel); cursor:${verifactuPaginaActual >= totalPages ? 'not-allowed' : 'pointer'}; opacity:${verifactuPaginaActual >= totalPages ? '0.5' : '1'};">
+                    Siguiente <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    contenedor.innerHTML = html;
+}
+
+function renderLibroEventos(eventos) {
+    const contenedor = document.getElementById('verifactuContenidoTab');
+    if (!eventos || eventos.length === 0) {
+        contenedor.innerHTML = '<p style="text-align:center; padding: 40px;">No hay eventos registrados.</p>';
+        return;
+    }
+
+    let html = `
+        <div style="background:var(--bg-panel); border-radius:6px; max-height: 300px; overflow-y:auto;">
+            <table class="tema-tabla" style="width:100%; border-collapse: collapse; font-size: 0.9rem;">
+                <thead style="position: sticky; top: 0; z-index: 10; background: #374151; color: white;">
+                    <tr>
+                        <th style="padding: 10px; text-align: left;">Fecha</th>
+                        <th style="padding: 10px; text-align: left;">Tipo</th>
+                        <th style="padding: 10px; text-align: left;">Doc ID</th>
+                        <th style="padding: 10px; text-align: left;">Descripción</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    eventos.forEach(e => {
+        let icon = 'fa-info-circle';
+        let color = 'var(--text-main)';
+        
+        if (e.tipo.includes('error') || e.tipo.includes('fallida')) { icon = 'fa-times-circle'; color = '#ef4444'; }
+        if (e.tipo.includes('ok') || e.tipo.includes('recuperada')) { icon = 'fa-check-circle'; color = '#10b981'; }
+        if (e.tipo.includes('perdida')) { icon = 'fa-wifi'; color = '#f59e0b'; }
+        if (e.tipo === 'subsanacion') { icon = 'fa-tools'; color = '#3b82f6'; }
+
+        html += `
+            <tr style="border-bottom: 1px solid var(--border-main);">
+                <td style="padding: 10px; white-space: nowrap; color: var(--text-muted);">${e.fecha}</td>
+                <td style="padding: 10px;">
+                    <span style="color: ${color}; font-weight: 500;">
+                        <i class="fas ${icon}" style="margin-right:5px;"></i> ${e.tipo.replace('_', ' ').toUpperCase()}
+                    </span>
+                </td>
+                <td style="padding: 10px; font-weight:bold; color:var(--accent-main);">${e.display_num || (e.id_documento ? '#' + e.id_documento : '-')}</td>
+                <td style="padding: 10px;">${e.descripcion}</td>
+            </tr>
+        `;
+    });
+
+    html += `</tbody></table></div>`;
+    contenedor.innerHTML = html;
+}
+
+function renderStatsEnvios(stats) {
+    const contenedor = document.getElementById('verifactuContenidoTab');
+    
+    contenedor.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div style="background: var(--bg-panel); border: 1px solid var(--border-main); padding: 20px; border-radius: 8px; text-align: center;">
+                <h3 style="color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 10px;">Pendientes</h3>
+                <div style="font-size: 2.5rem; font-weight: bold; color: #f59e0b;">${stats.pendientes || 0}</div>
+            </div>
+            
+            <div style="background: var(--bg-panel); border: 1px solid var(--border-main); padding: 20px; border-radius: 8px; text-align: center;">
+                <h3 style="color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 10px;">Enviados Hoy</h3>
+                <div style="font-size: 2.5rem; font-weight: bold; color: #10b981;">${stats.enviados_hoy || 0}</div>
+            </div>
+
+            <div style="background: var(--bg-panel); border: 1px solid var(--border-main); padding: 20px; border-radius: 8px; text-align: center;">
+                <h3 style="color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 10px;">Errores de Red</h3>
+                <div style="font-size: 2.5rem; font-weight: bold; color: #ef4444;">${stats.sin_conexion || 0}</div>
+            </div>
+
+            <div style="background: var(--bg-panel); border: 1px solid var(--border-main); padding: 20px; border-radius: 8px; text-align: center;">
+                <h3 style="color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 10px;">Err. Permanentes</h3>
+                <div style="font-size: 2.5rem; font-weight: bold; color: #991b1b;">${stats.errores_permanentes || 0}</div>
+            </div>
+        </div>
+    `;
+}
+
+// ======================== ACCIONES ========================
+
+function procesarColaManual() {
+    const btn = document.getElementById('btnProcesarCola');
+    const prevHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+    btn.disabled = true;
+
+    fetch('api/verifactu-cola.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'procesarCola' })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            Swal.fire({
+                title: 'Proceso completado',
+                text: `Procesados: ${data.resumen.procesados}. Exitosos: ${data.resumen.exitosos}. Fallidos: ${data.resumen.fallidos}.`,
+                icon: 'success',
+                timer: 3000
+            });
+            if (seccionActual === 'envios-aeat') cargarTabEnvios(verifactuTabActual);
+            actualizarBadgePendientesAeat();
+        } else {
+            Swal.fire('Error', data.error || 'Error al procesar la cola', 'error');
+        }
+    })
+    .catch(e => {
+        console.error(e);
+        Swal.fire('Error', 'Fallo de conexión', 'error');
+    })
+    .finally(() => {
+        btn.innerHTML = prevHtml;
+        btn.disabled = false;
+    });
+}
+
+function abrirEditorDocumentoAeat(idDoc, tabla, numDoc) {
+    // Cargar detalles actuales para el formulario
+    fetch(`api/ventas.php?detalleVenta=${idDoc}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert(data.error); return; }
+            const v = data.venta;
+            
+            let html = `
+                <div style="padding:0;">
+                    <!-- Cabecera Premium -->
+                    <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 25px; border-radius: 12px 12px 0 0; text-align: center;">
+                        <i class="fas fa-file-invoice" style="font-size: 2.5rem; margin-bottom: 15px; opacity: 0.9;"></i>
+                        <h3 style="margin:0; font-size: 1.4rem;">Corregir Datos Fiscales</h3>
+                        <p style="margin: 5px 0 0; opacity: 0.8; font-size: 0.9rem;">Documento: <b>${numDoc}</b></p>
+                    </div>
+
+                    <div style="padding: 25px;">
+                        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; line-height: 1.4;">
+                            <i class="fas fa-info-circle" style="color: #3b82f6;"></i> Modifique los datos del cliente para que cumplan con las reglas de validación de la AEAT.
+                        </p>
+
+                        <!-- Campo NIF -->
+                        <div style="margin-bottom: 20px;">
+                            <label style="display:block; margin-bottom: 8px; font-weight: 600; color: var(--text-main); font-size: 0.9rem;">
+                                <i class="fas fa-id-card" style="width: 20px;"></i> NIF / DNI del Cliente
+                            </label>
+                            <input type="text" id="editAeatNif" class="filtro-input" value="${v.cliente_dni || ''}" 
+                                   placeholder="Ej: 12345678Z"
+                                   style="width:100%; box-sizing:border-box; padding: 12px; border: 2px solid var(--border-main); border-radius: 8px; font-size: 1rem; transition: border-color 0.2s;">
+                        </div>
+
+                        <!-- Campo Nombre -->
+                        <div style="margin-bottom: 20px;">
+                            <label style="display:block; margin-bottom: 8px; font-weight: 600; color: var(--text-main); font-size: 0.9rem;">
+                                <i class="fas fa-user" style="width: 20px;"></i> Nombre o Razón Social
+                            </label>
+                            <input type="text" id="editAeatNombre" class="filtro-input" value="${v.cliente_nombre || ''}" 
+                                   placeholder="Nombre completo o empresa"
+                                   style="width:100%; box-sizing:border-box; padding: 12px; border: 2px solid var(--border-main); border-radius: 8px; font-size: 1rem;">
+                        </div>
+
+                        <!-- Campo Dirección -->
+                        <div style="margin-bottom: 25px;">
+                            <label style="display:block; margin-bottom: 8px; font-weight: 600; color: var(--text-main); font-size: 0.9rem;">
+                                <i class="fas fa-map-marker-alt" style="width: 20px;"></i> Dirección Fiscal
+                            </label>
+                            <input type="text" id="editAeatDireccion" class="filtro-input" value="${v.cliente_direccion || ''}" 
+                                   placeholder="Calle, número, CP, Ciudad"
+                                   style="width:100%; box-sizing:border-box; padding: 12px; border: 2px solid var(--border-main); border-radius: 8px; font-size: 1rem;">
+                        </div>
+
+                        <!-- Botones -->
+                        <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:10px;">
+                            <button class="btn-modal-cancelar" onclick="cerrarModal('modalEditarAeat')" 
+                                    style="padding: 10px 20px; font-weight: 600;">
+                                Cancelar
+                            </button>
+                            <button onclick="guardarCambiosDocumentoAeat(${idDoc}, '${tabla}')" 
+                                    style="padding: 10px 25px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                                <i class="fas fa-save"></i> Guardar Cambios
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            let modal = document.getElementById('modalEditarAeat');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'modalEditarAeat';
+                modal.className = 'modal-overlay';
+                modal.style.display = 'none';
+                modal.innerHTML = '<div class="modal-content" style="max-width:500px; padding:0; border-radius:12px; overflow:hidden; border:none; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);"></div>';
+                document.body.appendChild(modal);
+            }
+            modal.querySelector('.modal-content').innerHTML = html;
+            modal.style.display = 'flex';
+        });
+}
+
+function guardarCambiosDocumentoAeat(idDoc, tabla) {
+    const data = {
+        action: 'editarDocumento',
+        id_documento: idDoc,
+        tabla: tabla,
+        nif: document.getElementById('editAeatNif').value,
+        nombre: document.getElementById('editAeatNombre').value,
+        direccion: document.getElementById('editAeatDireccion').value
+    };
+
+    fetch('api/verifactu-cola.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.ok) {
+            cerrarModal('modalEditarAeat');
+            mostrarNotificacion('Datos actualizados correctamente.', 'success');
+            cargarEnviosAeat(); // Recargar lista
+        } else {
+            alert('Error: ' + res.error);
+        }
+    });
+}
+
+function reenviarEnvioManual(id) {
+    fetch('api/verifactu-cola.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reenviar', id: id })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            cargarTabEnvios('cola');
+            actualizarBadgePendientesAeat();
+        } else {
+            Swal.fire('Error', data.error, 'error');
+        }
+    });
+}
+
+function descartarEnvioManual(id) {
+    Swal.fire({
+        title: '¿Descartar este envío?',
+        text: 'No se volverá a intentar enviar a la AEAT.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, descartar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('api/verifactu-cola.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'descartarError', id: id })
+            }).then(() => cargarTabEnvios('cola'));
+        }
+    });
+}
+
+function subsanarDocumentoManual(idDoc, tabla) {
+    Swal.fire({
+        title: 'Subsanar Documento',
+        html: `
+            <p style="margin-bottom:15px; font-size:0.9rem;">
+                Asegúrate de haber corregido los datos erróneos (ej. NIF del cliente).<br>
+                El sistema regenerará el XML y lo encolará como "Subsanación".
+            </p>
+        `,
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'Regenerar y Encolar',
+        showLoaderOnConfirm: true,
+        preConfirm: () => {
+            return fetch('api/verifactu-cola.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'subsanar', id_documento: idDoc, tabla: tabla })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) {
+                    if (data.errors) {
+                        const errs = data.errors.map(e => `<li><b>${e.field}</b>: ${e.message}</li>`).join('');
+                        throw new Error(`Validación pre-envío fallida:<ul style="text-align:left;font-size:0.85rem;margin-top:10px;">${errs}</ul>`);
+                    }
+                    throw new Error(data.message || 'Error desconocido');
+                }
+                return data;
+            })
+            .catch(error => {
+                Swal.showValidationMessage(error.message);
+            });
+        },
+        allowOutsideClick: () => !Swal.isLoading()
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire('Subsanado', 'Documento encolado correctamente.', 'success');
+            cargarTabEnvios('cola');
+        }
+    });
+}
+
+// ======================== AUTO-RETRY Y BADGE ========================
+
+function actualizarBadgePendientesAeat() {
+    fetch('api/verifactu-cola.php?estadisticas=1')
+        .then(r => r.json())
+        .then(stats => {
+            const badge = document.getElementById('badgePendientesAeat');
+            if (!badge) return;
+            const num = parseInt(stats.pendientes || 0);
+            if (num > 0) {
+                badge.textContent = num > 99 ? '+99' : num;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        })
+        .catch(e => console.error("Error stats AEAT", e));
+}
+
+// Iniciar timer global
+setInterval(() => {
+    fetch('api/verifactu-cola.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'procesarCola' })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok && data.resumen && data.resumen.procesados > 0) {
+            actualizarBadgePendientesAeat();
+            if (seccionActual === 'envios-aeat') {
+                cargarTabEnvios(verifactuTabActual);
+            }
+        }
+    })
+    .catch(e => console.error("Error auto-retry AEAT", e));
+}, 15 * 60 * 1000); // 15 minutos por defecto, procesarCola ya respeta el 'proximo_reintento'
+
+// Actualizar badge al cargar la página
+document.addEventListener('DOMContentLoaded', () => {
+    actualizarBadgePendientesAeat();
 });

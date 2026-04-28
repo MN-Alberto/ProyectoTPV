@@ -714,7 +714,7 @@ class Venta
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta
-        $stmt = $conexion->query("SELECT * FROM ventas ORDER BY fecha DESC");
+        $stmt = $conexion->query("SELECT * FROM ventas WHERE es_rectificativa = 0 ORDER BY fecha DESC");
         // Creamos un array para guardar las ventas
         $ventas = [];
         // Recorremos las filas
@@ -738,7 +738,7 @@ class Venta
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "SELECT * FROM ventas WHERE idUsuario = :idUsuario ORDER BY fecha DESC"
+            "SELECT * FROM ventas WHERE idUsuario = :idUsuario AND es_rectificativa = 0 ORDER BY fecha DESC"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':idUsuario', $idUsuario, PDO::PARAM_INT);
@@ -768,7 +768,7 @@ class Venta
         $conexion = ConexionDB::getInstancia()->getConexion();
         // Preparamos la consulta
         $stmt = $conexion->prepare(
-            "SELECT * FROM ventas WHERE fecha BETWEEN :fechaInicio AND :fechaFin ORDER BY fecha DESC"
+            "SELECT * FROM ventas WHERE (fecha BETWEEN :fechaInicio AND :fechaFin) AND es_rectificativa = 0 ORDER BY fecha DESC"
         );
         // Vinculamos los parámetros
         $stmt->bindParam(':fechaInicio', $fechaInicio);
@@ -932,6 +932,18 @@ class Venta
         $stmtLines->execute([$this->id]);
         $lineasParaXML = $stmtLines->fetchAll(PDO::FETCH_ASSOC);
 
+        // ✅ Validación pre-envío (NIF, fecha, importes, certificado...)
+        $validacion = Verifactu::validarDatosPreEnvio($this, $lineasParaXML);
+        if (!$validacion['valid']) {
+            $errMsg = implode('; ', array_map(fn($e) => "[{$e['code']}] {$e['message']}", $validacion['errors']));
+            $this->estadoAeat = 'error';
+            $this->errorAeat = 'Validación: ' . $errMsg;
+            $stmtErr = $conexion->prepare("UPDATE {$tabla} SET estado_aeat = 'error', error_aeat = ? WHERE id = ?");
+            $stmtErr->execute([$this->errorAeat, $this->id]);
+            Verifactu::registrarEvento('validacion_fallida', $this->id, $tabla, $errMsg, $validacion['errors']);
+            return;
+        }
+
         $this->xmlDatos = Verifactu::generarXML($this, $lineasParaXML);
         $this->hash = Verifactu::calcularHashEncadenado($this->xmlDatos, $this->hashPrevio);
 
@@ -940,13 +952,37 @@ class Venta
         $stmtVeri->execute([$this->hash, $this->xmlDatos, $this->id]);
 
         // Envío a AEAT
+        error_log("DEBUG Verifactu: Intentando enviar venta " . $this->id . " a la AEAT...");
         $resAeat = Verifactu::enviarAEAT($this->xmlDatos);
+        error_log("DEBUG Verifactu: Resultado envío: " . json_encode($resAeat));
+        
         $this->estadoAeat = $resAeat['success'] ? 'enviado' : 'error';
         $this->csvAeat = $resAeat['csv'] ?? null;
         $this->errorAeat = $resAeat['success'] ? null : $resAeat['message'];
 
         $stmtRes = $conexion->prepare("UPDATE {$tabla} SET estado_aeat = ?, csv_aeat = ?, error_aeat = ? WHERE id = ?");
         $stmtRes->execute([$this->estadoAeat, $this->csvAeat, $this->errorAeat, $this->id]);
+
+        // Registrar evento
+        if ($resAeat['success']) {
+            Verifactu::registrarEvento('envio_ok', $this->id, $tabla,
+                'Envío exitoso. CSV: ' . ($this->csvAeat ?? ''));
+        } else {
+            $esConexion = $resAeat['es_error_conexion'] ?? false;
+            $codigoError = $resAeat['codigo_error'] ?? null;
+
+            // Encolar siempre los errores para que aparezcan en la gestión (Cola de Envíos)
+            $esErrorTemporal = ($esConexion || ($codigoError && substr($codigoError, 0, 1) === '5'));
+            $estadoCola = $esErrorTemporal ? 'error_temporal' : 'error_permanente';
+            
+            Verifactu::encolarEnvio($this->id, $tabla, 'alta', $this->xmlDatos,
+                $resAeat['message'], $codigoError, $esConexion, $numDoc, $estadoCola);
+
+            $tipoEvento = $esConexion ? 'conexion_perdida' : 'envio_error';
+            Verifactu::registrarEvento($tipoEvento, $this->id, $tabla,
+                ($esErrorTemporal ? 'Encolado para reintento: ' : 'Error permanente encolado: ') . $resAeat['message'],
+                ['codigo' => $codigoError, 'conexion' => $esConexion]);
+        }
     }
 
     /**
@@ -1133,8 +1169,8 @@ class Venta
         // 2. Detectar tipo original: F1 (factura) o F2 (ticket)
         $tipoOriginal = $ventaOriginal->getClienteDni() ? 'F1' : 'F2';
         $tipoDocOriginal = $ventaOriginal->getTipoDocumento();
-        // Serie rectificativa: RT para tickets, RF para facturas
-        $serieRect = ($tipoDocOriginal === 'factura') ? 'RF' : 'RT';
+        // Serie rectificativa: Siempre 'D' según requerimiento
+        $serieRect = 'D';
 
         // 3. Calcular total negativo
         $totalNegativo = 0;
@@ -1244,6 +1280,8 @@ class Venta
         }
 
         // 5. Generar XML rectificativa y enviar a AEAT
+        require_once(__DIR__ . '/../core/Verifactu.php');
+        $qrUrl = Verifactu::generarURLQR($rectificativa);
         $datosRect = [
             'serie' => $serie,
             'numero' => str_pad($numero, 5, '0', STR_PAD_LEFT),
@@ -1280,6 +1318,7 @@ class Venta
                 : 'Rectificativa guardada pero error AEAT: ' . $errorMsg,
             'venta' => $rectificativa,
             'csv' => $csvRect,
+            'qrUrl' => $qrUrl,
             'tipoFactura' => $rectificativa->getTipoFacturaVerifactu(),
             'serieNumero' => $serieRect . str_pad($siguienteNumero, 5, '0', STR_PAD_LEFT)
         ];
@@ -1500,7 +1539,7 @@ class Venta
      * @param array $fila
      * @return Venta
      */
-    private static function crearDesdeArray($fila)
+    public static function crearDesdeArray($fila)
     {
         // Creamos una nueva venta
         $venta = new Venta();
