@@ -29,19 +29,19 @@ try {
             $filtroEstado = $_GET['estado'] ?? null;
 
             $where = "1=1";
-            if ($filtroEstado && in_array($filtroEstado, ['pendiente','error_temporal','error_permanente','enviado','descartado'])) {
+            if ($filtroEstado && in_array($filtroEstado, ['pendiente','subsanado','error_temporal','error_permanente','enviado','descartado'])) {
                 $where .= " AND estado = :estado";
             }
 
             $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM verifactu_cola_envios WHERE $where");
-            if ($filtroEstado && in_array($filtroEstado, ['pendiente','error_temporal','error_permanente','enviado','descartado'])) {
+            if ($filtroEstado && in_array($filtroEstado, ['pendiente','subsanado','error_temporal','error_permanente','enviado','descartado'])) {
                 $stmtCount->bindValue(':estado', $filtroEstado);
             }
             $stmtCount->execute();
             $total = (int)$stmtCount->fetchColumn();
 
             $stmt = $pdo->prepare("SELECT * FROM verifactu_cola_envios WHERE $where ORDER BY fecha_creacion DESC LIMIT :limit OFFSET :offset");
-            if ($filtroEstado && in_array($filtroEstado, ['pendiente','error_temporal','error_permanente','enviado','descartado'])) {
+            if ($filtroEstado && in_array($filtroEstado, ['pendiente','subsanado','error_temporal','error_permanente','enviado','descartado'])) {
                 $stmt->bindValue(':estado', $filtroEstado);
             }
             $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
@@ -108,7 +108,8 @@ try {
         $input = json_decode(file_get_contents('php://input'), true);
         $action = $input['action'] ?? '';
         if ($action === 'procesarCola') {
-            echo json_encode(['ok' => true, 'resumen' => Verifactu::procesarColaPendientes()]);
+            $auto = !empty($input['auto']);
+            echo json_encode(['ok' => true, 'resumen' => Verifactu::procesarColaPendientes($auto)]);
         } elseif ($action === 'reenviar') {
             $pdo->prepare("UPDATE verifactu_cola_envios SET estado = 'pendiente', proximo_reintento = NOW() WHERE id = ?")->execute([$input['id']]);
             echo json_encode(['ok' => true, 'resumen' => Verifactu::procesarColaPendientes()]);
@@ -131,6 +132,12 @@ try {
         } elseif ($action === 'descartarError') {
             $id = (int)($input['id'] ?? 0);
             $pdo->prepare("DELETE FROM verifactu_cola_envios WHERE id = ?")->execute([$id]);
+            echo json_encode(['ok' => true]);
+        } elseif ($action === 'limpiarEventos') {
+            $pdo->exec("DELETE FROM verifactu_eventos");
+            echo json_encode(['ok' => true]);
+        } elseif ($action === 'limpiarColaEnvios') {
+            $pdo->exec("DELETE FROM verifactu_cola_envios WHERE estado IN ('enviado', 'descartado')");
             echo json_encode(['ok' => true]);
         }
         exit;

@@ -932,6 +932,7 @@ class Venta
         $stmtLines->execute([$this->id]);
         $lineasParaXML = $stmtLines->fetchAll(PDO::FETCH_ASSOC);
 
+        $numDoc = ($this->getSerie() ?: '') . ($this->getNumero() ?: '');
         // ✅ Validación pre-envío (NIF, fecha, importes, certificado...)
         $validacion = Verifactu::validarDatosPreEnvio($this, $lineasParaXML);
         if (!$validacion['valid']) {
@@ -940,16 +941,40 @@ class Venta
             $this->errorAeat = 'Validación: ' . $errMsg;
             $stmtErr = $conexion->prepare("UPDATE {$tabla} SET estado_aeat = 'error', error_aeat = ? WHERE id = ?");
             $stmtErr->execute([$this->errorAeat, $this->id]);
+            
+            // Encolar error de validación para que aparezca en el monitor y se pueda subsanar
+            Verifactu::encolarEnvio($this->id, $tabla, 'alta', null, 
+                $this->errorAeat, 'VAL_ERR', false, $numDoc, 'error_permanente');
+
             Verifactu::registrarEvento('validacion_fallida', $this->id, $tabla, $errMsg, $validacion['errors']);
             return;
         }
 
-        $this->xmlDatos = Verifactu::generarXML($this, $lineasParaXML);
-        $this->hash = Verifactu::calcularHashEncadenado($this->xmlDatos, $this->hashPrevio);
+        $resXml = Verifactu::generarXML($this, $lineasParaXML);
+        $this->xmlDatos = $resXml['xml'];
+        $this->hash = $resXml['huella'];
 
         // Actualizar registro con Hash y XML
         $stmtVeri = $conexion->prepare("UPDATE {$tabla} SET hash = ?, xml_datos = ? WHERE id = ?");
         $stmtVeri->execute([$this->hash, $this->xmlDatos, $this->id]);
+
+        // Comprobar cooldown AEAT (TiempoEsperaEnvio)
+        $cooldownRestante = Verifactu::getCooldownRestante();
+        if ($cooldownRestante > 0) {
+            // Hay cooldown activo → encolar directamente sin intentar enviar
+            error_log("DEBUG Verifactu: Cooldown AEAT activo ({$cooldownRestante}s). Encolando venta " . $this->id . " como pendiente.");
+            $this->estadoAeat = 'pendiente_aeat';
+            $this->errorAeat = "En espera AEAT ({$cooldownRestante}s)";
+            $stmtRes = $conexion->prepare("UPDATE {$tabla} SET estado_aeat = 'pendiente_aeat', error_aeat = ? WHERE id = ?");
+            $stmtRes->execute([$this->errorAeat, $this->id]);
+
+            Verifactu::encolarEnvio($this->id, $tabla, 'alta', $this->xmlDatos,
+                '', null, false, $numDoc, 'pendiente');
+
+            Verifactu::registrarEvento('cooldown_encolado', $this->id, $tabla,
+                "Encolado automáticamente por cooldown AEAT ({$cooldownRestante}s restantes).");
+            return;
+        }
 
         // Envío a AEAT
         error_log("DEBUG Verifactu: Intentando enviar venta " . $this->id . " a la AEAT...");
@@ -967,6 +992,10 @@ class Venta
         if ($resAeat['success']) {
             Verifactu::registrarEvento('envio_ok', $this->id, $tabla,
                 'Envío exitoso. CSV: ' . ($this->csvAeat ?? ''));
+            
+            // Encolar como enviado para que quede registrado en la interfaz de la cola
+            Verifactu::encolarEnvio($this->id, $tabla, 'alta', $this->xmlDatos,
+                '', null, false, $numDoc, 'enviado', $resAeat['raw_response'], $resAeat['csv'] ?? null);
         } else {
             $esConexion = $resAeat['es_error_conexion'] ?? false;
             $codigoError = $resAeat['codigo_error'] ?? null;
@@ -976,7 +1005,7 @@ class Venta
             $estadoCola = $esErrorTemporal ? 'error_temporal' : 'error_permanente';
             
             Verifactu::encolarEnvio($this->id, $tabla, 'alta', $this->xmlDatos,
-                $resAeat['message'], $codigoError, $esConexion, $numDoc, $estadoCola);
+                $resAeat['message'], $codigoError, $esConexion, $numDoc, $estadoCola, $resAeat['raw_response'] ?? null);
 
             $tipoEvento = $esConexion ? 'conexion_perdida' : 'envio_error';
             Verifactu::registrarEvento($tipoEvento, $this->id, $tabla,
@@ -1029,10 +1058,30 @@ class Venta
             return ['success' => true, 'message' => 'El documento ya está anulado.'];
         }
 
-        // --- ✅ NUEVO ORDEN CORRECTO: PRIMERO AEAT, DESPUES BD ---
         // --- Verifactu: Registro de Anulación ---
-        $xmlAnu = Verifactu::generarXMLAnulacion($this);
-        $hashAnu = Verifactu::calcularHashEncadenado($xmlAnu, $this->hash);
+        $resAnu = Verifactu::generarXMLAnulacion($this);
+        $xmlAnu = $resAnu['xml'];
+        $huellaAnu = $resAnu['huella'];
+        $this->hash = $huellaAnu;
+        
+        $tabla = self::getTablaById($this->id);
+        $numDoc = ($this->serie ? $this->serie . '-' : '') . $this->numero;
+
+        // Comprobar cooldown AEAT (TiempoEsperaEnvio)
+        $cooldownRestante = Verifactu::getCooldownRestante();
+        if ($cooldownRestante > 0) {
+            if ($tabla) {
+                $conexion = ConexionDB::getInstancia()->getConexion();
+                $stmt = $conexion->prepare(
+                    "UPDATE {$tabla} SET estado_aeat = 'pendiente_aeat', error_aeat = ?, xml_datos_anu = ?, hash_anulacion = ? WHERE id = ?"
+                );
+                $stmt->execute(["En espera AEAT ({$cooldownRestante}s)", $xmlAnu, $huellaAnu, $this->id]);
+            }
+            Verifactu::encolarEnvio($this->id, $tabla, 'alta', $xmlAnu,
+                '', null, false, $numDoc, 'pendiente');
+            return ['success' => true, 'message' => "Encolado automáticamente por cooldown AEAT ({$cooldownRestante}s restantes).", 'csv' => null];
+        }
+
         $resAeat = Verifactu::enviarAEAT($xmlAnu);
 
         // Si la AEAT devuelve que YA ESTA ANULADO, tambien lo marcamos como OK
@@ -1049,20 +1098,28 @@ class Venta
             if (!$res) {
                 return ['success' => false, 'message' => 'Error al actualizar estado en BD.'];
             }
+            Verifactu::encolarEnvio($this->id, $tabla, 'alta', $xmlAnu,
+                '', null, false, $numDoc, 'enviado', $resAeat['raw_response'] ?? null, $resAeat['csv'] ?? null);
+        } else {
+            $esConexion = $resAeat['es_error_conexion'] ?? false;
+            $codigoError = $resAeat['codigo_error'] ?? null;
+            $esErrorTemporal = ($esConexion || ($codigoError && substr($codigoError, 0, 1) === '5'));
+            $estadoCola = $esErrorTemporal ? 'error_temporal' : 'error_permanente';
+            Verifactu::encolarEnvio($this->id, $tabla, 'alta', $xmlAnu,
+                $resAeat['message'], $resAeat['codigo_error'] ?? null, $resAeat['es_error_conexion'] ?? false, $numDoc, $estadoCola, $resAeat['raw_response'] ?? null);
         }
 
         $estadoAnulacion = $resAeat['success'] ? 'enviado' : 'error';
         $csvAnulacion = $resAeat['csv'] ?? null;
         $errorMsg = $resAeat['success'] ? null : $resAeat['message'];
 
-        $tabla = self::getTablaById($this->id);
         if ($tabla) {
             $conexion = ConexionDB::getInstancia()->getConexion();
             $stmt = $conexion->prepare(
                 "UPDATE {$tabla} SET estado_aeat = ?, csv_anulacion = ?, 
                  hash_anulacion = ?, fecha_anulacion = NOW(), error_aeat = ?, xml_datos_anu = ? WHERE id = ?"
             );
-            $stmt->execute([$estadoAnulacion, $csvAnulacion, $hashAnu, $errorMsg, $xmlAnu, $this->id]);
+            $stmt->execute([$estadoAnulacion, $csvAnulacion, $huellaAnu, $errorMsg, $xmlAnu, $this->id]);
 
             // ✅ Si AEAT confirmo anulacion, asegurar que estado quede anulado definitivamente
             if ($resAeat['success']) {
@@ -1294,13 +1351,35 @@ class Venta
         $stmtLines->execute([$rectificativa->getId()]);
         $lineasXML = $stmtLines->fetchAll(PDO::FETCH_ASSOC);
 
-        $xmlRect = Verifactu::generarXML($rectificativa, $lineasXML, $datosRect);
-        $hashRect = Verifactu::calcularHashEncadenado($xmlRect, $rectificativa->getHashPrevio());
+        $resRect = Verifactu::generarXML($rectificativa, $lineasXML, $datosRect);
+        $xmlRect = $resRect['xml'];
+        $hashRect = $resRect['huella'];
 
         // Guardar hash y XML
         $tabla = ($tipoDocOriginal === 'factura') ? 'facturas' : 'tickets';
         $stmtVeri = $conexion->prepare("UPDATE {$tabla} SET hash = ?, xml_datos = ? WHERE id = ?");
         $stmtVeri->execute([$hashRect, $xmlRect, $rectificativa->getId()]);
+        
+        $numDoc = $serieRect . str_pad($siguienteNumero, 5, '0', STR_PAD_LEFT);
+
+        // Comprobar cooldown AEAT (TiempoEsperaEnvio)
+        $cooldownRestante = Verifactu::getCooldownRestante();
+        if ($cooldownRestante > 0) {
+            $stmtRes = $conexion->prepare("UPDATE {$tabla} SET estado_aeat = 'pendiente_aeat', error_aeat = ? WHERE id = ?");
+            $stmtRes->execute(["En espera AEAT ({$cooldownRestante}s)", $rectificativa->getId()]);
+            Verifactu::encolarEnvio($rectificativa->getId(), $tabla, 'alta', $xmlRect,
+                '', null, false, $numDoc, 'pendiente');
+            
+            return [
+                'success' => true,
+                'message' => "Encolado automáticamente por cooldown AEAT ({$cooldownRestante}s restantes).",
+                'venta' => $rectificativa,
+                'csv' => null,
+                'qrUrl' => $qrUrl,
+                'tipoFactura' => $rectificativa->getTipoFacturaVerifactu(),
+                'serieNumero' => $numDoc
+            ];
+        }
 
         // Enviar a AEAT (endpoint normal, NO VerifactuAnuSOAP)
         $resAeat = Verifactu::enviarAEAT($xmlRect);
@@ -1311,6 +1390,18 @@ class Venta
         $stmtRes = $conexion->prepare("UPDATE {$tabla} SET estado_aeat = ?, csv_aeat = ?, error_aeat = ? WHERE id = ?");
         $stmtRes->execute([$estadoAeat, $csvRect, $errorMsg, $rectificativa->getId()]);
 
+        if ($resAeat['success']) {
+            Verifactu::encolarEnvio($rectificativa->getId(), $tabla, 'alta', $xmlRect,
+                '', null, false, $numDoc, 'enviado', $resAeat['raw_response'], $resAeat['csv'] ?? null);
+        } else {
+            $esConexion = $resAeat['es_error_conexion'] ?? false;
+            $codigoError = $resAeat['codigo_error'] ?? null;
+            $esErrorTemporal = ($esConexion || ($codigoError && substr($codigoError, 0, 1) === '5'));
+            $estadoCola = $esErrorTemporal ? 'error_temporal' : 'error_permanente';
+            Verifactu::encolarEnvio($rectificativa->getId(), $tabla, 'alta', $xmlRect,
+                $resAeat['message'], $codigoError, $esConexion, $numDoc, $estadoCola, $resAeat['raw_response'] ?? null);
+        }
+
         return [
             'success' => $resAeat['success'],
             'message' => $resAeat['success']
@@ -1320,7 +1411,7 @@ class Venta
             'csv' => $csvRect,
             'qrUrl' => $qrUrl,
             'tipoFactura' => $rectificativa->getTipoFacturaVerifactu(),
-            'serieNumero' => $serieRect . str_pad($siguienteNumero, 5, '0', STR_PAD_LEFT)
+            'serieNumero' => $numDoc
         ];
     }
 
@@ -1578,6 +1669,9 @@ class Venta
         }
         if (isset($fila['idioma_ticket'])) {
             $venta->setIdiomaTicket($fila['idioma_ticket']);
+        }
+        if (isset($fila['cliente_dni'])) {
+            $venta->setClienteDni($fila['cliente_dni']);
         }
         if (isset($fila['cliente_nombre'])) {
             $venta->setClienteNombre($fila['cliente_nombre']);

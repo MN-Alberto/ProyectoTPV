@@ -162,24 +162,101 @@ function togglePassword(id) {
 let verifactuTabActual = 'cola';
 let verifactuPaginaActual = 1;
 const verifactuLimitePorPagina = 5;
+let aeatCooldownSegs = 0;
+let aeatCooldownTimer = null;
+let verifactuColaCache = [];
+
+function formatCooldown(segs) {
+    const m = Math.floor(segs / 60);
+    const s = segs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function iniciarCooldownVisual(segundos) {
+    if (aeatCooldownTimer) clearInterval(aeatCooldownTimer);
+    aeatCooldownSegs = segundos;
+    actualizarCooldownUI();
+    if (segundos <= 0) return;
+    aeatCooldownTimer = setInterval(() => {
+        aeatCooldownSegs--;
+        actualizarCooldownUI();
+        if (aeatCooldownSegs <= 0) {
+            clearInterval(aeatCooldownTimer);
+            aeatCooldownTimer = null;
+            // Cooldown acabado → procesar cola automáticamente
+            fetch('api/verifactu-cola.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'procesarCola' })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok && data.resumen) {
+                    if (data.resumen.cooldown_segundos > 0) {
+                        iniciarCooldownVisual(data.resumen.cooldown_segundos);
+                    }
+                    if (data.resumen.procesados > 0) {
+                        actualizarBadgePendientesAeat();
+                        if (seccionActual === 'envios-aeat') cargarTabEnvios(verifactuTabActual);
+                    }
+                }
+            })
+            .catch(e => console.error('Error auto-process cooldown:', e));
+        }
+    }, 1000);
+}
+
+function actualizarCooldownUI() {
+    const el = document.getElementById('aeatCooldownBanner');
+    if (!el) return;
+    if (aeatCooldownSegs > 0) {
+        el.style.display = 'flex';
+        el.innerHTML = `
+            <i class="fas fa-hourglass-half fa-spin"></i>
+            <span>Esperando AEAT: <b>${formatCooldown(aeatCooldownSegs)}</b></span>
+        `;
+    } else {
+        el.style.display = 'none';
+    }
+}
 
 function cargarEnviosAeat() {
     seccionActual = 'envios-aeat';
     renderEnviosAeatLayout();
     cargarTabEnvios(verifactuTabActual);
+    // Cargar cooldown inicial
+    fetch('api/verifactu-cola.php?estadisticas=1')
+        .then(r => r.json())
+        .then(stats => {
+            if (stats.cooldown_segundos > 0) {
+                iniciarCooldownVisual(stats.cooldown_segundos);
+            }
+        })
+        .catch(() => {});
 }
 
 function renderEnviosAeatLayout() {
     const contenedor = document.getElementById('adminContenido');
     contenedor.innerHTML = `
     <div class="verifactu-dashboard">
-        <div class="verifactu-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <div class="verifactu-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-bottom:20px;">
             <h2><i class="fas fa-satellite-dish" style="color:var(--accent-main)"></i> Monitor Verifactu AEAT</h2>
-            <div>
-                <button class="btn-primario" onclick="procesarColaManual()" id="btnProcesarCola" style="padding: 8px 15px; border-radius: 6px; border: none; background: var(--accent-main); color: white; cursor: pointer; font-weight: 500;">
-                    <i class="fas fa-sync-alt"></i> Procesar Pendientes Ahora
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button id="btnLimpiarColaHeader" onclick="limpiarColaEnvios()" style="display:none; padding: 8px 15px; border-radius: 6px; border: none; background: #ef4444; color: white; cursor: pointer; font-weight: 500;">
+                    <i class="fas fa-trash-alt"></i> Limpiar Cola
+                </button>
+                <button id="btnProcesarColaHeader" onclick="procesarColaManual()" style="display:none; padding: 8px 15px; border-radius: 6px; border: none; background: #3b82f6; color: white; cursor: pointer; font-weight: 500;">
+                    <i class="fas fa-sync-alt"></i> Procesar Pendientes
+                </button>
+                <button id="btnLimpiarLibroHeader" onclick="limpiarLibroEventos()" style="display:none; padding: 8px 15px; border-radius: 6px; border: none; background: #ef4444; color: white; cursor: pointer; font-weight: 500;">
+                    <i class="fas fa-trash-alt"></i> Limpiar Libro
                 </button>
             </div>
+        </div>
+
+        <div id="aeatCooldownBanner" style="display:none; align-items:center; gap:10px; padding:10px 18px; margin-bottom:15px; background:linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color:#78350f; border-radius:8px; font-weight:600; font-size:0.95rem;">
+            <i class="fas fa-hourglass-half"></i>
+            <span>Esperando AEAT...</span>
         </div>
 
         <div class="verifactu-tabs" style="display:flex; gap:10px; margin-bottom:20px; border-bottom: 1px solid var(--border-main); padding-bottom: 10px;">
@@ -216,13 +293,21 @@ function cargarTabEnvios(tab, pagina = 1) {
         activeBtn.style.borderBottom = '2px solid var(--accent-main)';
     }
 
+    // Mostrar/ocultar botones de la cabecera
+    document.getElementById('btnLimpiarColaHeader').style.display = (tab === 'cola') ? 'block' : 'none';
+    document.getElementById('btnProcesarColaHeader').style.display = (tab === 'cola') ? 'block' : 'none';
+    document.getElementById('btnLimpiarLibroHeader').style.display = (tab === 'eventos') ? 'block' : 'none';
+
     const contenedor = document.getElementById('verifactuContenidoTab');
     contenedor.innerHTML = '<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
 
     if (tab === 'cola') {
         fetch(`api/verifactu-cola.php?pendientes=1&page=${verifactuPaginaActual}&limit=${verifactuLimitePorPagina}`)
             .then(r => r.json())
-            .then(data => renderColaEnvios(data))
+            .then(data => {
+                verifactuColaCache = data.envios || [];
+                renderColaEnvios(data);
+            })
             .catch(e => contenedor.innerHTML = '<p style="color:red">Error cargando cola.</p>');
     } else if (tab === 'eventos') {
         fetch(`api/verifactu-cola.php?eventos=1&page=${verifactuPaginaActual}`)
@@ -272,22 +357,24 @@ function renderColaEnvios(data) {
     envios.forEach(e => {
         let badgeColor = '#6b7280';
         if (e.estado === 'pendiente') badgeColor = '#f59e0b';
+        if (e.estado === 'subsanado') badgeColor = '#6366f1';
         if (e.estado === 'enviando') badgeColor = '#3b82f6';
         if (e.estado === 'error_temporal') badgeColor = '#ef4444';
         if (e.estado === 'error_permanente') badgeColor = '#991b1b';
         if (e.estado === 'enviado') badgeColor = '#10b981';
 
         const esErrorAEAT = e.codigo_error_aeat ? true : false;
+        const mostrarErrorConexion = e.es_error_conexion == 1 && e.estado !== 'enviado';
         
         html += `
-            <tr style="border-bottom: 1px solid var(--border-main); background: ${e.es_error_conexion === 1 ? 'rgba(245, 158, 11, 0.05)' : 'transparent'};">
+            <tr style="border-bottom: 1px solid var(--border-main); background: ${mostrarErrorConexion ? 'rgba(245, 158, 11, 0.05)' : 'transparent'};">
                 <td style="padding: 12px; font-weight: bold;">${e.display_num || e.num_documento || '#' + e.id_documento}</td>
                 <td style="padding: 12px; text-transform: capitalize;">${e.tabla_origen}</td>
                 <td style="padding: 12px;">
                     <span style="background: ${badgeColor}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">
-                        ${e.estado.replace('_', ' ').toUpperCase()}
+                        ${e.estado === 'pendiente' ? 'PENDIENTE POR COOLDOWN' : (e.estado === 'subsanado' ? 'SUBSANADO (MANUAL)' : (e.estado || 'ERROR').replace('_', ' ').toUpperCase())}
                     </span>
-                    ${e.es_error_conexion == 1 ? '<i class="fas fa-wifi" style="color:#ef4444; margin-left:5px;" title="Error de Conexión"></i>' : ''}
+                    ${mostrarErrorConexion ? '<i class="fas fa-wifi" style="color:#ef4444; margin-left:5px;" title="Error de Conexión"></i>' : ''}
                 </td>
                 <td style="padding: 12px; text-align: center;">${e.intentos}/${e.max_intentos}</td>
                 <td style="padding: 12px; font-size: 0.85rem;">${e.proximo_reintento || '-'}</td>
@@ -295,13 +382,18 @@ function renderColaEnvios(data) {
                     ${e.codigo_error_aeat ? `<b>[${e.codigo_error_aeat}]</b> ` : ''}${e.ultimo_error || '-'}
                 </td>
                 <td style="padding: 12px; text-align: right;">
-                    ${e.estado !== 'enviado' ? `
+                    <button onclick="verDetallesEnvioManual(${e.id})" title="Ver Detalles AEAT" style="background:transparent; border:none; color:#6366f1; cursor:pointer; margin-right:8px;"><i class="fas fa-eye"></i></button>
+                    ${(e.estado !== 'enviado' && e.estado !== 'enviando') ? `
                         <button onclick="reenviarEnvioManual(${e.id})" title="Forzar Reintento" style="background:transparent; border:none; color:#3b82f6; cursor:pointer; margin-right:8px;"><i class="fas fa-redo"></i></button>
-                    ` : ''}
-                    <button class="btn-admin-accion btn-editar" onclick="abrirEditorDocumentoAeat(${e.id_documento}, '${e.tabla_origen}', '${e.display_num || e.num_documento}')" title="Editar datos del documento" style="background:transparent; border:none; color:#6b7280; cursor:pointer; margin-right:8px;">
-                        <i class="fas fa-pencil-alt"></i>
-                    </button>
-                    ${e.estado === 'error_permanente' || esErrorAEAT ? `
+                        ${(e.estado === 'error_permanente' || e.estado === 'error_temporal') ? `
+                        <button class="btn-admin-accion btn-editar" onclick="abrirEditorDocumentoAeat(${e.id_documento}, '${e.tabla_origen}', '${e.display_num || e.num_documento}')" title="Editar datos del documento" style="background:transparent; border:none; color:#6b7280; cursor:pointer; margin-right:8px;">
+                            <i class="fas fa-pencil-alt"></i>
+                        </button>
+                        ` : ''}
+                    ` : (e.estado === 'enviado' ? `
+                        <i class="fas fa-check" style="color:#10b981; margin-right: 8px;" title="Documento enviado"></i>
+                    ` : '')}
+                    ${(e.estado === 'error_permanente' || esErrorAEAT) && (e.estado !== 'enviado' && e.estado !== 'pendiente' && e.estado !== 'enviando') ? `
                         <button onclick="subsanarDocumentoManual(${e.id_documento}, '${e.tabla_origen}')" title="Subsanar" style="background:transparent; border:none; color:#10b981; cursor:pointer; margin-right:8px;"><i class="fas fa-tools"></i></button>
                         <button onclick="descartarEnvioManual(${e.id})" title="Descartar (Ignorar)" style="background:transparent; border:none; color:#ef4444; cursor:pointer;"><i class="fas fa-trash"></i></button>
                     ` : ''}
@@ -338,13 +430,8 @@ function renderColaEnvios(data) {
 
 function renderLibroEventos(eventos) {
     const contenedor = document.getElementById('verifactuContenidoTab');
-    if (!eventos || eventos.length === 0) {
-        contenedor.innerHTML = '<p style="text-align:center; padding: 40px;">No hay eventos registrados.</p>';
-        return;
-    }
-
     let html = `
-        <div style="background:var(--bg-panel); border-radius:6px; max-height: 300px; overflow-y:auto;">
+        <div style="background:var(--bg-panel); border-radius:6px; max-height: 250px; overflow-y:auto;">
             <table class="tema-tabla" style="width:100%; border-collapse: collapse; font-size: 0.9rem;">
                 <thead style="position: sticky; top: 0; z-index: 10; background: #374151; color: white;">
                     <tr>
@@ -357,28 +444,36 @@ function renderLibroEventos(eventos) {
                 <tbody>
     `;
 
-    eventos.forEach(e => {
-        let icon = 'fa-info-circle';
-        let color = 'var(--text-main)';
-        
-        if (e.tipo.includes('error') || e.tipo.includes('fallida')) { icon = 'fa-times-circle'; color = '#ef4444'; }
-        if (e.tipo.includes('ok') || e.tipo.includes('recuperada')) { icon = 'fa-check-circle'; color = '#10b981'; }
-        if (e.tipo.includes('perdida')) { icon = 'fa-wifi'; color = '#f59e0b'; }
-        if (e.tipo === 'subsanacion') { icon = 'fa-tools'; color = '#3b82f6'; }
-
+    if (!eventos || eventos.length === 0) {
         html += `
             <tr style="border-bottom: 1px solid var(--border-main);">
-                <td style="padding: 10px; white-space: nowrap; color: var(--text-muted);">${e.fecha}</td>
-                <td style="padding: 10px;">
-                    <span style="color: ${color}; font-weight: 500;">
-                        <i class="fas ${icon}" style="margin-right:5px;"></i> ${e.tipo.replace('_', ' ').toUpperCase()}
-                    </span>
-                </td>
-                <td style="padding: 10px; font-weight:bold; color:var(--accent-main);">${e.display_num || (e.id_documento ? '#' + e.id_documento : '-')}</td>
-                <td style="padding: 10px;">${e.descripcion}</td>
+                <td colspan="4" style="padding: 40px; text-align: center; color: var(--text-muted);">No hay eventos registrados.</td>
             </tr>
         `;
-    });
+    } else {
+        eventos.forEach(e => {
+            let icon = 'fa-info-circle';
+            let color = 'var(--text-main)';
+            
+            if (e.tipo.includes('error') || e.tipo.includes('fallida')) { icon = 'fa-times-circle'; color = '#ef4444'; }
+            if (e.tipo.includes('ok') || e.tipo.includes('recuperada')) { icon = 'fa-check-circle'; color = '#10b981'; }
+            if (e.tipo.includes('perdida')) { icon = 'fa-wifi'; color = '#f59e0b'; }
+            if (e.tipo === 'subsanacion') { icon = 'fa-tools'; color = '#3b82f6'; }
+
+            html += `
+                <tr style="border-bottom: 1px solid var(--border-main);">
+                    <td style="padding: 10px; white-space: nowrap; color: var(--text-muted);">${e.fecha}</td>
+                    <td style="padding: 10px;">
+                        <span style="color: ${color}; font-weight: 500;">
+                            <i class="fas ${icon}" style="margin-right:5px;"></i> ${e.tipo.replace('_', ' ').toUpperCase()}
+                        </span>
+                    </td>
+                    <td style="padding: 10px; font-weight:bold; color:var(--accent-main);">${e.display_num || (e.id_documento ? '#' + e.id_documento : '-')}</td>
+                    <td style="padding: 10px;">${e.descripcion}</td>
+                </tr>
+            `;
+        });
+    }
 
     html += `</tbody></table></div>`;
     contenedor.innerHTML = html;
@@ -415,7 +510,8 @@ function renderStatsEnvios(stats) {
 // ======================== ACCIONES ========================
 
 function procesarColaManual() {
-    const btn = document.getElementById('btnProcesarCola');
+    const btn = document.getElementById('btnProcesarColaHeader');
+    if (!btn) return;
     const prevHtml = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
     btn.disabled = true;
@@ -428,12 +524,36 @@ function procesarColaManual() {
     .then(r => r.json())
     .then(data => {
         if (data.ok) {
-            Swal.fire({
-                title: 'Proceso completado',
-                text: `Procesados: ${data.resumen.procesados}. Exitosos: ${data.resumen.exitosos}. Fallidos: ${data.resumen.fallidos}.`,
-                icon: 'success',
-                timer: 3000
-            });
+            // Iniciar cooldown si viene en la respuesta
+            const cd = data.resumen.cooldown_segundos || 0;
+            if (cd > 0) {
+                iniciarCooldownVisual(cd);
+            }
+
+            let icon = 'success';
+            let title = 'Proceso completado';
+            
+            if (data.resumen.procesados === 0 && cd > 0) {
+                icon = 'info';
+                title = 'En espera AEAT';
+            } else if (data.resumen.procesados === 0) {
+                icon = 'info';
+                title = 'Sin pendientes';
+            } else if (data.resumen.fallidos > 0) {
+                icon = 'warning';
+                title = 'Proceso con errores';
+            }
+
+            let htmlMsg = `
+                <div style="font-size: 1.1em; text-align: left; display: inline-block;">
+                    <p style="margin: 5px 0;"><b>Procesados:</b> ${data.resumen.procesados}</p>
+                    <p style="margin: 5px 0; color: #10b981;"><b>Exitosos:</b> ${data.resumen.exitosos}</p>
+                    <p style="margin: 5px 0; color: #ef4444;"><b>Fallidos:</b> ${data.resumen.fallidos}</p>
+                    ${cd > 0 ? `<p style="margin: 10px 0 5px; color: #f59e0b;"><i class="fas fa-hourglass-half"></i> <b>Cooldown AEAT:</b> ${formatCooldown(cd)}</p>` : ''}
+                </div>
+            `;
+
+            Swal.fire({ title: title, html: htmlMsg, icon: icon });
             if (seccionActual === 'envios-aeat') cargarTabEnvios(verifactuTabActual);
             actualizarBadgePendientesAeat();
         } else {
@@ -637,6 +757,75 @@ function subsanarDocumentoManual(idDoc, tabla) {
     });
 }
 
+function limpiarLibroEventos() {
+    Swal.fire({
+        title: '¿Limpiar libro de eventos?',
+        text: 'Se eliminarán todos los registros de eventos de forma permanente.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Sí, limpiar todo',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('api/verifactu-cola.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'limpiarEventos' })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    Swal.fire('¡Limpio!', 'El libro de eventos ha sido vaciado.', 'success');
+                    cargarTabEnvios('eventos');
+                } else {
+                    Swal.fire('Error', data.error || 'No se pudo limpiar el libro.', 'error');
+                }
+            })
+            .catch(e => {
+                console.error(e);
+                Swal.fire('Error', 'Fallo de conexión', 'error');
+            });
+        }
+    });
+}
+
+function limpiarColaEnvios() {
+    Swal.fire({
+        title: '¿Limpiar historial de envíos?',
+        text: 'Se eliminarán de la lista únicamente los documentos que ya han sido enviados con éxito y los descartados. Los pendientes o con error se mantendrán.',
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        confirmButtonText: 'Sí, limpiar historial',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('api/verifactu-cola.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'limpiarColaEnvios' })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    Swal.fire('¡Historial limpio!', 'Los documentos enviados han sido borrados de la vista.', 'success');
+                    if (seccionActual === 'envios-aeat') {
+                        cargarTabEnvios(verifactuTabActual);
+                    }
+                    actualizarBadgePendientesAeat();
+                } else {
+                    Swal.fire('Error', data.error || 'No se pudo vaciar la cola.', 'error');
+                }
+            })
+            .catch(e => {
+                console.error(e);
+                Swal.fire('Error', 'Fallo de conexión', 'error');
+            });
+        }
+    });
+}
+
 // ======================== AUTO-RETRY Y BADGE ========================
 
 function actualizarBadgePendientesAeat() {
@@ -656,24 +845,77 @@ function actualizarBadgePendientesAeat() {
         .catch(e => console.error("Error stats AEAT", e));
 }
 
+
+function verDetallesEnvioManual(idCola) {
+    const e = verifactuColaCache.find(x => x.id == idCola);
+    if (!e) return;
+    
+    const esc = (txt) => {
+        if (!txt) return '<i>(Vacío)</i>';
+        return txt.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    };
+
+    let info = `
+        <div style="text-align: left; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 0.9rem; max-height: 70vh; overflow-y: auto; padding: 10px;">
+            <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin-bottom: 15px; background: #f3f4f6; padding: 10px; border-radius: 6px; border: 1px solid #e5e7eb;">
+                <b>Documento:</b> <span>${e.display_num || e.num_documento}</span>
+                <b>Estado:</b> <span style="font-weight: bold;">${e.estado.toUpperCase()}</span>
+                <b>CSV AEAT:</b> <span style="color: #10b981; font-weight: bold;">${e.csv_aeat || '<i>No disponible</i>'}</span>
+                <b>Intentos:</b> <span>${e.intentos}/${e.max_intentos}</span>
+                <b>Fecha Alta:</b> <span>${e.fecha_creacion}</span>
+                ${e.codigo_error_aeat ? `<b>Código AEAT:</b> <span style="color:#dc2626; font-weight:bold;">${e.codigo_error_aeat}</span>` : ''}
+            </div>
+
+            <p style="margin-bottom: 5px; font-weight: bold; color: #374151;"><i class="fas fa-code"></i> XML Enviado a AEAT:</p>
+            <pre style="background: #111827; color: #10b981; padding: 12px; border-radius: 6px; overflow: auto; max-height: 200px; font-size: 0.8rem; border: 1px solid #374151;">${esc(e.xml_contenido)}</pre>
+            
+            <p style="margin: 15px 0 5px; font-weight: bold; color: #374151;"><i class="fas fa-reply"></i> Respuesta Completa AEAT:</p>
+            <pre style="background: #111827; color: #3b82f6; padding: 12px; border-radius: 6px; overflow: auto; max-height: 250px; font-size: 0.8rem; border: 1px solid #374151;">${esc(e.respuesta_xml || 'Sin respuesta almacenada (o error de conexión previo)')}</pre>
+            
+            ${e.ultimo_error ? `
+                <p style="margin: 15px 0 5px; font-weight: bold; color: #dc2626;"><i class="fas fa-exclamation-triangle"></i> Último Mensaje de Error:</p>
+                <div style="background: #fef2f2; color: #991b1b; padding: 10px; border-radius: 6px; border: 1px solid #fecaca; font-size: 0.85rem;">
+                    ${e.ultimo_error}
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    Swal.fire({
+        title: '<i class="fas fa-info-circle"></i> Información Técnica AEAT',
+        html: info,
+        width: '850px',
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#3b82f6'
+    });
+}
+
 // Iniciar timer global
 setInterval(() => {
+    // Si hay cooldown activo, el timer de cooldown se encarga
+    if (aeatCooldownSegs > 0) return;
+
     fetch('api/verifactu-cola.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'procesarCola' })
+        body: JSON.stringify({ action: 'procesarCola', auto: true })
     })
     .then(r => r.json())
     .then(data => {
-        if (data.ok && data.resumen && data.resumen.procesados > 0) {
-            actualizarBadgePendientesAeat();
-            if (seccionActual === 'envios-aeat') {
-                cargarTabEnvios(verifactuTabActual);
+        if (data.ok && data.resumen) {
+            if (data.resumen.cooldown_segundos > 0) {
+                iniciarCooldownVisual(data.resumen.cooldown_segundos);
+            }
+            if (data.resumen.procesados > 0) {
+                actualizarBadgePendientesAeat();
+                if (seccionActual === 'envios-aeat') {
+                    cargarTabEnvios(verifactuTabActual, verifactuPaginaActual);
+                }
             }
         }
     })
     .catch(e => console.error("Error auto-retry AEAT", e));
-}, 15 * 60 * 1000); // 15 minutos por defecto, procesarCola ya respeta el 'proximo_reintento'
+}, 60 * 1000); // Comprueba cada 1 minuto (procesarCola respeta el 'proximo_reintento' en el backend)
 
 // Actualizar badge al cargar la página
 document.addEventListener('DOMContentLoaded', () => {
