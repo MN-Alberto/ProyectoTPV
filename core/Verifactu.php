@@ -5,6 +5,8 @@
  * Implementa encadenamiento, generación de XML y envío a AEAT.
  * Estructura XML alineada estrictamente con el esquema XSD de la AEAT.
  */
+require_once(__DIR__ . '/../model/Venta.php');
+
 class Verifactu
 {
     private static $config = null;
@@ -73,15 +75,28 @@ class Verifactu
 
     public static function calcularHuellaAlta($nif, $numSerie, $fechaExp, $tipo, $cuota, $importe, $prevHash, $fechaHito)
     {
-        // Orden AEAT: NIF + NumSerie + FechaExp + Tipo + Cuota + Importe + PrevHash + Hito
-        $str = $nif . $numSerie . $fechaExp . $tipo . $cuota . $importe . ($prevHash ?: '') . $fechaHito;
+        // Orden AEAT con etiquetas y ampersands: IDEmisorFactura=...&NumSerieFactura=...
+        $str = "IDEmisorFactura=" . $nif . 
+               "&NumSerieFactura=" . $numSerie . 
+               "&FechaExpedicionFactura=" . $fechaExp . 
+               "&TipoFactura=" . $tipo . 
+               "&CuotaTotal=" . $cuota . 
+               "&ImporteTotal=" . $importe . 
+               "&Huella=" . ($prevHash ?: '') . 
+               "&FechaHoraHusoGenRegistro=" . $fechaHito;
+        
         return strtoupper(hash('sha256', $str));
     }
 
     public static function calcularHuellaAnulacion($nif, $numSerie, $fechaExp, $prevHash, $fechaHito)
     {
-        // Orden AEAT: NIF + NumSerie + FechaExp + PrevHash + Hito
-        $str = $nif . $numSerie . $fechaExp . ($prevHash ?: '') . $fechaHito;
+        // Orden AEAT Anulación con etiquetas y ampersands
+        $str = "IDEmisorFactura=" . $nif . 
+               "&NumSerieFactura=" . $numSerie . 
+               "&FechaExpedicionFactura=" . $fechaExp . 
+               "&Huella=" . ($prevHash ?: '') . 
+               "&FechaHoraHusoGenRegistro=" . $fechaHito;
+
         return strtoupper(hash('sha256', $str));
     }
 
@@ -203,8 +218,8 @@ class Verifactu
             : 'Venta';
         $xml .= "          <sum1:DescripcionOperacion>" . htmlspecialchars($descripcion, ENT_XML1, 'UTF-8') . "</sum1:DescripcionOperacion>\n";
 
-        // Destinatarios (solo para F1 con cliente identificado)
-        if ($tipoFactura === 'F1' && $venta->getClienteDni()) {
+        // Destinatarios (OBLIGATORIO para F1, R1, R2, R3, R4 según AEAT)
+        if (in_array($tipoFactura, ['F1', 'R1', 'R2', 'R3', 'R4']) && $venta->getClienteDni()) {
             $cliNom = htmlspecialchars($venta->getClienteNombre() ?: 'CLIENTE', ENT_XML1, 'UTF-8');
             $cliNif = htmlspecialchars($venta->getClienteDni(), ENT_XML1, 'UTF-8');
             $xml .= "          <sum1:Destinatarios>\n";
@@ -243,10 +258,28 @@ class Verifactu
             $origNif = $nif;
             $origNumSerie = $numSerieSafe;
             $origFecha = $fechaExp;
-            
+
             if (isset($venta->datosRegistroAnterior) && !empty($venta->datosRegistroAnterior)) {
                 $origNumSerie = preg_replace('/\s+/', '', ($venta->datosRegistroAnterior['serie'] ?? '') . ($venta->datosRegistroAnterior['numero'] ?? ''));
                 $origFecha = date('d-m-Y', strtotime($venta->datosRegistroAnterior['fecha']));
+            } else {
+                // Si no vienen los datos, intentar buscarlos por el hash previo en la BD
+                $conexion = ConexionDB::getInstancia()->getConexion();
+                $sqlPrev = "
+                    SELECT v.serie, v.numero, v.fecha 
+                    FROM (
+                        SELECT vi.serie, vi.numero, t.fecha, t.hash FROM tickets t JOIN ventas_ids vi ON t.id = vi.id
+                        UNION ALL
+                        SELECT vi.serie, vi.numero, f.fecha, f.hash FROM facturas f JOIN ventas_ids vi ON f.id = vi.id
+                    ) v
+                    WHERE v.hash = ? LIMIT 1";
+                $stmtPrev = $conexion->prepare($sqlPrev);
+                $stmtPrev->execute([$prevHash]);
+                $rowPrev = $stmtPrev->fetch(PDO::FETCH_ASSOC);
+                if ($rowPrev) {
+                    $origNumSerie = preg_replace('/\s+/', '', ($rowPrev['serie'] ?? '') . ($rowPrev['numero'] ?? ''));
+                    $origFecha = date('d-m-Y', strtotime($rowPrev['fecha']));
+                }
             }
 
             $xml .= "            <sum1:RegistroAnterior>\n";
@@ -277,12 +310,11 @@ class Verifactu
         // TipoHuella + Huella
         $xml .= "          <sum1:TipoHuella>01</sum1:TipoHuella>\n";
         $xml .= "          <sum1:Huella>" . $huella . "</sum1:Huella>\n";
-
         $xml .= "        </sum1:RegistroAlta>\n";
         $xml .= "      </sum:RegistroFactura>\n";
         $xml .= "    </sum:RegFactuSistemaFacturacion>";
 
-        return $xml;
+        return ['xml' => $xml, 'huella' => $huella];
     }
 
     /**
@@ -377,11 +409,147 @@ class Verifactu
         // TipoHuella + Huella
         $xml .= "          <sum1:TipoHuella>01</sum1:TipoHuella>\n";
         $xml .= "          <sum1:Huella>" . $huella . "</sum1:Huella>\n";
-
         $xml .= "        </sum1:RegistroAnulacion>\n";
         $xml .= "      </sum:RegistroFactura>\n";
         $xml .= "    </sum:RegFactuSistemaFacturacion>";
-        return $xml;
+
+        return ['xml' => $xml, 'huella' => $huella];
+    }
+
+    public static function enviarAEATLote($xmlConsolidado)
+    {
+        $certPath = self::getConfig('CERT_PATH');
+        $certPass = self::getConfig('CERT_PASS');
+        $aeatUrl = self::getConfig('AEAT_URL_VERIFACTU');
+
+        $erroresConexion = [CURLE_COULDNT_CONNECT, CURLE_COULDNT_RESOLVE_HOST, CURLE_COULDNT_RESOLVE_PROXY, CURLE_OPERATION_TIMEOUTED, CURLE_GOT_NOTHING, CURLE_SEND_ERROR, CURLE_RECV_ERROR];
+
+        if (!file_exists($certPath)) return ['success' => false, 'message' => 'Certificado no encontrado.'];
+        $pfx = file_get_contents($certPath);
+        $certs = [];
+        if (!openssl_pkcs12_read($pfx, $certs, $certPass)) return ['success' => false, 'message' => 'Error certificado.'];
+
+        $tempCert = tempnam(sys_get_temp_dir(), 'cert');
+        $tempKey = tempnam(sys_get_temp_dir(), 'key');
+        file_put_contents($tempCert, $certs['cert']);
+        file_put_contents($tempKey, $certs['pkey']);
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $aeatUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, self::prepararCuerpoSOAP($xmlConsolidado));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: text/xml; charset=utf-8', 'SOAPAction: ""']);
+        curl_setopt($ch, CURLOPT_SSLCERT, $tempCert);
+        curl_setopt($ch, CURLOPT_SSLKEY, $tempKey);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+
+        $response = curl_exec($ch);
+        $curlError = curl_error($ch);
+        $curlErrno = curl_errno($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        @unlink($tempCert);
+        @unlink($tempKey);
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'Error CURL: ' . $curlError, 'es_error_conexion' => in_array($curlErrno, $erroresConexion)];
+        }
+
+        $respXml = @simplexml_load_string($response);
+        $resultados = [];
+        $tiempoEspera = 0;
+
+        if ($respXml) {
+            $tiempoEsperaStr = (string) ($respXml->xpath('//*[local-name()="TiempoEsperaEnvio"]')[0] ?? '');
+            if ($tiempoEsperaStr !== '') {
+                $tiempoEspera = (int)$tiempoEsperaStr;
+            }
+
+            // Extraer resultados por línea
+            $lineas = $respXml->xpath('//*[local-name()="RespuestaLinea"]');
+            foreach ($lineas as $linea) {
+                $idFactura = $linea->xpath('.//*[local-name()="IDFactura"]')[0] ?? null;
+                $numSerie = '';
+                if ($idFactura) {
+                    $numSerie = (string)($idFactura->xpath('.//*[local-name()="NumSerieFactura"]') [0] ?? (string)($idFactura->xpath('.//*[local-name()="NumSerieFacturaAnulada"]') [0] ?? ''));
+                }
+                $estado = (string)($linea->xpath('.//*[local-name()="EstadoRegistro"]')[0] ?? '');
+                $csv = (string)($linea->xpath('.//*[local-name()="CSV"]')[0] ?? '');
+                $errCode = (string)($linea->xpath('.//*[local-name()="CodigoErrorRegistro"]')[0] ?? '');
+                $errDesc = (string)($linea->xpath('.//*[local-name()="DescripcionErrorRegistro"]')[0] ?? '');
+
+                $resultados[] = [
+                    'num_serie' => $numSerie,
+                    'success' => ($estado === 'Correcto' || $estado === 'AceptadoConErrores'),
+                    'csv' => $csv,
+                    'codigo_error' => $errCode,
+                    'message' => $errDesc ?: ($estado === 'Correcto' ? 'OK' : 'Error AEAT')
+                ];
+            }
+        } else {
+            // FALLBACK REGEX para lotes
+            error_log("DEBUG Verifactu Lote: Fallback Regex. HTTP $httpCode");
+            
+            // Intentar extraer TiempoEsperaEnvio
+            if (preg_match('/TiempoEsperaEnvio[^>]*>([^<]+)</s', $response, $m)) {
+                $tiempoEspera = (int)trim($m[1]);
+            }
+
+            // Intentar extraer bloques RespuestaLinea
+            if (preg_match_all('/<[^:]*:RespuestaLinea>(.*?)<\/[^:]*:RespuestaLinea>/is', $response, $matches)) {
+                foreach ($matches[1] as $inner) {
+                    $numSerie = '';
+                    if (preg_match('/NumSerieFactura[^>]*>([^<]+)</s', $inner, $m)) $numSerie = trim($m[1]);
+                    else if (preg_match('/NumSerieFacturaAnulada[^>]*>([^<]+)</s', $inner, $m)) $numSerie = trim($m[1]);
+                    
+                    $estado = '';
+                    if (preg_match('/EstadoRegistro[^>]*>([^<]+)</s', $inner, $m)) $estado = trim($m[1]);
+                    
+                    $csv = '';
+                    if (preg_match('/CSV[^>]*>([^<]+)</s', $inner, $m)) $csv = trim($m[1]);
+                    
+                    $errCode = '';
+                    if (preg_match('/CodigoErrorRegistro[^>]*>([^<]+)</s', $inner, $m)) $errCode = trim($m[1]);
+                    
+                    $errDesc = '';
+                    if (preg_match('/DescripcionErrorRegistro[^>]*>([^<]+)</s', $inner, $m)) $errDesc = trim($m[1]);
+
+                    $resultados[] = [
+                        'num_serie' => $numSerie,
+                        'success' => ($estado === 'Correcto' || $estado === 'AceptadoConErrores'),
+                        'csv' => $csv,
+                        'codigo_error' => $errCode,
+                        'message' => $errDesc ?: ($estado === 'Correcto' ? 'OK' : 'Error AEAT')
+                    ];
+                }
+            }
+
+            if (empty($resultados)) {
+                return ['success' => false, 'message' => "Error crítico: No se pudo parsear respuesta de lote (HTTP $httpCode).", 'es_error_conexion' => false];
+            }
+        }
+
+        // Solo guardar cooldown si hubo al menos un éxito (según requerimiento de usuario)
+        if ($tiempoEspera > 0) {
+            $hayExito = false;
+            foreach ($resultados as $res) {
+                if ($res['success']) {
+                    $hayExito = true;
+                    break;
+                }
+            }
+            if ($hayExito) {
+                self::guardarCooldownAEAT($tiempoEspera);
+            } else {
+                error_log("DEBUG Verifactu Lote: Ignorando cooldown AEAT ({$tiempoEspera}s) porque todos los registros fallaron.");
+                $tiempoEspera = 0; // Para que no se devuelva como cooldown activo
+            }
+        }
+
+        return ['success' => true, 'resultados' => $resultados, 'tiempo_espera' => $tiempoEspera, 'raw_response' => $response];
     }
 
     public static function enviarAEAT($xml)
@@ -401,7 +569,7 @@ class Verifactu
             CURLE_RECV_ERROR,
         ];
 
-        $maxIntentos = 3;
+        $maxIntentos = 1; // Ya existe un sistema de cola en segundo plano, no bloquear el TPV reintentando aquí.
         $ultimoError = '';
         $esErrorConexion = false;
         $codigoError = null;
@@ -432,8 +600,8 @@ class Verifactu
             curl_setopt($ch, CURLOPT_SSLCERT, $tempCert);
             curl_setopt($ch, CURLOPT_SSLKEY, $tempKey);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // Timeout de conexión bajo
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15); // Timeout total bajo, si tarda va a la cola
 
             $response = curl_exec($ch);
             $curlError = curl_error($ch);
@@ -456,9 +624,24 @@ class Verifactu
                     $estadoEnvio = (string) ($respXml->xpath('//*[local-name()="EstadoEnvio"]')[0] ?? '');
                     $csv = (string) ($respXml->xpath('//*[local-name()="CSV"]')[0] ?? '');
                     $codigoError = (string) ($respXml->xpath('//*[local-name()="CodigoErrorRegistro"]')[0] ?? null);
+                    $tiempoEspera = (string) ($respXml->xpath('//*[local-name()="TiempoEsperaEnvio"]')[0] ?? '');
+
+                    // Solo guardar cooldown si es éxito (según requerimiento de usuario)
+                    $esExito = ($estado === 'Correcto' || $estado === 'AceptadoConErrores' || $estadoEnvio === 'Correcto' || $estadoEnvio === 'ParcialmenteCorrecto');
+                    if ($tiempoEspera !== '' && $esExito) {
+                        self::guardarCooldownAEAT((int)$tiempoEspera);
+                    }
 
                     if ($estado === 'Correcto' || $estado === 'AceptadoConErrores' || $estadoEnvio === 'Correcto' || $estadoEnvio === 'ParcialmenteCorrecto') {
-                        return ['success' => true, 'csv' => $csv ?: ('REC' . rand(1000, 9999)), 'message' => 'OK', 'es_error_conexion' => false, 'codigo_error' => null];
+                        return [
+                            'success' => true, 
+                            'csv' => $csv ?: ('REC' . rand(1000, 9999)), 
+                            'message' => 'OK', 
+                            'es_error_conexion' => false, 
+                            'codigo_error' => null, 
+                            'tiempo_espera' => (int)$tiempoEspera,
+                            'raw_response' => $response
+                        ];
                     }
                     $errorDesc = (string) ($respXml->xpath('//*[local-name()="DescripcionErrorRegistro"]')[0] ?? '');
                     $fault = (string) ($respXml->xpath('//*[local-name()="faultstring"]')[0] ?? 'Error AEAT');
@@ -476,9 +659,30 @@ class Verifactu
                         $csv = trim($m[1]);
                     if (preg_match('/CodigoErrorRegistro[^>]*>([^<]+)</s', $response, $m))
                         $codigoError = trim($m[1]);
+                    $tiempoEspera = 0;
+                    if (preg_match('/TiempoEsperaEnvio[^>]*>([^<]+)</s', $response, $m))
+                        $tiempoEspera = (int)trim($m[1]);
+                    if ($tiempoEspera > 0) {
+                        // Solo guardar cooldown si es éxito (según requerimiento de usuario)
+                        $esExito = ($estado === 'Correcto' || $estado === 'AceptadoConErrores' || $estadoEnvio === 'Correcto' || $estadoEnvio === 'ParcialmenteCorrecto');
+                        if ($esExito) {
+                            self::guardarCooldownAEAT($tiempoEspera);
+                        } else {
+                            error_log("DEBUG Verifactu: Ignorando cooldown AEAT ({$tiempoEspera}s) porque el registro falló.");
+                            $tiempoEspera = 0;
+                        }
+                    }
 
                     if ($estado === 'Correcto' || $estado === 'AceptadoConErrores' || $estadoEnvio === 'Correcto' || $estadoEnvio === 'ParcialmenteCorrecto') {
-                        return ['success' => true, 'csv' => $csv ?: ('REC' . rand(1000, 9999)), 'message' => 'OK', 'es_error_conexion' => false, 'codigo_error' => null];
+                        return [
+                            'success' => true, 
+                            'csv' => $csv ?: ('REC' . rand(1000, 9999)), 
+                            'message' => 'OK', 
+                            'es_error_conexion' => false, 
+                            'codigo_error' => null, 
+                            'tiempo_espera' => $tiempoEspera,
+                            'raw_response' => $response
+                        ];
                     }
 
                     if (preg_match('/faultstring[^>]*>(.*?)<\//s', $response, $matches)) {
@@ -500,7 +704,13 @@ class Verifactu
             }
         }
 
-        return ['success' => false, 'message' => $ultimoError, 'es_error_conexion' => $esErrorConexion, 'codigo_error' => $codigoError];
+        return [
+            'success' => false, 
+            'message' => $ultimoError, 
+            'es_error_conexion' => $esErrorConexion, 
+            'codigo_error' => $codigoError,
+            'raw_response' => $response ?? null
+        ];
     }
 
     private static function prepararCuerpoSOAP($xml)
@@ -665,19 +875,18 @@ class Verifactu
     /**
      * Encola un envío pendiente para reintento automático.
      */
-    public static function encolarEnvio($idDocumento, $tablaOrigen, $tipoEnvio, $xml, $error = '', $codigoError = null, $esConexion = false, $numDocumento = null, $estado = 'pendiente')
+    public static function encolarEnvio($idDocumento, $tablaOrigen, $tipoEnvio, $xml, $error = '', $codigoError = null, $esConexion = false, $numDocumento = null, $estado = 'pendiente', $respuestaXml = null, $csvAeat = null)
     {
         error_log("DEBUG Verifactu: Encolando envio para documento $numDocumento ($idDocumento $tablaOrigen)...");
         $pdo = ConexionDB::getInstancia()->getConexion();
-        $intervalo = (int)(self::getConfig('verifactu_intervalo_reintento') ?: 15);
-        $proximo = date('Y-m-d H:i:s', strtotime("+{$intervalo} minutes"));
+        $intervalo = ($estado === 'pendiente') ? 0 : (int)(self::getConfig('verifactu_intervalo_reintento') ?: 15);
 
         $stmt = $pdo->prepare(
             "INSERT INTO verifactu_cola_envios 
-             (id_documento, num_documento, tabla_origen, tipo_envio, xml_contenido, estado, ultimo_error, codigo_error_aeat, es_error_conexion, proximo_reintento)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+             (id_documento, num_documento, tabla_origen, tipo_envio, xml_contenido, respuesta_xml, csv_aeat, estado, ultimo_error, codigo_error_aeat, es_error_conexion, proximo_reintento)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE))"
         );
-        $stmt->execute([$idDocumento, $numDocumento, $tablaOrigen, $tipoEnvio, $xml, $estado, $error, $codigoError, $esConexion ? 1 : 0, $proximo]);
+        $stmt->execute([$idDocumento, $numDocumento, $tablaOrigen, $tipoEnvio, $xml, $respuestaXml, $csvAeat, $estado, $error, $codigoError, $esConexion ? 1 : 0, $intervalo]);
         $idCola = $pdo->lastInsertId();
         error_log("DEBUG Verifactu: Encolado con exito. ID Cola: $idCola");
         return $idCola;
@@ -687,14 +896,15 @@ class Verifactu
      * Procesa la cola de envíos pendientes (llamado por timer cada X minutos).
      * @return array Resumen del procesamiento
      */
-    public static function procesarColaPendientes()
+    public static function procesarColaPendientes($auto = false)
     {
         $pdo = ConexionDB::getInstancia()->getConexion();
         $maxLote = (int)(self::getConfig('verifactu_max_lote') ?: 100);
 
+        // Procesar 'pendiente', 'error_temporal' y también 'enviando' si lleva más de 5 minutos estancado
         $stmt = $pdo->prepare(
             "SELECT * FROM verifactu_cola_envios 
-             WHERE estado IN ('pendiente', 'error_temporal') 
+             WHERE (estado IN ('pendiente', 'error_temporal') OR (estado = 'enviando' AND fecha_ultimo_intento < DATE_SUB(NOW(), INTERVAL 5 MINUTE)))
                AND (proximo_reintento IS NULL OR proximo_reintento <= NOW())
                AND intentos < max_intentos
              ORDER BY fecha_creacion ASC
@@ -704,59 +914,141 @@ class Verifactu
         $stmt->execute();
         $pendientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $resumen = ['procesados' => 0, 'exitosos' => 0, 'fallidos' => 0];
+        $resumen = ['procesados' => 0, 'exitosos' => 0, 'fallidos' => 0, 'cooldown_segundos' => 0];
+
+        if (empty($pendientes)) return $resumen;
+
+        // Respetar cooldown AEAT (TiempoEsperaEnvio)
+        $cooldown = self::getCooldownRestante();
+        if ($cooldown > 0) {
+            $resumen['cooldown_segundos'] = $cooldown;
+            return $resumen;
+        }
+
+        // --- CONSOLIDACIÓN DEL LOTE ---
+        $xmlRegistros = "";
+        $cabecera = "";
+        $mapaIds = []; // Mapear NumSerie -> ID Cola para actualizar después
 
         foreach ($pendientes as $envio) {
             $resumen['procesados']++;
+            // --- AUTO-CORRECCIÓN DE TIMESTAMP (Error 2004) ---
+            // Si el XML tiene más de 3 minutos, lo regeneramos con el tiempo actual para evitar rechazo 2004.
+            // Al regenerar, debemos mantener el encadenamiento correcto (tomar hash_previo actual de la BD).
+            if (preg_match('/<sum1:FechaHoraHusoGenRegistro>(.*?)<\/sum1:FechaHoraHusoGenRegistro>/is', $envio['xml_contenido'], $mTime)) {
+                $xmlTime = strtotime($mTime[1]);
+                if ($xmlTime < (time() - 180)) { // 3 minutos
+                    error_log("DEBUG Verifactu: XML de documento {$envio['num_documento']} es antiguo. Regenerando timestamp y huella...");
+                    
+                    $vObj = Venta::buscarPorId($envio['id_documento']);
+                    if ($vObj) {
+                        // Forzar tipo documento y cargar líneas
+                        if ($envio['tabla_origen'] === 'facturas') $vObj->setTipoDocumento('factura');
+                        
+                        $conexion = ConexionDB::getInstancia()->getConexion();
+                        $stmtL = $conexion->prepare("SELECT * FROM lineasVenta WHERE idVenta = ?");
+                        $stmtL->execute([$envio['id_documento']]);
+                        $lines = $stmtL->fetchAll(PDO::FETCH_ASSOC);
 
+                        // REGENERAR: Esto creará un nuevo XML con la hora de ahora y recalculará la huella
+                        // IMPORTANTE: Al ser una venta ya existente, el hash_previo en la BD es el correcto
+                        if ($envio['tipo_envio'] === 'anulacion') {
+                            $resNew = self::generarXMLAnulacion($vObj);
+                        } else {
+                            $resNew = self::generarXML($vObj, $lines);
+                        }
+                        
+                        $envio['xml_contenido'] = $resNew['xml'];
+                        
+                        // Actualizar en cola y en tabla original para que el siguiente del encadenamiento vea la nueva huella
+                        $pdo->prepare("UPDATE verifactu_cola_envios SET xml_contenido = ? WHERE id = ?")
+                            ->execute([$resNew['xml'], $envio['id']]);
+                        
+                        $colXml = ($envio['tipo_envio'] === 'anulacion') ? 'xml_datos_anu' : 'xml_datos';
+                        $colHash = ($envio['tipo_envio'] === 'anulacion') ? 'hash_anulacion' : 'hash';
+                        
+                        $pdo->prepare("UPDATE {$envio['tabla_origen']} SET {$colXml} = ?, {$colHash} = ? WHERE id = ?")
+                            ->execute([$resNew['xml'], $resNew['huella'], $envio['id_documento']]);
+                    }
+                }
+            }
+
+            // Extraer Cabecera del primer registro
+            if (empty($cabecera)) {
+                if (preg_match('/<sum:Cabecera>(.*?)<\/sum:Cabecera>/is', $envio['xml_contenido'], $m)) {
+                    $cabecera = $m[0];
+                }
+            }
+            // Extraer todos los RegistroFactura (puede haber uno o varios)
+            if (preg_match_all('/<sum:RegistroFactura>(.*?)<\/sum:RegistroFactura>/is', $envio['xml_contenido'], $matches)) {
+                foreach ($matches[0] as $reg) {
+                    $xmlRegistros .= $reg . "\n";
+                }
+            }
+            $key = str_replace('-', '', $envio['num_documento']);
+            $mapaIds[$key] = $envio;
+            
             // Marcar como "enviando"
             $pdo->prepare("UPDATE verifactu_cola_envios SET estado = 'enviando', fecha_ultimo_intento = NOW() WHERE id = ?")
                 ->execute([$envio['id']]);
+        }
 
-            $res = self::enviarAEAT($envio['xml_contenido']);
-            $intentos = $envio['intentos'] + 1;
-            $intervalo = (int)(self::getConfig('verifactu_intervalo_reintento') ?: 15);
+        // Construir XML consolidado
+        $xmlConsolidado = "<sum:RegFactuSistemaFacturacion\n";
+        $xmlConsolidado .= "    xmlns:sum=\"https://www2.agenciatributaria.gob.es/static_files/common/internet/dep/aplicaciones/es/aeat/tike/cont/ws/SuministroLR.xsd\"\n";
+        $xmlConsolidado .= "    xmlns:sum1=\"https://www2.agenciatributaria.gob.es/static_files/common/internet/dep/aplicaciones/es/aeat/tike/cont/ws/SuministroInformacion.xsd\">\n";
+        $xmlConsolidado .= "  " . $cabecera . "\n";
+        $xmlConsolidado .= "  " . $xmlRegistros . "\n";
+        $xmlConsolidado .= "</sum:RegFactuSistemaFacturacion>";
 
-            if ($res['success']) {
-                $resumen['exitosos']++;
-                $pdo->prepare(
-                    "UPDATE verifactu_cola_envios SET estado = 'enviado', intentos = ?, fecha_envio_exitoso = NOW(), ultimo_error = NULL WHERE id = ?"
-                )->execute([$intentos, $envio['id']]);
+        // Enviar lote
+        $resLote = self::enviarAEATLote($xmlConsolidado);
+        $resumen['cooldown_segundos'] = $resLote['tiempo_espera'] ?? 0;
 
-                // Actualizar documento original
-                $pdo->prepare(
-                    "UPDATE {$envio['tabla_origen']} SET estado_aeat = 'enviado', csv_aeat = ?, error_aeat = NULL WHERE id = ?"
-                )->execute([$res['csv'], $envio['id_documento']]);
+        if ($resLote['success'] && isset($resLote['resultados'])) {
+            foreach ($resLote['resultados'] as $res) {
+                $envio = $mapaIds[$res['num_serie']] ?? null;
+                if (!$envio) continue;
 
-                self::registrarEvento('reintento_ok', $envio['id_documento'], $envio['tabla_origen'],
-                    "Reenvío exitoso tras {$intentos} intento(s). CSV: " . ($res['csv'] ?? ''));
-            } else {
+                $intentos = $envio['intentos'] + 1;
+                $intervalo = (int)(self::getConfig('verifactu_intervalo_reintento') ?: 15);
+
+                if ($res['success']) {
+                    $resumen['exitosos']++;
+                    $pdo->prepare("UPDATE verifactu_cola_envios SET estado = 'enviado', intentos = ?, fecha_envio_exitoso = NOW(), ultimo_error = NULL, csv_aeat = ?, respuesta_xml = ? WHERE id = ?")
+                        ->execute([$intentos, $res['csv'] ?? null, $resLote['raw_response'] ?? null, $envio['id']]);
+                    $pdo->prepare("UPDATE {$envio['tabla_origen']} SET estado_aeat = 'enviado', csv_aeat = ?, error_aeat = NULL WHERE id = ?")
+                        ->execute([$res['csv'], $envio['id_documento']]);
+                    self::registrarEvento('reintento_ok', $envio['id_documento'], $envio['tabla_origen'], "Reenvío en lote exitoso. CSV: " . $res['csv']);
+                } else {
+                    $resumen['fallidos']++;
+                    $nuevoEstado = ($intentos >= $envio['max_intentos']) ? 'error_permanente' : 'error_temporal';
+                    $pdo->prepare("UPDATE verifactu_cola_envios SET estado = ?, intentos = ?, ultimo_error = ?, codigo_error_aeat = ?, respuesta_xml = ?, proximo_reintento = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id = ?")
+                        ->execute([$nuevoEstado, $intentos, $res['message'], $res['codigo_error'], $resLote['raw_response'] ?? null, $intervalo, $envio['id']]);
+                    self::registrarEvento('reintento_error', $envio['id_documento'], $envio['tabla_origen'], "Error en lote: " . $res['message']);
+                }
+            }
+        } else {
+            // Error general del lote (ej. conexión)
+            $esConexion = $resLote['es_error_conexion'] ?? false;
+            foreach ($pendientes as $envio) {
                 $resumen['fallidos']++;
-                $nuevoEstado = ($intentos >= $envio['max_intentos']) ? 'error_permanente' : 'error_temporal';
-                $proximo = date('Y-m-d H:i:s', strtotime("+{$intervalo} minutes"));
-
-                $pdo->prepare(
-                    "UPDATE verifactu_cola_envios SET estado = ?, intentos = ?, ultimo_error = ?, codigo_error_aeat = ?, es_error_conexion = ?, proximo_reintento = ? WHERE id = ?"
-                )->execute([
-                    $nuevoEstado, $intentos, $res['message'],
-                    $res['codigo_error'] ?? null,
-                    ($res['es_error_conexion'] ?? false) ? 1 : 0,
-                    $proximo, $envio['id']
-                ]);
-
-                self::registrarEvento('reintento', $envio['id_documento'], $envio['tabla_origen'],
-                    "Reintento #{$intentos} fallido: " . $res['message'],
-                    ['codigo' => $res['codigo_error'], 'conexion' => $res['es_error_conexion'] ?? false]);
+                $intentos = $envio['intentos'] + 1;
+                $intervalo = (int)(self::getConfig('verifactu_intervalo_reintento') ?: 15);
+                $nuevoEstado = ($intentos >= $envio['max_intentos'] || !$esConexion) ? 'error_permanente' : 'error_temporal';
+                $pdo->prepare("UPDATE verifactu_cola_envios SET estado = ?, intentos = ?, ultimo_error = ?, es_error_conexion = ?, proximo_reintento = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id = ?")
+                    ->execute([$nuevoEstado, $intentos, $resLote['message'], $esConexion ? 1 : 0, $intervalo, $envio['id']]);
             }
         }
 
         if ($resumen['procesados'] > 0) {
-            self::registrarEvento('cola_procesada', null, null,
-                "Cola procesada: {$resumen['exitosos']}/{$resumen['procesados']} exitosos.");
+            self::registrarEvento('cola_procesada_lote', null, null, "Cola procesada en lote: {$resumen['exitosos']}/{$resumen['procesados']} exitosos.");
         }
 
         return $resumen;
     }
+
+
 
     // ======================== LIBRO DE EVENTOS ========================
 
@@ -826,8 +1118,8 @@ class Verifactu
             $xmlNuevo = self::generarXML($venta, $lineas);
             $hashNuevo = self::calcularHashEncadenado($xmlNuevo, $venta->getHashPrevio());
 
-            // Actualizar hash y XML en documento
-            $pdo->prepare("UPDATE {$tablaOrigen} SET xml_datos = ?, hash = ? WHERE id = ?")
+            // Actualizar hash, XML y estado en documento original
+            $pdo->prepare("UPDATE {$tablaOrigen} SET xml_datos = ?, hash = ?, estado_aeat = 'error', error_aeat = 'Subsanado (Pendiente de envío manual)' WHERE id = ?")
                 ->execute([$xmlNuevo, $hashNuevo, $idDocumento]);
 
             // Obtener Serie+Numero para la cola
@@ -836,22 +1128,47 @@ class Verifactu
             $ids = $stmtIds->fetch(PDO::FETCH_ASSOC);
             $numDoc = ($ids['serie'] ?? '') . ($ids['numero'] ?? '');
 
-            // Encolar como subsanación
-            $colaId = self::encolarEnvio($idDocumento, $tablaOrigen, 'subsanacion', $xmlNuevo, '', null, false, $numDoc);
+            // Encolar como 'subsanado' (estado especial que no se procesa automáticamente)
+            $colaId = self::encolarEnvio($idDocumento, $tablaOrigen, 'subsanacion', $xmlNuevo, 'Subsanado - Pendiente envío manual', null, false, $numDoc, 'subsanado');
 
             // LIMPIEZA: Borrar físicamente todos los intentos anteriores de este documento que fallaron
             $pdo->prepare("DELETE FROM verifactu_cola_envios WHERE id_documento = ? AND tabla_origen = ? AND id != ?")
                 ->execute([$idDocumento, $tablaOrigen, $colaId]);
 
             self::registrarEvento('subsanacion', $idDocumento, $tablaOrigen,
-                "Documento subsanado y encolado (cola ID: $colaId). Intentos anteriores descartados.");
+                "Documento subsanado y listo para envío manual (cola ID: $colaId).");
 
-            return ['success' => true, 'message' => 'Documento subsanado y encolado para reenvío.', 'cola_id' => $colaId];
+            return ['success' => true, 'message' => 'Documento subsanado. Ahora debe enviarlo manualmente desde la cola.', 'cola_id' => $colaId];
             
         } catch (Exception $e) {
             error_log("Error en subsanarDocumento: " . $e->getMessage());
             return ['success' => false, 'message' => 'Error interno: ' . $e->getMessage()];
         }
+    }
+
+    /**
+     * Guarda el tiempo de cooldown AEAT (TiempoEsperaEnvio) como timestamp futuro.
+     */
+    public static function guardarCooldownAEAT($segundos)
+    {
+        if ($segundos <= 0) return;
+        $pdo = ConexionDB::getInstancia()->getConexion();
+        $stmt = $pdo->prepare("INSERT INTO configuracion_fiscal (clave, valor) VALUES ('AEAT_COOLDOWN_HASTA', DATE_ADD(NOW(), INTERVAL ? SECOND)) ON DUPLICATE KEY UPDATE valor = DATE_ADD(NOW(), INTERVAL ? SECOND)");
+        $stmt->execute([$segundos, $segundos]);
+        error_log("DEBUG Verifactu: Cooldown AEAT guardado. Segundos: {$segundos}s");
+    }
+
+    /**
+     * Obtiene los segundos restantes de cooldown AEAT. 0 = puede enviar ya.
+     */
+    public static function getCooldownRestante()
+    {
+        $pdo = ConexionDB::getInstancia()->getConexion();
+        // Obtener la diferencia en segundos entre el valor guardado y NOW() de la base de datos
+        $stmt = $pdo->prepare("SELECT TIMESTAMPDIFF(SECOND, NOW(), valor) FROM configuracion_fiscal WHERE clave = 'AEAT_COOLDOWN_HASTA'");
+        $stmt->execute();
+        $diff = $stmt->fetchColumn();
+        return ($diff && $diff > 0) ? (int)$diff : 0;
     }
 
     /**
@@ -876,6 +1193,9 @@ class Verifactu
 
         $stmt = $pdo->query("SELECT COUNT(*) FROM verifactu_cola_envios WHERE es_error_conexion = 1 AND estado IN ('pendiente','error_temporal')");
         $stats['sin_conexion'] = (int)$stmt->fetchColumn();
+
+        // Cooldown AEAT
+        $stats['cooldown_segundos'] = self::getCooldownRestante();
 
         return $stats;
     }

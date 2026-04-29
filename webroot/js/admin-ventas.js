@@ -694,8 +694,6 @@ function getCajaSesionesTablaHeader(orden = 'fecha_desc') {
                     <th style="width:7%;text-align:center;">Importe</th>
                     <th style="width:7%;text-align:center;">Efectivo</th>
                     <th style="width:7%;text-align:center;">Cambio</th>
-                    <th style="width:7%;text-align:center;">Ventas</th>
-                    <th style="width:9%;text-align:center;">Productos</th>
                     <th style="width:8%;text-align:center;">Retiros</th>
                     <th style="width:10%;text-align:center;">Devoluciones</th>
                     <th style="width:10%;text-align:center;">Arqueo</th>
@@ -723,8 +721,6 @@ function generarFilaSesion(sesion, index) {
             <td style="text-align:right;">${parseFloat(sesion.importeInicial).toFixed(2)} €</td>
             <td style="text-align:right;">${importeActual.toFixed(2)} €</td>
             <td style="text-align:right;color:#0284c7;font-weight:bold;">${parseFloat(sesion.cambio || 0).toFixed(2)} €</td>
-            <td style="text-align:center;font-weight:bold;">${parseInt(sesion.total_ventas || 0)}</td>
-            <td style="text-align:center;font-weight:bold;">${parseInt(sesion.total_productos || 0)}</td>
             <td style="text-align:right;color:#ea580c;font-weight:bold;">-${retiros.toFixed(2)} €</td>
             <td style="text-align:right;color:#dc2626;font-weight:bold;">-${devoluciones.toFixed(2)} €</td>
             <td style="text-align:right;font-weight:bold;color:${diffColor};">
