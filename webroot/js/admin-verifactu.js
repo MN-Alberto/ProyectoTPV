@@ -23,15 +23,73 @@ function cargarConfiguracionFiscal() {
 
 function renderEditorFiscal(config) {
     const contenedor = document.getElementById('adminContenido');
-    
+
     let html = `
     <div class="tema-editor">
         <div class="config-section">
             <div class="tema-seccion-card">
-                <div class="tema-seccion-header">
-                    <i class="fas fa-file-invoice-dollar tema-seccion-icono"></i>
-                    <h4 class="tema-seccion-titulo">Datos Fiscales del Obligado</h4>
-                </div>
+                <div style="
+                    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(99, 102, 241, 0.04) 100%);
+                    border: 1px solid rgba(59, 130, 246, 0.15);
+                    border-radius: 10px;
+                    padding: 16px 18px;
+                    margin-bottom: 18px;
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+                    backdrop-filter: blur(12px);
+                    position: relative;
+                    overflow: hidden;
+                ">
+                    <!-- Efecto de brillo superior -->
+                    <div style="
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        height: 1px;
+                        background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.4), transparent);
+                    "></div>
+
+                    <div style="
+                        display: flex;
+                        align-items: center;
+                        gap: 12px;
+                        margin-bottom: 14px;
+                        padding-bottom: 12px;
+                        border-bottom: 1px solid rgba(59, 130, 246, 0.1);
+                    ">
+                        <div style="
+                            width: 36px;
+                            height: 36px;
+                            border-radius: 8px;
+                            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            box-shadow: 0 3px 8px rgba(59, 130, 246, 0.3);
+                            flex-shrink: 0;
+                        ">
+                            <i class="fas fa-landmark" style="color: white; font-size: 1.1rem;"></i>
+                        </div>
+                        
+                        <div>
+                            <h3 style="
+                                margin: 0;
+                                font-size: 1.05rem;
+                                font-weight: 700;
+                                color: var(--text-main);
+                                letter-spacing: 0.2px;
+                            ">
+                                Datos Fiscales del Obligado Emisor
+                            </h3>
+                            <p style="
+                                margin: 2px 0 0 0;
+                                font-size: 0.8rem;
+                                color: var(--text-muted);
+                            ">
+                                Datos oficiales requeridos por AEAT
+                            </p>
+                        </div>
+                    </div>
                 <div class="tema-seccion-body" style="max-width: 800px; margin: 0 auto;">
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -133,18 +191,18 @@ function guardarConfiguracionFiscal() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(datos)
     })
-    .then(res => res.json())
-    .then(data => {
-        if (data.ok) {
-            Swal.fire('¡Éxito!', 'Configuración fiscal guardada correctamente.', 'success');
-        } else {
-            Swal.fire('Error', data.error || 'No se pudo guardar la configuración.', 'error');
-        }
-    })
-    .catch(err => {
-        console.error('Error guardando fiscal:', err);
-        Swal.fire('Error', 'Error de red al conectar con la API.', 'error');
-    });
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                Swal.fire('¡Éxito!', 'Configuración fiscal guardada correctamente.', 'success');
+            } else {
+                Swal.fire('Error', data.error || 'No se pudo guardar la configuración.', 'error');
+            }
+        })
+        .catch(err => {
+            console.error('Error guardando fiscal:', err);
+            Swal.fire('Error', 'Error de red al conectar con la API.', 'error');
+        });
 }
 
 function togglePassword(id) {
@@ -189,19 +247,19 @@ function iniciarCooldownVisual(segundos) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'procesarCola' })
             })
-            .then(r => r.json())
-            .then(data => {
-                if (data.ok && data.resumen) {
-                    if (data.resumen.cooldown_segundos > 0) {
-                        iniciarCooldownVisual(data.resumen.cooldown_segundos);
+                .then(r => r.json())
+                .then(data => {
+                    if (data.ok && data.resumen) {
+                        if (data.resumen.cooldown_segundos > 0) {
+                            iniciarCooldownVisual(data.resumen.cooldown_segundos);
+                        }
+                        if (data.resumen.procesados > 0) {
+                            actualizarBadgePendientesAeat();
+                            if (seccionActual === 'envios-aeat') cargarTabEnvios(verifactuTabActual);
+                        }
                     }
-                    if (data.resumen.procesados > 0) {
-                        actualizarBadgePendientesAeat();
-                        if (seccionActual === 'envios-aeat') cargarTabEnvios(verifactuTabActual);
-                    }
-                }
-            })
-            .catch(e => console.error('Error auto-process cooldown:', e));
+                })
+                .catch(e => console.error('Error auto-process cooldown:', e));
         }
     }, 1000);
 }
@@ -232,7 +290,7 @@ function cargarEnviosAeat() {
                 iniciarCooldownVisual(stats.cooldown_segundos);
             }
         })
-        .catch(() => {});
+        .catch(() => { });
 }
 
 function renderEnviosAeatLayout() {
@@ -281,7 +339,7 @@ function renderEnviosAeatLayout() {
 function cargarTabEnvios(tab, pagina = 1) {
     verifactuTabActual = tab;
     verifactuPaginaActual = pagina;
-    
+
     // Actualizar UI tabs
     document.querySelectorAll('.v-tab-btn').forEach(btn => {
         btn.style.color = 'var(--text-muted)';
@@ -326,7 +384,7 @@ function renderColaEnvios(data) {
     const envios = data.envios || [];
     const totalPages = data.pages || 1;
     const contenedor = document.getElementById('verifactuContenidoTab');
-    
+
     if (!envios || envios.length === 0) {
         contenedor.innerHTML = `
             <div style="text-align:center; padding: 50px; color: var(--text-muted);">
@@ -356,6 +414,10 @@ function renderColaEnvios(data) {
 
     envios.forEach(e => {
         let badgeColor = '#6b7280';
+        let estadoTexto = (e.estado || 'ERROR').replace('_', ' ').toUpperCase();
+        let aeatEstadoStr = '';
+        let aeatBadge = '';
+
         if (e.estado === 'pendiente') badgeColor = '#f59e0b';
         if (e.estado === 'subsanado') badgeColor = '#6366f1';
         if (e.estado === 'enviando') badgeColor = '#3b82f6';
@@ -363,18 +425,78 @@ function renderColaEnvios(data) {
         if (e.estado === 'error_permanente') badgeColor = '#991b1b';
         if (e.estado === 'enviado') badgeColor = '#10b981';
 
+        // Extraer estado REAL de respuesta AEAT con logica correcta
+        if (e.respuesta_xml) {
+            // NO declarar variable de nuevo, usar la que esta definida fuera
+            aeatEstadoStr = '';
+            let aeatColor = '#6b7280';
+
+            // DEBUG: Sacar en consola para ver que recibimos
+            console.log('✅ DEBUG AEAT RESPONSE id=' + e.id, e.respuesta_xml.substring(0, 500));
+
+            // PROBAR TODAS LAS VARIANTES DE CAMPOS QUE USA LA AEAT
+            let m;
+            const camposAEAT = [
+                /<EstadoEnvio[^>]*>([^<]+)<\//,
+                /<EstadoRegistro[^>]*>([^<]+)<\//,
+                /<ResultadoRegistro[^>]*>([^<]+)<\//,
+                /EstadoRespuesta[^>]*>([^<]+)<\//,
+                /<CodigoEstado[^>]*>([^<]+)<\//
+            ];
+
+            for (let regex of camposAEAT) {
+                m = e.respuesta_xml.match(regex);
+                if (m && m[1]) {
+                    aeatEstadoStr = m[1].trim();
+                    console.log('✅ ENCONTRADO CAMPO AEAT:', regex, aeatEstadoStr);
+                    break;
+                }
+            }
+
+            // Buscar errores o avisos existentes
+            let hayErrores = e.respuesta_xml.includes('<CodigoError>') || e.respuesta_xml.includes('<Error>');
+            let hayAvisos = e.respuesta_xml.includes('<Aviso>') || e.respuesta_xml.includes('"Avisos":');
+            let esRechazado = e.respuesta_xml.includes('Rechazado') || e.respuesta_xml.includes('"Rechazado"') || e.respuesta_xml.includes('Rechazada');
+            let esAceptadoErrores = e.respuesta_xml.includes('AceptadoConErrores') || e.respuesta_xml.includes('"AceptadoConErrores"') || e.respuesta_xml.includes('Aceptado con errores');
+
+            // Determinar estado FINAL real
+            if (esRechazado) {
+                aeatEstadoStr = 'Rechazado';
+                aeatColor = '#ef4444';
+            } else if (esAceptadoErrores || (aeatEstadoStr === 'Correcto' && hayErrores)) {
+                aeatEstadoStr = 'Aceptado c/Errores';
+                aeatColor = '#f59e0b';
+            } else if (hayAvisos) {
+                aeatEstadoStr = 'Correcto (Avisos)';
+                aeatColor = '#6366f1';
+            } else if (aeatEstadoStr === 'Correcto' || aeatEstadoStr === 'Aceptado') {
+                aeatEstadoStr = 'Correcto';
+                aeatColor = '#10b981';
+            } else if (aeatEstadoStr) {
+                aeatColor = '#6b7280';
+            }
+
+            // Crear badge solo si tenemos estado valido
+            if (aeatEstadoStr) {
+                aeatBadge = `<span style="background: ${aeatColor}; color: white; padding: 2px 6px; border-radius: 8px; font-size: 0.65rem; font-weight: bold; margin-left: 8px; display: inline-block;" title="Respuesta oficial AEAT">
+                    ${aeatEstadoStr}
+                </span>`;
+            }
+        }
+
         const esErrorAEAT = e.codigo_error_aeat ? true : false;
         const mostrarErrorConexion = e.es_error_conexion == 1 && e.estado !== 'enviado';
-        
+
         html += `
             <tr style="border-bottom: 1px solid var(--border-main); background: ${mostrarErrorConexion ? 'rgba(245, 158, 11, 0.05)' : 'transparent'};">
                 <td style="padding: 12px; font-weight: bold;">${e.display_num || e.num_documento || '#' + e.id_documento}</td>
                 <td style="padding: 12px; text-transform: capitalize;">${e.tabla_origen}</td>
                 <td style="padding: 12px;">
                     <span style="background: ${badgeColor}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">
-                        ${e.estado === 'pendiente' ? 'PENDIENTE POR COOLDOWN' : (e.estado === 'subsanado' ? 'SUBSANADO (MANUAL)' : (e.estado || 'ERROR').replace('_', ' ').toUpperCase())}
+                        ${e.estado === 'pendiente' ? 'PENDIENTE POR COOLDOWN' : (e.estado === 'subsanado' ? 'SUBSANADO (MANUAL)' : estadoTexto)}
                     </span>
-                    ${mostrarErrorConexion ? '<i class="fas fa-wifi" style="color:#ef4444; margin-left:5px;" title="Error de Conexión"></i>' : ''}
+                    ${aeatBadge}
+                    ${mostrarErrorConexion ? '<br><i class="fas fa-wifi" style="color:#ef4444; margin-top:4px;" title="Error de Conexión"></i>' : ''}
                 </td>
                 <td style="padding: 12px; text-align: center;">${e.intentos}/${e.max_intentos}</td>
                 <td style="padding: 12px; font-size: 0.85rem;">${e.proximo_reintento || '-'}</td>
@@ -454,7 +576,7 @@ function renderLibroEventos(eventos) {
         eventos.forEach(e => {
             let icon = 'fa-info-circle';
             let color = 'var(--text-main)';
-            
+
             if (e.tipo.includes('error') || e.tipo.includes('fallida')) { icon = 'fa-times-circle'; color = '#ef4444'; }
             if (e.tipo.includes('ok') || e.tipo.includes('recuperada')) { icon = 'fa-check-circle'; color = '#10b981'; }
             if (e.tipo.includes('perdida')) { icon = 'fa-wifi'; color = '#f59e0b'; }
@@ -481,7 +603,7 @@ function renderLibroEventos(eventos) {
 
 function renderStatsEnvios(stats) {
     const contenedor = document.getElementById('verifactuContenidoTab');
-    
+
     contenedor.innerHTML = `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
             <div style="background: var(--bg-panel); border: 1px solid var(--border-main); padding: 20px; border-radius: 8px; text-align: center;">
@@ -521,30 +643,30 @@ function procesarColaManual() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'procesarCola' })
     })
-    .then(r => r.json())
-    .then(data => {
-        if (data.ok) {
-            // Iniciar cooldown si viene en la respuesta
-            const cd = data.resumen.cooldown_segundos || 0;
-            if (cd > 0) {
-                iniciarCooldownVisual(cd);
-            }
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                // Iniciar cooldown si viene en la respuesta
+                const cd = data.resumen.cooldown_segundos || 0;
+                if (cd > 0) {
+                    iniciarCooldownVisual(cd);
+                }
 
-            let icon = 'success';
-            let title = 'Proceso completado';
-            
-            if (data.resumen.procesados === 0 && cd > 0) {
-                icon = 'info';
-                title = 'En espera AEAT';
-            } else if (data.resumen.procesados === 0) {
-                icon = 'info';
-                title = 'Sin pendientes';
-            } else if (data.resumen.fallidos > 0) {
-                icon = 'warning';
-                title = 'Proceso con errores';
-            }
+                let icon = 'success';
+                let title = 'Proceso completado';
 
-            let htmlMsg = `
+                if (data.resumen.procesados === 0 && cd > 0) {
+                    icon = 'info';
+                    title = 'En espera AEAT';
+                } else if (data.resumen.procesados === 0) {
+                    icon = 'info';
+                    title = 'Sin pendientes';
+                } else if (data.resumen.fallidos > 0) {
+                    icon = 'warning';
+                    title = 'Proceso con errores';
+                }
+
+                let htmlMsg = `
                 <div style="font-size: 1.1em; text-align: left; display: inline-block;">
                     <p style="margin: 5px 0;"><b>Procesados:</b> ${data.resumen.procesados}</p>
                     <p style="margin: 5px 0; color: #10b981;"><b>Exitosos:</b> ${data.resumen.exitosos}</p>
@@ -553,21 +675,21 @@ function procesarColaManual() {
                 </div>
             `;
 
-            Swal.fire({ title: title, html: htmlMsg, icon: icon });
-            if (seccionActual === 'envios-aeat') cargarTabEnvios(verifactuTabActual);
-            actualizarBadgePendientesAeat();
-        } else {
-            Swal.fire('Error', data.error || 'Error al procesar la cola', 'error');
-        }
-    })
-    .catch(e => {
-        console.error(e);
-        Swal.fire('Error', 'Fallo de conexión', 'error');
-    })
-    .finally(() => {
-        btn.innerHTML = prevHtml;
-        btn.disabled = false;
-    });
+                Swal.fire({ title: title, html: htmlMsg, icon: icon });
+                if (seccionActual === 'envios-aeat') cargarTabEnvios(verifactuTabActual);
+                actualizarBadgePendientesAeat();
+            } else {
+                Swal.fire('Error', data.error || 'Error al procesar la cola', 'error');
+            }
+        })
+        .catch(e => {
+            console.error(e);
+            Swal.fire('Error', 'Fallo de conexión', 'error');
+        })
+        .finally(() => {
+            btn.innerHTML = prevHtml;
+            btn.disabled = false;
+        });
 }
 
 function abrirEditorDocumentoAeat(idDoc, tabla, numDoc) {
@@ -577,7 +699,7 @@ function abrirEditorDocumentoAeat(idDoc, tabla, numDoc) {
         .then(data => {
             if (data.error) { alert(data.error); return; }
             const v = data.venta;
-            
+
             let html = `
                 <div style="padding:0;">
                     <!-- Cabecera Premium -->
@@ -666,16 +788,22 @@ function guardarCambiosDocumentoAeat(idDoc, tabla) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     })
-    .then(r => r.json())
-    .then(res => {
-        if (res.ok) {
-            cerrarModal('modalEditarAeat');
-            mostrarNotificacion('Datos actualizados correctamente.', 'success');
-            cargarEnviosAeat(); // Recargar lista
-        } else {
-            alert('Error: ' + res.error);
-        }
-    });
+        .then(r => r.json())
+        .then(res => {
+            if (res.ok) {
+                cerrarModal('modalEditarAeat');
+                Swal.fire({
+                    title: 'Éxito',
+                    text: 'Datos actualizados correctamente.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                cargarEnviosAeat(); // Recargar lista
+            } else {
+                Swal.fire('Error', res.error || 'No se pudo actualizar.', 'error');
+            }
+        });
 }
 
 function reenviarEnvioManual(id) {
@@ -684,15 +812,15 @@ function reenviarEnvioManual(id) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'reenviar', id: id })
     })
-    .then(r => r.json())
-    .then(data => {
-        if (data.ok) {
-            cargarTabEnvios('cola');
-            actualizarBadgePendientesAeat();
-        } else {
-            Swal.fire('Error', data.error, 'error');
-        }
-    });
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                cargarTabEnvios('cola');
+                actualizarBadgePendientesAeat();
+            } else {
+                Swal.fire('Error', data.error, 'error');
+            }
+        });
 }
 
 function descartarEnvioManual(id) {
@@ -733,20 +861,20 @@ function subsanarDocumentoManual(idDoc, tabla) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'subsanar', id_documento: idDoc, tabla: tabla })
             })
-            .then(r => r.json())
-            .then(data => {
-                if (!data.success) {
-                    if (data.errors) {
-                        const errs = data.errors.map(e => `<li><b>${e.field}</b>: ${e.message}</li>`).join('');
-                        throw new Error(`Validación pre-envío fallida:<ul style="text-align:left;font-size:0.85rem;margin-top:10px;">${errs}</ul>`);
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        if (data.errors) {
+                            const errs = data.errors.map(e => `<li><b>${e.field}</b>: ${e.message}</li>`).join('');
+                            throw new Error(`Validación pre-envío fallida:<ul style="text-align:left;font-size:0.85rem;margin-top:10px;">${errs}</ul>`);
+                        }
+                        throw new Error(data.message || 'Error desconocido');
                     }
-                    throw new Error(data.message || 'Error desconocido');
-                }
-                return data;
-            })
-            .catch(error => {
-                Swal.showValidationMessage(error.message);
-            });
+                    return data;
+                })
+                .catch(error => {
+                    Swal.showValidationMessage(error.message);
+                });
         },
         allowOutsideClick: () => !Swal.isLoading()
     }).then((result) => {
@@ -773,19 +901,19 @@ function limpiarLibroEventos() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'limpiarEventos' })
             })
-            .then(r => r.json())
-            .then(data => {
-                if (data.ok) {
-                    Swal.fire('¡Limpio!', 'El libro de eventos ha sido vaciado.', 'success');
-                    cargarTabEnvios('eventos');
-                } else {
-                    Swal.fire('Error', data.error || 'No se pudo limpiar el libro.', 'error');
-                }
-            })
-            .catch(e => {
-                console.error(e);
-                Swal.fire('Error', 'Fallo de conexión', 'error');
-            });
+                .then(r => r.json())
+                .then(data => {
+                    if (data.ok) {
+                        Swal.fire('¡Limpio!', 'El libro de eventos ha sido vaciado.', 'success');
+                        cargarTabEnvios('eventos');
+                    } else {
+                        Swal.fire('Error', data.error || 'No se pudo limpiar el libro.', 'error');
+                    }
+                })
+                .catch(e => {
+                    console.error(e);
+                    Swal.fire('Error', 'Fallo de conexión', 'error');
+                });
         }
     });
 }
@@ -806,22 +934,22 @@ function limpiarColaEnvios() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'limpiarColaEnvios' })
             })
-            .then(r => r.json())
-            .then(data => {
-                if (data.ok) {
-                    Swal.fire('¡Historial limpio!', 'Los documentos enviados han sido borrados de la vista.', 'success');
-                    if (seccionActual === 'envios-aeat') {
-                        cargarTabEnvios(verifactuTabActual);
+                .then(r => r.json())
+                .then(data => {
+                    if (data.ok) {
+                        Swal.fire('¡Historial limpio!', 'Los documentos enviados han sido borrados de la vista.', 'success');
+                        if (seccionActual === 'envios-aeat') {
+                            cargarTabEnvios(verifactuTabActual);
+                        }
+                        actualizarBadgePendientesAeat();
+                    } else {
+                        Swal.fire('Error', data.error || 'No se pudo vaciar la cola.', 'error');
                     }
-                    actualizarBadgePendientesAeat();
-                } else {
-                    Swal.fire('Error', data.error || 'No se pudo vaciar la cola.', 'error');
-                }
-            })
-            .catch(e => {
-                console.error(e);
-                Swal.fire('Error', 'Fallo de conexión', 'error');
-            });
+                })
+                .catch(e => {
+                    console.error(e);
+                    Swal.fire('Error', 'Fallo de conexión', 'error');
+                });
         }
     });
 }
@@ -849,73 +977,190 @@ function actualizarBadgePendientesAeat() {
 function verDetallesEnvioManual(idCola) {
     const e = verifactuColaCache.find(x => x.id == idCola);
     if (!e) return;
-    
+
     const esc = (txt) => {
         if (!txt) return '<i>(Vacío)</i>';
         return txt.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     };
 
+    const formatXml = (xml) => {
+        if (!xml) return '';
+        let formatted = '';
+        let reg = /(>)(<)(\/*)/g;
+        xml = xml.replace(reg, '$1\r\n$2$3');
+        let pad = 0;
+        xml.split('\r\n').forEach(function (node) {
+            let indent = 0;
+            if (node.match(/.+<\/\w[^>]*>$/)) {
+                indent = 0;
+            } else if (node.match(/^<\/\w/)) {
+                if (pad != 0) pad -= 1;
+            } else if (node.match(/^<\w[^>]*[^\/]>.*$/)) {
+                indent = 1;
+            } else {
+                indent = 0;
+            }
+            formatted += '  '.repeat(pad) + node + '\r\n';
+            pad += indent;
+        });
+        return formatted.trim();
+    };
+
+    // Determinar color de estado
+    let colorEstado = '#6b7280'; // gris por defecto
+    let bgEstado = '#f3f4f6';
+    if (e.estado === 'enviado') { colorEstado = '#059669'; bgEstado = '#d1fae5'; }
+    else if (e.estado === 'pendiente' || e.estado === 'subsanado') { colorEstado = '#d97706'; bgEstado = '#fef3c7'; }
+    else if (e.estado.includes('error')) { colorEstado = '#dc2626'; bgEstado = '#fee2e2'; }
+
+    // Extraer EstadoRegistro de la respuesta XML
+    let aeatEstadoStr = '';
+    if (e.respuesta_xml) {
+        let m = e.respuesta_xml.match(/EstadoRegistro[^>]*>([^<]+)<\//);
+        if (m && m[1]) {
+            aeatEstadoStr = m[1];
+        }
+    }
+
     let info = `
-        <div style="text-align: left; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 0.9rem; max-height: 70vh; overflow-y: auto; padding: 10px;">
-            <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin-bottom: 15px; background: #f3f4f6; padding: 10px; border-radius: 6px; border: 1px solid #e5e7eb;">
-                <b>Documento:</b> <span>${e.display_num || e.num_documento}</span>
-                <b>Estado:</b> <span style="font-weight: bold;">${e.estado.toUpperCase()}</span>
-                <b>CSV AEAT:</b> <span style="color: #10b981; font-weight: bold;">${e.csv_aeat || '<i>No disponible</i>'}</span>
-                <b>Intentos:</b> <span>${e.intentos}/${e.max_intentos}</span>
-                <b>Fecha Alta:</b> <span>${e.fecha_creacion}</span>
-                ${e.codigo_error_aeat ? `<b>Código AEAT:</b> <span style="color:#dc2626; font-weight:bold;">${e.codigo_error_aeat}</span>` : ''}
+        <div style="text-align: left; font-family: 'Inter', system-ui, sans-serif; max-height: 75vh; overflow-y: auto; overflow-x: hidden; padding: 10px; padding-right: 15px;">
+            
+            <!-- TARJETA DE RESUMEN (Glassmorphism) -->
+            <div style="background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(249,250,251,0.7)); border: 1px solid rgba(229,231,235,0.8); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 25px; backdrop-filter: blur(10px);">
+                
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 1px dashed #e5e7eb; padding-bottom: 15px;">
+                    <div>
+                        <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; font-weight: 600;">ID de Documento</span>
+                        <div style="font-size: 1.5rem; font-weight: 800; color: #111827; margin-top: 4px; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-file-invoice" style="color: #3b82f6;"></i>
+                            ${e.display_num || e.num_documento}
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="display: inline-block; padding: 6px 14px; background: ${bgEstado}; color: ${colorEstado}; border-radius: 20px; font-size: 0.85rem; font-weight: 700; border: 1px solid rgba(0,0,0,0.05); box-shadow: 0 2px 4px rgba(0,0,0,0.02); text-transform: uppercase; letter-spacing: 0.5px;">
+                            ${e.estado}
+                        </span>
+                        ${aeatEstadoStr ? `
+                        <div style="margin-top: 8px;">
+                            <span style="font-size: 0.7rem; color: #6b7280; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 2px;">Respuesta AEAT</span>
+                            <span style="display: inline-block; padding: 3px 10px; background: ${aeatEstadoStr === 'Correcto' ? '#ecfdf5' : '#fff7ed'}; color: ${aeatEstadoStr === 'Correcto' ? '#059669' : '#c2410c'}; border-radius: 6px; border: 1px solid ${aeatEstadoStr === 'Correcto' ? '#a7f3d0' : '#fed7aa'}; font-size: 0.8rem; font-weight: 700;">
+                                ${aeatEstadoStr}
+                            </span>
+                        </div>` : ''}
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase;">CSV Seguridad AEAT</span>
+                        <span style="font-size: 0.9rem; font-family: 'Courier New', monospace; font-weight: 600; color: #10b981; background: #ecfdf5; padding: 4px 8px; border-radius: 4px; border: 1px solid #a7f3d0; margin-top: 4px; display: inline-block; word-break: break-all;">
+                            <i class="fas fa-fingerprint" style="margin-right: 5px;"></i>${e.csv_aeat || 'No asignado'}
+                        </span>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase;">Intentos Realizados</span>
+                        <span style="font-size: 0.95rem; font-weight: 600; color: #374151; margin-top: 4px; display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-sync-alt" style="color: #8b5cf6;"></i> ${e.intentos} de ${e.max_intentos} permitidos
+                        </span>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase;">Fecha Cola / Registro</span>
+                        <span style="font-size: 0.95rem; font-weight: 600; color: #374151; margin-top: 4px; display: flex; align-items: center; gap: 6px;">
+                            <i class="far fa-clock" style="color: #f59e0b;"></i> ${e.fecha_creacion}
+                        </span>
+                    </div>
+
+                    ${e.codigo_error_aeat ? `
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 0.75rem; color: #ef4444; font-weight: 700; text-transform: uppercase;">Código de Rechazo</span>
+                        <span style="font-size: 0.95rem; font-weight: 700; color: #b91c1c; background: #fee2e2; padding: 4px 8px; border-radius: 4px; border: 1px solid #fecaca; margin-top: 4px; display: inline-block;">
+                            <i class="fas fa-ban" style="margin-right: 5px;"></i> ERROR ${e.codigo_error_aeat}
+                        </span>
+                    </div>` : ''}
+                </div>
             </div>
 
-            <p style="margin-bottom: 5px; font-weight: bold; color: #374151;"><i class="fas fa-code"></i> XML Enviado a AEAT:</p>
-            <pre style="background: #111827; color: #10b981; padding: 12px; border-radius: 6px; overflow: auto; max-height: 200px; font-size: 0.8rem; border: 1px solid #374151;">${esc(e.xml_contenido)}</pre>
-            
-            <p style="margin: 15px 0 5px; font-weight: bold; color: #374151;"><i class="fas fa-reply"></i> Respuesta Completa AEAT:</p>
-            <pre style="background: #111827; color: #3b82f6; padding: 12px; border-radius: 6px; overflow: auto; max-height: 250px; font-size: 0.8rem; border: 1px solid #374151;">${esc(e.respuesta_xml || 'Sin respuesta almacenada (o error de conexión previo)')}</pre>
-            
+            <!-- MENSAJE DE ERROR DESTACADO -->
             ${e.ultimo_error ? `
-                <p style="margin: 15px 0 5px; font-weight: bold; color: #dc2626;"><i class="fas fa-exclamation-triangle"></i> Último Mensaje de Error:</p>
-                <div style="background: #fef2f2; color: #991b1b; padding: 10px; border-radius: 6px; border: 1px solid #fecaca; font-size: 0.85rem;">
-                    ${e.ultimo_error}
+                <div style="background: linear-gradient(to right, #fef2f2, #fff5f5); border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px 20px; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.05);">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <div style="background: #fee2e2; color: #ef4444; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div>
+                            <h4 style="margin: 0 0 5px 0; color: #991b1b; font-size: 0.9rem; font-weight: 700;">Mensaje de Error Interno / AEAT</h4>
+                            <p style="margin: 0; color: #7f1d1d; font-size: 0.85rem; line-height: 1.5;">${e.ultimo_error}</p>
+                        </div>
+                    </div>
                 </div>
             ` : ''}
+
+            <!-- VENTANAS DE CÓDIGO TIPO IDE (UNO AL LADO DEL OTRO) -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                
+                <!-- Petición XML -->
+                <div style="background: #1e1e1e; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1); border: 1px solid #333; display: flex; flex-direction: column;">
+                    <div style="background: #2d2d2d; padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #111;">
+                        <div style="display: flex; gap: 6px;">
+                            <div style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f56; border: 1px solid #e0443e;"></div>
+                            <div style="width: 12px; height: 12px; border-radius: 50%; background: #ffbd2e; border: 1px solid #dea123;"></div>
+                            <div style="width: 12px; height: 12px; border-radius: 50%; background: #27c93f; border: 1px solid #1aab29;"></div>
+                        </div>
+                        <span style="color: #858585; font-size: 0.75rem; font-family: monospace; font-weight: 600;"><i class="fas fa-upload" style="margin-right: 5px;"></i>request_payload.xml</span>
+                    </div>
+                    <div style="padding: 15px; overflow-x: auto; flex-grow: 1;">
+                        <pre style="margin: 0; font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.8rem; line-height: 1.5; color: #d4d4d4; max-height: 400px; overflow-y: auto;"><code><span style="color: #4fc1ff;">${esc(formatXml(e.xml_contenido))}</span></code></pre>
+                    </div>
+                </div>
+
+                <!-- Respuesta XML -->
+                <div style="background: #1e1e1e; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.1); border: 1px solid #333; display: flex; flex-direction: column;">
+                    <div style="background: #2d2d2d; padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #111;">
+                        <div style="display: flex; gap: 6px;">
+                            <div style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f56; border: 1px solid #e0443e;"></div>
+                            <div style="width: 12px; height: 12px; border-radius: 50%; background: #ffbd2e; border: 1px solid #dea123;"></div>
+                            <div style="width: 12px; height: 12px; border-radius: 50%; background: #27c93f; border: 1px solid #1aab29;"></div>
+                        </div>
+                        <span style="color: #858585; font-size: 0.75rem; font-family: monospace; font-weight: 600;"><i class="fas fa-download" style="margin-right: 5px;"></i>aeat_response.xml</span>
+                    </div>
+                    <div style="padding: 15px; overflow-x: auto; flex-grow: 1;">
+                        <pre style="margin: 0; font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.8rem; line-height: 1.5; color: #d4d4d4; max-height: 400px; overflow-y: auto;"><code><span style="color: #ce9178;">${esc(formatXml(e.respuesta_xml) || '<!-- Sin respuesta almacenada -->')}</span></code></pre>
+                    </div>
+                </div>
+
+            </div>
         </div>
     `;
 
     Swal.fire({
         title: '<i class="fas fa-info-circle"></i> Información Técnica AEAT',
         html: info,
-        width: '850px',
+        width: '1200px', // Ampliado para soportar las dos columnas de forma cómoda
         confirmButtonText: 'Entendido',
         confirmButtonColor: '#3b82f6'
     });
 }
 
-// Iniciar timer global
-setInterval(() => {
+// Escuchar evento global de procesamiento en segundo plano (lanzado desde Layout.php)
+window.addEventListener('verifactuAutoProcess', (e) => {
     // Si hay cooldown activo, el timer de cooldown se encarga
     if (aeatCooldownSegs > 0) return;
 
-    fetch('api/verifactu-cola.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'procesarCola', auto: true })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.ok && data.resumen) {
-            if (data.resumen.cooldown_segundos > 0) {
-                iniciarCooldownVisual(data.resumen.cooldown_segundos);
-            }
-            if (data.resumen.procesados > 0) {
-                actualizarBadgePendientesAeat();
-                if (seccionActual === 'envios-aeat') {
-                    cargarTabEnvios(verifactuTabActual, verifactuPaginaActual);
-                }
+    const data = e.detail;
+    if (data && data.ok && data.resumen) {
+        if (data.resumen.cooldown_segundos > 0) {
+            iniciarCooldownVisual(data.resumen.cooldown_segundos);
+        }
+        if (data.resumen.procesados > 0) {
+            actualizarBadgePendientesAeat();
+            if (seccionActual === 'envios-aeat') {
+                cargarTabEnvios(verifactuTabActual, verifactuPaginaActual);
             }
         }
-    })
-    .catch(e => console.error("Error auto-retry AEAT", e));
-}, 60 * 1000); // Comprueba cada 1 minuto (procesarCola respeta el 'proximo_reintento' en el backend)
+    }
+});
 
 // Actualizar badge al cargar la página
 document.addEventListener('DOMContentLoaded', () => {

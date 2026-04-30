@@ -11,9 +11,20 @@ require_once(__DIR__ . '/../core/Verifactu.php');
 
 header('Content-Type: application/json; charset=utf-8');
 
-if (!isset($_SESSION['rolUsuario']) || $_SESSION['rolUsuario'] !== 'admin') {
+if (!isset($_SESSION['idUsuario'])) {
     http_response_code(403);
     echo json_encode(['error' => 'Acceso denegado.']);
+    exit;
+}
+
+// Para acciones que no son 'procesarCola', requerir admin
+$inputCheck = json_decode(file_get_contents('php://input'), true);
+$isAutoProcess = ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($inputCheck['action']) && $inputCheck['action'] === 'procesarCola');
+
+$rolUsuario = isset($_SESSION['rolUsuario']) ? $_SESSION['rolUsuario'] : '';
+if ($rolUsuario !== 'admin' && !$isAutoProcess) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Acceso denegado. Se requiere administrador.']);
     exit;
 }
 
@@ -64,6 +75,15 @@ try {
                 } else {
                     $e['display_num'] = $e['num_documento'];
                 }
+
+                // Obtener CSV real de la tabla original
+                $colCsv = ($e['tipo_envio'] === 'alta') ? 'csv_aeat' : 'csv_anulacion';
+                if (in_array($e['tabla_origen'], ['tickets', 'facturas'])) {
+                    $stmtCsv = $pdo->prepare("SELECT {$colCsv} as csv FROM {$e['tabla_origen']} WHERE id = ?");
+                    $stmtCsv->execute([$e['id_documento']]);
+                    $csvData = $stmtCsv->fetch(PDO::FETCH_ASSOC);
+                    $e['csv_aeat'] = $csvData ? $csvData['csv'] : null;
+                }
             }
 
             echo json_encode([
@@ -105,13 +125,13 @@ try {
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $input = json_decode(file_get_contents('php://input'), true);
+        $input = isset($inputCheck) ? $inputCheck : json_decode(file_get_contents('php://input'), true);
         $action = $input['action'] ?? '';
         if ($action === 'procesarCola') {
             $auto = !empty($input['auto']);
             echo json_encode(['ok' => true, 'resumen' => Verifactu::procesarColaPendientes($auto)]);
         } elseif ($action === 'reenviar') {
-            $pdo->prepare("UPDATE verifactu_cola_envios SET estado = 'pendiente', proximo_reintento = NOW() WHERE id = ?")->execute([$input['id']]);
+            $pdo->prepare("UPDATE verifactu_cola_envios SET estado = 'pendiente', proximo_reintento = NOW(), intentos = 0 WHERE id = ?")->execute([$input['id']]);
             echo json_encode(['ok' => true, 'resumen' => Verifactu::procesarColaPendientes()]);
         } elseif ($action === 'subsanar') {
             $idDoc = (int)($input['id_documento'] ?? 0);

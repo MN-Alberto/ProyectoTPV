@@ -688,8 +688,13 @@ class Venta
     {
         // Obtenemos la instancia de la conexión
         $conexion = ConexionDB::getInstancia()->getConexion();
-        // Preparamos la consulta
-        $stmt = $conexion->prepare("SELECT * FROM ventas WHERE id = :id");
+        // Preparamos la consulta - JOIN con ventas_ids para tener serie y numero
+        $stmt = $conexion->prepare("
+            SELECT v.*, vi.serie, vi.numero 
+            FROM ventas v 
+            JOIN ventas_ids vi ON v.id = vi.id 
+            WHERE v.id = :id
+        ");
         // Vinculamos los parámetros
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
         // Ejecutamos la consulta
@@ -891,8 +896,10 @@ class Venta
 
                     // Refrescar la vista 'ventas' usando columnas explícitas para evitar desalineación
                     $conexion->exec("DROP VIEW IF EXISTS ventas");
-                    $cols = "id,idUsuario,fecha,total,descuentoTipo,descuentoValor,descuentoCupon,descuentoTarifaTipo,descuentoTarifaValor,descuentoTarifaCupon,descuentoManualTipo,descuentoManualValor,descuentoManualCupon,metodoPago,estado,tipoDocumento,importeEntregado,cambioDevuelto,cerrada,idSesionCaja,idTarifa,cliente_dni,cliente_nombre,cliente_direccion,cliente_observaciones,mensaje_personalizado,desglose_pago,puntos_ganados,puntos_canjeados,puntos_balance,idioma_ticket";
-                    $conexion->exec("CREATE VIEW ventas AS SELECT $cols FROM tickets UNION ALL SELECT $cols FROM facturas");
+                    $conexion->exec("CREATE VIEW ventas AS 
+                        SELECT t.*, vi.serie, vi.numero FROM tickets t JOIN ventas_ids vi ON t.id = vi.id 
+                        UNION ALL 
+                        SELECT f.*, vi.serie, vi.numero FROM facturas f JOIN ventas_ids vi ON f.id = vi.id");
 
                     // Re-intentar la inserción
                     $stmt->execute();
@@ -1721,9 +1728,8 @@ class Venta
     {
         $conexion = ConexionDB::getInstancia()->getConexion();
 
-        // Buscamos el último evento fiscal (Alta o Anulación)
-        // Usamos la fecha de anulación si existe, de lo contrario la fecha del documento.
-        // Se ordena por el evento más reciente globalmente.
+        // Buscamos el último evento fiscal (Alta o Anulación) que tenga Huella generada.
+        // El encadenamiento debe seguir el orden cronológico de generación del evento.
         $sql = "
             SELECT v.serie, v.numero, v.fecha, 
                    COALESCE(v.hash_anulacion, v.hash) as last_hash
@@ -1731,14 +1737,14 @@ class Venta
                 SELECT vi.serie, vi.numero, t.fecha, t.hash, t.hash_anulacion, t.fecha_anulacion, t.id
                 FROM tickets t
                 JOIN ventas_ids vi ON t.id = vi.id
-                WHERE t.hash IS NOT NULL
+                WHERE t.hash IS NOT NULL OR t.hash_anulacion IS NOT NULL
                 UNION ALL
                 SELECT vi.serie, vi.numero, f.fecha, f.hash, f.hash_anulacion, f.fecha_anulacion, f.id
                 FROM facturas f
                 JOIN ventas_ids vi ON f.id = vi.id
-                WHERE f.hash IS NOT NULL
+                WHERE f.hash IS NOT NULL OR f.hash_anulacion IS NOT NULL
             ) v
-            ORDER BY GREATEST(COALESCE(v.fecha_anulacion, '2000-01-01'), COALESCE(v.fecha, '2000-01-01')) DESC, v.id DESC
+            ORDER BY GREATEST(COALESCE(v.fecha_anulacion, '1970-01-01'), COALESCE(v.fecha, '1970-01-01')) DESC, v.id DESC
             LIMIT 1
         ";
 
