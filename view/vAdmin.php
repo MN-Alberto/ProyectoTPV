@@ -14,6 +14,7 @@
 <script src="webroot/js/lib/qrcode.min.js"></script>
 <script src="webroot/js/shared-impresion.js"></script>
 <script src="webroot/js/admin-ventas.js?v=4"></script>
+<script src="webroot/js/admin-main.js"></script>
 
 <script>
     // Configuración global del TPV para impresión y fiscalidad
@@ -123,9 +124,11 @@
             <button class="cat-btn" data-seccion="historial-precios" style="width: 100%; text-align: left;">
                 <i class="fas fa-chart-area" style="margin-right: 10px;"></i> Historial de Precios
             </button>
-            <button class="cat-btn" data-seccion="envios-aeat" style="width: 100%; text-align: left; position: relative;">
+            <button class="cat-btn" data-seccion="envios-aeat"
+                style="width: 100%; text-align: left; position: relative;">
                 <i class="fas fa-satellite-dish" style="margin-right: 10px;"></i> Envíos AEAT
-                <span id="badgePendientesAeat" style="display:none; position:absolute; right:10px; top:50%; transform:translateY(-50%); background:#dc2626; color:#fff; font-size:11px; font-weight:700; padding:2px 7px; border-radius:10px; min-width:18px; text-align:center;">0</span>
+                <span id="badgePendientesAeat"
+                    style="display:none; position:absolute; right:10px; top:50%; transform:translateY(-50%); background:#dc2626; color:#fff; font-size:11px; font-weight:700; padding:2px 7px; border-radius:10px; min-width:18px; text-align:center;">0</span>
             </button>
             <button class="cat-btn" id="btnConfig" style="width: 100%; text-align: left;">
                 <i class="fas fa-cog" style="margin-right: 10px;"></i> Configuración ▾
@@ -496,8 +499,9 @@
             <h3 style="margin: 0; font-size: 1.2rem;">Detalle de Devolución</h3>
             <p class="modal-subtitulo" style="margin: 0; opacity: 0.8;">Vista previa del comprobante fiscal</p>
         </div>
-        
-        <div id="ticketDevolucionContainer" style="background: white; padding: 20px; max-height: 70vh; overflow-y: auto; border-bottom: 1px solid #eee;">
+
+        <div id="ticketDevolucionContainer"
+            style="background: white; padding: 20px; max-height: 70vh; overflow-y: auto; border-bottom: 1px solid #eee;">
             <!-- El ticket se generará aquí con generarHTMLComprobante -->
             <div style="text-align: center; padding: 40px; color: #666;">
                 <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
@@ -506,10 +510,12 @@
         </div>
 
         <div style="display: flex; justify-content: center; gap: 10px; padding: 15px 25px; background: #f9fafb;">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerDevolucion')" style="min-width: 100px; margin: 0;">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerDevolucion')"
+                style="min-width: 100px; margin: 0;">
                 Cerrar
             </button>
-            <button class="btn-exito" onclick="verTicketDevolucion()" style="min-width: 100px; margin: 0; background: #dc2626; border-color: #dc2626;">
+            <button class="btn-exito" onclick="verTicketDevolucion()"
+                style="min-width: 100px; margin: 0; background: #dc2626; border-color: #dc2626;">
                 <i class="fas fa-print"></i> Imprimir
             </button>
         </div>
@@ -1191,203 +1197,7 @@
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<script>
-    // ======================== NAVEGACIÓN PANEL ADMIN ========================
 
-    // Títulos para el panel lateral
-    const TITULOS = {
-        dashboard: 'Resumen de Actividad',
-        productos: 'Gestión de Productos',
-        usuarios: 'Gestión de Usuarios',
-        ventas: 'Historial de Ventas',
-        devoluciones: 'Gestión de Devoluciones',
-        proveedores: 'Gestión de Proveedores',
-        configuracion: 'Configuración',
-        logs: 'Logs del Sistema',
-        retiros: 'Retiros de Caja',
-        'caja-sesiones': 'Sesiones de Caja',
-        categorias: 'Gestión de Categorías',
-        'tarifa-iva': 'Cambiar IVA General',
-        'tarifa-ajuste': 'Ajuste de Precios',
-        clientes: 'Gestión de Clientes',
-        'tarifa-prefijadas': 'Tarifas Prefijadas',
-        'historial-precios': 'Historial de Precios',
-        'config-tema': 'Configuración: Tema',
-        'config-acciones': 'Configuración: Acciones',
-        'config-ajustes': 'Configuración: Ajustes',
-        'envios-aeat': 'Monitor Envíos AEAT',
-        'config-fiscal': 'Configuración Fiscal'
-    };
-
-    document.querySelectorAll('.cat-btn[data-seccion]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            // Actualizar botón activo
-            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('activa'));
-            btn.classList.add('activa');
-
-            const seccion = btn.dataset.seccion;
-            document.getElementById('adminTitulo').textContent = TITULOS[seccion] ?? seccion;
-
-            // Toggle modo configuración para ganar espacio
-            const dashboard = document.querySelector('.admin-dashboard');
-            const panel = document.querySelector('.admin-content-panel');
-            if (seccion.startsWith('config-') || seccion === 'configuracion') {
-                dashboard.classList.add('admin-mode-config');
-            } else {
-                dashboard.classList.remove('admin-mode-config');
-            }
-
-            if (seccion.startsWith('informe-')) {
-                panel.classList.add('informes-view');
-            } else {
-                panel.classList.remove('informes-view');
-            }
-
-            switch (seccion) {
-                case 'dashboard':
-                    document.getElementById('adminContenido').innerHTML = HTML_DASHBOARD;
-                    cargarGraficoDashboard();
-                    break;
-                case 'productos':
-                    cargarCategoriasAdmin().then(() => cargarProductosAdmin());
-                    break;
-                case 'usuarios':
-                    cargarUsuariosAdmin();
-                    break;
-                case 'ventas':
-                    cargarVentasAdmin();
-                    break;
-                case 'retiros':
-                    cargarRetirosAdmin();
-                    break;
-                case 'devoluciones':
-                    cargarDevolucionesAdmin();
-                    break;
-                case 'proveedores':
-                    cargarProveedoresAdmin();
-                    break;
-                case 'configuracion':
-                    cargarConfiguracion();
-                    break;
-                case 'config-tema':
-                    cargarConfiguracion('tema');
-                    break;
-                case 'config-acciones':
-                    cargarConfiguracion('acciones');
-                    break;
-                case 'config-ajustes':
-                    cargarConfiguracion('ajustes');
-                    break;
-                case 'logs':
-                    cargarLogs();
-                    break;
-                case 'caja-sesiones':
-                    cargarCajaSesionesAdmin();
-                    break;
-                case 'backups':
-                    mostrarPanelBackups();
-                    break;
-                case 'categorias':
-                    cargarCategoriasAdmin().then(() => mostrarPanelCategorias());
-                    break;
-                case 'tarifa-iva':
-                    mostrarPanelCambiarIVA();
-                    break;
-                case 'tarifa-ajuste':
-                    mostrarPanelAjustePrecios();
-                    break;
-                case 'tarifa-prefijadas':
-                    mostrarPanelTarifasPrefijadas();
-                    break;
-                case 'historial-precios':
-                    mostrarPanelHistorialPrecios();
-                    break;
-                case 'clientes':
-                    cargarClientesAdmin();
-                    break;
-                case 'informe-diario':
-                    mostrarSeccionInformes('diario');
-                    break;
-                case 'informe-semanal':
-                    mostrarSeccionInformes('semanal');
-                    break;
-                case 'informe-mensual':
-                    mostrarSeccionInformes('mensual');
-                    break;
-                case 'informe-anual':
-                    mostrarSeccionInformes('anual');
-                    break;
-                case 'envios-aeat':
-                    cargarEnviosAeat();
-                    break;
-                case 'config-fiscal':
-                    cargarConfiguracionFiscal();
-                    break;
-            }
-        });
-    });
-
-    // Toggle submenu de Configuración
-    document.getElementById('btnConfig').addEventListener('click', function (e) {
-        e.stopPropagation();
-        var submenu = document.getElementById('submenuConfig');
-        submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
-
-        // Cerrar otros submenus
-        document.getElementById('submenuTarifas').style.display = 'none';
-        document.getElementById('submenuInformes').style.display = 'none';
-    });
-
-    // Toggle submenu de Tarifas
-    document.getElementById('btnTarifas').addEventListener('click', function (e) {
-        e.stopPropagation();
-        var submenu = document.getElementById('submenuTarifas');
-        submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
-
-        // Cerrar otros submenus
-        document.getElementById('submenuConfig').style.display = 'none';
-        document.getElementById('submenuInformes').style.display = 'none';
-    });
-
-    // Toggle submenu de Informes
-    document.getElementById('btnInformes').addEventListener('click', function (e) {
-        e.stopPropagation();
-        var submenu = document.getElementById('submenuInformes');
-        submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
-
-        // Cerrar otros submenus
-        document.getElementById('submenuConfig').style.display = 'none';
-        document.getElementById('submenuTarifas').style.display = 'none';
-    });
-
-    // Cerrar submenus al hacer click fuera
-    document.addEventListener('click', function (e) {
-        var subTarifas = document.getElementById('submenuTarifas');
-        var subConfig = document.getElementById('submenuConfig');
-        var subInformes = document.getElementById('submenuInformes');
-        var btnTarifas = document.getElementById('btnTarifas');
-        var btnConfig = document.getElementById('btnConfig');
-        var btnInformes = document.getElementById('btnInformes');
-
-        if (!btnTarifas.contains(e.target) && !subTarifas.contains(e.target)) {
-            subTarifas.style.display = 'none';
-        }
-        if (!btnConfig.contains(e.target) && !subConfig.contains(e.target)) {
-            subConfig.style.display = 'none';
-        }
-        if (!btnInformes.contains(e.target) && !subInformes.contains(e.target)) {
-            subInformes.style.display = 'none';
-        }
-    });
-    document.getElementById('adminContenido').innerHTML = HTML_DASHBOARD;
-    cargarGraficoDashboard();
-
-    // Cargar categorías y tipos de IVA al inicio
-    cargarCategoriasAdmin();
-    cargarTiposIva();
-    verificarCambiosIvaProgramados();
-    verificarAjustesPreciosProgramados();
-</script>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
