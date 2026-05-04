@@ -29,13 +29,12 @@ function renderEditorFiscal(config) {
         <div class="config-section">
             <div class="tema-seccion-card">
                 <div style="
-                    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(99, 102, 241, 0.04) 100%);
-                    border: 1px solid rgba(59, 130, 246, 0.15);
+                    background: var(--bg-panel);
+                    border: 1px solid var(--border-main);
                     border-radius: 10px;
                     padding: 16px 18px;
                     margin-bottom: 18px;
-                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-                    backdrop-filter: blur(12px);
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
                     position: relative;
                     overflow: hidden;
                 ">
@@ -46,7 +45,8 @@ function renderEditorFiscal(config) {
                         left: 0;
                         right: 0;
                         height: 1px;
-                        background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.4), transparent);
+                        background: linear-gradient(90deg, transparent, var(--accent-main), transparent);
+                        opacity: 0.6;
                     "></div>
 
                     <div style="
@@ -535,12 +535,16 @@ function renderColaEnvios(data) {
             <div style="display:flex; gap:8px;">
                 <button onclick="cargarTabEnvios('cola', ${verifactuPaginaActual - 1})" 
                         ${verifactuPaginaActual <= 1 ? 'disabled' : ''} 
-                        style="padding:6px 12px; border-radius:6px; border:1px solid var(--border-main); background:var(--bg-panel); cursor:${verifactuPaginaActual <= 1 ? 'not-allowed' : 'pointer'}; opacity:${verifactuPaginaActual <= 1 ? '0.5' : '1'};">
+                        style="padding:6px 12px; border-radius:6px; border:1px solid var(--border-main); background:var(--bg-panel); color:var(--text-main); cursor:${verifactuPaginaActual <= 1 ? 'not-allowed' : 'pointer'}; opacity:${verifactuPaginaActual <= 1 ? '0.5' : '1'}; transition:all 0.2s ease;"
+                        onmouseover="if(!this.disabled) this.style.background='var(--bg-input)';"
+                        onmouseout="this.style.background='var(--bg-panel)';">
                     <i class="fas fa-chevron-left"></i> Anterior
                 </button>
                 <button onclick="cargarTabEnvios('cola', ${verifactuPaginaActual + 1})" 
                         ${verifactuPaginaActual >= totalPages ? 'disabled' : ''} 
-                        style="padding:6px 12px; border-radius:6px; border:1px solid var(--border-main); background:var(--bg-panel); cursor:${verifactuPaginaActual >= totalPages ? 'not-allowed' : 'pointer'}; opacity:${verifactuPaginaActual >= totalPages ? '0.5' : '1'};">
+                        style="padding:6px 12px; border-radius:6px; border:1px solid var(--border-main); background:var(--bg-panel); color:var(--text-main); cursor:${verifactuPaginaActual >= totalPages ? 'not-allowed' : 'pointer'}; opacity:${verifactuPaginaActual >= totalPages ? '0.5' : '1'}; transition:all 0.2s ease;"
+                        onmouseover="if(!this.disabled) this.style.background='var(--bg-input)';"
+                        onmouseout="this.style.background='var(--bg-panel)';">
                     Siguiente <i class="fas fa-chevron-right"></i>
                 </button>
             </div>
@@ -675,7 +679,14 @@ function procesarColaManual() {
                 </div>
             `;
 
-                Swal.fire({ title: title, html: htmlMsg, icon: icon });
+                Swal.fire({
+                    title: title,
+                    html: htmlMsg,
+                    icon: icon,
+                    background: 'var(--bg-panel)',
+                    color: 'var(--text-main)',
+                    iconColor: 'var(--accent-main)'
+                });
                 if (seccionActual === 'envios-aeat') cargarTabEnvios(verifactuTabActual);
                 actualizarBadgePendientesAeat();
             } else {
@@ -926,7 +937,10 @@ function limpiarColaEnvios() {
         showCancelButton: true,
         confirmButtonColor: '#10b981',
         confirmButtonText: 'Sí, limpiar historial',
-        cancelButtonText: 'Cancelar'
+        cancelButtonText: 'Cancelar',
+        background: 'var(--bg-panel)',
+        color: 'var(--text-main)',
+        iconColor: 'var(--accent-main)'
     }).then((result) => {
         if (result.isConfirmed) {
             fetch('api/verifactu-cola.php', {
@@ -1007,11 +1021,11 @@ function verDetallesEnvioManual(idCola) {
     };
 
     // Determinar color de estado
-    let colorEstado = '#6b7280'; // gris por defecto
-    let bgEstado = '#f3f4f6';
-    if (e.estado === 'enviado') { colorEstado = '#059669'; bgEstado = '#d1fae5'; }
-    else if (e.estado === 'pendiente' || e.estado === 'subsanado') { colorEstado = '#d97706'; bgEstado = '#fef3c7'; }
-    else if (e.estado.includes('error')) { colorEstado = '#dc2626'; bgEstado = '#fee2e2'; }
+    let colorEstado = 'var(--text-muted)'; // gris por defecto
+    let bgEstado = 'var(--bg-panel)';
+    if (e.estado === 'enviado') { colorEstado = '#10b981'; bgEstado = 'rgba(16, 185, 129, 0.12)'; }
+    else if (e.estado === 'pendiente' || e.estado === 'subsanado') { colorEstado = '#f59e0b'; bgEstado = 'rgba(245, 158, 11, 0.12)'; }
+    else if (e.estado.includes('error')) { colorEstado = '#ef4444'; bgEstado = 'rgba(239, 68, 68, 0.12)'; }
 
     // Extraer EstadoRegistro de la respuesta XML
     let aeatEstadoStr = '';
@@ -1023,16 +1037,16 @@ function verDetallesEnvioManual(idCola) {
     }
 
     let info = `
-        <div style="text-align: left; font-family: 'Inter', system-ui, sans-serif; max-height: 75vh; overflow-y: auto; overflow-x: hidden; padding: 10px; padding-right: 15px;">
+        <div style="text-align: left; font-family: 'Inter', system-ui, sans-serif; max-height: 75vh; overflow-y: auto; overflow-x: hidden; padding: 10px; padding-right: 15px; color: var(--text-main);">
             
-            <!-- TARJETA DE RESUMEN (Glassmorphism) -->
-            <div style="background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(249,250,251,0.7)); border: 1px solid rgba(229,231,235,0.8); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 25px; backdrop-filter: blur(10px);">
+            <!-- TARJETA DE RESUMEN -->
+            <div style="background: var(--bg-panel); border: 1px solid var(--border-main); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px;">
                 
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 1px dashed #e5e7eb; padding-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 1px dashed var(--border-main); padding-bottom: 15px;">
                     <div>
-                        <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; font-weight: 600;">ID de Documento</span>
-                        <div style="font-size: 1.5rem; font-weight: 800; color: #111827; margin-top: 4px; display: flex; align-items: center; gap: 10px;">
-                            <i class="fas fa-file-invoice" style="color: #3b82f6;"></i>
+                        <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 600;">ID de Documento</span>
+                        <div style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-top: 4px; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-file-invoice" style="color: var(--accent-main);"></i>
                             ${e.display_num || e.num_documento}
                         </div>
                     </div>

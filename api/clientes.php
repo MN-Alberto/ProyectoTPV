@@ -8,13 +8,27 @@
  * @version 1.0 (05/03/2026)
  */
 
+/**
+ * CONFIGURACIÓN INICIAL
+ * 
+ * Se habilitan todos los errores para desarrollo.
+ * En producción se debe establecer display_errors a 0
+ * por seguridad y evitar fuga de información.
+ */
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// Tipo de respuesta estandar para toda la API
 header('Content-Type: application/json; charset=utf-8');
 
 try {
-    // Conexión a la base de datos
+    /**
+     * CONEXIÓN A BASE DE DATOS
+     * 
+     * Se establece conexión con codificación UTF8MB4 para soportar
+     * emojis y caracteres especiales en nombres y direcciones.
+     * Se activa el modo excepciones para manejo uniforme de errores.
+     */
     $pdo = new PDO('mysql:host=localhost;dbname=ProyectoTPV', 'root', '');
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->exec("SET NAMES utf8mb4");
@@ -44,9 +58,14 @@ try {
         return $letra === $letraCorrecta;
     }
 
-    /** 
-     * MANEJADOR DE SOLICITUDES POST
-     * Procesa el alta de nuevos clientes con validación previa de DNI.
+    /**
+     * ==============================================
+     * METODO POST: Crear nuevo cliente
+     * ==============================================
+     * 
+     * Registra un nuevo cliente en el sistema. Realiza validación
+     * previa del DNI según el algoritmo oficial español y verifica
+     * que no exista previamente otro cliente con el mismo documento.
      */
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dni = strtoupper(trim($_POST['dni'] ?? ''));
@@ -68,7 +87,13 @@ try {
             exit;
         }
 
-        // Verificar si el DNI ya existe
+        /**
+         * VERIFICACIÓN DE DUPLICADOS
+         * 
+         * Solo se verifica que no existan clientes ACTIVOS con el mismo DNI.
+         * Los clientes eliminados (activo=0) no cuentan para esta comprobación.
+         * Se devuelve codigo HTTP 409 Conflict en caso de duplicado.
+         */
         $stmt = $pdo->prepare("SELECT id FROM clientes WHERE dni = ? AND activo = 1");
         $stmt->execute([$dni]);
         if ($stmt->fetch()) {
@@ -81,15 +106,22 @@ try {
 
         if ($stmt->execute([$dni, $nombre, $apellidos, $direccion, $fecha_alta])) {
             echo json_encode(['ok' => true, 'id' => $pdo->lastInsertId()]);
-        }
-        else {
+        } else {
             http_response_code(500);
             echo json_encode(['error' => 'Error al guardar el cliente']);
         }
         exit;
     }
 
-    // Manejar PUT para actualizar cliente
+    /**
+     * ==============================================
+     * METODO PUT: Actualizar cliente existente
+     * ==============================================
+     * 
+     * Actualiza los datos de un cliente ya registrado.
+     * Se usa parse_str porque los navegadores no envian datos formulario
+     * nativamente por metodo PUT, se leen desde el cuerpo de la petición.
+     */
     if ($_SERVER['REQUEST_METHOD'] === 'PUT' && isset($_GET['actualizar'])) {
         parse_str(file_get_contents("php://input"), $_PUT);
 
@@ -99,7 +131,7 @@ try {
         $apellidos = $_PUT['apellidos'] ?? '';
         $direccion = $_PUT['direccion'] ?? '';
         $fecha_alta = $_PUT['fecha_alta'] ?? '';
-        $puntos = isset($_PUT['puntos']) ? (int)$_PUT['puntos'] : null;
+        $puntos = isset($_PUT['puntos']) ? (int) $_PUT['puntos'] : null;
 
         if (empty($id) || empty($dni) || empty($nombre) || empty($apellidos)) {
             http_response_code(400);
@@ -107,7 +139,12 @@ try {
             exit;
         }
 
-        // Validar que los puntos no sean negativos
+        /**
+         * PROTECCIÓN DE INTEGRIDAD
+         * 
+         * Los puntos de fidelidad nunca pueden ser negativos.
+         * Esta validación evita errores de datos corruptos.
+         */
         if ($puntos !== null && $puntos < 0) {
             http_response_code(400);
             echo json_encode(['error' => 'Los puntos del cliente no pueden ser negativos']);
@@ -133,23 +170,29 @@ try {
         if ($puntos !== null) {
             $stmt = $pdo->prepare("UPDATE clientes SET dni = ?, nombre = ?, apellidos = ?, direccion = ?, fecha_alta = ?, puntos = ? WHERE id = ?");
             $success = $stmt->execute([$dni, $nombre, $apellidos, $direccion, $fecha_alta, $puntos, $id]);
-        }
-        else {
+        } else {
             $stmt = $pdo->prepare("UPDATE clientes SET dni = ?, nombre = ?, apellidos = ?, direccion = ?, fecha_alta = ? WHERE id = ?");
             $success = $stmt->execute([$dni, $nombre, $apellidos, $direccion, $fecha_alta, $id]);
         }
 
         if ($success) {
             echo json_encode(['ok' => true]);
-        }
-        else {
+        } else {
             http_response_code(500);
             echo json_encode(['error' => 'Error al actualizar el cliente']);
         }
         exit;
     }
 
-    // Manejar DELETE para eliminar cliente (baja física)
+    /**
+     * ==============================================
+     * METODO DELETE: Eliminar cliente definitivamente
+     * ==============================================
+     * 
+     * Realiza una eliminación FISICA permanente del cliente.
+     * NOTA: En versiones posteriores este sistema cambiará a
+     * eliminación lógica (marcar como activo=0).
+     */
     if ($_SERVER['REQUEST_METHOD'] === 'DELETE' && isset($_GET['eliminar'])) {
         $id = $_GET['eliminar'];
 
@@ -157,15 +200,21 @@ try {
 
         if ($stmt->execute([$id])) {
             echo json_encode(['ok' => true]);
-        }
-        else {
+        } else {
             http_response_code(500);
             echo json_encode(['error' => 'Error al eliminar el cliente']);
         }
         exit;
     }
 
-    // Manejar PUT para reactivar cliente
+    /**
+     * ==============================================
+     * METODO PUT: Reactivar cliente eliminado
+     * ==============================================
+     * 
+     * Vuelve a marcar un cliente como activo. Esta acción
+     * es solo para clientes que fueron eliminados lógicamente.
+     */
     if ($_SERVER['REQUEST_METHOD'] === 'PUT' && isset($_GET['reactivar'])) {
         $id = $_GET['reactivar'];
 
@@ -173,8 +222,7 @@ try {
 
         if ($stmt->execute([$id])) {
             echo json_encode(['ok' => true]);
-        }
-        else {
+        } else {
             http_response_code(500);
             echo json_encode(['error' => 'Error al activar el cliente']);
         }
@@ -253,7 +301,7 @@ try {
             // Count total — WHERE en orden del índice (activo, dni)
             $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM clientes WHERE dni LIKE ?");
             $stmtCount->execute([$dni . '%']);
-            $total = (int)$stmtCount->fetchColumn();
+            $total = (int) $stmtCount->fetchColumn();
 
             // Fetch página — solo columnas necesarias, WHERE en orden del índice
             $stmt = $pdo->prepare("SELECT id, dni, nombre, apellidos, direccion, fecha_alta, productos_comprados, compras_realizadas, puntos, activo FROM clientes WHERE dni LIKE ? ORDER BY dni ASC LIMIT ? OFFSET ?");
@@ -268,7 +316,7 @@ try {
                 'total' => $total,
                 'pagina' => $pagina,
                 'porPagina' => $porPagina,
-                'totalPaginas' => $total > 0 ? (int)ceil($total / $porPagina) : 1
+                'totalPaginas' => $total > 0 ? (int) ceil($total / $porPagina) : 1
             ]);
             exit;
         }
@@ -280,8 +328,7 @@ try {
 
         if ($clientes && count($clientes) > 0) {
             echo json_encode($clientes);
-        }
-        else {
+        } else {
             http_response_code(404);
             echo json_encode(['error' => 'No se encontraron clientes con ese DNI']);
         }
@@ -296,8 +343,7 @@ try {
 
         if ($cliente) {
             echo json_encode($cliente);
-        }
-        else {
+        } else {
             http_response_code(404);
             echo json_encode(['error' => 'Cliente no encontrado']);
         }
@@ -311,8 +357,8 @@ try {
 
     // ✅ OPTIMIZADO: Conteos ultra-rápidos usando solo los índices (Covering Index Count)
     // En lugar de SUM(CASE) que lee 10M de filas, hacemos dos COUNT indexados.
-    $totalActivos = (int)$pdo->query("SELECT COUNT(*) FROM clientes WHERE activo = 1")->fetchColumn();
-    $totalInactivos = (int)$pdo->query("SELECT COUNT(*) FROM clientes WHERE activo = 0")->fetchColumn();
+    $totalActivos = (int) $pdo->query("SELECT COUNT(*) FROM clientes WHERE activo = 1")->fetchColumn();
+    $totalInactivos = (int) $pdo->query("SELECT COUNT(*) FROM clientes WHERE activo = 0")->fetchColumn();
     $totalTodos = $totalActivos + $totalInactivos;
     $total = $totalActivos; // Por defecto mostramos activos
 
@@ -334,8 +380,13 @@ try {
 
     if (empty($targetIds)) {
         echo json_encode([
-            'clientes' => [], 'total' => $total, 'totalTodos' => $totalTodos, 'totalInactivos' => $totalInactivos,
-            'pagina' => $pagina, 'porPagina' => $porPagina, 'totalPaginas' => 1
+            'clientes' => [],
+            'total' => $total,
+            'totalTodos' => $totalTodos,
+            'totalInactivos' => $totalInactivos,
+            'pagina' => $pagina,
+            'porPagina' => $porPagina,
+            'totalPaginas' => 1
         ]);
         exit;
     }
@@ -358,11 +409,10 @@ try {
         'totalInactivos' => $totalInactivos,
         'pagina' => $pagina,
         'porPagina' => $porPagina,
-        'totalPaginas' => $total > 0 ? (int)ceil($total / $porPagina) : 1
+        'totalPaginas' => $total > 0 ? (int) ceil($total / $porPagina) : 1
     ]);
 
-}
-catch (Exception $e) {
+} catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => $e->getMessage()]);
 }
@@ -407,9 +457,9 @@ if (isset($_GET['ajustar_puntos']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
 
     $cliente_dni = trim($input['dni'] ?? '');
-    $puntos = (int)($input['puntos'] ?? 0);
+    $puntos = (int) ($input['puntos'] ?? 0);
     $observacion = trim($input['observacion'] ?? '');
-    $usuario_id = (int)($input['usuario_id'] ?? 0);
+    $usuario_id = (int) ($input['usuario_id'] ?? 0);
 
     if (empty($cliente_dni)) {
         http_response_code(400);
@@ -445,8 +495,7 @@ if (isset($_GET['ajustar_puntos']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->commit();
 
         echo json_encode(['success' => true, 'message' => 'Puntos ajustados correctamente']);
-    }
-    catch (Exception $e) {
+    } catch (Exception $e) {
         $pdo->rollBack();
         http_response_code(500);
         echo json_encode(['error' => $e->getMessage()]);
