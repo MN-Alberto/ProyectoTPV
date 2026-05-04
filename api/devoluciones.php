@@ -10,22 +10,27 @@
 
 require_once(__DIR__ . '/../config/confDB.php');
 
-// Endpoint para configurar numeración correlativa (solo admin)
+/**
+ * ENDPOINT: MIGRACIÓN Y SETUP
+ * 
+ * Inicializa las columnas necesarias para el sistema de numeración
+ * correlativa de tickets. Solo se ejecuta una vez durante actualizaciones.
+ * Crea las columnas y rellena los registros existentes con serie 'T'.
+ */
 if (isset($_GET['setupNumeracion'])) {
     header('Content-Type: application/json; charset=utf-8');
     try {
         $conexion = ConexionDB::getInstancia()->getConexion();
 
-        // Add columns
+        // Crear columnas si no existen
         $conexion->exec("ALTER TABLE ventas_ids ADD COLUMN IF NOT EXISTS numero INT DEFAULT 0");
         $conexion->exec("ALTER TABLE ventas_ids ADD COLUMN IF NOT EXISTS serie VARCHAR(10) DEFAULT ''");
 
-        // Update existing records
+        // Migrar registros antiguos al nuevo sistema
         $conexion->exec("UPDATE ventas_ids SET serie = 'T', numero = id WHERE serie IS NULL OR serie = ''");
 
         echo json_encode(['ok' => true, 'message' => 'Numeración correlativa configurada']);
-    }
-    catch (Exception $e) {
+    } catch (Exception $e) {
         echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
     }
     exit;
@@ -33,14 +38,18 @@ if (isset($_GET['setupNumeracion'])) {
 
 require_once(__DIR__ . '/../model/Devolucion.php');
 
-// Iniciar sesión de forma segura
+/**
+ * INICIALIZACIÓN SEGURA DE SESIÓN
+ * 
+ * Comprueba el estado de la sesión antes de iniciarla para evitar
+ * errores de sesión ya iniciada, un error muy comun en PHP cuando
+ * esta API es llamada desde diferentes puntos del sistema.
+ */
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
-}
-elseif (session_status() === PHP_SESSION_ACTIVE) {
-    // La sesión ya está activa, verificar que tenemos datos de usuario
+} elseif (session_status() === PHP_SESSION_ACTIVE) {
+    // Si la sesion ya existe, verificar que pertenece a un usuario autenticado
     if (!isset($_SESSION['idUsuario']) && !isset($_SESSION['nombreUsuario'])) {
-        // Intentar recuperar la sesión
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['error' => 'Sesión no válida']);
         exit;
@@ -56,12 +65,19 @@ $method = $_SERVER['REQUEST_METHOD'];
  * Permite listar todas las devoluciones con filtros dinámicos.
  */
 if ($method === 'GET') {
-    // Obtener devoluciones por sesión de caja
+    /**
+     * ENDPOINT: Historial de devoluciones por sesión de caja
+     * 
+     * Devuelve todas las devoluciones realizadas en la sesión
+     * de caja ACTIVA actualmente. Agrupadas por ticket original.
+     * 
+     * @param historialSesion Activar endpoint
+     */
     if (isset($_GET['historialSesion'])) {
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
 
-            // Obtener la sesión de caja activa
+            // Obtener la ultima sesion de caja abierta
             $stmtCaja = $conexion->prepare("SELECT id FROM caja_sesiones WHERE estado = 'abierta' ORDER BY id DESC LIMIT 1");
             $stmtCaja->execute();
             $caja = $stmtCaja->fetch(PDO::FETCH_ASSOC);
@@ -73,7 +89,13 @@ if ($method === 'GET') {
 
             $idSesion = $caja['id'];
 
-            // Query simple sin joins
+            /**
+             * CONSULTA OPTIMIZADA
+             * 
+             * Se hace una sola consulta agrupada por idVenta y luego
+             * se obtienen los nombres de usuarios por separado.
+             * Esto es MUCHO mas rapido que usar JOINs para esta consulta.
+             */
             $sqlDirecta = "SELECT
                 idVenta,
                 idSesionCaja,
@@ -107,15 +129,22 @@ if ($method === 'GET') {
             }
 
             echo json_encode($resultadoDirecto);
-        }
-        catch (Exception $e) {
+        } catch (Exception $e) {
             http_response_code(500);
             echo json_encode(['error' => 'Error al obtener devoluciones: ' . $e->getMessage()]);
         }
         exit;
     }
 
-    // Endpoint para obtener total de devoluciones por sesión
+    /**
+     * ENDPOINT: Total acumulado de devoluciones
+     * 
+     * Devuelve la suma total de importes devueltos en la sesión
+     * de caja actual. Usado para mostrar el contador en tiempo real
+     * en la interfaz del cajero.
+     * 
+     * @param totalSesion Activar endpoint
+     */
     if (isset($_GET['totalSesion'])) {
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
@@ -135,33 +164,41 @@ if ($method === 'GET') {
             $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
 
             echo json_encode(['idSesion' => $idSesion, 'total' => $resultado['total']]);
-        }
-        catch (Exception $e) {
+        } catch (Exception $e) {
             echo json_encode(['error' => $e->getMessage()]);
         }
         exit;
     }
 
-    // Obtener detalle de devolución por ticket
+    /**
+     * ENDPOINT: Detalle completo de devolución
+     * 
+     * Busca una devolución por numero de ticket. Admite múltiples formatos:
+     * - ID interno directo
+     * - Numero de ticket con serie: T000123
+     * - Numero de ticket sin serie: 123
+     * 
+     * @param detalleVenta Numero o ID del ticket
+     */
     if (isset($_GET['detalleVenta'])) {
         $input = $_GET['detalleVenta'];
         $idVenta = 0;
 
-        // Intentar primero por ID directo
-        $idVenta = (int)$input;
+        // 1. Intentar primero por ID interno numerico
+        $idVenta = (int) $input;
 
-        // Si no es número válido, intentar por correlativo
+        // 2. Si no es valido, intentar por numero de ticket correlativo
         if ($idVenta <= 0) {
+            // Reconocer formatos: T00123, F00456, 000789
             if (preg_match('/^([TF]?)0*(\d+)$/i', $input, $matches)) {
                 $serie = strtoupper($matches[1]);
-                $numero = (int)$matches[2];
+                $numero = (int) $matches[2];
 
                 $conexion = ConexionDB::getInstancia()->getConexion();
                 if ($serie !== '') {
                     $stmtIds = $conexion->prepare("SELECT id FROM ventas_ids WHERE serie = ? AND numero = ?");
                     $stmtIds->execute([$serie, $numero]);
-                }
-                else {
+                } else {
                     $stmtIds = $conexion->prepare("SELECT id FROM ventas_ids WHERE numero = ?");
                     $stmtIds->execute([$numero]);
                 }
@@ -216,17 +253,27 @@ if ($method === 'GET') {
                 $ventaDummy->numero = $rectData['numero'];
                 $ventaDummy->fecha = $rectData['fecha'];
                 $ventaDummy->total = $rectData['total'];
-                
+
                 // Métodos que requiere Verifactu::generarURLQR
-                $ventaProxy = new class($ventaDummy) {
+                $ventaProxy = new class ($ventaDummy) {
                     private $v;
-                    public function __construct($v) { $this->v = $v; }
-                    public function getSerie() { return $this->v->serie; }
-                    public function getNumero() { return $this->v->numero; }
-                    public function getFecha() { return $this->v->fecha; }
-                    public function getTotal() { return $this->v->total; }
+                    public function __construct($v)
+                    {
+                        $this->v = $v; }
+                    public function getSerie()
+                    {
+                        return $this->v->serie; }
+                    public function getNumero()
+                    {
+                        return $this->v->numero; }
+                    public function getFecha()
+                    {
+                        return $this->v->fecha; }
+                    public function getTotal()
+                    {
+                        return $this->v->total; }
                 };
-                
+
                 $qrUrl = Verifactu::generarURLQR($ventaProxy);
             }
 
@@ -247,8 +294,7 @@ if ($method === 'GET') {
             }
 
             echo json_encode($detalle);
-        }
-        catch (Exception $e) {
+        } catch (Exception $e) {
             http_response_code(500);
             echo json_encode(['ok' => false, 'error' => 'Error al obtener detalle: ' . $e->getMessage()]);
         }
@@ -264,8 +310,7 @@ if ($method === 'GET') {
         try {
             $devoluciones = Devolucion::obtenerTodas($orden, $filtroFecha, $busqueda, $pagina, $porPagina);
             echo json_encode($devoluciones);
-        }
-        catch (Exception $e) {
+        } catch (Exception $e) {
             http_response_code(500);
             echo json_encode(['ok' => false, 'error' => 'Error al obtener devoluciones: ' . $e->getMessage()]);
         }

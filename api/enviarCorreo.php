@@ -241,7 +241,7 @@ foreach ($lineas as $linea) {
 
     // Intentar traducir el nombre del producto
     $nombreProducto = $linea['nombre'];
-    
+
     // 1. Priorizar traducción directa desde la base de datos (columnas nombre_en, nombre_fr, etc.)
     $colLang = 'nombre_' . $langCode;
     if (isset($linea[$colLang]) && !empty($linea[$colLang])) {
@@ -251,7 +251,7 @@ foreach ($lineas as $linea) {
         $claveNormalizada = strtolower(str_replace(' ', '_', $nombreProducto));
         $tradNormalizada = t('products.' . $claveNormalizada);
         $tradExacta = t('products.' . $nombreProducto);
-        
+
         if ($tradNormalizada !== 'products.' . $claveNormalizada) {
             $nombreProducto = $tradNormalizada;
         } else if ($tradExacta !== 'products.' . $nombreProducto) {
@@ -400,15 +400,15 @@ $metodoPagoHtmlFactura = "<p><strong>" . t('print.payment_method') . ":</strong>
 $metodoPagoHtmlTicket = "<p><strong>" . t('print.payment_method') . ":</strong> " . strtoupper($labelMetodo) . "</p>";
 
 if ($metodoPago === 'efectivo') {
-    $entregadoFloat = is_string($entregado) ? (float)str_replace(',', '.', $entregado) : (float)$entregado;
-    $cambioFloat = is_string($cambio) ? (float)str_replace(',', '.', $cambio) : (float)$cambio;
-    
+    $entregadoFloat = is_string($entregado) ? (float) str_replace(',', '.', $entregado) : (float) $entregado;
+    $cambioFloat = is_string($cambio) ? (float) str_replace(',', '.', $cambio) : (float) $cambio;
+
     if ($entregadoFloat > 0) {
         $entregadoStr = number_format($entregadoFloat, 2, ',', '.');
         $cambioStr = number_format($cambioFloat, 2, ',', '.');
         $lblEntregado = t('print.delivered');
         $lblCambio = t('print.change_returned');
-        
+
         $metodoPagoHtmlFactura .= "<p style='font-size: 13px; color: #555; margin-top: 5px;'>{$lblEntregado}: {$entregadoStr} € | {$lblCambio}: {$cambioStr} €</p>";
         $metodoPagoHtmlTicket .= "<p style='font-size: 13px; color: #555; margin-top: 2px;'>{$lblEntregado}: {$entregadoStr} €<br>{$lblCambio}: {$cambioStr} €</p>";
     }
@@ -451,9 +451,9 @@ if ($isFactura) {
     <title>{$tipoTitulo} #{$ventaId}</title>
     <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 30px; color: #1a1a1a; max-width: 180mm; margin: 0 auto; line-height: 1.5; }
-        .header { border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 25px; }
-        .header h1 { margin: 0; font-size: 1.8rem; color: #2563eb; text-transform: uppercase; letter-spacing: 2px; }
-        .two-col { display: flex; justify-content: space-between; margin-bottom: 25px; }
+     .header { border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 25px; }
+     .header h1 { margin: 0; font-size: 1.8rem; color: #2563eb; text-transform: uppercase; letter-spacing: 2px; }
+     .two-col { display: flex; justify-content: space-between; margin-bottom: 25px; }
         .col { flex: 1; }
         .col h3 { font-size: 0.9rem; color: #666; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         .col p { margin: 3px 0; font-size: 0.9rem; }
@@ -473,6 +473,14 @@ if ($isFactura) {
     </style>
 </head>
 <body>
+" . (!empty($qrUrl) ? "
+<div style=\"text-align:center; margin-bottom:25px;\">
+    <div style=\"display:inline-block; border:1px solid #eee; padding:10px; background:#fff;\">
+        <img src=\"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($qrUrl) . "\" style=\"width:130px; height:130px;\" alt=\"QR Verifactu\">
+        <p style=\"margin:5px 0 0 0; font-size:10px; font-weight:bold; color:#000;\">VERI*FACTU AEAT</p>
+    </div>
+</div>
+" : "") . "
     <div class=\"header\">
         <h1>{$tipoTitulo}</h1>
     </div>
@@ -532,15 +540,6 @@ if ($isFactura) {
         <p>" . t('print.invoice_terms') . "</p>
     </div>
     
-    " . (!empty($qrUrl) ? "
-    <div style=\"clear:both; margin-top:30px; text-align:center;\">
-        <div style=\"display:inline-block; border:1px solid #eee; padding:10px; background:#fff;\">
-            <img src=\"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($qrUrl) . "\" style=\"width:120px; height:120px;\" alt=\"QR Verifactu\">
-            <p style=\"margin:5px 0 0 0; font-size:10px; font-weight:bold; color:#000;\">SISTEMA VERI*FACTU</p>
-        </div>
-        <p style=\"margin:5px 0 0 0; font-size:9px; color:#666;\">" . t('print.verifactu_verify') . "</p>
-    </div>
-    " : "") . "
     
     <div class=\"footer\">
         <p>TPV Bazar — Productos Informáticos | www.tpvbazar.es</p>
@@ -555,9 +554,9 @@ if ($isFactura) {
     <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1a1a1a; line-height: 1.4; padding: 20px;}
         .cont { max-width: 600px; margin: 0 auto; background: white; padding: 20px;}
-        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
-        .header h1 { margin: 0; font-size: 20px; text-transform: uppercase; color: #1a1a2e;}
-        .header h2 { margin: 5px 0 0; font-size: 15px; font-weight: normal; color: #666;}
+     .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
+     .header h1 { margin: 0; font-size: 20px; text-transform: uppercase; color: #1a1a2e;}
+     .header h2 { margin: 5px 0 0; font-size: 15px; font-weight: normal; color: #666;}
         .datos { margin-bottom: 15px; font-size: 14px; }
         .datos p { margin: 3px 0; }
         table.tabla-lineas { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
@@ -568,6 +567,14 @@ if ($isFactura) {
 </head>
 <body style='background-color:#f0f2f5;'>
     <div class='cont'>
+" . (!empty($qrUrl) ? "
+    <div style='text-align:center; margin-bottom:15px;'>
+        <div style='display:inline-block; border:1px solid #000; padding:5px; background:#fff;'>
+            <img src=\"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($qrUrl) . "\" style=\"width:90px; height:90px;\" alt=\"QR Verifactu\">
+            <p style='margin:2px 0 0 0; font-size:8px; font-weight:bold; color:#000;'>VERI*FACTU AEAT</p>
+        </div>
+    </div>
+    " : "") . "
         <div class='header'>
             <h1>{$tipoTitulo}</h1>
             <h2>TPV Bazar — Productos Informáticos</h2>
@@ -576,7 +583,7 @@ if ($isFactura) {
         <div class='datos'>
             {$emisorHtml}
             <div style='margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee;'>";
-    
+
     if ($isDevolucion) {
         $cuerpo .= "
                 <p style=\"font-size: 1.1rem; margin-bottom: 5px;\"><strong>Nº Rectificativa:</strong> <span style=\"font-weight: bold;\">{$serie}{$numero}</span></p>
@@ -587,7 +594,7 @@ if ($isFactura) {
                 <p><strong>" . t('print.ticket_number') . ":</strong> {$ventaId}</p>
                 <p><strong>" . t('print.operation_date') . ":</strong> {$fecha}</p>";
     }
-    
+
     $cuerpo .= "
                 <div style='margin-top:5px;'>{$metodoPagoHtmlTicket}</div>
             </div>
@@ -620,15 +627,6 @@ if ($isFactura) {
         </div>
         " : "") . "
         
-        " . (!empty($qrUrl) ? "
-        <div style='margin-top:15px; text-align:center; padding-bottom:10px;'>
-            <div style='display:inline-block; border:1px solid #000; padding:5px; background:#fff;'>
-                <img src=\"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($qrUrl) . "\" style=\"width:100px; height:100px;\" alt=\"QR Verifactu\">
-                <p style='margin:2px 0 0 0; font-size:9px; font-weight:bold; color:#000;'>SISTEMA VERI*FACTU</p>
-            </div>
-            <p style='margin:5px 0 0 0; font-size:8px; color:#666;'>" . t('print.verifactu_verify') . "</p>
-        </div>
-        " : "") . "
 
         <div class='footer'>
             <p style='font-weight:bold;'>" . t('print.thanks_for_purchase') . "</p>

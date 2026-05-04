@@ -30,28 +30,28 @@ function ticketGetQRDataURL(text) {
         tempDiv.style.position = 'absolute';
         tempDiv.style.left = '-9999px';
         document.body.appendChild(tempDiv);
-        
+
         const qrcode = new QRCode(tempDiv, {
             text: text,
             width: 128,
             height: 128,
-            colorDark : "#000000",
-            colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel ? QRCode.CorrectLevel.M : 0
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel ? QRCode.CorrectLevel.M : 0
         });
-        
+
         // El qrcode.js de David Shim crea un canvas Y una imagen.
         // Algunos navegadores tardan un ciclo en pintar el canvas.
         const canvas = tempDiv.querySelector('canvas');
         const img = tempDiv.querySelector('img');
-        
+
         let result = '';
         if (canvas) {
             result = canvas.toDataURL("image/png");
         } else if (img && img.src) {
             result = img.src;
         }
-        
+
         document.body.removeChild(tempDiv);
         return result;
     } catch (e) {
@@ -97,10 +97,10 @@ function generarDesgloseFormaPago(T, datosVenta, isFactura) {
     }
 
     const label = metodoLabels[datosVenta.metodoPago] || (datosVenta.metodoPago ? datosVenta.metodoPago.toUpperCase() : '');
-    
+
     let extraHTMLFactura = '';
     let extraHTMLTicket = '';
-    
+
     if (datosVenta.metodoPago === 'efectivo' && datosVenta.entregado !== undefined && datosVenta.cambio !== undefined && datosVenta.entregado > 0) {
         const lblEntregado = T.print.delivered || 'Entregado';
         const lblCambio = T.print.change_returned || 'Cambio devuelto';
@@ -128,13 +128,13 @@ function generarHTMLComprobante(datosVenta, idioma = 'es') {
     const T = IDIOMAS_TICKET[idioma] || IDIOMAS_TICKET['es'];
     const isFactura = (datosVenta.tipo === 'factura');
     const isRectificativa = !!datosVenta.es_rectificativa;
-    
+
     let tipoTitulo = isFactura ? T.print.factura_title : T.print.ticket_title;
     if (isRectificativa) {
         tipoTitulo = T.print.rectificativa_title || 'FACTURA RECTIFICATIVA';
     }
 
-    const precTotal = 2; 
+    const precTotal = 2;
     let lineasHtmlTicket = '';
     let lineasHtmlFactura = '';
     let sumaTotalesNumeric = 0;
@@ -142,7 +142,7 @@ function generarHTMLComprobante(datosVenta, idioma = 'es') {
 
     datosVenta.carrito.forEach(item => {
         const cant = parseFloat(item.cantidad) || 0;
-        const dec = 2; 
+        const dec = 2;
         const precioBaseUnitario = parseFloat(item.precio) || 0;
         const ivaPorc = (item.iva !== undefined && item.iva !== null && item.iva !== "") ? parseInt(item.iva) : 21;
 
@@ -161,7 +161,7 @@ function generarHTMLComprobante(datosVenta, idioma = 'es') {
         desgloseIva[ivaPorc].cuota += subtotalIva;
 
         let nombreProducto = item['nombre_' + idioma] || item.nombre;
-        
+
         // Si no hay traducción en el objeto, intentar con el diccionario
         if (nombreProducto === item.nombre) {
             let claveNormalizada = nombreProducto.toLowerCase().replace(/\s+/g, '_');
@@ -266,17 +266,26 @@ function generarHTMLComprobante(datosVenta, idioma = 'es') {
             th { text-align: left; background: #f8fafc; padding: 10px 5px; border-bottom: 2px solid #2563eb; }
             td { padding: 10px 5px; border-bottom: 1px solid #e5e7eb; }
         </style></head><body>
+        
+        ${datosVenta.qrUrl ? `
+            <div style="text-align:center; margin-bottom:25px;">
+                <img src="${ticketGetQRDataURL(datosVenta.qrUrl)}" style="width:130px; height:130px;" alt="QR Verifactu">
+                <p style="margin:5px 0 0 0; font-size:10px; font-weight:bold; color:#000;">VERI*FACTU AEAT</p>
+            </div>
+        ` : ''}
             <div class="header"><h1>${tipoTitulo}</h1></div>
-            <div class="two-col"><div class="col"><h3>${T.print.emitter}</h3><p><strong>${TPV_CONFIG.nombre}</strong></p><p>NIF: ${TPV_CONFIG.nif}</p><p>${TPV_CONFIG.direccion}</p></div>
-            <div class="col" style="text-align:right">
-                <div style="font-size: 18px; font-weight: bold;">Nº ${numComprobante}</div>
-                <div style="color:#666">${T.print.date}: ${datosVenta.fecha}</div>
-                ${isRectificativa && datosVenta.id_original ? `
-                    <div style="margin-top:5px; font-size:12px; font-weight:bold; color:#dc2626;">
-                        ${T.print.rectificativa_original_ref || 'Rectifica a:'} ${datosVenta.serie_original || 'T'}${String(datosVenta.id_original).padStart(5, '0')}
-                    </div>
-                ` : ''}
-            </div></div>
+            <div class="two-col">
+                <div class="col"><h3>${T.print.emitter}</h3><p><strong>${TPV_CONFIG.nombre}</strong></p><p>NIF: ${TPV_CONFIG.nif}</p><p>${TPV_CONFIG.direccion}</p></div>
+                <div class="col" style="text-align:right">
+                    <div style="font-size: 18px; font-weight: bold;">Nº ${numComprobante}</div>
+                    <div style="color:#666">${T.print.date}: ${datosVenta.fecha}</div>
+                    ${isRectificativa && datosVenta.id_original ? `
+                        <div style="margin-top:5px; font-size:12px; font-weight:bold; color:#dc2626;">
+                            ${T.print.rectificativa_original_ref || 'Rectifica a:'} ${datosVenta.serie_original || 'T'}${String(datosVenta.id_original).padStart(5, '0')}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
             <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px;">
                 <h3>${T.print.receiver}</h3>
                 <p><strong>${datosVenta.clienteNombre || T.print.no_name}</strong></p>
@@ -288,20 +297,10 @@ function generarHTMLComprobante(datosVenta, idioma = 'es') {
             <tbody>${lineasHtmlFactura}</tbody></table>
              <div style="float:right; width: 45%;">${totalesHtml}</div>
              ${generarDesgloseFormaPago(T, datosVenta, true)}
-             
+              
             ${datosVenta.mensajePersonalizado ? `
                 <div style="clear:both; margin-top:20px; padding:12px; border-top:1px dashed #ccc; border-bottom:1px dashed #ccc; text-align:center; font-style:italic; color:#444; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.5;">
                     ${datosVenta.mensajePersonalizado.replace(/(.{45})/g, "$1<br>")}
-                </div>
-            ` : ''}
-                     
-            ${datosVenta.qrUrl ? `
-                <div style="clear:both; margin-top:30px; text-align:center;">
-                    <div style="display:inline-block; border:1px solid #eee; padding:10px; background:#fff;">
-                        <img src="${ticketGetQRDataURL(datosVenta.qrUrl)}" style="width:120px; height:120px;" alt="QR Verifactu">
-                        <p style="margin:5px 0 0 0; font-size:10px; font-weight:bold; color:#000;">SISTEMA VERI*FACTU</p>
-                    </div>
-                    <p style="margin:5px 0 0 0; font-size:9px; color:#666;">${T.print.verifactu_verify}</p>
                 </div>
             ` : ''}
          </body></html>`;
@@ -319,12 +318,19 @@ function generarHTMLComprobante(datosVenta, idioma = 'es') {
             .flex-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 10px; }
         </style></head><body>
             <div class="ticket-container">
-            <div class="header">
-                <h1>${TPV_CONFIG.nombre}</h1>
+        
+        ${datosVenta.qrUrl ? `
+            <div style="text-align:center; margin-bottom:15px;">
+                <img src="${ticketGetQRDataURL(datosVenta.qrUrl)}" style="width:90px; height:90px;" alt="QR Verifactu">
+                <p style="margin:3px 0 0 0; font-size:8px; font-weight:bold;">VERI*FACTU AEAT</p>
+            </div>
+        ` : ''}
+            <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px;">
+                <h1 style="margin:0; font-size:15px; text-transform:uppercase;">${TPV_CONFIG.nombre}</h1>
                 <div style="font-size:9px;">NIF: ${TPV_CONFIG.nif} | ${TPV_CONFIG.direccion}</div>
                 <div style="font-size:10px; margin-top:4px; font-weight:bold;">${tipoTitulo}</div>
+                <div class="flex-row" style="margin-top:6px;"><span>Nº: ${numComprobante}</span><span>${datosVenta.fecha}</span></div>
             </div>
-                <div class="flex-row"><span>Nº: ${numComprobante}</span><span>${datosVenta.fecha}</span></div>
                 ${isRectificativa && datosVenta.id_original ? `
                     <div style="margin-bottom:8px; font-size:10px; font-weight:bold; color:#dc2626;">
                         ${T.print.rectificativa_original_ref || 'Rectifica a:'} ${datosVenta.serie_original || 'T'}${String(datosVenta.id_original).padStart(5, '0')}
@@ -355,16 +361,6 @@ function generarHTMLComprobante(datosVenta, idioma = 'es') {
                 ` : ''}
 
                 <div class="footer"><p>${T.print.thanks_for_purchase}</p></div>
-                
-                ${datosVenta.qrUrl ? `
-                    <div style="margin-top:15px; text-align:center; padding-bottom:10px;">
-                        <div style="display:inline-block; border:1px solid #000; padding:5px; background:#fff;">
-                            <img src="${ticketGetQRDataURL(datosVenta.qrUrl)}" style="width:100px; height:100px;" alt="QR Verifactu">
-                            <p style="margin:2px 0 0 0; font-size:9px; font-weight:bold;">SISTEMA VERI*FACTU</p>
-                        </div>
-                        <p style="margin:5px 0 0 0; font-size:8px;">${T.print.verifactu_verify}</p>
-                    </div>
-                ` : ''}
             </div>
         </body></html>`;
     }

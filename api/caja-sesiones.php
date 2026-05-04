@@ -8,12 +8,27 @@
  * @version 1.0 (04/03/2026)
  */
 
+// Iniciar sesión para obtener datos del usuario autenticado
 session_start();
+
+/**
+ * CARGA DE DEPENDENCIAS
+ * 
+ * - Configuración de conexión a base de datos
+ * - Modelo Caja que contiene toda la lógica de negocio
+ */
 require_once(__DIR__ . '/../config/confDB.php');
 require_once(__DIR__ . '/../model/Caja.php');
 
+// Establecer tipo de respuesta estandar JSON para toda la API
 header('Content-Type: application/json; charset=utf-8');
 
+/**
+ * CONTROL DE ACCESO
+ * 
+ * SOLAMENTE usuarios con rol ADMINISTRADOR pueden acceder
+ * al historial completo de sesiones y arqueos de caja
+ */
 // Verificar si el usuario es administrador
 if (!isset($_SESSION['rolUsuario']) || $_SESSION['rolUsuario'] !== 'admin') {
     http_response_code(403);
@@ -21,28 +36,54 @@ if (!isset($_SESSION['rolUsuario']) || $_SESSION['rolUsuario'] !== 'admin') {
     exit;
 }
 
+// Obtener metodo HTTP para enrutar la petición
 $method = $_SERVER['REQUEST_METHOD'];
 
-/** 
- * MANEJADOR DE SOLICITUDES GET
- * Recupera listados de sesiones, filtros históricos o cálculos de arqueo específicos.
+/**
+ * ==============================================
+ * METODO GET: Consultas y lecturas
+ * ==============================================
+ * 
+ * Recupera listados de sesiones, filtros históricos
+ * o cálculos de arqueo específicos.
  */
 if ($method === 'GET') {
-    // Verificar si es una solicitud de arqueo
+    /**
+     * ENDPOINT: Obtener datos teóricos para arqueo
+     * 
+     * Calcula automaticamente cuanto efectivo DEBERIA haber
+     * en caja en base a ventas, retiros, devoluciones y fondo inicial.
+     * 
+     * @param arqueo Activar endpoint
+     * @param idSesion Identificador de la sesion de caja
+     */
     if (isset($_GET['arqueo']) && isset($_GET['idSesion'])) {
         obtenerDatosArqueo($_GET['idSesion']);
         exit;
     }
 
-    // Verificar si es una solicitud de último arqueo
+    /**
+     * ENDPOINT: Obtener ultimo arqueo fisico registrado
+     * 
+     * Devuelve el ultimo conteo manual que se realizó
+     * sobre esta sesion de caja, con diferencia y observaciones.
+     * 
+     * @param ultimoArqueo Activar endpoint
+     * @param idSesion Identificador de la sesion de caja
+     */
     if (isset($_GET['ultimoArqueo']) && isset($_GET['idSesion'])) {
         obtenerUltimoArqueo($_GET['idSesion']);
         exit;
     }
 
+    /**
+     * ORDENACIÓN DE RESULTADOS
+     * 
+     * Por defecto se muestran primero las sesiones mas nuevas.
+     * Se valida que el orden solicitado sea uno de los permitidos
+     * para evitar inyecciones SQL.
+     */
     $orden = $_GET['orden'] ?? 'fecha_desc';
-
-    // Validar orden
     $ordenesValidos = ['fecha_desc', 'fecha_asc'];
     if (!in_array($orden, $ordenesValidos)) {
         $orden = 'fecha_desc';
@@ -52,7 +93,13 @@ if ($method === 'GET') {
         $pdo = new PDO(RUTA, USUARIO, PASS);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-        // Verificar si la tabla existe
+        /**
+         * VERIFICACIÓN DE EXISTENCIA DE TABLA
+         * 
+         * Compatible con actualizaciones del sistema. Si la tabla
+         * aun no existe por ser una version antigua, devuelve
+         * un array vacio sin generar errores.
+         */
         $tablaExiste = $pdo->query("SHOW TABLES LIKE 'caja_sesiones'")->rowCount() > 0;
         if (!$tablaExiste) {
             echo json_encode([]);
@@ -65,7 +112,14 @@ if ($method === 'GET') {
             $orderBy = 'cs.fechaApertura ASC';
         }
 
-        // Filtro por fecha
+        /**
+         * FILTROS POR FECHA
+         * 
+         * Permite filtrar el historial de sesiones por periodos predefinidos:
+         * - Solo el dia actual
+         * - Ultimos 7 dias
+         * - Ultimos 30 dias
+         */
         $condiciones = [];
         if (isset($_GET['filtroFecha'])) {
             switch ($_GET['filtroFecha']) {
@@ -81,6 +135,21 @@ if ($method === 'GET') {
             }
         }
 
+        /**
+         * CONSULTA PRINCIPAL DE SESIONES
+         * 
+         * Query compleja que obtiene toda la información de cada sesion:
+         * - Datos básicos de apertura y cierre
+         * - Usuario que abrio la sesion
+         * - Total de retiros realizados en la sesion
+         * - Total de devoluciones realizadas
+         * - Desajuste del ultimo arqueo de cierre
+         * - Efectivo contado manualmente
+         * - Usuario que realizó el cierre
+         * 
+         * Se usan LEFT JOIN para que las sesiones aparezcan incluso
+         * si no tienen retiros, devoluciones o arqueos aun.
+         */
         $sql = "
             SELECT cs.id, cs.idUsuario, cs.fechaApertura, cs.fechaCierre, 
                    cs.importeInicial, cs.importeActual, cs.cambio, cs.estado,
@@ -125,13 +194,23 @@ if ($method === 'GET') {
     exit;
 }
 
-/** 
- * MANEJADOR DE SOLICITUDES POST
- * Procesa el registro persistente de nuevos arqueos y cierres de sesión.
+/**
+ * ==============================================
+ * METODO POST: Acciones de escritura
+ * ==============================================
+ * 
+ * Procesa el registro persistente de nuevos arqueos
+ * fisicos y cierres de sesión de caja.
  */
 if ($method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
 
+    /**
+     * ACCION: Registrar arqueo fisico
+     * 
+     * Almacena el conteo manual de efectivo realizado
+     * por el empleado, con detalle de billetes y monedas.
+     */
     if (isset($input['accion']) && $input['accion'] === 'registrarArqueo') {
         registrarArqueo($input);
         exit;
@@ -163,6 +242,18 @@ function obtenerDatosArqueo($idSesion)
     }
 }
 
+/**
+ * Obtiene el ultimo arqueo fisico registrado para una sesion
+ * 
+ * Devuelve el ultimo conteo manual realizado, incluyendo:
+ * - Efectivo contado
+ * - Diferencia con el importe teorico
+ * - Detalle de billetes y monedas
+ * - Observaciones del empleado
+ * 
+ * @param int $idSesion Identificador de la sesión a consultar
+ * @return void Respuesta JSON con los datos del arqueo
+ */
 function obtenerUltimoArqueo($idSesion)
 {
     try {

@@ -254,15 +254,15 @@ function renderProductos(productos) {
     if (window.PUEDE_PRODUCTO_COMODIN === true) {
         const comodinCard = `
             <div class="producto-card producto-comodin" onclick="abrirModalProductoComodin()"
-                 style="cursor: pointer; border: 2px dashed #6366f1; background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);">
-                <div class="producto-nombre" style="color: #6366f1; font-weight: 700;">
+                 style="cursor: pointer; border: 2px dashed var(--accent-main); background: var(--bg-panel);">
+                <div class="producto-nombre" style="color: var(--accent-main); font-weight: 700;">
                     <i class="fas fa-plus-circle"></i> ${t('products.comodin_title')}
                 </div>
                 <div class="producto-imagen" style="display: flex; align-items: center; justify-content: center; height: 120px;">
-                    <i class="fas fa-tag" style="font-size: 3rem; color: #6366f1;"></i>
+                    <i class="fas fa-tag" style="font-size: 3rem; color: var(--accent-main);"></i>
                 </div>
                 <div class="producto-info-inferior" style="text-align: center;">
-                    <span class="producto-precio" style="color: #6366f1;">${t('products.comodin_subtitle')}</span>
+                    <span class="producto-precio" style="color: var(--accent-main);">${t('products.comodin_subtitle')}</span>
                 </div>
             </div>`;
         contenidoGrid = comodinCard + contenidoGrid;
