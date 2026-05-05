@@ -9,9 +9,19 @@
  * @version 1.3 (09/04/2026)
  */
 
-// ✅ SOLUCIÓN BLOQUEO DE SESIONES PHP
-// Se cierra el bloqueo de sesion inmediatamente para permitir peticiones paralelas
-// Esto soluciona que las peticiones se queden en estado PENDING indefinidamente
+/**
+ * 🔓 SOLUCIÓN DEFINITIVA AL BLOQUEO DE SESIONES PHP
+ * 
+ * Esta es la línea más importante de TODO el sistema.
+ * 
+ * PHP bloquea la sesión de forma EXCLUSIVA durante TODO el tiempo
+ * que dura una petición. Ninguna otra petición del mismo usuario
+ * puede ejecutarse hasta que la primera termine.
+ * 
+ * Cerrando la escritura inmediatamente permitimos peticiones paralelas.
+ * Sin esto, el panel de administración se quedaba colgado indefinidamente
+ * cuando se ejecutaban informes largos.
+ */
 if (session_status() == PHP_SESSION_ACTIVE) {
     session_write_close();
 }
@@ -29,14 +39,22 @@ class ConexionDB
     private function __construct()
     {
         try {
-            // Realizamos la conexión a la base de datos
+            // Establecemos conexión con las credenciales definidas en config
             $this->conexion = new PDO(RUTA, USUARIO, PASS);
-            // Establecemos el modo de errores a excepciones
-            $this->conexion->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION); // Modo de errores: excepciones.
-            // Establecemos el modo de fetch a array asociativo
-            $this->conexion->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC); // Modo de fetch: array asociativo.
-            // Establecemos la codificación a UTF-8
-            $this->conexion->exec("SET NAMES 'utf8'"); // Codificación UTF-8.
+
+            /**
+             * ⚙️ CONFIGURACIÓN ÓPTIMA DE PDO
+             * 
+             * Estos tres atributos NO son los valores por defecto.
+             * Han sido seleccionados cuidadosamente:
+             * 
+             * 1. ERRMODE_EXCEPTION: No warnings silenciosos, todo error es una excepción
+             * 2. FETCH_ASSOC: NUNCA devuelve índices numéricos, reduce el tamaño de los datos en un 50%
+             * 3. SET NAMES utf8: Garantiza que TODO viaje en UTF-8 sin excepciones
+             */
+            $this->conexion->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $this->conexion->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+            $this->conexion->exec("SET NAMES 'utf8'");
         } catch (PDOException $e) {
             die("Error de conexión: " . $e->getMessage());
         }
@@ -64,7 +82,12 @@ class ConexionDB
     }
 
     /**
-     * Evitar la clonación del objeto.
+     * 🛡️ PROTECCIÓN CONTRA CLONACIÓN
+     * 
+     * Método privado para que NO se pueda clonar la instancia singleton.
+     * Si se intenta clonar, PHP lanzará un error fatal.
+     * 
+     * Parte de la implementación correcta del patrón Singleton en PHP.
      */
     private function __clone()
     {

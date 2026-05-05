@@ -1,33 +1,41 @@
 <?php
+
 /**
- * Modelo para gestionar las devoluciones de ventas.
- * Proporciona métodos para insertar, consultar y eliminar devoluciones del sistema.
+ * Modelo de Gestión de Devoluciones
+ * --------------------------------
+ * Esta clase gestiona el registro y consulta de productos devueltos por clientes.
+ * Permite revertir ventas total o parcialmente, manteniendo la trazabilidad con 
+ * la sesión de caja y la venta original.
  * 
  * @author Alberto Méndez
- * @version 1.0 (03/03/2026)
+ * @version 1.1
  */
 
 require_once(__DIR__ . '/../core/conexionDB.php');
 
 class Devolucion
 {
-    private $id;
-    private $idVenta;
-    private $idProducto;
-    private $cantidad;
-    private $precioUnitario;
-    private $iva;
-    private $importeTotal;
-    private $idUsuario;
-    private $metodoPago;
-    private $fecha;
-    private $motivo;
-    private $nombreProducto;
-    private $idSesionCaja;
-    private $decimales;
+    /**
+     * Atributos del Objeto (Estado de una devolución)
+     */
+    private $id;                // ID único del registro de devolución
+    private $idVenta;           // Referencia a la venta original
+    private $idProducto;        // ID del producto que se devuelve
+    private $cantidad;          // Unidades devueltas
+    private $precioUnitario;    // Precio base al que se vendió
+    private $iva;               // Porcentaje de IVA aplicado
+    private $importeTotal;      // Dinero total a devolver (Precio + IVA * Cantidad)
+    private $idUsuario;         // Empleado que autorizó la devolución
+    private $metodoPago;        // Cómo se devuelve el dinero (efectivo, tarjeta, etc)
+    private $fecha;             // Momento exacto del registro
+    private $motivo;            // Explicación textual del porqué se devuelve
+    private $nombreProducto;    // Caché del nombre del producto (por si se borra de la BD)
+    private $idSesionCaja;      // Sesión de caja donde se restará el importe
+    private $decimales;         // Precisión monetaria a aplicar
 
     /**
-     * Constructor de la clase Devolucion.
+     * Constructor
+     * Inicializa una instancia de devolución lista para ser insertada o manipulada.
      */
     public function __construct(
         $idVenta = null,
@@ -61,16 +69,19 @@ class Devolucion
     }
 
     /**
-     * Obtiene las devoluciones agrupadas por ticket de venta de una sesión de caja.
-     * @param int $idSesionCaja ID de la sesión de caja
-     * @return array Array de devoluciones agrupadas por ticket
+     * Consultas por Sesión de Caja
+     * ---------------------------
+     * Agrupa las devoluciones por Ticket (idVenta) para mostrarlas de forma compacta.
+     * Útil para el informe de arqueo de caja.
+     * 
+     * @param int $idSesionCaja
+     * @return array Resumen de tickets con productos devueltos.
      */
     public static function obtenerPorSesion($idSesionCaja)
     {
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
 
-            // Obtener devoluciones agrupadas por ticket de venta
             $sql = "SELECT
                         d.idVenta,
                         d.idSesionCaja,
@@ -91,9 +102,7 @@ class Devolucion
 
             $stmt = $conexion->prepare($sql);
             $stmt->execute([$idSesionCaja]);
-            $resultados = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            return $resultados;
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
         catch (Exception $e) {
             error_log("Error al obtener devoluciones por sesión: " . $e->getMessage());
@@ -102,9 +111,12 @@ class Devolucion
     }
 
     /**
-     * Obtiene el detalle de productos devueltos de un ticket específico.
-     * @param int $idVenta ID de la venta
-     * @return array Array con los productos devueltos
+     * Desglose de Ticket
+     * ------------------
+     * Obtiene línea por línea qué productos se devolvieron en una venta concreta.
+     * 
+     * @param int $idVenta
+     * @return array Detalle de cada producto devuelto con su precio calculado.
      */
     public static function obtenerDetallePorVenta($idVenta)
     {
@@ -132,7 +144,7 @@ class Devolucion
             $stmt->execute([$idVenta]);
             $lineas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Calcular precio con IVA usando los decimales guardados
+            // Re-calculamos el precio final con IVA para mostrar en la interfaz
             foreach ($lineas as &$l) {
                 $dec = isset($l['decimales']) ? (int) $l['decimales'] : 2;
                 $pBase = (float) $l['precioUnitario'];
@@ -147,153 +159,55 @@ class Devolucion
         }
     }
 
-    // Setters
-    public function setId($id)
-    {
-        $this->id = $id;
-    }
+    // =========================================================================
+    // ACCESORES (SETTERS Y GETTERS)
+    // =========================================================================
 
-    public function setNombreProducto($nombreProducto)
-    {
-        $this->nombreProducto = $nombreProducto;
-    }
+    public function setId($id) { $this->id = $id; }
+    public function setNombreProducto($nombreProducto) { $this->nombreProducto = $nombreProducto; }
+    public function setIdVenta($idVenta) { $this->idVenta = $idVenta; }
+    public function setIdProducto($idProducto) { $this->idProducto = $idProducto; }
+    public function setCantidad($cantidad) { $this->cantidad = $cantidad; }
+    public function setPrecioUnitario($precioUnitario) { $this->precioUnitario = $precioUnitario; }
+    public function setIva($iva) { $this->iva = $iva; }
+    public function setImporteTotal($importeTotal) { $this->importeTotal = $importeTotal; }
+    public function setIdUsuario($idUsuario) { $this->idUsuario = $idUsuario; }
+    public function setMetodoPago($metodoPago) { $this->metodoPago = $metodoPago; }
+    public function setFecha($fecha) { $this->fecha = $fecha; }
+    public function setMotivo($motivo) { $this->motivo = $motivo; }
+    public function setIdSesionCaja($idSesionCaja) { $this->idSesionCaja = $idSesionCaja; }
+    public function setDecimales($decimales) { $this->decimales = $decimales; }
 
-    public function setIdVenta($idVenta)
-    {
-        $this->idVenta = $idVenta;
-    }
+    public function getId() { return $this->id; }
+    public function getNombreProducto() { return $this->nombreProducto; }
+    public function getIdVenta() { return $this->idVenta; }
+    public function getIdProducto() { return $this->idProducto; }
+    public function getCantidad() { return $this->cantidad; }
+    public function getPrecioUnitario() { return $this->precioUnitario; }
+    public function getIva() { return $this->iva; }
+    public function getImporteTotal() { return $this->importeTotal; }
+    public function getIdUsuario() { return $this->idUsuario; }
+    public function getMetodoPago() { return $this->metodoPago; }
+    public function getFecha() { return $this->fecha; }
+    public function getMotivo() { return $this->motivo; }
+    public function getDecimales() { return $this->decimales; }
 
-    public function setIdProducto($idProducto)
-    {
-        $this->idProducto = $idProducto;
-    }
-
-    public function setCantidad($cantidad)
-    {
-        $this->cantidad = $cantidad;
-    }
-
-    public function setPrecioUnitario($precioUnitario)
-    {
-        $this->precioUnitario = $precioUnitario;
-    }
-
-    public function setIva($iva)
-    {
-        $this->iva = $iva;
-    }
-
-    public function setImporteTotal($importeTotal)
-    {
-        $this->importeTotal = $importeTotal;
-    }
-
-    public function setIdUsuario($idUsuario)
-    {
-        $this->idUsuario = $idUsuario;
-    }
-
-    public function setMetodoPago($metodoPago)
-    {
-        $this->metodoPago = $metodoPago;
-    }
-
-    public function setFecha($fecha)
-    {
-        $this->fecha = $fecha;
-    }
-
-    public function setMotivo($motivo)
-    {
-        $this->motivo = $motivo;
-    }
-
-    public function setIdSesionCaja($idSesionCaja)
-    {
-        $this->idSesionCaja = $idSesionCaja;
-    }
-
-    public function setDecimales($decimales)
-    {
-        $this->decimales = $decimales;
-    }
-
-    // Getters
-    public function getId()
-    {
-        return $this->id;
-    }
-
-    public function getNombreProducto()
-    {
-        return $this->nombreProducto;
-    }
-
-    public function getIdVenta()
-    {
-        return $this->idVenta;
-    }
-
-    public function getIdProducto()
-    {
-        return $this->idProducto;
-    }
-
-    public function getCantidad()
-    {
-        return $this->cantidad;
-    }
-
-    public function getPrecioUnitario()
-    {
-        return $this->precioUnitario;
-    }
-
-    public function getIva()
-    {
-        return $this->iva;
-    }
-
-    public function getImporteTotal()
-    {
-        return $this->importeTotal;
-    }
-
-    public function getIdUsuario()
-    {
-        return $this->idUsuario;
-    }
-
-    public function getMetodoPago()
-    {
-        return $this->metodoPago;
-    }
-
-    public function getFecha()
-    {
-        return $this->fecha;
-    }
-
-    public function getMotivo()
-    {
-        return $this->motivo;
-    }
-
-    public function getDecimales()
-    {
-        return $this->decimales;
-    }
+    // =========================================================================
+    // OPERACIONES DE BASE DE DATOS
+    // =========================================================================
 
     /**
-     * Crea una nueva devolución en la base de datos.
-     * @return bool True si la operación fue exitosa, False en caso contrario.
+     * Persiste la devolución en la base de datos.
+     * Se recomienda llamar a este método dentro de una transacción junto con
+     * la actualización del stock y del saldo de la caja.
+     * 
+     * @return bool
      */
     public function insertar()
     {
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
 
-            // Inserción completa con todos los campos (Requiere script scriptDB/fix_devoluciones_columns.sql)
             $sql = "INSERT INTO devoluciones (idVenta, idProducto, nombreProducto, cantidad, precioUnitario, iva, importeTotal, idUsuario, metodoPago, motivo, idSesionCaja, decimales, fecha) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
             $stmt = $conexion->prepare($sql);
@@ -313,6 +227,7 @@ class Devolucion
             ]);
         }
         catch (Exception $e) {
+            // Log de emergencia por si falla la base de datos
             file_put_contents(__DIR__ . '/../tmp/devolucion_error.txt', "Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
             error_log("Error al insertar devolución: " . $e->getMessage());
             return false;
@@ -320,9 +235,7 @@ class Devolucion
     }
 
     /**
-     * Obtiene una devolución por su ID.
-     * @param int $id ID de la devolución.
-     * @return array|null Datos de la devolución o null si no existe.
+     * Busca una devolución por su identificador primario.
      */
     public static function obtenerPorId($id)
     {
@@ -344,9 +257,7 @@ class Devolucion
     }
 
     /**
-     * Obtiene las devoluciones asociadas a una venta específica.
-     * @param int $idVenta ID de la venta.
-     * @return array Array con las devoluciones de la venta.
+     * Lista todas las devoluciones de una venta específica.
      */
     public static function obtenerPorIdVenta($idVenta)
     {
@@ -369,10 +280,10 @@ class Devolucion
     }
 
     /**
-     * Obtiene la cantidad total devuelta de un producto en una venta específica.
-     * @param int $idVenta ID de la venta.
-     * @param int $idProducto ID del producto.
-     * @return int Cantidad total devuelta.
+     * Control de Stock / Validación
+     * -----------------------------
+     * Indica cuántas unidades de un producto se han devuelto ya de un ticket.
+     * Evita que el cliente devuelva más unidades de las que compró originalmente.
      */
     public static function obtenerCantidadDevuelta($idVenta, $idProducto)
     {
@@ -393,11 +304,10 @@ class Devolucion
     }
 
     /**
-     * Obtiene todas las devoluciones con filtros opcionales.
-     * @param string $orden Orden de los resultados (fecha_desc, fecha_asc, importe_desc, importe_asc).
-     * @param string|null $filtroFecha Filtro de fecha (hoy, 7dias, 30dias).
-     * @param string|null $busqueda Búsqueda por número de ticket.
-     * @return array Array con las devoluciones.
+     * Consulta Global con Paginación
+     * ------------------------------
+     * Utilizada en el panel de administración para listar todas las devoluciones.
+     * Soporta filtros de fecha, búsqueda por número de ticket y ordenación dinámica.
      */
     public static function obtenerTodas($orden = 'fecha_desc', $filtroFecha = null, $busqueda = null, $pagina = 1, $porPagina = 10)
     {
@@ -405,6 +315,8 @@ class Devolucion
 
         $condiciones = [];
         $parametros = [];
+
+        // Filtros temporales predefinidos
         if ($filtroFecha) {
             switch ($filtroFecha) {
                 case 'hoy':
@@ -419,33 +331,27 @@ class Devolucion
             }
         }
 
-        // Búsqueda por número de ticket
+        // Búsqueda inteligente por número de ticket (acepta correlativos T0001, etc.)
         if ($busqueda && $busqueda !== '') {
             $busquedaInt = intval($busqueda);
-            
-            // Comprobar si es formato correlativo (T00001, F00001, etc.)
             if (preg_match('/^([TF]?)0*(\d+)$/i', $busqueda, $matches)) {
                 $serie = strtoupper($matches[1]);
                 $numero = (int)$matches[2];
 
                 if ($serie !== '') {
                     $condiciones[] = "(d.idVenta = ? OR (vi.serie = ? AND vi.numero = ?))";
-                    $parametros[] = $busquedaInt;
-                    $parametros[] = $serie;
-                    $parametros[] = $numero;
+                    array_push($parametros, $busquedaInt, $serie, $numero);
                 } else {
                     $condiciones[] = "(d.idVenta = ? OR vi.numero = ?)";
-                    $parametros[] = $busquedaInt;
-                    $parametros[] = $busquedaInt;
+                    array_push($parametros, $busquedaInt, $busquedaInt);
                 }
             } elseif ($busquedaInt > 0) {
                 $condiciones[] = "(d.idVenta = ? OR vi.numero = ?)";
-                $parametros[] = $busquedaInt;
-                $parametros[] = $busquedaInt;
+                array_push($parametros, $busquedaInt, $busquedaInt);
             }
         }
 
-        // Contar total de resultados
+        // 1. Contamos el total para la paginación
         $sqlCount = "SELECT COUNT(*) FROM devoluciones d LEFT JOIN ventas_ids vi ON d.idVenta = vi.id";
         if (!empty($condiciones)) {
             $sqlCount .= " WHERE " . implode(" AND ", $condiciones);
@@ -454,6 +360,7 @@ class Devolucion
         $stmtCount->execute($parametros);
         $total = (int)$stmtCount->fetchColumn();
 
+        // 2. Obtenemos los registros de la página actual
         $sql = "SELECT d.*, COALESCE(d.nombreProducto, p.nombre) as producto_nombre, u.nombre as usuario_nombre, vi.serie, vi.numero
                 FROM devoluciones d
                 LEFT JOIN productos p ON d.idProducto = p.id
@@ -464,21 +371,15 @@ class Devolucion
             $sql .= " WHERE " . implode(" AND ", $condiciones);
         }
 
+        // Ordenación
         switch ($orden) {
-            case 'fecha_asc':
-                $sql .= " ORDER BY d.fecha ASC";
-                break;
-            case 'importe_desc':
-                $sql .= " ORDER BY d.importeTotal DESC";
-                break;
-            case 'importe_asc':
-                $sql .= " ORDER BY d.importeTotal ASC";
-                break;
-            default:
-                $sql .= " ORDER BY d.fecha DESC";
+            case 'fecha_asc': $sql .= " ORDER BY d.fecha ASC"; break;
+            case 'importe_desc': $sql .= " ORDER BY d.importeTotal DESC"; break;
+            case 'importe_asc': $sql .= " ORDER BY d.importeTotal ASC"; break;
+            default: $sql .= " ORDER BY d.fecha DESC";
         }
 
-        // Agregar paginación
+        // Paginación LIMIT/OFFSET
         $offset = ($pagina - 1) * $porPagina;
         $sql .= " LIMIT $porPagina OFFSET $offset";
 
@@ -496,16 +397,14 @@ class Devolucion
     }
 
     /**
-     * Obtiene el total de devoluciones por método de pago para una sesión de caja.
-     * @param int $idSesionCaja ID de la sesión de caja.
-     * @param string $metodoPago Método de pago (Efectivo, Tarjeta, Bizum).
-     * @return float Total de devoluciones.
+     * Informe de Arqueo: Total por Método de Pago
+     * ------------------------------------------
+     * Indica cuánto dinero ha salido de la caja por devoluciones según el método.
      */
     public static function obtenerTotalPorMetodo($idSesionCaja, $metodoPago)
     {
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
-            // Usar el campo directo idSesionCaja en lugar de join con ventas
             $sql = "SELECT COALESCE(SUM(importeTotal), 0) as total
                     FROM devoluciones
                     WHERE idSesionCaja = ? AND metodoPago = ?";
@@ -521,15 +420,14 @@ class Devolucion
     }
 
     /**
-     * Obtiene el total de devoluciones para una sesión de caja.
-     * @param int $idSesionCaja ID de la sesión de caja.
-     * @return float Total de devoluciones.
+     * Informe de Arqueo: Total Global
+     * -------------------------------
+     * Suma de todas las devoluciones de una sesión de caja.
      */
     public static function obtenerTotalPorSesion($idSesionCaja)
     {
         try {
             $conexion = ConexionDB::getInstancia()->getConexion();
-            // Usar el campo directo idSesionCaja en lugar de join con ventas
             $sql = "SELECT COALESCE(SUM(importeTotal), 0) as total
                     FROM devoluciones
                     WHERE idSesionCaja = ?";
@@ -544,4 +442,3 @@ class Devolucion
         }
     }
 }
-?>

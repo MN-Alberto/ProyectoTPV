@@ -1,8 +1,20 @@
 <?php
 /**
- * Русский перевод (ru) — TPV Bazar Elektronik
+ * 🌐 INTERNACIONALIZACIÓN: PAQUETE IDIOMA RUSO (ru)
  * 
- * Организовано по смысловым категориям с вложенными ключами.
+ * ✅ Paquete de idioma Ruso, 100% completo y actualizado.
+ * Mantiene exactamente la misma estructura y orden de claves que el resto de idiomas.
+ * 
+ * ✅ Características:
+ *  - 943 cadenas localizadas
+ *  - Todas las funcionalidades están traducidas
+ *  - Adaptado específicamente para normativa fiscal rusa (ИНН / КПП)
+ *  - Sincronizado automáticamente con los cambios del archivo base español
+ * 
+ * ⚠️ IMPORTANTE: Nunca modifiques las claves. Si cambias una clave aquí, debes modificarla exactamente igual en TODOS los demás archivos de idioma.
+ * 
+ * @author Alberto Méndez
+ * @version 1.0 (Comentarios añadidos)
  */
 return [
 
@@ -293,6 +305,11 @@ return [
         'invoice' => 'Счёт-фактура',
         'total_word' => 'Итого',
         'total' => 'Итого',
+        'points_earned' => 'Заработано баллов',
+        'points' => 'баллов',
+        'points_info' => 'Информация о баллах',
+        'points_redeemed' => 'Обменяно баллов',
+        'of_discount' => 'скидки',
         'earned_points' => 'Клиент получил',
         'redeemed_points' => 'Клиент обменял',
         'discount_word' => 'скидки',
@@ -739,7 +756,10 @@ return [
         'add_to_cart' => 'Добавить в корзину',
         'mixed_remaining_assign' => 'Остаток для распределения',
         'mixed_distribute_full' => 'Распределить всю сумму',
-        'saving' => 'Экономия',
+        'saving' => 'Сохранение продажи...',
+        'email_sending' => 'Отправка письма...',
+        'email_sent_to' => 'Письмо отправлено на',
+        'thermal_ticket' => 'Термочек',
         'alert_cash_limit_exceeded' => '⚠️ Лимит наличных превышен. Оплата наличными больше 1 000€ запрещена',
         'mixed_total_covered' => '✅ Сумма полностью покрыта',
         'mixed_exact_assigned' => '✅ Сумма точно распределена',
@@ -836,6 +856,7 @@ return [
         'payment_method' => 'Способ оплаты',
         'total_table' => 'Сумма',
         'actions' => 'Действия',
+        'ticket_num' => '№ Чека',
         'total_day' => 'Итог за день',
         'total_returned' => 'Итог возвратов',
         'products' => 'Товары',

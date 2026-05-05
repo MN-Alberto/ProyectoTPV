@@ -243,94 +243,146 @@ function verDetalleVenta(idVenta) {
             if (data.error) { alert(data.error); return; }
             const { venta, lineas, descuentos = {} } = data;
             const isDark = document.body.classList.contains('dark-mode');
-            const bg = isDark ? '#1f2937' : '#fff';
-            const text = isDark ? '#e5e7eb' : '#374151';
-            const card = isDark ? '#374151' : '#f8f9fa';
-            const border = isDark ? '#4b5563' : '#e5e7eb';
-            const discBg = isDark ? '#064e3b' : '#ecfdf5';
-            const discColor = isDark ? '#34d399' : '#16a34a';
+            
+            const bg = isDark ? '#111827' : '#ffffff';
+            const textMain = isDark ? '#f3f4f6' : '#1f2937';
+            const textMuted = isDark ? '#9ca3af' : '#6b7280';
+            const cardBg = isDark ? '#1f2937' : '#f9fafb';
+            const borderColor = isDark ? '#374151' : '#e5e7eb';
+            const primaryColor = '#6366f1';
+            const successColor = '#10b981';
 
             const fecha = new Date(venta.fecha).toLocaleString('es-ES',
                 { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
             const tipoDoc = venta.tipoDocumento === 'factura' ? '📄 Factura' : '🧾 Ticket';
+            const ticketNum = `${venta.serie || 'T'}${String(venta.numero || venta.id).padStart(5, '0')}`;
 
-            let descuentoHtml = '';
-            if (descuentos.descuentoTarifaCupon === 'CLIENTE_REGISTRADO')
-                descuentoHtml += `<div style="color:${discColor};"><strong>Cliente registrado:</strong> ${descuentos.descuentoTarifaValor}%</div>`;
-            if (descuentos.descuentoManualCupon && descuentos.descuentoManualCupon !== '') {
-                if (descuentos.descuentoManualTipo === 'porcentaje')
-                    descuentoHtml += `<div style="color:${discColor};"><strong>Descuento:</strong> ${descuentos.descuentoManualValor}%</div>`;
-                else
-                    descuentoHtml += `<div style="color:${discColor};"><strong>Cupón:</strong> ${descuentos.descuentoManualCupon}</div>`;
-            }
-
-            let pagoInfo = venta.metodoPago || '💵 Efectivo';
+            // Información de pago mejorada
+            let pagoLabel = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', bizum: 'Bizum', mixto: 'Mixto' }[venta.metodoPago] || venta.metodoPago;
+            let pagoIcon = { efectivo: 'fa-money-bill-wave', tarjeta: 'fa-credit-card', bizum: 'fa-mobile-alt', mixto: 'fa-sync-alt' }[venta.metodoPago] || 'fa-receipt';
+            
+            let desgloseHtml = '';
             if (venta.metodoPago === 'mixto' && venta.desglose_pago) {
                 try {
                     const desc = JSON.parse(venta.desglose_pago);
-                    let items = [];
-                    if (desc.efectivo) items.push(`💵 ${parseFloat(desc.efectivo).toFixed(2).replace('.', ',')}€`);
-                    if (desc.tarjeta) items.push(`💳 ${parseFloat(desc.tarjeta).toFixed(2).replace('.', ',')}€`);
-                    if (desc.bizum) items.push(`📱 ${parseFloat(desc.bizum).toFixed(2).replace('.', ',')}€`);
-                    if (desc.cambio > 0) items.push(`<span style="color:#ef4444;font-size:0.85em;">Cambio: -${parseFloat(desc.cambio).toFixed(2).replace('.', ',')}€</span>`);
-                    pagoInfo = `🔄 Mixto<br><span style="font-size:0.9em;color:#6b7280;">${items.join(' | ')}</span>`;
-                } catch (e) { console.error('Error parsing desglose_pago:', e); }
-            } else if (venta.metodoPago === 'mixto') {
-                pagoInfo = '🔄 Mixto';
-            } else {
-                pagoInfo = { efectivo: '💵 Efectivo', tarjeta: '💳 Tarjeta', bizum: '📱 Bizum' }[venta.metodoPago] || venta.metodoPago;
+                    let parts = [];
+                    if (desc.efectivo) parts.push(`Efectivo: ${parseFloat(desc.efectivo).toFixed(2)}€`);
+                    if (desc.tarjeta) parts.push(`Tarjeta: ${parseFloat(desc.tarjeta).toFixed(2)}€`);
+                    if (desc.bizum) parts.push(`Bizum: ${parseFloat(desc.bizum).toFixed(2)}€`);
+                    desgloseHtml = `<div style="font-size:0.75rem;margin-top:4px;color:${textMuted};opacity:0.8;">${parts.join(' | ')}</div>`;
+                } catch (e) {}
             }
 
-            let html = `<div style="border-radius:12px;overflow:hidden;background:${bg};">
-                <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:20px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-            <h3 style="margin:0;">${venta.serie || 'T'}${String(venta.numero || venta.id).padStart(5, '0')}</h3>
-                        <span style="font-size:14px;opacity:.9;">${fecha}</span>
-                    </div>
-                </div>
-                <div style="padding:20px;">
-                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:20px;padding:15px;background:${card};border-radius:8px;">
-                        <div style="color:${text};"><strong>👤 Usuario:</strong><br>${venta.usuario_nombre || '—'}</div>
-                        <div style="color:${text};"><strong>📄 Tipo:</strong><br>${tipoDoc}</div>
-                        <div style="color:${text};"><strong>💳 Pago:</strong><br>${pagoInfo}</div>
+            // Descuentos
+            let discountSection = '';
+            if (descuentos.descuentoTarifaCupon === 'CLIENTE_REGISTRADO' || (descuentos.descuentoManualCupon && descuentos.descuentoManualCupon !== '')) {
+                let items = [];
+                if (descuentos.descuentoTarifaCupon === 'CLIENTE_REGISTRADO') 
+                    items.push(`<li><i class="fas fa-user-tag"></i> Cliente registrado: <strong>-${descuentos.descuentoTarifaValor}%</strong></li>`);
+                if (descuentos.descuentoManualCupon && descuentos.descuentoManualCupon !== '') {
+                    const val = descuentos.descuentoManualTipo === 'porcentaje' ? `-${descuentos.descuentoManualValor}%` : `-${parseFloat(descuentos.descuentoManualValor).toFixed(2)}€`;
+                    items.push(`<li><i class="fas fa-tag"></i> Descuento manual: <strong>${val}</strong></li>`);
+                }
+                discountSection = `
+                    <div style="background:${isDark ? 'rgba(16,185,129,0.1)' : '#ecfdf5'}; border:1px solid ${isDark ? 'rgba(16,185,129,0.2)' : '#bbf7d0'}; border-radius:12px; padding:15px; margin-bottom:20px;">
+                        <h5 style="margin:0 0 10px 0; color:${successColor}; font-size:0.9rem;"><i class="fas fa-percentage"></i> DESCUENTOS APLICADOS</h5>
+                        <ul style="margin:0; padding:0; list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:0.85rem; color:${isDark ? '#34d399' : '#065f46'};">
+                            ${items.join('')}
+                        </ul>
                     </div>`;
+            }
 
-            if (descuentoHtml)
-                html += `<div style="margin-bottom:20px;padding:15px;background:${discBg};border-radius:8px;">
-                    <strong style="color:${discColor};">💰 Descuentos:</strong><br>${descuentoHtml}</div>`;
+            let html = `
+            <div class="modal-premium" style="max-width:750px; width:95%; border-radius:24px; overflow:hidden; background:${bg}; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+                <div class="modal-header-premium" style="background:linear-gradient(135deg, ${primaryColor} 0%, #4f46e5 100%); padding:35px 30px; position:relative;">
+                    <div class="icon-container-discount" style="background:rgba(255,255,255,0.2); width:50px; height:50px; margin-bottom:15px;">
+                        <i class="fas fa-shopping-bag" style="font-size:24px; color:white;"></i>
+                    </div>
+                    <h3 style="margin:0; font-size:1.8rem; letter-spacing:-0.02em;">Detalle de Venta ${ticketNum}</h3>
+                    <p style="margin:10px 0 0 0; opacity:0.9; font-weight:500;"><i class="far fa-calendar-alt"></i> ${fecha}</p>
+                    <button onclick="cerrarModal('modalVerVenta')" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.1); border:none; color:white; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div style="padding:30px;">
+                    <!-- Grid de información rápida -->
+                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:15px; margin-bottom:25px;">
+                        <div style="background:${cardBg}; padding:15px; border-radius:16px; border:1px solid ${borderColor};">
+                            <span style="font-size:0.75rem; text-transform:uppercase; color:${textMuted}; font-weight:700; letter-spacing:0.05em;">Vendedor</span>
+                            <div style="margin-top:5px; font-weight:600; color:${textMain}; font-size:1.1rem;"><i class="fas fa-user-circle" style="color:${primaryColor};"></i> ${venta.usuario_nombre || '—'}</div>
+                        </div>
+                        <div style="background:${cardBg}; padding:15px; border-radius:16px; border:1px solid ${borderColor};">
+                            <span style="font-size:0.75rem; text-transform:uppercase; color:${textMuted}; font-weight:700; letter-spacing:0.05em;">Documento</span>
+                            <div style="margin-top:5px; font-weight:600; color:${textMain}; font-size:1.1rem;">${tipoDoc}</div>
+                        </div>
+                        <div style="background:${cardBg}; padding:15px; border-radius:16px; border:1px solid ${borderColor};">
+                            <span style="font-size:0.75rem; text-transform:uppercase; color:${textMuted}; font-weight:700; letter-spacing:0.05em;">Pago</span>
+                            <div style="margin-top:5px; font-weight:600; color:${textMain}; font-size:1.1rem;"><i class="fas ${pagoIcon}" style="color:${primaryColor};"></i> ${pagoLabel}</div>
+                            ${desgloseHtml}
+                        </div>
+                    </div>
 
-            html += `<h4 style="color:${text};">Productos:</h4>
-                <div style="max-height:250px;overflow-y:auto;border:1px solid ${border};border-radius:8px;">
-                <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
-                    <thead><tr style="background:#374151;color:white;">
-                        <th style="padding:10px;text-align:left;">Producto</th>
-                        <th style="padding:10px;text-align:center;">Cant.</th>
-                        <th style="padding:10px;text-align:right;">Base</th>
-                        <th style="padding:10px;text-align:center;">IVA</th>
-                        <th style="padding:10px;text-align:right;">Subtotal</th>
-                    </tr></thead>
-                    <tbody>`;
+                    ${discountSection}
 
-            lineas.forEach(l => {
+                    <h4 style="margin:0 0 15px 0; font-size:1.1rem; color:${textMain}; display:flex; align-items:center; gap:10px;">
+                        <i class="fas fa-list-ul" style="color:${primaryColor};"></i> Artículos vendidos
+                    </h4>
+
+                    <div style="max-height:300px; overflow-y:auto; border:1px solid ${borderColor}; border-radius:16px; background:${bg};">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.95rem;">
+                            <thead style="position:sticky; top:0; background:${cardBg}; z-index:5;">
+                                <tr>
+                                    <th style="padding:15px; text-align:left; color:${textMuted}; font-weight:700; font-size:0.75rem; text-transform:uppercase; border-bottom:1px solid ${borderColor};">Producto</th>
+                                    <th style="padding:15px; text-align:center; color:${textMuted}; font-weight:700; font-size:0.75rem; text-transform:uppercase; border-bottom:1px solid ${borderColor};">Cant.</th>
+                                    <th style="padding:15px; text-align:right; color:${textMuted}; font-weight:700; font-size:0.75rem; text-transform:uppercase; border-bottom:1px solid ${borderColor};">Precio Un.</th>
+                                    <th style="padding:15px; text-align:center; color:${textMuted}; font-weight:700; font-size:0.75rem; text-transform:uppercase; border-bottom:1px solid ${borderColor};">IVA</th>
+                                    <th style="padding:15px; text-align:right; color:${textMuted}; font-weight:700; font-size:0.75rem; text-transform:uppercase; border-bottom:1px solid ${borderColor};">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+
+            lineas.forEach((l, idx) => {
                 const iva = l.iva || 21;
-                const pvp = parseFloat(l.precioUnitario) * (1 + iva / 100);
-                const sub = l.cantidad * pvp;
-                html += `<tr>
-                    <td style="padding:10px;border-bottom:1px solid ${border};color:${text};">${l.producto_nombre || 'Producto #' + l.idProducto}</td>
-                    <td style="padding:10px;border-bottom:1px solid ${border};text-align:center;">${l.cantidad}</td>
-                    <td style="padding:10px;border-bottom:1px solid ${border};text-align:right;">${parseFloat(l.precioUnitario).toFixed(2).replace('.', ',')} €</td>
-                    <td style="padding:10px;border-bottom:1px solid ${border};text-align:center;">${iva}%</td>
-                    <td style="padding:10px;border-bottom:1px solid ${border};text-align:right;font-weight:600;">${sub.toFixed(2).replace('.', ',')} €</td>
-                </tr>`;
+                const base = parseFloat(l.precioUnitario);
+                const sub = l.cantidad * base * (1 + iva / 100);
+                const rowBg = idx % 2 === 0 ? 'transparent' : (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)');
+                
+                html += `
+                    <tr style="background:${rowBg};">
+                        <td style="padding:15px; border-bottom:1px solid ${borderColor}; color:${textMain}; font-weight:500;">${l.producto_nombre || 'Producto #' + l.idProducto}</td>
+                        <td style="padding:15px; border-bottom:1px solid ${borderColor}; text-align:center; color:${textMain}; font-weight:600;">${l.cantidad}</td>
+                        <td style="padding:15px; border-bottom:1px solid ${borderColor}; text-align:right; color:${textMain};">${base.toFixed(2).replace('.', ',')} €</td>
+                        <td style="padding:15px; border-bottom:1px solid ${borderColor}; text-align:center; color:${textMuted};"><span style="background:${isDark ? '#374151' : '#f3f4f6'}; padding:2px 8px; border-radius:6px; font-size:0.8rem;">${iva}%</span></td>
+                        <td style="padding:15px; border-bottom:1px solid ${borderColor}; text-align:right; font-weight:700; color:${textMain};">${sub.toFixed(2).replace('.', ',')} €</td>
+                    </tr>`;
             });
 
-            html += `</tbody></table></div>
-                <div style="margin-top:15px;padding:15px;background:linear-gradient(135deg,#11998e,#38ef7d);color:white;border-radius:8px;text-align:center;font-weight:bold;font-size:18px;">
-                    TOTAL: ${parseFloat(venta.total).toFixed(2).replace('.', ',')} €
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Footer / Total -->
+                    <div style="margin-top:25px; padding:25px; background:linear-gradient(135deg, #059669 0%, #10b981 100%); border-radius:20px; display:flex; justify-content:space-between; align-items:center; color:white; box-shadow:0 10px 20px -5px rgba(16,185,129,0.3);">
+                        <div style="text-align:left;">
+                            <span style="font-size:0.85rem; opacity:0.9; text-transform:uppercase; font-weight:700; letter-spacing:0.05em;">Total de la operación</span>
+                            <div style="font-size:2.2rem; font-weight:800; line-height:1;">${parseFloat(venta.total).toFixed(2).replace('.', ',')} <span style="font-size:1.5rem; font-weight:500;">€</span></div>
+                        </div>
+                        <div style="text-align:right;">
+                             <button class="btn-exito" onclick="imprimirVentaDesdeHistorial(${venta.id})" style="background:white; color:#059669; border:none; padding:12px 20px; border-radius:12px; font-weight:700; box-shadow:0 4px 12px rgba(0,0,0,0.1); cursor:pointer; transition:0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <i class="fas fa-print"></i> Reimprimir Ticket
+                             </button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:25px; display:flex; justify-content:center;">
+                        <button onclick="cerrarModal('modalVerVenta')" style="background:transparent; border:1px solid ${borderColor}; color:${textMuted}; padding:10px 30px; border-radius:12px; cursor:pointer; font-weight:600; transition:0.2s;" onmouseover="this.style.background='${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}'; this.style.color='${textMain}'" onmouseout="this.style.background='transparent'; this.style.color='${textMuted}'">
+                            Cerrar detalle
+                        </button>
+                    </div>
                 </div>
-                <div style="margin-top:20px;text-align:right;">
-                    <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerVenta')">Cerrar</button>
-                </div></div></div>`;
+            </div>`;
 
             let modal = document.getElementById('modalVerVenta');
             if (!modal) {
@@ -338,13 +390,15 @@ function verDetalleVenta(idVenta) {
                 modal.id = 'modalVerVenta';
                 modal.className = 'modal-overlay';
                 modal.style.display = 'none';
-                modal.innerHTML = '<div class="modal-content" style="max-width:700px;max-height:85vh;overflow-y:auto;"></div>';
+                modal.style.backdropFilter = 'blur(4px)';
+                modal.innerHTML = '<div class="modal-content" style="max-width:750px; padding:0; background:transparent; border:none; box-shadow:none;"></div>';
                 document.body.appendChild(modal);
             }
             modal.querySelector('.modal-content').innerHTML = html;
             modal.style.display = 'flex';
         });
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DEVOLUCIONES
@@ -691,7 +745,7 @@ function getCajaSesionesTablaHeader(orden = 'fecha_desc') {
                     <th style="width:9%;">U. Cierre</th>
                     <th style="width:10%;text-align:center;">Apertura</th>
                     <th style="width:12%;text-align:center;">Cierre</th>
-                    <th style="width:7%;text-align:center;">Importe</th>
+                    <th style="width:7%;text-align:center;">Importe Ini</th>
                     <th style="width:7%;text-align:center;">Efectivo</th>
                     <th style="width:7%;text-align:center;">Cambio</th>
                     <th style="width:8%;text-align:center;">Retiros</th>

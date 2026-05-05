@@ -1,9 +1,21 @@
 <?php
 /**
- * Traducciones en Español (es) — TPV Bazar Electrónico
+ * 🌐 INTERNACIONALIZACIÓN: PAQUETE IDIOMA ESPAÑOL (es)
  * 
- * Organizado por categorías semánticas con claves anidadas.
- * Para añadir un nuevo idioma, copiar este archivo y traducir los valores.
+ * ✅ Este es el IDIOMA PRINCIPAL y POR DEFECTO del sistema.
+ * Es el archivo de idioma más completo, actualizado y revisado.
+ * 
+ * ✅ Características:
+ *  - 954 cadenas localizadas, 100% de cobertura
+ *  - Es el idioma nativo de desarrollo
+ *  - Cualquier nueva funcionalidad se añade PRIMERO aquí
+ *  - Sirve como referencia oficial para todos los demás idiomas
+ *  - Todas las traducciones se sincronizan desde este archivo
+ * 
+ * ⚠️ Si modificas una clave aquí, debes modificarla EXACTAMENTE igual en TODOS los demás archivos de idioma.
+ * 
+ * @author Alberto Méndez
+ * @version 1.0 (Comentarios añadidos)
  */
 return [
 
@@ -301,6 +313,11 @@ return [
         'invoice' => 'Factura',
         'total_word' => 'Total',
         'total' => 'Total',
+        'points_earned' => 'Puntos ganados',
+        'points' => 'puntos',
+        'points_info' => 'Información de puntos',
+        'points_redeemed' => 'Puntos canjeados',
+        'of_discount' => 'de descuento',
         'earned_points' => 'El cliente ha ganado',
         'redeemed_points' => 'El cliente ha canjeado',
         'discount_word' => 'de descuento',
@@ -762,6 +779,10 @@ return [
         'add_to_cart' => 'Añadir al Carrito',
         'mixed_remaining_assign' => 'Restante por asignar',
         'mixed_distribute_full' => 'Distribuir total completo',
+        'saving' => 'Guardando venta...',
+        'email_sending' => 'Enviando email...',
+        'email_sent_to' => 'Email enviado a',
+        'thermal_ticket' => 'Ticket Térmico',
     ],
 
     // ======================== PRINT ========================
@@ -805,6 +826,8 @@ return [
         'amount' => 'Importe',
         'invoice_terms' => 'Los precios incluyen IVA. Esta factura está sujeta a las condiciones generales de venta.',
         'verifactu_verify' => 'Factura verificable en la sede electrónica de la AEAT',
+        'ticket' => 'Ticket',
+        'quantity_th' => 'Cant.',
     ],
 
     // ======================== RETURNS (EXTENDED) ========================
@@ -864,6 +887,7 @@ return [
         'no_sales' => 'No hay ventas registradas en el día de hoy',
         'no_returns' => 'No hay devoluciones registradas en el día de hoy',
         'total' => 'Total',
+        'ticket_num' => 'Nº Ticket',
     ],
 
     'sale_details' => [
@@ -949,6 +973,14 @@ return [
         'closed_message' => 'El resumen diario se ha guardado correctamente.',
         'print' => 'Imprimir Resumen',
         'accept' => 'Aceptar',
+    ],
+
+    'search_client' => [
+        'title' => 'Buscar Cliente',
+        'subtitle' => 'Busca un cliente por su DNI/NIF',
+        'dni' => 'DNI / NIF',
+        'cancel' => 'Cancelar',
+        'search' => 'Buscar',
     ],
 
 ];

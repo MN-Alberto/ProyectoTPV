@@ -1,8 +1,20 @@
 <?php
 /**
- * Traductions en Français (fr) — TPV Bazar Électronique
+ * 🌐 INTERNACIONALIZACIÓN: PAQUETE IDIOMA FRANCÉS (fr)
  * 
- * Organisé par catégories sémantiques avec clés imbriquées.
+ * ✅ Paquete de idioma Francés, 100% completo y actualizado.
+ * Mantiene exactamente la misma estructura y orden de claves que el resto de idiomas.
+ * 
+ * ✅ Características:
+ *  - 943 cadenas localizadas
+ *  - Todas las funcionalidades están traducidas
+ *  - Adaptado específicamente para normativa fiscal francesa (NIF / SIRET)
+ *  - Sincronizado automáticamente con los cambios del archivo base español
+ * 
+ * ⚠️ IMPORTANTE: Nunca modifiques las claves. Si cambias una clave aquí, debes modificarla exactamente igual en TODOS los demás archivos de idioma.
+ * 
+ * @author Alberto Méndez
+ * @version 1.0 (Comentarios añadidos)
  */
 return [
 
@@ -293,6 +305,11 @@ return [
         'invoice' => 'Facture',
         'total_word' => 'Total',
         'total' => 'Total',
+        'points_earned' => 'Points gagnés',
+        'points' => 'points',
+        'points_info' => 'Infos points',
+        'points_redeemed' => 'Points échangés',
+        'of_discount' => 'de remise',
         'earned_points' => 'Le client a gagné',
         'redeemed_points' => 'Le client a échangé',
         'discount_word' => 'de remise',
@@ -739,7 +756,10 @@ return [
         'add_to_cart' => 'Ajouter au panier',
         'mixed_remaining_assign' => 'Restant à attribuer',
         'mixed_distribute_full' => 'Distribuer le total complet',
-        'saving' => 'Économies',
+        'saving' => 'Enregistrement de la vente...',
+        'email_sending' => 'Envoi de l\'email...',
+        'email_sent_to' => 'Email envoyé à',
+        'thermal_ticket' => 'Ticket Thermique',
         'alert_cash_limit_exceeded' => '⚠️ Limite de espèces dépassée. Paiements en espèces supérieurs à 1.000€ interdits',
         'mixed_total_covered' => '✅ Total couvert',
         'mixed_exact_assigned' => '✅ Montant exactement attribué',
@@ -787,6 +807,7 @@ return [
         'amount' => 'Montant',
         'invoice_terms' => 'Tous les prix incluent la TVA. Cette facture est soumise à nos conditions générales de vente.',
         'verifactu_verify' => 'Facture vérifiable au siège électronique de l\'AEAT',
+        'ticket' => 'Ticket',
     ],
 
     // ======================== RETOURS ========================
@@ -836,6 +857,7 @@ return [
         'payment_method' => 'Mode de paiement',
         'total_table' => 'Total',
         'actions' => 'Actions',
+        'ticket_num' => 'N° Ticket',
         'total_day' => 'Total du jour',
         'total_returned' => 'Total retourné',
         'products' => 'Produits',

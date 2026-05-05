@@ -5,9 +5,12 @@
  * @returns {string}
  */
 function t(key) {
-    if (typeof window.__LANG__ === 'undefined') return key;
+    // Si LANG no está definido, intentar usar window.__LANG__ o devolver la clave
+    const dictionary = (typeof LANG !== 'undefined') ? LANG : (typeof window.__LANG__ !== 'undefined' ? window.__LANG__ : null);
+    if (!dictionary) return key;
+
     const keys = key.split('.');
-    let value = window.__LANG__;
+    let value = dictionary;
     for (const k of keys) {
         if (value === undefined || value === null || value[k] === undefined) {
             return key;
@@ -16,6 +19,30 @@ function t(key) {
     }
     return typeof value === 'string' ? value : key;
 }
+
+// ======================== VARIABLES GLOBALES DEL CAJERO ========================
+// NOTE: LANG, IDIOMAS_TICKET, idiomaTicketSeleccionado, TPV_CONFIG, TPV_CONTEXT
+// are declared in vCajero.php inline <script> block. Do NOT redeclare with let/const here.
+var carrito = [];
+var descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+var descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
+if (typeof idiomaTicketSeleccionado === 'undefined') { var idiomaTicketSeleccionado = 'es'; }
+
+// Variables inicializadas desde el contexto de PHP (TPV_CONTEXT)
+var cajaAbierta = (typeof TPV_CONTEXT !== 'undefined') ? TPV_CONTEXT.cajaAbierta : false;
+var efectivoActualCaja = (typeof TPV_CONTEXT !== 'undefined') ? TPV_CONTEXT.efectivoActualCaja : 0;
+var tarifasPrefijadas = (typeof TPV_CONTEXT !== 'undefined') ? TPV_CONTEXT.tarifasPrefijadas : [];
+var productoPendienteTarifa = null;
+var tarifasDisponibles = []; // Se poblará via AJAX
+var tipoDocumentoActual = 'ticket';
+var metodoEntregaActual = 'imprimir';
+var proximosNumeros = { ticket: 'T00000', factura: 'F00000' };
+var ticketZoomed = false;
+var ticketEsGrandeLocal = false;
+var timeoutEscalaTicket = null;
+var puntosCanjeados = null;
+var clienteIdentificadoEnModalPuntos = false;
+
 
 /**
  * Redondeo financiero a N decimales.
@@ -112,6 +139,25 @@ function seleccionarCategoria(boton, idCategoria) {
         });
 }
 
+/**
+ * Obtiene el nombre traducido de un producto según el idioma activo.
+ * @param {Object} prod 
+ * @returns {string}
+ */
+function getNombreTraducido(prod) {
+    if (!prod) return '';
+    const lang = idiomaTicketSeleccionado || 'es';
+    // Mapeo de códigos de idioma a campos de la base de datos
+    const campos = {
+        'es': prod.nombre_es || prod.nombre,
+        'en': prod.nombre_en || prod.nombre,
+        'fr': prod.nombre_fr || prod.nombre,
+        'de': prod.nombre_de || prod.nombre,
+        'ru': prod.nombre_ru || prod.nombre
+    };
+    return campos[lang] || prod.nombre;
+}
+
 // ======================== BÚSQUEDA (AJAX) - LIVE SEARCH ========================
 
 /**
@@ -183,8 +229,8 @@ function renderProductos(productos) {
         const ivaProd = (prod.iva !== null && prod.iva !== undefined && prod.iva !== "") ? parseInt(prod.iva) : 21;
 
         // 1. Encontrar tarifa 'Cliente' (por defecto)
-        const tarifaCliente = tarifasDisponibles.find(t => t.nombre === 'Cliente');
-        const tarifaClienteId = tarifaCliente ? tarifaCliente.id : null;
+        const tarifaCliente = tarifasDisponibles.find(t => t.id == 1 || t.nombre === 'Cliente');
+        const tarifaClienteId = tarifaCliente ? tarifaCliente.id : 1;
 
         // 2. Comprobar si hay precio para esa tarifa (ya sea manual o calculado)
         const preciosManuales = prod.preciosTarifas || {};
@@ -210,7 +256,7 @@ function renderProductos(productos) {
                                 onchange="actualizarPrecioCard(this, ${precioBaseOriginal}, ${ivaProd})">`;
 
         tarifasDisponibles.forEach(tarifa => {
-            const selected = tarifa.nombre === 'Cliente' ? 'selected' : '';
+            const selected = (tarifa.id == 1 || tarifa.nombre === 'Cliente') ? 'selected' : '';
             const claveTraduccion = 'tarifas.' + tarifa.nombre.toLowerCase().replaceAll(' ', '_');
             selectorTarifas += `<option value="${tarifa.descuento_porcentaje}" 
                                         data-requiere-cliente="${tarifa.requiere_cliente}" 
@@ -235,7 +281,7 @@ function renderProductos(productos) {
                     data-precios-tarifas='${JSON.stringify(preciosManuales)}'
                     data-stock="${prod.stock || 0}"
                     onclick="agregarAlCarrito(this)" style="${prod.stock <= 0 ? 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);' : ''}">
-                    <div class="producto-nombre">${prod.nombre}</div>
+                    <div class="producto-nombre">${getNombreTraducido(prod)}</div>
                     <div class="producto-imagen">
                         <img src="${imgSrc}" alt="${prod.nombre.replace(/"/g, '"')}">
                     </div>
@@ -303,7 +349,7 @@ function actualizarPrecioDesdeInput(input) {
 }
 
 // Variable para almacenar la tarifa anterior de cada card y poder revertir
-let tarifaAnteriorCard = new Map();
+var tarifaAnteriorCard = new Map();
 
 /**
  * Guarda la tarifa actual antes de cambiarla para poder revertir si es necesario.
@@ -342,7 +388,7 @@ function resetearTarifaCard(card) {
         let optionCliente = null;
         let tarifaClienteId = null;
         for (let i = 0; i < select.options.length; i++) {
-            if (select.options[i].text === 'Cliente') {
+            if (select.options[i].dataset.tarifaId == 1 || select.options[i].text === 'Cliente') {
                 optionCliente = select.options[i];
                 tarifaClienteId = optionCliente.dataset.tarifaId;
                 break;
@@ -565,6 +611,8 @@ document.addEventListener('DOMContentLoaded', function () {
         buscarProductos();
     });
     initCarouselBotones();
+    actualizarBotonesPospuestos();
+    verificarCambiosIvaProgramados();
 });
 
 // ======================== FUNCIONES DE MODAL (necesarias para el modal de nuevo producto) ========================
@@ -681,14 +729,14 @@ function scrollCarouselBotonesIzquierda() {
 
 // ======================== MODAL CAMBIAR PRECIOS ========================
 
-let cambiarPreciosTodosProductos = [];
-let cambiarPreciosProductosFiltrados = [];
-let cambiarPreciosTarifas = [];
-let cambiarPreciosPaginaActual = 1;
-const CAMBIAR_PRECIOS_POR_PAGINA = 10;
-let cambiarPreciosDebounce = null;
-let cambiarPreciosMostrarConIva = false;
-let cambiosPendientesCajero = {};
+var cambiarPreciosTodosProductos = [];
+var cambiarPreciosProductosFiltrados = [];
+var cambiarPreciosTarifas = [];
+var cambiarPreciosPaginaActual = 1;
+var CAMBIAR_PRECIOS_POR_PAGINA = 10;
+var cambiarPreciosDebounce = null;
+var cambiarPreciosMostrarConIva = false;
+var cambiosPendientesCajero = {};
 
 /**
  * Actualiza el estado del botón "Aplicar Cambios".
@@ -759,7 +807,8 @@ function renderizarCabecerasCambiarPrecios() {
     html += `<th style="${thStyle}text-align:right;">Precio Base</th>`;
 
     cambiarPreciosTarifas.forEach(tarifa => {
-        html += `<th style="${thStyle}">${tarifa.nombre}</th>`;
+        const claveTraduccion = 'tarifas.' + tarifa.nombre.toLowerCase().replaceAll(' ', '_');
+        html += `<th style="${thStyle}">${t(claveTraduccion)}</th>`;
     });
 
     thead.innerHTML = html;
@@ -797,7 +846,7 @@ function renderizarTablaCambiarPrecios() {
         const prec = getPrec(precioBase, prod.decimales);
 
         html += `<tr style="border-bottom:1px solid var(--border-main);">`;
-        html += `<td style="padding:8px 6px;font-weight:500;color:var(--text-main);white-space:nowrap;">${prod.nombre}</td>`;
+        html += `<td style="padding:8px 6px;font-weight:500;color:var(--text-main);white-space:nowrap;">${getNombreTraducido(prod)}</td>`;
 
         let precioBaseAMostrar = precioBase;
         if (cambiarPreciosMostrarConIva) precioBaseAMostrar = precioBase * (1 + ivaProd / 100);
@@ -1063,217 +1112,4335 @@ function aplicarCambiosPreciosCajero() {
     });
 }
 
-// ==============================================
-// FUNCIONES FALTANTES - CORRECCIÓN ERRORES
-// ==============================================
+
+
+// ======================== CARRITO (persiste en memoria durante la sesión del navegador) ========================
 
 /**
- * Abre el modal de Retiro de Dinero
+ * Añade un producto al carrito o incrementa su cantidad si ya existe.
+ * Lee los datos del producto desde los atributos data-* del elemento HTML.
+ * Valida que no se exceda el stock máximo disponible.
+ * @param {HTMLElement} elemento - La tarjeta de producto clickeada
  */
-function mostrarModalRetiro() {
-    const modal = document.getElementById('modalRetiro');
-    if (modal) {
-        modal.style.display = 'flex';
-        const importeInput = document.getElementById('importeRetiro');
-        if (importeInput) importeInput.focus();
+function agregarAlCarrito(elemento) {
+    if (!cajaAbierta) {
+        alert(t('cajero.alert_open_box'));
+        return;
+    }
+
+    const id = parseInt(elemento.dataset.id) || 0;
+    const nombre = elemento.dataset.nombre || 'Producto sin nombre';
+    const nombre_es = elemento.dataset.nombreEs || nombre;
+    const nombre_en = elemento.dataset.nombreEn || nombre;
+    const nombre_fr = elemento.dataset.nombreFr || nombre;
+    const nombre_de = elemento.dataset.nombreDe || nombre;
+    const nombre_ru = elemento.dataset.nombreRu || nombre;
+    const precioBase = parseFloat(elemento.dataset.precio) || 0;
+    const iva = parseInt(elemento.dataset.iva || 21);
+
+    const decimales = parseInt(elemento.dataset.decimales) || 2;
+
+    // PVP Actual: Intentar leer de data-pvp, si no existe o es NaN, calcularlo ahora.
+    let pvpActual = parseFloat(elemento.dataset.pvp);
+    if (isNaN(pvpActual)) {
+        pvpActual = roundTo(precioBase * (1 + (iva / 100)), decimales);
+    } else {
+        pvpActual = roundTo(pvpActual, decimales);
+    }
+
+    const stockMax = parseInt(elemento.dataset.stock) || 0;
+
+    // Obtener datos de la tarifa seleccionada
+    const selectTarifa = elemento.querySelector('.tarifa-selector');
+    let tarifaNombre = 'Cliente';
+    let tarifaDescuento = 0;
+    let precioBaseSinTarifa = parseFloat(elemento.dataset.precioOriginal || elemento.dataset.precio) || precioBase;
+
+    // PVP Original sin ninguna tarifa aplicada
+    let pvpOriginalUnitario = roundTo(precioBaseSinTarifa * (1 + (iva / 100)), decimales);
+
+    if (selectTarifa) {
+        const selectedOption = selectTarifa.options[selectTarifa.selectedIndex];
+        tarifaNombre = selectedOption.text;
+        tarifaDescuento = parseFloat(selectTarifa.value) || 0;
+    }
+
+    const existente = carrito.find(item => item.idProducto === id && item.tarifaNombre === tarifaNombre);
+
+    if (existente) {
+        if (existente.cantidad >= stockMax) {
+            alert(t('cart.alert_no_more_stock'));
+            return;
+        }
+        existente.cantidad++;
+    } else {
+        if (stockMax <= 0) {
+            alert(t('cart.alert_no_stock_available'));
+            return;
+        }
+        carrito.push({
+            idProducto: id,
+            nombre: nombre,
+            nombre_es: nombre_es,
+            nombre_en: nombre_en,
+            nombre_fr: nombre_fr,
+            nombre_de: nombre_de,
+            nombre_ru: nombre_ru,
+            precio: precioBase,
+            precioBaseOriginal: precioBaseSinTarifa,
+            preciosTarifas: elemento.dataset.preciosTarifas ? JSON.parse(elemento.dataset.preciosTarifas) : {},
+            pvpOriginalUnitario: pvpOriginalUnitario,
+            pvpUnitario: pvpActual,
+            iva: iva,
+            decimales: decimales,
+            cantidad: 1,
+            stockMax: stockMax,
+            tarifaNombre: tarifaNombre,
+            tarifaDescuento: tarifaDescuento
+        });
+    }
+
+    resetearTarifaCard(elemento);
+    if (typeof actualizarTicket === 'function') {
+        actualizarTicket();
     }
 }
 
 /**
- * Abre el modal de Devoluciones
+ * Elimina un producto del carrito por su índice.
+ * @param {number} index - Índice del producto en el array carrito
  */
-function mostrarModalDevolucion() {
-    const modal = document.getElementById('modalDevolucion');
+function eliminarDelCarrito(index) {
+    carrito.splice(index, 1);
+    if (typeof actualizarTicket === 'function') {
+        actualizarTicket();
+    }
+}
+
+/**
+ * Modifica la cantidad de un producto en el carrito.
+ * Valida que la cantidad esté entre 1 y el stock máximo.
+ * @param {number} indice - Índice del producto en el array carrito
+ * @param {number} nuevaCantidad - Nueva cantidad deseada
+ */
+function cambiarCantidad(indice, nuevaCantidad) {
+    const item = carrito[indice];
+    if (!item) return;
+    nuevaCantidad = parseInt(nuevaCantidad) || 1;
+
+    // Limitar entre 1 y el stock máximo
+    if (nuevaCantidad < 1) nuevaCantidad = 1;
+    if (nuevaCantidad > item.stockMax) nuevaCantidad = item.stockMax;
+
+    item.cantidad = nuevaCantidad;
+    if (typeof actualizarTicket === 'function') {
+        actualizarTicket();
+    }
+}
+
+/**
+ * Elimina todos los productos del carrito y resetea el descuento.
+ */
+function vaciarCarrito() {
+    if (carrito.length === 0) return;
+    if (confirm(t('cart.confirm_empty'))) {
+        carrito = [];
+
+        // Desvincular cliente y resetar descuentos
+        descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+        descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
+        if (typeof desvincularCliente === 'function') {
+            desvincularCliente();
+        }
+
+        // Resetear también el select de tarifa global a Cliente
+        const tarifaCliente = (typeof tarifasPrefijadas !== 'undefined') ? tarifasPrefijadas.find(t => t.nombre === 'Cliente') : null;
+        if (tarifaCliente) {
+            const selectTarifa = document.getElementById('tarifaVenta');
+            if (selectTarifa) selectTarifa.value = tarifaCliente.id;
+        }
+
+        if (typeof actualizarTicket === 'function') {
+            actualizarTicket();
+        }
+    }
+}
+
+/**
+ * Resetea puntos canjeados después de una venta exitosa.
+ */
+function resetearPuntosCanjeados() {
+    puntosCanjeados = null;
+}
+
+/**
+ * posponerVenta()
+ * Guarda la venta actual en sessionStorage para recuperarla después.
+ */
+function posponerVenta() {
+    if (carrito.length === 0) {
+        alert(t('cart.alert_no_products_postpone'));
+        return;
+    }
+
+    const clienteDniInput = document.getElementById('clienteNif');
+    const clienteDni = clienteDniInput ? clienteDniInput.value.trim() : '';
+
+    let puntosGanados = 0;
+    if (clienteDni !== '') {
+        const totalTicket = obtenerTotalCalculado();
+        puntosGanados = Math.round(totalTicket * 10);
+    }
+
+    const puntosCanjeadosData = (typeof puntosCanjeados !== 'undefined' && puntosCanjeados)
+        ? { dni: puntosCanjeados.dni, puntos: puntosCanjeados.puntos }
+        : null;
+
+    const ventaId = Date.now();
+    const ventaPospuesta = {
+        id: ventaId,
+        carrito: carrito,
+        descuento: descuento,
+        tarifa: document.getElementById('tarifaVenta')?.value || '',
+        clienteDni: clienteDni,
+        puntosCanjeados: puntosCanjeadosData,
+        puntosGanados: puntosGanados,
+        fecha: new Date().toLocaleString('es-ES')
+    };
+
+    let ventasPospuestas = [];
+    const ventasJson = sessionStorage.getItem('ventasPospuestas');
+    if (ventasJson) {
+        try {
+            ventasPospuestas = JSON.parse(ventasJson);
+        } catch (e) {
+            ventasPospuestas = [];
+        }
+    }
+
+    ventasPospuestas.push(ventaPospuesta);
+    sessionStorage.setItem('ventasPospuestas', JSON.stringify(ventasPospuestas));
+
+    carrito = [];
+    descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+    puntosCanjeados = null;
+
+    const clienteNifInput = document.getElementById('clienteNif');
+    if (clienteNifInput) clienteNifInput.value = '';
+    const clienteNombreInput = document.getElementById('clienteNombre');
+    if (clienteNombreInput) clienteNombreInput.value = '';
+    const indicador = document.getElementById('indicadorClienteDni');
+    if (indicador) indicador.style.display = 'none';
+
+    const tarifaCliente = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+    const tarifaVenta = document.getElementById('tarifaVenta');
+    if (tarifaCliente && tarifaVenta) {
+        tarifaVenta.value = tarifaCliente.id;
+    } else if (tarifasPrefijadas.length > 0 && tarifaVenta) {
+        tarifaVenta.value = tarifasPrefijadas[0].id;
+    }
+    actualizarTicket();
+
+    const totalPospuestas = ventasPospuestas.length;
+    alert('✅ ' + t('cart.postponed_success1') + ' ' + totalPospuestas + ' ' + t('cart.postponed_success2'));
+
+    actualizarBotonesPospuestos();
+}
+
+/**
+ * mostrarModalVentasPospuestas()
+ * Muestra un modal con todas las ventas pospuestas.
+ */
+function mostrarModalVentasPospuestas() {
+    const ventasJson = sessionStorage.getItem('ventasPospuestas');
+    let ventasPospuestas = [];
+
+    if (ventasJson) {
+        try {
+            ventasPospuestas = JSON.parse(ventasJson);
+        } catch (e) {
+            ventasPospuestas = [];
+        }
+    }
+
+    if (ventasPospuestas.length === 0) {
+        alert(t('cart.alert_no_postponed_recover'));
+        return;
+    }
+
+    const isDark = document.body.classList.contains('dark-mode');
+    const bgColor = isDark ? '#1f2937' : 'white';
+    const textColor = isDark ? '#e5e7eb' : '#1a1a2e';
+    const borderColor = isDark ? '#374151' : '#e5e7eb';
+    const subTextColor = isDark ? '#9ca3af' : '#6b7280';
+
+    const modalHtml = `
+        <div id="modalVentasPospuestas" class="modal-overlay" style="display: flex;">
+            <div class="modal-content" style="background: ${bgColor}; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); max-width: 500px; width: 90%; max-height: 80vh; overflow: hidden;">
+                <div style="padding: 20px; border-bottom: 1px solid ${borderColor}; display: flex; justify-content: space-between; align-items: center;">
+                    <h2 style="margin: 0; font-size: 20px; color: ${textColor};">${t('cart.postponed_sales_title')}</h2>
+                    <button onclick="cerrarModalVentasPospuestas()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: ${subTextColor};">&times;</button>
+                </div>
+                <div style="padding: 20px; overflow-y: auto; max-height: 60vh;">
+                    ${ventasPospuestas.map((venta, index) => {
+        const totalVenta = venta.carrito.reduce((sum, item) => sum + (item.pvpUnitario * item.cantidad), 0);
+        const numProductos = venta.carrito.reduce((sum, item) => sum + item.cantidad, 0);
+        return `
+                            <div style="border: 1px solid ${borderColor}; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: ${isDark ? '#111827' : '#f9fafb'};">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                                    <div>
+                                        <strong style="color: ${textColor};">${venta.serie || 'T'}${String(venta.numero || (index + 1)).padStart(5, '0')}</strong>
+                                        <div style="font-size: 12px; color: ${subTextColor};">${venta.fecha}</div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div style="font-size: 16px; font-weight: 600; color: #059669;">${totalVenta.toFixed(2)} €</div>
+                                        <div style="font-size: 12px; color: ${subTextColor};">${numProductos} ${t('cart.product_s')}</div>
+                                    </div>
+                                </div>
+                                <div style="font-size: 13px; color: ${subTextColor}; margin-bottom: 10px;">
+                                    ${venta.clienteDni ? t('cart.customer_label') + ': ' + venta.clienteDni : t('cart.no_customer')}
+                                </div>
+                                <div style="display: flex; gap: 10px; margin-top: 12px;">
+                                    <button onclick="recuperarVenta(${venta.id})" class="btn-tpv" style="background: #059669; flex: 1;">
+                                        <i class="fas fa-reply"></i> ${t('cart.recover_btn')}
+                                    </button>
+                                    <button onclick="eliminarVentaPospuesta(${venta.id})" class="btn-tpv" style="background: #dc2626; flex: 1;">
+                                        <i class="fas fa-trash"></i> ${t('cart.delete_btn')}
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+    }).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+/**
+ * cerrarModalVentasPospuestas()
+ */
+function cerrarModalVentasPospuestas() {
+    const modal = document.getElementById('modalVentasPospuestas');
+    if (modal) modal.remove();
+}
+
+/**
+ * eliminarVentaPospuesta(id)
+ */
+function eliminarVentaPospuesta(id) {
+    if (!confirm(t('cart.confirm_delete_postponed'))) return;
+
+    const ventasJson = sessionStorage.getItem('ventasPospuestas');
+    let ventasPospuestas = [];
+    if (ventasJson) {
+        try {
+            ventasPospuestas = JSON.parse(ventasJson);
+        } catch (e) {
+            ventasPospuestas = [];
+        }
+    }
+
+    const ventaIndex = ventasPospuestas.findIndex(v => v.id === id);
+    if (ventaIndex === -1) {
+        alert('No se encontró la venta pospuesta');
+        return;
+    }
+
+    ventasPospuestas.splice(ventaIndex, 1);
+    sessionStorage.setItem('ventasPospuestas', JSON.stringify(ventasPospuestas));
+
+    alert('✅ ' + t('cart.alert_postponed_deleted'));
+    actualizarBotonesPospuestos();
+
+    if (ventasPospuestas.length === 0) {
+        cerrarModalVentasPospuestas();
+    } else {
+        cerrarModalVentasPospuestas();
+        mostrarModalVentasPospuestas();
+    }
+}
+
+/**
+ * recuperarVenta(id)
+ */
+function recuperarVenta(id) {
+    const ventasJson = sessionStorage.getItem('ventasPospuestas');
+    let ventasPospuestas = [];
+    if (ventasJson) {
+        try {
+            ventasPospuestas = JSON.parse(ventasJson);
+        } catch (e) {
+            alert(t('cart.alert_error_recovering'));
+            return;
+        }
+    }
+
+    const ventaIndex = ventasPospuestas.findIndex(v => v.id === id);
+    if (ventaIndex === -1) {
+        alert('No se encontró la venta pospuesta');
+        return;
+    }
+
+    const ventaPospuesta = ventasPospuestas[ventaIndex];
+    carrito = ventaPospuesta.carrito;
+    descuento = ventaPospuesta.descuento || { tipo: 'ninguno', valor: 0, cupon: '' };
+
+    const tarifaVenta = document.getElementById('tarifaVenta');
+    if (ventaPospuesta.tarifa && tarifaVenta) {
+        tarifaVenta.value = ventaPospuesta.tarifa;
+    } else if (tarifaVenta) {
+        const tarifaCliente = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+        if (tarifaCliente) {
+            tarifaVenta.value = tarifaCliente.id;
+        } else if (tarifasPrefijadas.length > 0) {
+            tarifaVenta.value = tarifasPrefijadas[0].id;
+        }
+    }
+
+    const clienteNifInput = document.getElementById('clienteNif');
+    if (ventaPospuesta.clienteDni) {
+        if (clienteNifInput) {
+            clienteNifInput.value = ventaPospuesta.clienteDni;
+            if (typeof mostrarDniEnTicket === 'function') {
+                mostrarDniEnTicket(ventaPospuesta.clienteDni);
+            }
+        }
+    } else {
+        if (clienteNifInput) clienteNifInput.value = '';
+        const clienteNombreInput = document.getElementById('clienteNombre');
+        if (clienteNombreInput) clienteNombreInput.value = '';
+        const indicador = document.getElementById('indicadorClienteDni');
+        if (indicador) indicador.style.display = 'none';
+    }
+
+    if (ventaPospuesta.puntosCanjeados && ventaPospuesta.puntosCanjeados.dni && ventaPospuesta.puntosCanjeados.puntos > 0) {
+        puntosCanjeados = {
+            dni: ventaPospuesta.puntosCanjeados.dni,
+            puntos: ventaPospuesta.puntosCanjeados.puntos
+        };
+    } else {
+        puntosCanjeados = null;
+    }
+
+    actualizarTicket();
+    cerrarModalVentasPospuestas();
+
+    ventasPospuestas.splice(ventaIndex, 1);
+    sessionStorage.setItem('ventasPospuestas', JSON.stringify(ventasPospuestas));
+
+    alert('✅ ' + t('cart.alert_recovered') + ': ' + ventaPospuesta.fecha);
+    actualizarBotonesPospuestos();
+}
+
+/**
+ * actualizarBotonesPospuestos()
+ */
+function actualizarBotonesPospuestos() {
+    const btnVerPospuestas = document.getElementById('btnVerPospuestas');
+    const ventasJson = sessionStorage.getItem('ventasPospuestas');
+    let ventasPospuestas = [];
+    if (ventasJson) {
+        try {
+            ventasPospuestas = JSON.parse(ventasJson);
+        } catch (e) {
+            ventasPospuestas = [];
+        }
+    }
+
+    const tieneVentas = ventasPospuestas && ventasPospuestas.length > 0;
+    if (btnVerPospuestas) {
+        if (tieneVentas) {
+            btnVerPospuestas.disabled = false;
+            btnVerPospuestas.style.opacity = '1';
+            btnVerPospuestas.textContent = '📋 (' + ventasPospuestas.length + ')';
+        } else {
+            btnVerPospuestas.disabled = true;
+            btnVerPospuestas.style.opacity = '0.5';
+            btnVerPospuestas.textContent = '📋';
+        }
+    }
+}
+
+/**
+ * Verifica y aplica cambios de IVA programados
+ */
+function verificarCambiosIvaProgramados() {
+    fetch('api/productos.php?accion=aplicar_cambios_iva_programados')
+        .then(res => res.json())
+        .then(data => {
+            if (data.aplicados > 0) {
+                console.log('Se aplicaron ' + data.aplicados + ' cambios de IVA programados');
+
+                // Actualizar los productos del carrito con los nuevos IVA y precios
+                if (carrito.length > 0 && data.nuevosIVA) {
+                    carrito.forEach(item => {
+                        const nuevoIVA = data.nuevosIVA[item.id];
+                        if (nuevoIVA) {
+                            // Actualizar el IVA del producto
+                            item.iva = nuevoIVA;
+                            // Recalcular el PVP con el nuevo IVA
+                            const prec = item.decimales || 2;
+                            const precioBase = parseFloat(item.precio || item.precioConDescuento || 0);
+                            item.pvpUnitario = roundTo(precioBase * (1 + (nuevoIVA / 100)), prec);
+                            // También actualizar el PVP original si existe
+                            if (item.pvpOriginalUnitario) {
+                                const precioOriginal = parseFloat(item.precio || 0);
+                                item.pvpOriginalUnitario = roundTo(precioOriginal * (1 + (nuevoIVA / 100)), prec);
+                            }
+                        }
+                    });
+                    // Actualizar el ticket con los nuevos precios
+                    actualizarTicket();
+                }
+
+                // Recargar los productos del catálogo para mostrar los nuevos precios
+                if (typeof buscarProductos === 'function') {
+                    buscarProductos();
+                }
+            }
+        })
+        .catch(err => console.error('Error verificando cambios IVA programados:', err));
+}
+
+/**
+ * Calcula el total del carrito aplicando el descuento vigente.
+ * @returns {number} Total final (mínimo 0)
+ */
+function obtenerTotalCalculado() {
+    const precTotal = obtenerDecimalesMaximosCarrito();
+
+    // El total es la suma de los subtotales de cada línea (PVP ya redondeado)
+    let totalPVPBruto = carrito.reduce((sum, item) => {
+        const subtotalLinea = roundTo(item.pvpUnitario * item.cantidad, precTotal);
+        return sum + subtotalLinea;
+    }, 0);
+
+    // Calcular descuento manual (global) sobre el total PVP acumulado
+    let importeDescuentoManual = 0;
+    if (descuento.tipo === 'porcentaje') {
+        importeDescuentoManual = roundTo(totalPVPBruto * (descuento.valor / 100), precTotal);
+    } else if (descuento.tipo === 'fijo') {
+        importeDescuentoManual = roundTo(descuento.valor, precTotal);
+    }
+
+    return Math.max(0, roundTo(totalPVPBruto - importeDescuentoManual, precTotal));
+}
+
+/**
+ * aplicarDescuento()
+ * Abre el modal de descuento si hay productos en el carrito.
+ */
+function aplicarDescuento() {
+    if (carrito.length === 0) return;
+    const modal = document.getElementById('modalDescuento');
+    if (!modal) return;
+    modal.style.display = 'flex';
+
+    // Mostrar/ocultar botón de quitar descuento según si hay descuento activo
+    const btnQuitar = document.getElementById('btnQuitarDescuento');
+    if (btnQuitar) {
+        if (descuento.tipo !== 'ninguno') {
+            btnQuitar.style.display = 'block';
+        } else {
+            btnQuitar.style.display = 'none';
+        }
+    }
+
+    const input = document.getElementById('inputPorcentajeDescuento');
+    if (input) input.focus();
+}
+
+/**
+ * quitarDescuento()
+ * Elimina el descuento activo y actualiza el ticket.
+ */
+function quitarDescuento() {
+    // Resetear descuento
+    descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+
+    // Limpiar los inputs del modal
+    if (document.getElementById('inputPorcentajeDescuento')) document.getElementById('inputPorcentajeDescuento').value = '';
+    if (document.getElementById('inputCuponDescuento')) document.getElementById('inputCuponDescuento').value = '';
+
+    // Cerrar modal y actualizar ticket
+    cerrarModal('modalDescuento');
+    actualizarTicket();
+}
+
+/**
+ * procesarDescuento()
+ * Procesa el descuento introducido (porcentaje o cupón) y lo aplica al carrito.
+ */
+function procesarDescuento() {
+    let porcentaje = parseFloat(document.getElementById('inputPorcentajeDescuento').value);
+    const cupon = document.getElementById('inputCuponDescuento').value.trim().toUpperCase();
+
+    if (!isNaN(porcentaje) && document.getElementById('inputPorcentajeDescuento').value !== '') {
+        // Opción 1: Descuento por porcentaje manual
+        if (porcentaje < 0 || porcentaje > 100) {
+            alert(t('cart.alert_discount_range'));
+            return;
+        }
+        descuento = { tipo: 'porcentaje', valor: porcentaje, cupon: '' };
+    } else if (cupon) {
+        // Opción 2: Descuento por código de cupón
+        if (cupon === 'PROMO10') {
+            descuento = { tipo: 'porcentaje', valor: 10, cupon: 'PROMO10' };
+        } else if (cupon === 'BIENVENIDA5') {
+            descuento = { tipo: 'porcentaje', valor: 5, cupon: 'BIENVENIDA5' };
+        } else if (cupon === 'FIJO5') {
+            descuento = { tipo: 'fijo', valor: 5, cupon: 'FIJO5' };
+        } else {
+            alert(t('cart.alert_invalid_coupon'));
+            return;
+        }
+    } else {
+        // Sin descuento: resetear
+        descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+    }
+
+    // Limpiar los inputs del modal
+    document.getElementById('inputPorcentajeDescuento').value = '';
+    document.getElementById('inputCuponDescuento').value = '';
+
+    // Cerrar modal y actualizar ticket con el nuevo descuento
+    cerrarModal('modalDescuento');
+    actualizarTicket();
+}
+
+/**
+ * Regenera completamente el HTML del ticket/carrito en el panel derecho.
+ */
+function actualizarTicket() {
+    const contenedor = document.getElementById('ticketLineas');
+    const totalEl = document.getElementById('ticketTotal');
+    const btnCobrar = document.getElementById('btnCobrar');
+    const btnDescuento = document.getElementById('btnDescuento');
+    const btnPosponer = document.getElementById('btnPosponer');
+
+    if (!contenedor || !totalEl || !btnCobrar || !btnDescuento || !btnPosponer) return;
+
+    // Si el carrito está vacío, mostrar mensaje y deshabilitar botones
+    if (carrito.length === 0) {
+        contenedor.innerHTML = `<p class="ticket-vacio">${t('cart.empty_message')}</p>`;
+        const ticketDesglose = document.getElementById('ticketDesglose');
+        if (ticketDesglose) ticketDesglose.innerHTML = '';
+        totalEl.textContent = '0,00 €';
+        btnCobrar.disabled = true;
+        btnDescuento.disabled = true;
+        btnPosponer.disabled = true;
+        // Si se vacía el carrito, resetear los puntos canjeados también
+        if (typeof puntosCanjeados !== 'undefined') puntosCanjeados = null;
+        descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+        return;
+    }
+
+    // Generar tabla HTML con las líneas del ticket
+    let html = `<table class="ticket-tabla"><thead><tr><th>${t('cart.product_th')}</th><th>${t('cart.quantity_th')}</th><th>${t('cart.price_th')}</th><th>${t('cart.subtotal_th')}</th><th></th></tr></thead><tbody>`;
+
+    // Iterar sobre cada producto del carrito
+    carrito.forEach((item, i) => {
+        const dec = item.decimales || 2;
+        // Asegurar que pvpUnitario existe (fallback para items antiguos o corruptos)
+        if (isNaN(item.pvpUnitario) || item.pvpUnitario === undefined) {
+            const precio = parseFloat(item.precioConDescuento || item.precio || 0);
+            const iva = parseInt(item.iva || 21);
+            item.pvpUnitario = roundTo(precio * (1 + (iva / 100)), dec);
+        }
+        if (isNaN(item.pvpOriginalUnitario) || item.pvpOriginalUnitario === undefined) {
+            const precio = parseFloat(item.precio || 0);
+            const iva = parseInt(item.iva || 21);
+            item.pvpOriginalUnitario = roundTo(precio * (1 + (iva / 100)), dec);
+        }
+
+        const subtotalRebajado = roundTo(item.pvpUnitario * item.cantidad, dec);
+
+        html += `<tr>
+            <td>
+                ${item.nombre} 
+                <small style="color: #666; display: block; font-size: 0.7rem;">
+                    ${item.tarifaNombre !== 'Cliente' ? '<strong>' + item.tarifaNombre + '</strong> | ' : ''} IVA: ${item.iva}%
+                </small>
+            </td>
+            <td>
+                <div class="cantidad-control">
+                    <button onclick="cambiarCantidad(${i}, ${item.cantidad - 1})">−</button>
+                    <input type="number" value="${item.cantidad}" 
+                        min="1" 
+                        max="${item.stockMax}"
+                        onchange="cambiarCantidad(${i}, Math.min(Math.max(1, parseInt(this.value) || 1), ${item.stockMax}))">
+                    <button onclick="cambiarCantidad(${i}, ${item.cantidad + 1})">+</button>
+                </div>
+            </td>
+            <td>${item.pvpUnitario.toFixed(dec).replace('.', ',')} €</td>
+            <td>${subtotalRebajado.toFixed(dec).replace('.', ',')} €</td>
+            <td><button class="btn-quitar" onclick="eliminarDelCarrito(${i})">✕</button></td>
+        </tr>`;
+    });
+
+    html += '</tbody></table>';
+    contenedor.innerHTML = html;
+
+    // Calcular desglose de totales
+    const precTotal = obtenerDecimalesMaximosCarrito();
+    let totalPVPBruto = carrito.reduce((sum, item) => sum + roundTo(item.pvpUnitario * item.cantidad, precTotal), 0);
+    let totalPVPFinal = obtenerTotalCalculado();
+    let descuentoManualImporte = roundTo(totalPVPBruto - totalPVPFinal, precTotal);
+
+    // Agrupar ahorros de tarifas
+    const ahorrosTarifasAgrupados = {};
+    carrito.forEach(item => {
+        const dec = item.decimales || 2;
+        const ahorroUnitario = roundTo(item.pvpOriginalUnitario - item.pvpUnitario, dec);
+        const ahorroLinea = roundTo(ahorroUnitario * item.cantidad, dec);
+
+        if (ahorroLinea > 0) {
+            const nombre = item.tarifaNombre;
+            if (!ahorrosTarifasAgrupados[nombre]) {
+                ahorrosTarifasAgrupados[nombre] = 0;
+            }
+            ahorrosTarifasAgrupados[nombre] = roundTo(ahorrosTarifasAgrupados[nombre] + ahorroLinea, dec);
+        }
+    });
+
+    const ahorroTarifasTotal = roundTo(Object.values(ahorrosTarifasAgrupados).reduce((a, b) => a + b, 0), precTotal);
+
+    let htmlDesglose = `<div class="resumen-final-premium">`;
+
+    // IVA Total: Recalculo exacto agrupando por tipo de IVA
+    const desglosePorIVA = {};
+    carrito.forEach(item => {
+        const dec = item.decimales || 2;
+        const subtotalLineaPVP = roundTo(item.pvpUnitario * item.cantidad, dec);
+        const factorDescuentoManual = totalPVPBruto > 0 ? (totalPVPFinal / totalPVPBruto) : 0;
+        const subtotalFinalPVP = subtotalLineaPVP * factorDescuentoManual;
+
+        const tipoIVA = parseInt(item.iva);
+        if (!desglosePorIVA[tipoIVA]) desglosePorIVA[tipoIVA] = 0;
+        desglosePorIVA[tipoIVA] += subtotalFinalPVP;
+    });
+
+    let baseImponibleCalculada = 0;
+    for (const [iva, pvpAcumulado] of Object.entries(desglosePorIVA)) {
+        baseImponibleCalculada += roundTo(pvpAcumulado / (1 + (parseInt(iva) / 100)), precTotal);
+    }
+
+    baseImponibleCalculada = roundTo(baseImponibleCalculada, precTotal);
+    const ivaTotal = roundTo(totalPVPFinal - baseImponibleCalculada, precTotal);
+
+    // Mostrar Base Imponible (Total Final - IVA)
+    htmlDesglose += `
+    <div class="resumen-fila-mini">
+        <span>${t('cart.tax_base')}:</span>
+        <span>${baseImponibleCalculada.toFixed(precTotal).replace('.', ',')} €</span>
+    </div>`;
+
+    // Mostrar ahorros por tarifa si existen
+    if (ahorroTarifasTotal > 0.005) {
+        for (const [nombre, importe] of Object.entries(ahorrosTarifasAgrupados)) {
+            htmlDesglose += `
+            <div class="resumen-fila-mini descuento-texto">
+                <span>${t('cart.saving')} ${nombre}:</span>
+                <span>- ${importe.toFixed(precTotal).replace('.', ',')} €</span>
+            </div>`;
+        }
+    }
+
+    // Subtotal tras tarifas solo si hay cupón manual
+    if (descuentoManualImporte > 0.005) {
+        const textoManual = descuento.tipo === 'porcentaje' ? `${t('cart.discount')} (${descuento.valor}%)` : `${t('cart.coupon')} ` + (descuento.cupon || t('cart.manual'));
+        htmlDesglose += `
+        <div class="resumen-fila-mini descuento-texto" style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #16a34a;">
+                <span style="cursor: pointer; color: #ef4444; margin-right: 5px;" onclick="quitarDescuento()" title="${t('cart.remove_discount_title')}">
+                    <i class="fas fa-times-circle"></i>
+                </span>${textoManual}:
+            </span>
+            <span style="color: #16a34a;">- ${descuentoManualImporte.toFixed(precTotal).replace('.', ',')} €</span>
+        </div>`;
+    }
+
+    htmlDesglose += `
+        <div class="resumen-fila-mini">
+            <span>${t('cart.tax')}:</span>
+            <span>${ivaTotal.toFixed(precTotal).replace('.', ',')} €</span>
+        </div>
+        <div class="resumen-fila-mini" style="font-weight: bold; border-top: 1px solid #e5e7eb; padding-top: 8px;">
+            <span>${t('cart.final_total')}:</span>
+            <span>${totalPVPFinal.toFixed(precTotal).replace('.', ',')} €</span>
+        </div>`;
+
+    // Añadir puntos previstos a ganar si el cliente está identificado
+    const nifActual = document.getElementById('clienteNif') ? document.getElementById('clienteNif').value.trim() : '';
+    if (nifActual !== '' && totalPVPFinal > 0) {
+        const puntosAGanar = Math.round(totalPVPFinal * 10);
+        htmlDesglose += `
+        <div class="resumen-fila-mini" style="color: #059669; font-weight: 600; font-size: 0.85rem; padding-top: 4px;">
+            <span>${t('cart.points_to_earn')}:</span>
+            <span>+${puntosAGanar.toLocaleString('es-ES')} pts</span>
+        </div>`;
+    }
+
+    htmlDesglose += `</div>`;
+
+    // Actualizar el DOM
+    const ticketDesglose = document.getElementById('ticketDesglose');
+    if (ticketDesglose) ticketDesglose.innerHTML = htmlDesglose;
+    totalEl.textContent = totalPVPFinal.toFixed(precTotal).replace('.', ',') + ' €';
+
+    // Verificar si se supera el límite de 1.000€ en efectivo
+    if (typeof verificarLimiteEfectivo === 'function') {
+        verificarLimiteEfectivo();
+    }
+
+    // Habilitar botones de cobro y descuento
+    btnCobrar.disabled = false;
+    btnDescuento.disabled = false;
+    btnPosponer.disabled = false;
+}
+
+// ======================== PROCESO DE COBRO Y CAMBIO ========================
+
+/**
+ * Inicia el proceso de cobro. Si el método es efectivo, muestra el modal de cambio.
+ * Si es tarjeta/bizum, va directamente al modal de tipo de documento.
+ * Valida el límite legal de 1.000€ para pagos en efectivo.
+ */
+function intentarCobrar() {
+    if (carrito.length === 0) return;
+    const metodoPago = document.getElementById('metodoPago').value;
+
+    if (metodoPago === 'efectivo') {
+        // Verificar límite legal de efectivo (1.000€)
+        const total = obtenerTotalCalculado();
+        if (total > 1000) {
+            alert(t('cart.alert_cash_limit_exceeded'));
+            return;
+        }
+        // Mostrar modal para calcular el cambio
+        mostrarModalCambio();
+    } else if (metodoPago === 'mixto') {
+        // Mostrar modal de pago mixto para distribuir entre métodos
+        mostrarModalPagoMixto();
+    } else {
+        // Para tarjeta/bizum, ir directamente al tipo de documento
+        if (typeof mostrarModalTipoDocumento === 'function') {
+            mostrarModalTipoDocumento();
+        }
+    }
+}
+
+/**
+ * Muestra el modal de cálculo de cambio para pago en efectivo.
+ * Inicializa los valores y pone el foco en el input de dinero entregado.
+ */
+function mostrarModalCambio() {
+    const total = obtenerTotalCalculado();
+    const precTotal = obtenerDecimalesMaximosCarrito();
+    const cambioTotalPagar = document.getElementById('cambioTotalPagar');
+    if (cambioTotalPagar) cambioTotalPagar.textContent = total.toFixed(precTotal).replace('.', ',') + ' €';
+
+    // Resetear campos del modal
+    const inputEntregado = document.getElementById('inputDineroEntregado');
+    if (inputEntregado) inputEntregado.value = '';
+
+    const cambioDevolver = document.getElementById('cambioDevolver');
+    if (cambioDevolver) {
+        cambioDevolver.textContent = '0,00 €';
+        cambioDevolver.style.color = '#333';
+    }
+
+    const cambioError = document.getElementById('cambioError');
+    if (cambioError) cambioError.style.display = 'none';
+
+    // Mostrar modal y enfocar el input
+    const modalCambio = document.getElementById('modalCambio');
+    if (modalCambio) {
+        modalCambio.style.display = 'flex';
+        if (inputEntregado) setTimeout(() => inputEntregado.focus(), 100);
+    }
+}
+
+/**
+ * Establece el importe recibido igual al total de la venta actual (importe exacto).
+ */
+function fijarImporteExacto() {
+    const total = obtenerTotalCalculado();
+    const precTotal = obtenerDecimalesMaximosCarrito();
+    const input = document.getElementById('inputDineroEntregado');
+    if (input) {
+        input.value = total.toFixed(precTotal);
+        calcularCambio();
+        // Foco al botón de continuar para agilizar
+        setTimeout(() => {
+            const btnContinuar = document.querySelector('#modalCambio .btn-exito');
+            if (btnContinuar) btnContinuar.focus();
+        }, 50);
+    }
+}
+
+/**
+ * Calcula en tiempo real el cambio a devolver según la cantidad entregada.
+ * Muestra un mensaje de error si la cantidad es insuficiente.
+ */
+function calcularCambio() {
+    const total = obtenerTotalCalculado();
+    const precTotal = obtenerDecimalesMaximosCarrito();
+    const inputEntregado = document.getElementById('inputDineroEntregado');
+    if (!inputEntregado) return;
+
+    const entregado = parseFloat(inputEntregado.value) || 0;
+    const devolucion = entregado - total;
+    // Usar un pequeño epsilon o redondear para evitar errores de precisión en punto flotante
+    const devolucionRedondeada = roundTo(devolucion, precTotal);
+
+    const spanDevolver = document.getElementById('cambioDevolver');
+    const errorMsg = document.getElementById('cambioError');
+
+    if (!spanDevolver || !errorMsg) return;
+
+    if (devolucionRedondeada < 0 && entregado > 0) {
+        // Cantidad insuficiente: mostrar error
+        spanDevolver.textContent = '0,00 €';
+        spanDevolver.style.color = '#333';
+        errorMsg.style.display = 'block';
+    } else {
+        // Cantidad suficiente o vacía: mostrar cambio
+        errorMsg.style.display = 'none';
+        if (entregado === 0) {
+            spanDevolver.textContent = '0,00 €';
+            spanDevolver.style.color = '#333';
+        } else {
+            spanDevolver.textContent = devolucionRedondeada.toFixed(precTotal).replace('.', ',') + ' €';
+            spanDevolver.style.color = '#22c55e';
+        }
+    }
+}
+
+/**
+ * Valida que la cantidad entregada sea suficiente y avanza al modal de tipo de documento.
+ */
+function confirmarCambio() {
+    const total = obtenerTotalCalculado();
+    const inputEntregado = document.getElementById('inputDineroEntregado');
+    if (!inputEntregado) return;
+
+    const entregado = parseFloat(inputEntregado.value) || 0;
+
+    // Validar que el entregado cubra el total (usando redondeo para evitar errores de precisión)
+    if (Math.round(entregado * 100) < Math.round(total * 100)) {
+        const cambioError = document.getElementById('cambioError');
+        if (cambioError) cambioError.style.display = 'block';
+        return;
+    }
+
+    // Cerrar modal de cambio y abrir el nuevo Centro de Finalización de Venta
+    cerrarModal('modalCambio');
+    if (typeof abrirModalFinalizarVenta === 'function') {
+        abrirModalFinalizarVenta();
+    }
+}
+
+// ======================== PAGO MIXTO ========================
+
+/**
+ * Inicializa y muestra el modal para distribuir el pago entre múltiples métodos.
+ */
+function mostrarModalPagoMixto() {
+    const total = obtenerTotalCalculado();
+    const precTotal = obtenerDecimalesMaximosCarrito();
+    const mixtoTotalDistribuir = document.getElementById('mixtoTotalDistribuir');
+    if (mixtoTotalDistribuir) mixtoTotalDistribuir.textContent = total.toFixed(precTotal).replace('.', ',') + ' €';
+
+    // Resetear campos
+    const inputs = ['mixtoEfectivo', 'mixtoTarjeta', 'mixtoBizum'];
+    inputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+
+    const mixtoError = document.getElementById('mixtoError');
+    if (mixtoError) mixtoError.style.display = 'none';
+    const mixtoAvisoEfectivo = document.getElementById('mixtoAvisoEfectivo');
+    if (mixtoAvisoEfectivo) mixtoAvisoEfectivo.style.display = 'none';
+
+    // Resetear indicador restante
+    const restanteValor = document.getElementById('mixtoRestanteValor');
+    if (restanteValor) restanteValor.textContent = total.toFixed(precTotal).replace('.', ',') + ' €';
+
+    const container = document.getElementById('mixtoRestanteContainer');
+    const label = document.getElementById('mixtoRestanteLabel');
+    const sub = document.getElementById('mixtoRestanteSub');
+
+    if (container && label && sub && restanteValor) {
+        container.style.background = 'var(--bg-accent-danger)';
+        label.style.color = 'var(--accent-danger)';
+        sub.style.color = 'var(--accent-danger)';
+        restanteValor.style.color = 'var(--accent-danger)';
+        label.textContent = t('cart.mixed_remaining_assign');
+        sub.textContent = t('cart.mixed_distribute_full');
+    }
+
+    // Mostrar modal y enfocar primer campo
+    const modalPagoMixto = document.getElementById('modalPagoMixto');
+    if (modalPagoMixto) {
+        modalPagoMixto.style.display = 'flex';
+        const mixtoEfectivo = document.getElementById('mixtoEfectivo');
+        if (mixtoEfectivo) setTimeout(() => mixtoEfectivo.focus(), 100);
+    }
+}
+
+/**
+ * Calcula en tiempo real cuánto queda por asignar y actualiza el indicador visual.
+ */
+function calcularRestanteMixto() {
+    const total = obtenerTotalCalculado();
+    const precTotal = obtenerDecimalesMaximosCarrito();
+    const efectivo = parseFloat(document.getElementById('mixtoEfectivo')?.value) || 0;
+    const tarjeta = parseFloat(document.getElementById('mixtoTarjeta')?.value) || 0;
+    const bizum = parseFloat(document.getElementById('mixtoBizum')?.value) || 0;
+
+    const asignado = roundTo(efectivo + tarjeta + bizum, precTotal);
+    const restante = roundTo(total - asignado, precTotal);
+
+    const restanteValor = document.getElementById('mixtoRestanteValor');
+    const container = document.getElementById('mixtoRestanteContainer');
+    const label = document.getElementById('mixtoRestanteLabel');
+    const sub = document.getElementById('mixtoRestanteSub');
+    const errorEl = document.getElementById('mixtoError');
+
+    if (!restanteValor || !container || !label || !sub || !errorEl) return;
+
+    // Aviso límite efectivo
+    const avisoEfectivo = document.getElementById('mixtoAvisoEfectivo');
+    if (avisoEfectivo) avisoEfectivo.style.display = (efectivo > 1000) ? 'block' : 'none';
+
+    if (restante > 0.005) {
+        // Falta por asignar
+        container.style.background = 'var(--bg-accent-danger)';
+        label.style.color = 'var(--accent-danger)';
+        sub.style.color = 'var(--accent-danger)';
+        restanteValor.style.color = 'var(--accent-danger)';
+        label.textContent = t('cart.mixed_remaining_assign');
+        sub.textContent = t('cart.mixed_distribute_full');
+        restanteValor.textContent = restante.toFixed(precTotal).replace('.', ',') + ' €';
+        errorEl.style.display = 'none';
+    } else if (restante < -0.005) {
+        // Excedente (cambio)
+        const cambio = Math.abs(restante);
+        container.style.background = 'var(--bg-accent-success)';
+        label.style.color = 'var(--accent-success)';
+        sub.style.color = 'var(--accent-success)';
+        restanteValor.style.color = 'var(--accent-success)';
+        label.textContent = t('cart.mixed_change_return');
+        sub.textContent = t('cart.mixed_cash_excess');
+        restanteValor.textContent = cambio.toFixed(precTotal).replace('.', ',') + ' €';
+        errorEl.style.display = 'none';
+    } else {
+        // Exacto
+        container.style.background = 'var(--bg-accent-success)';
+        label.style.color = 'var(--accent-success)';
+        sub.style.color = 'var(--accent-success)';
+        restanteValor.style.color = 'var(--accent-success)';
+        label.textContent = '✓ ' + t('cart.mixed_total_covered');
+        sub.textContent = t('cart.mixed_exact_assigned');
+        restanteValor.textContent = '0,00 €';
+        errorEl.style.display = 'none';
+    }
+}
+
+/**
+ * Valida la distribución y avanza al modal de finalización de venta.
+ */
+function confirmarPagoMixto() {
+    const total = obtenerTotalCalculado();
+    const precTotal = obtenerDecimalesMaximosCarrito();
+    const efectivo = parseFloat(document.getElementById('mixtoEfectivo')?.value) || 0;
+    const tarjeta = parseFloat(document.getElementById('mixtoTarjeta')?.value) || 0;
+    const bizum = parseFloat(document.getElementById('mixtoBizum')?.value) || 0;
+    const errorEl = document.getElementById('mixtoError');
+
+    if (!errorEl) return;
+
+    const asignado = roundTo(efectivo + tarjeta + bizum, precTotal);
+
+    // Validar que la suma cubra el total
+    if (Math.round(asignado * 100) < Math.round(total * 100)) {
+        errorEl.textContent = t('cart.mixed_error_not_covered') + ': ' + roundTo(total - asignado, precTotal).toFixed(precTotal).replace('.', ',') + ' €';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    // Validar límite de efectivo
+    if (efectivo > 1000) {
+        errorEl.textContent = t('cart.mixed_error_cash_limit');
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    // Validar que al menos 2 métodos tengan importe (sino no tiene sentido "mixto")
+    const metodosUsados = [efectivo, tarjeta, bizum].filter(v => v > 0).length;
+    if (metodosUsados < 2) {
+        errorEl.textContent = t('cart.mixed_error_two_methods');
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    // Calcular cambio (solo posible si hay efectivo y el asignado > total)
+    const cambio = roundTo(Math.max(0, asignado - total), precTotal);
+
+    // Guardar desglose
+    pagoMixtoDesglose = {
+        efectivo: roundTo(efectivo, precTotal),
+        tarjeta: roundTo(tarjeta, precTotal),
+        bizum: roundTo(bizum, precTotal),
+        cambio: cambio
+    };
+
+    // Cerrar modal mixto y abrir el modal de finalización
+    cerrarModal('modalPagoMixto');
+    if (typeof abrirModalFinalizarVenta === 'function') {
+        abrirModalFinalizarVenta();
+    }
+}
+
+// ======================== MODAL TIPO DOCUMENTO / CLIENTE ========================
+
+/**
+ * Muestra el modal para elegir entre Ticket o Factura.
+ * Valida que haya productos en el carrito y que la caja esté abierta.
+ * Si el total es >= 20€ y no hay cliente, pregunta por los puntos primero.
+ */
+function mostrarModalTipoDocumento() {
+    if (carrito.length === 0) return;
+
+    // Verificar que la caja esté abierta antes de permitir ventas
+    if (!cajaAbierta) {
+        alert(t('cart.alert_box_closed'));
+        return;
+    }
+
+    // Verificar si el total es mayor a 20€ y no hay cliente registrado para preguntar por puntos
+    const total = obtenerTotalCalculado();
+    const clienteNifEl = document.getElementById('clienteNif');
+    const clienteNif = clienteNifEl ? clienteNifEl.value.trim() : '';
+
+    if (total >= 20 && !clienteNif) {
+        // Mostrar modal de puntos antes del tipo de documento
+        if (typeof mostrarModalPuntos === 'function') {
+            mostrarModalPuntos();
+        }
+        return;
+    }
+
+    abrirModalFinalizarVenta();
+}
+
+// ======================== FLUJO DE FINALIZAR VENTA ========================
+
+/**
+ * Cambia el idioma seleccionado para el ticket, actualiza la selección visual 
+ * y regenera la vista previa en el nuevo idioma
+ */
+function cambiarIdiomaTicket(idioma) {
+    // Actualizar variable global
+    idiomaTicketSeleccionado = idioma;
+
+    // Actualizar variable de traducciones si existe IDIOMAS_TICKET
+    if (typeof IDIOMAS_TICKET !== 'undefined' && IDIOMAS_TICKET[idioma]) {
+        LANG = IDIOMAS_TICKET[idioma];
+    }
+
+    // Actualizar estado visual de los botones
+    document.querySelectorAll('.idioma-option-card').forEach(el => {
+        el.classList.remove('active');
+    });
+    const selectedBtn = document.querySelector(`.idioma-option-card[data-idioma="${idioma}"]`);
+    if (selectedBtn) selectedBtn.classList.add('active');
+
+    // Actualizar campo oculto del formulario
+    const inputIdiomaTicket = document.getElementById('inputIdiomaTicket');
+    if (inputIdiomaTicket) inputIdiomaTicket.value = idioma;
+
+    // ACTUALIZAR NOMBRES DE TODOS LOS PRODUCTOS EN EL CARRITO
+    if (typeof carrito !== 'undefined' && carrito.length > 0) {
+        carrito.forEach(item => {
+            // Buscar el nombre correspondiente al idioma seleccionado
+            const campoNombre = `nombre_${idioma}`;
+            if (item[campoNombre] && item[campoNombre].trim() !== '') {
+                item.nombre = item[campoNombre];
+            } else {
+                // Fallback: si no tiene traduccion usar nombre español, si tampoco nombre base
+                if (item.nombre_es && item.nombre_es.trim() !== '') {
+                    item.nombre = item.nombre_es;
+                }
+            }
+        });
+
+        // Volver a renderizar el carrito en el panel derecho
+        actualizarTicket();
+    }
+
+    // Regenerar vista previa del ticket con el nuevo idioma
+    renderizarVistaPreviaTicket();
+}
+
+/**
+ * Inicializa y muestra el nuevo modal de finalización con vista previa.
+ */
+function abrirModalFinalizarVenta() {
+    if (carrito.length === 0) return;
+
+    // Resetear selecciones
+    tipoDocumentoActual = 'ticket';
+    metodoEntregaActual = 'imprimir';
+    idiomaTicketSeleccionado = 'es';
+
+    // Resetear selección de idioma a Español por defecto
+    document.querySelectorAll('.idioma-option-card').forEach(el => {
+        el.classList.remove('active');
+    });
+    const esBtn = document.querySelector('.idioma-option-card[data-idioma="es"]');
+    if (esBtn) esBtn.classList.add('active');
+
+    const inputIdiomaTicket = document.getElementById('inputIdiomaTicket');
+    if (inputIdiomaTicket) inputIdiomaTicket.value = 'es';
+
+    // Fetch de los próximos números para la vista previa
+    fetch('api/ventas.php?accion=proximos_numeros')
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                proximosNumeros.ticket = data.proximo_ticket;
+                proximosNumeros.factura = data.proximo_factura;
+                renderizarVistaPreviaTicket();
+            }
+        })
+        .catch(err => console.error('Error al obtener números correlativos:', err));
+
+    // Actualizar UI de botones
+    document.querySelectorAll('.checkout-option-card').forEach(c => c.classList.remove('active'));
+    const optTicket = document.getElementById('optTicket');
+    const optImprimir = document.getElementById('optImprimir');
+    if (optTicket) optTicket.classList.add('active');
+    if (optImprimir) optImprimir.classList.add('active');
+
+    const emailContainerCheckout = document.getElementById('emailContainerCheckout');
+    if (emailContainerCheckout) emailContainerCheckout.style.display = 'none';
+
+    // Actualizar resumen de cliente
+    actualizarResumenClienteCheckout();
+
+    // Renderizar vista previa inicial
+    renderizarVistaPreviaTicket();
+
+    // Mostrar modal principal
+    const modalFinalizarVenta = document.getElementById('modalFinalizarVenta');
+    if (modalFinalizarVenta) modalFinalizarVenta.style.display = 'flex';
+}
+
+/**
+ * Actualiza el pequeño recuadro de datos de cliente en el modal de checkout.
+ */
+function actualizarResumenClienteCheckout() {
+    const nifEl = document.getElementById('clienteNif');
+    const nombreEl = document.getElementById('clienteNombre');
+    const textEl = document.getElementById('clientDataTextCheckout');
+
+    if (!textEl) return;
+
+    const nif = nifEl ? nifEl.value.trim() : '';
+    const nombre = nombreEl ? nombreEl.value.trim() : '';
+
+    if (nif || nombre) {
+        textEl.innerHTML = `<div style="color:var(--text-main); font-weight:600;">${nombre || t('cart.no_name')}</div><div style="font-size:0.8rem;">${nif || t('cart.no_nif')}</div>`;
+    } else {
+        textEl.textContent = t('cart.no_customer_assigned');
+    }
+}
+
+/**
+ * Abre el modal de datos de cliente y prepara el retorno al checkout al terminar.
+ */
+function abrirDatosClienteDesdeCheckout() {
+    cerrarModal('modalFinalizarVenta');
+    window.retornarAlCheckout = true; // Flag para volver aquí después
+    if (typeof seleccionarDatosCliente === 'function') {
+        seleccionarDatosCliente(tipoDocumentoActual);
+    }
+}
+
+/**
+ * Maneja el botón 'Atrás' en el modal de datos de cliente.
+ */
+function cerrarModalDatosClienteAtras() {
+    cerrarModal('modalDatosCliente');
+    if (window.retornarAlCheckout) {
+        window.retornarAlCheckout = false;
+        const modalFinalizarVenta = document.getElementById('modalFinalizarVenta');
+        if (modalFinalizarVenta) modalFinalizarVenta.style.display = 'flex';
+    } else {
+        // Flujo normal previo
+        const modalTipoDoc = document.getElementById('modalTipoDoc');
+        if (modalTipoDoc) modalTipoDoc.style.display = 'flex';
+    }
+}
+
+/**
+ * Cambia entre 'ticket' y 'factura' en el modo checkout.
+ */
+function cambiarTipoDocumentoCheckout(tipo) {
+    tipoDocumentoActual = tipo;
+
+    // Actualizar botones
+    const optTicket = document.getElementById('optTicket');
+    const optFactura = document.getElementById('optFactura');
+    if (optTicket) optTicket.classList.toggle('active', tipo === 'ticket');
+    if (optFactura) optFactura.classList.toggle('active', tipo === 'factura');
+
+    // Actualizar la vista previa
+    renderizarVistaPreviaTicket();
+}
+
+/**
+ * Cambia entre 'imprimir' y 'email'.
+ */
+function cambiarMetodoEntregaCheckout(metodo) {
+    metodoEntregaActual = metodo;
+
+    // Actualizar botones
+    const optImprimir = document.getElementById('optImprimir');
+    const optEmail = document.getElementById('optEmail');
+    if (optImprimir) optImprimir.classList.toggle('active', metodo === 'imprimir');
+    if (optEmail) optEmail.classList.toggle('active', metodo === 'email');
+
+    // Mostrar/ocultar contenedores específicos
+    const emailContainerCheckout = document.getElementById('emailContainerCheckout');
+    if (emailContainerCheckout) emailContainerCheckout.style.display = (metodo === 'email') ? 'block' : 'none';
+
+    if (metodo === 'email') {
+        const emailCheckout = document.getElementById('emailCheckout');
+        if (emailCheckout) emailCheckout.focus();
+    }
+}
+
+/**
+ * Crea un objeto con la estructura de 'ultimaVenta' a partir de los datos actuales del carrito
+ * y el formulario de cliente para poder previsualizar el documento fielmente.
+ */
+function construirObjetoVentaTemporal(tipoDoc) {
+    const totalPVP = obtenerTotalCalculado();
+    const nif = document.getElementById('clienteNif')?.value.trim() || '';
+    const nombre = document.getElementById('clienteNombre')?.value.trim() || '';
+    const direccion = document.getElementById('clienteDireccion')?.value.trim() || '';
+    const observaciones = document.getElementById('clienteObservaciones')?.value.trim() || '';
+    const mensajePersonalizado = document.getElementById('mensajePersonalizadoVenta')?.value.trim() || '';
+    const idiomaTicket = idiomaTicketSeleccionado;
+
+    // Clonar y preparar líneas de carrito
+    const lineas = carrito.map(item => {
+        // Obtener nombre en el idioma seleccionado actualmente
+        const campoNombre = `nombre_${idiomaTicketSeleccionado}`;
+        let nombreFinal = item.nombre;
+
+        if (item[campoNombre] && item[campoNombre].trim() !== '') {
+            nombreFinal = item[campoNombre];
+        } else if (item.nombre_es && item.nombre_es.trim() !== '') {
+            nombreFinal = item.nombre_es;
+        }
+
+        return {
+            ...item,
+            nombre: nombreFinal,
+            precio: parseFloat(item.precio),
+            pvpUnitario: parseFloat(item.pvpUnitario),
+            cantidad: parseFloat(item.cantidad),
+            iva: (item.iva !== undefined && item.iva !== null && item.iva !== "") ? parseInt(item.iva) : 21
+        };
+    });
+
+    const metodoPagoActual = document.getElementById('metodoPago')?.value || 'efectivo';
+    let entregadoVal = totalPVP;
+    let cambioVal = 0;
+
+    if (metodoPagoActual === 'efectivo') {
+        const inputVal = parseFloat(document.getElementById('inputDineroEntregado')?.value);
+        if (!isNaN(inputVal) && inputVal >= totalPVP) {
+            entregadoVal = inputVal;
+            cambioVal = inputVal - totalPVP;
+        }
+    }
+
+    return {
+        id: proximosNumeros[tipoDoc],
+        numero: proximosNumeros[tipoDoc].replace(/\D/g, ''),
+        serie: proximosNumeros[tipoDoc].replace(/\d/g, ''),
+        fecha: new Date().toLocaleDateString('es-ES') + ' ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+        tipo: tipoDoc,
+        idioma_ticket: idiomaTicket,
+        metodoPago: metodoPagoActual,
+        entregado: entregadoVal,
+        cambio: cambioVal,
+        carrito: lineas,
+        total: totalPVP,
+        clienteNif: nif,
+        clienteNombre: nombre,
+        clienteDir: direccion,
+        clienteObs: observaciones,
+        clientePuntos: parseInt(document.getElementById('clientePuntos')?.value) || 0,
+        descuentoTipo: descuento.tipo,
+        descuentoValor: descuento.valor,
+        descuentoCupon: descuento.cupon,
+        puntosGanados: totalPVP >= 20 ? Math.round(totalPVP * 10) : 0,
+        puntosCanjeados: (typeof puntosCanjeados !== 'undefined' && puntosCanjeados && puntosCanjeados.puntos > 0) ? puntosCanjeados : null,
+        mensajePersonalizado: mensajePersonalizado,
+        pagoMixtoDesglose: (metodoPagoActual === 'mixto') ? pagoMixtoDesglose : null,
+        qrUrl: (TPV_CONTEXT.config.qrBaseUrl || 'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR') + '?' +
+            (new URLSearchParams({
+                nif: TPV_CONTEXT.config.nif,
+                numserie: (proximosNumeros[tipoDoc] || ''),
+                fecha: new Date().toLocaleDateString('es-ES').split('/').join('-'),
+                importe: totalPVP.toFixed(2)
+            })).toString()
+    };
+}
+
+/**
+ * Limpia la sesion y vuelve al estado inicial.
+ */
+function cerrarExito() {
+    window.location.href = 'index.php?v=cajero';
+}
+
+/**
+ * Alterna entre vista ajustada y vista real (con scroll)
+ */
+function toggleZoomTicket() {
+    ticketZoomed = !ticketZoomed;
+    const previewContainer = document.getElementById('ticketPreviewContent');
+    if (previewContainer) {
+        ajustarEscalaTicket(previewContainer, false);
+    }
+}
+
+/**
+ * Calcula y aplica el factor de escala o habilita el scroll.
+ * @param {HTMLElement} previewContainer - El contenedor del ticket.
+ * @param {boolean} esNuevaMedicion - Indica si hay que recalcular si el ticket es grande.
+ */
+function ajustarEscalaTicket(previewContainer, esNuevaMedicion = false) {
+    const viewport = document.querySelector('.ticket-preview-viewport');
+    const btnZoom = document.getElementById('btnZoomTicket');
+    const iconMinus = document.querySelector('.icon-minus');
+    const iconPlusElements = document.querySelectorAll('.icon-plus');
+
+    if (!viewport || !previewContainer || !btnZoom) return;
+
+    // Si es una nueva medición, reseteamos estilos para medir altura real al 100%
+    if (esNuevaMedicion) {
+        viewport.classList.remove('is-zoomed');
+        previewContainer.style.transform = 'none';
+        // Forzamos un pequeño reflow si fuese necesario, aunque offsetHeight ya lo hace
+        const viewportHeight = viewport.clientHeight - 32;
+        const ticketFullHeight = previewContainer.offsetHeight;
+        ticketEsGrandeLocal = ticketFullHeight > viewportHeight;
+    }
+
+    // Si el ticket es grande para el viewport actual
+    if (ticketEsGrandeLocal) {
+        btnZoom.style.display = 'flex';
+
+        if (ticketZoomed) {
+            // MODO ZOOM: Tamaño real con scroll
+            viewport.classList.add('is-zoomed');
+            btnZoom.classList.add('active');
+            if (iconMinus) iconMinus.style.display = 'block';
+            iconPlusElements.forEach(el => el.style.display = 'none');
+            previewContainer.style.transform = 'none'; // Asegurar tamaño real
+        } else {
+            // MODO AJUSTADO: Escalado para que quepa totalmente
+            viewport.classList.remove('is-zoomed');
+            btnZoom.classList.remove('active');
+            if (iconMinus) iconMinus.style.display = 'none';
+            iconPlusElements.forEach(el => el.style.display = 'block');
+
+            // Recalculamos escala basada en altura real
+            const viewportHeight = viewport.clientHeight - 32;
+            const ticketFullHeight = previewContainer.offsetHeight;
+
+            if (ticketFullHeight > 0) {
+                const scale = viewportHeight / ticketFullHeight;
+                previewContainer.style.transform = `scale(${scale})`;
+                previewContainer.style.transformOrigin = 'top center';
+            }
+        }
+    } else {
+        // El ticket cabe perfectamente: ocultamos botón y reset de estados
+        btnZoom.style.display = 'none';
+        viewport.classList.remove('is-zoomed');
+        previewContainer.style.transform = 'none';
+        ticketZoomed = false;
+    }
+}
+
+/**
+ * Actualiza la previsualización del modal de cobro usando un iframe para exactitud 1:1.
+ */
+function renderizarVistaPreviaTicket() {
+    const previewContainer = document.getElementById('ticketPreviewContent');
+    const badge = document.getElementById('tipoDocBadgeCheckout');
+    if (!previewContainer || !badge) return;
+
+    const isFactura = (tipoDocumentoActual === 'factura');
+
+    // Limpieza de estados y timers previos para evitar condiciones de carrera
+    ticketZoomed = false;
+    ticketEsGrandeLocal = false;
+    if (timeoutEscalaTicket) {
+        clearTimeout(timeoutEscalaTicket);
+        timeoutEscalaTicket = null;
+    }
+
+    const datosMock = construirObjetoVentaTemporal(tipoDocumentoActual);
+    if (typeof generarHTMLComprobante !== 'function') return;
+    const fullHTML = generarHTMLComprobante(datosMock, idiomaTicketSeleccionado);
+
+    previewContainer.className = 'paper-simulation ' + (isFactura ? 'tipo-factura' : 'tipo-ticket');
+    badge.textContent = isFactura ? 'FACTURA A4' : t('cart.thermal_ticket');
+    badge.style.background = isFactura ? 'var(--bg-accent)' : 'var(--bg-accent-success)';
+    badge.style.color = isFactura ? 'var(--accent)' : 'var(--accent-success)';
+
+    previewContainer.innerHTML = '';
+    const iframe = document.createElement('iframe');
+    iframe.style.width = '100%';
+    iframe.style.height = '1px';
+    iframe.style.border = 'none';
+    iframe.style.background = 'white';
+    iframe.scrolling = 'no';
+    previewContainer.appendChild(iframe);
+
+    const doc = iframe.contentWindow ? iframe.contentWindow.document : null;
+    if (doc) {
+        doc.open();
+        doc.write(fullHTML);
+        doc.close();
+    }
+
+    iframe.onload = function () {
+        if (timeoutEscalaTicket) clearTimeout(timeoutEscalaTicket);
+
+        timeoutEscalaTicket = setTimeout(() => {
+            // Comprobación defensiva antes de acceder al iframe
+            if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) return;
+
+            const body = iframe.contentWindow.document.body;
+            if (!body) return;
+
+            iframe.style.height = body.scrollHeight + 'px';
+
+            // Aplicamos el ajuste de escala/zoom con medición nueva
+            ajustarEscalaTicket(previewContainer, true);
+        }, 180);
+    };
+
+    const totalEl = document.getElementById('checkoutTotalAmount');
+    if (totalEl) totalEl.textContent = datosMock.total.toFixed(2).replace('.', ',') + ' €';
+}
+
+/**
+ * Realiza las comprobaciones finales y dispara el envío de la venta.
+ */
+function procesarVentaFinal() {
+    const mensajePersonalizadoVenta = document.getElementById('mensajePersonalizadoVenta');
+    const mensajePersonalizado = mensajePersonalizadoVenta ? mensajePersonalizadoVenta.value.trim() : '';
+    const inputMensajePersonalizado = document.getElementById('inputMensajePersonalizado');
+    if (inputMensajePersonalizado) inputMensajePersonalizado.value = mensajePersonalizado;
+
+    const nifEl = document.getElementById('clienteNif');
+    const nombreEl = document.getElementById('clienteNombre');
+    const direccionEl = document.getElementById('clienteDireccion');
+
+    const nif = nifEl ? nifEl.value.trim() : '';
+    const nombre = nombreEl ? nombreEl.value.trim() : '';
+    const direccion = direccionEl ? direccionEl.value.trim() : '';
+
+    // 1. Validar Factura
+    if (tipoDocumentoActual === 'factura') {
+        if (!nif || !nombre || !direccion) {
+            // Si faltan datos, redirigir al modal de datos del cliente
+            // Marcamos flag para que al terminar vuelva al checkout
+            window.retornarAlCheckout = true;
+            cerrarModal('modalFinalizarVenta');
+            if (typeof seleccionarDatosCliente === 'function') {
+                seleccionarDatosCliente('factura');
+            }
+            return;
+        }
+    }
+
+    // 2. Validar Email si está seleccionado
+    if (metodoEntregaActual === 'email') {
+        const emailCheckout = document.getElementById('emailCheckout');
+        const email = emailCheckout ? emailCheckout.value.trim() : '';
+        if (!email || !email.includes('@')) {
+            alert(t('cart.alert_valid_email'));
+            return;
+        }
+        // Sincronizar con el input global por si se usa después
+        const inputEmailGlobal = document.getElementById('inputEmail');
+        if (inputEmailGlobal) inputEmailGlobal.value = email;
+    }
+
+    // 3. Sincronizar preferencias en localStorage para persistir tras el reload
+    const emailCheckout = document.getElementById('emailCheckout');
+    localStorage.setItem('tpv_post_sale_action', JSON.stringify({
+        imprimir: (metodoEntregaActual === 'imprimir'),
+        email: (metodoEntregaActual === 'email'),
+        emailDestino: emailCheckout ? emailCheckout.value.trim() : ''
+    }));
+
+    // 4. Proceder con el registro
+    const observacionesEl = document.getElementById('clienteObservaciones');
+    const observaciones = observacionesEl ? observacionesEl.value.trim() : '';
+
+    cerrarModal('modalFinalizarVenta');
+    confirmarVenta(tipoDocumentoActual, nif, nombre, direccion, observaciones, mensajePersonalizado);
+}
+
+/**
+ * Buscar cliente por DNI en el checkout
+ */
+function buscarDatosCliente() {
+    const buscarDniCliente = document.getElementById('buscarDniCliente');
+    const dniBusqueda = buscarDniCliente ? buscarDniCliente.value.trim() : '';
+    const msgEl = document.getElementById('mensajeBusquedaClienteDatos');
+
+    if (!dniBusqueda) {
+        if (msgEl) {
+            msgEl.style.display = 'block';
+            msgEl.style.color = '#ef4444';
+            msgEl.textContent = t('cart.alert_valid_dni');
+        }
+        return;
+    }
+
+    if (msgEl) {
+        msgEl.style.display = 'block';
+        msgEl.style.color = '#3b82f6';
+        msgEl.textContent = t('cart.searching');
+    }
+
+    fetch('api/clientes.php?dni=' + encodeURIComponent(dniBusqueda))
+        .then(res => res.json())
+        .then(data => {
+            if (data && !data.error && data.length > 0) {
+                const cliente = data.find(c => c.dni.toUpperCase() === dniBusqueda.toUpperCase()) || data[0];
+
+                const fields = {
+                    'clienteNif': cliente.dni,
+                    'clienteNombre': (cliente.nombre + ' ' + (cliente.apellidos || '')).trim(),
+                    'clienteDireccion': cliente.direccion || '',
+                    'clientePuntos': cliente.puntos || 0
+                };
+
+                for (const [id, val] of Object.entries(fields)) {
+                    const el = document.getElementById(id);
+                    if (el) el.value = val;
+                }
+
+                if (msgEl) {
+                    msgEl.style.color = '#10b981';
+                    msgEl.textContent = t('cart.client_found_filled');
+                }
+            } else {
+                if (msgEl) msgEl.style.display = 'none';
+                if (confirm(t('cart.confirm_add_client'))) {
+                    const clienteHabitualDni = document.getElementById('clienteHabitualDni');
+                    if (clienteHabitualDni) clienteHabitualDni.value = dniBusqueda;
+                    if (typeof abrirModalClienteHabitual === 'function') {
+                        abrirModalClienteHabitual();
+                    }
+                }
+            }
+        })
+        .catch(err => {
+            console.error('Error buscando cliente:', err);
+            if (msgEl) {
+                msgEl.style.display = 'block';
+                msgEl.style.color = '#ef4444';
+                msgEl.textContent = t('cart.error_searching_client');
+            }
+        });
+}
+
+/**
+ * Configura y muestra el modal de datos del cliente según el tipo de documento.
+ */
+function seleccionarDatosCliente(tipo) {
+    tipoDocumentoActual = tipo;
+    cerrarModal('modalTipoDoc');
+
+    // Limpiar errores previos
+    const errorDatosCliente = document.getElementById('errorDatosCliente');
+    if (errorDatosCliente) errorDatosCliente.style.display = 'none';
+
+    // Obtener referencias a los elementos del formulario
+    const divDir = document.getElementById('divDireccionCliente');
+    const divObs = document.getElementById('divObservacionesCliente');
+    const subTitulo = document.getElementById('subtituloDatosCliente');
+
+    const reqs = ['reqNif', 'reqNombre', 'reqDir'];
+
+    if (tipo === 'factura') {
+        // Modo Factura: mostrar todos los campos y marcar obligatorios
+        if (subTitulo) subTitulo.textContent = t('cart.complete_data_mandatory');
+        if (divDir) divDir.style.display = 'block';
+        if (divObs) divObs.style.display = 'block';
+        reqs.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'inline';
+        });
+    } else {
+        // Modo Ticket: ocultar campos extra
+        if (subTitulo) subTitulo.textContent = t('cart.complete_data_optional');
+        if (divDir) divDir.style.display = 'none';
+        if (divObs) divObs.style.display = 'none';
+        reqs.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+    }
+
+    // Mostrar el modal de datos del cliente
+    const modalDatosCliente = document.getElementById('modalDatosCliente');
+    if (modalDatosCliente) modalDatosCliente.style.display = 'flex';
+}
+
+/**
+ * Valida los datos del cliente (obligatorios en Factura) y confirma la venta.
+ */
+function validarYConfirmarVenta() {
+    const nifEl = document.getElementById('clienteNif');
+    const nombreEl = document.getElementById('clienteNombre');
+    const direccionEl = document.getElementById('clienteDireccion');
+    const observacionesEl = document.getElementById('clienteObservaciones');
+
+    const nif = nifEl ? nifEl.value.trim() : '';
+    const nombre = nombreEl ? nombreEl.value.trim() : '';
+    const direccion = direccionEl ? direccionEl.value.trim() : '';
+    const observaciones = observacionesEl ? observacionesEl.value.trim() : '';
+
+    // En modo Factura, NIF, Nombre y Dirección son obligatorios
+    if (tipoDocumentoActual === 'factura') {
+        if (!nif || !nombre || !direccion) {
+            const errorDatosCliente = document.getElementById('errorDatosCliente');
+            if (errorDatosCliente) errorDatosCliente.style.display = 'block';
+            return;
+        }
+    }
+
+    // Cerrar modal de datos del cliente y proceder con la venta o volver al checkout
+    cerrarModal('modalDatosCliente');
+
+    if (window.retornarAlCheckout) {
+        window.retornarAlCheckout = false;
+        // Actualizar resumen y vista previa antes de volver
+        actualizarResumenClienteCheckout();
+        renderizarVistaPreviaTicket();
+        const modalFinalizarVenta = document.getElementById('modalFinalizarVenta');
+        if (modalFinalizarVenta) modalFinalizarVenta.style.display = 'flex';
+    } else {
+        confirmarVenta(tipoDocumentoActual, nif, nombre, direccion, observaciones);
+    }
+}
+
+/**
+ * El cliente decide registrar su DNI para obtener puntos.
+ */
+function confirmarConPuntos() {
+    cerrarModal('modalPuntos');
+    // Abrir modal para buscar cliente registrado
+    if (typeof abrirModalBuscarClienteRegistradoParaPuntos === 'function') {
+        abrirModalBuscarClienteRegistradoParaPuntos();
+    }
+}
+
+/**
+ * El cliente decide no registrar su DNI para puntos.
+ */
+function confirmarSinPuntos() {
+    cerrarModal('modalPuntos');
+    // Mostrar nuevo modal de finalizar venta
+    abrirModalFinalizarVenta();
+}
+
+/**
+ * Abre el modal de búsqueda de cliente para acumular puntos.
+ */
+function abrirModalBuscarClienteRegistradoParaPuntos() {
+    const dniBusquedaCliente = document.getElementById('dniBusquedaCliente');
+    if (dniBusquedaCliente) dniBusquedaCliente.value = '';
+
+    const mensajeResultadoBusqueda = document.getElementById('mensajeResultadoBusqueda');
+    if (mensajeResultadoBusqueda) mensajeResultadoBusqueda.style.display = 'none';
+
+    // Cambiamos el título para indicar que es para puntos
+    const h3 = document.querySelector('#modalBuscarClienteRegistrado h3');
+    if (h3) h3.textContent = t('cart.client_for_points');
+
+    const modalSubtitulo = document.querySelector('#modalBuscarClienteRegistrado .modal-subtitulo');
+    const puntosPosibles = document.getElementById('puntosPosibles');
+    if (modalSubtitulo && puntosPosibles) {
+        modalSubtitulo.textContent = t('cart.enter_dni_accumulate') + ' ' + puntosPosibles.textContent + ' ' + t('cart.points_text');
+    }
+
+    // Cambiamos el comportamiento del botón buscar
+    const modalBuscarClienteRegistrado = document.getElementById('modalBuscarClienteRegistrado');
+    if (modalBuscarClienteRegistrado) {
+        modalBuscarClienteRegistrado.dataset.modo = 'puntos';
+        modalBuscarClienteRegistrado.style.display = 'flex';
+    }
+}
+
+/**
+ * Rellena el formulario oculto con todos los datos de la venta y lo envía por POST.
+ */
+function confirmarVenta(tipoDocumento, nif, nombre, direccion, observaciones, mensajePersonalizado = '') {
+    const total = obtenerTotalCalculado();
+    const metodoPago = document.getElementById('metodoPago')?.value || 'efectivo';
+    let entregado = total;
+    let cambio = 0;
+
+    // Si el pago es en efectivo, calcular entregado y cambio
+    if (metodoPago === 'efectivo') {
+        const inputVal = parseFloat(document.getElementById('inputDineroEntregado')?.value);
+        if (!isNaN(inputVal) && inputVal >= total) {
+            entregado = inputVal;
+            cambio = inputVal - total;
+        }
+    } else if (metodoPago === 'mixto' && pagoMixtoDesglose) {
+        if (pagoMixtoDesglose.efectivo > 0 && pagoMixtoDesglose.cambio >= 0) {
+            entregado = pagoMixtoDesglose.efectivo + pagoMixtoDesglose.cambio;
+            cambio = pagoMixtoDesglose.cambio;
+        } else {
+            entregado = total;
+            cambio = 0;
+        }
+    }
+
+    const precTotal = obtenerDecimalesMaximosCarrito();
+
+    // Rellenar los campos ocultos del formulario
+    const fields = {
+        'inputCarrito': JSON.stringify(carrito),
+        'inputMetodoPago': metodoPago,
+        'inputTipoDocumento': tipoDocumento,
+        'inputDineroEntregadoFinal': entregado.toFixed(precTotal),
+        'inputCambioDevueltoFinal': cambio.toFixed(precTotal),
+        'inputDesglosePago': (metodoPago === 'mixto' && pagoMixtoDesglose) ? JSON.stringify(pagoMixtoDesglose) : '',
+        'inputClienteNifFinal': nif,
+        'inputClienteNombreFinal': nombre,
+        'inputClienteDireccionFinal': direccion,
+        'inputObservacionesFinal': observaciones,
+        'inputDescuentoTipo': descuento.tipo,
+        'inputDescuentoValor': descuento.valor,
+        'inputDescuentoCupon': descuento.cupon,
+        'inputDescuentoTarifaTipo': 'ninguno',
+        'inputDescuentoTarifaValor': 0,
+        'inputDescuentoTarifaCupon': '',
+        'inputDescuentoManualTipo': descuento.tipo,
+        'inputDescuentoManualValor': descuento.valor,
+        'inputDescuentoManualCupon': descuento.cupon,
+        'inputMensajePersonalizado': mensajePersonalizado
+    };
+
+    for (const [id, val] of Object.entries(fields)) {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+    }
+
+    // Guardar puntos canjeados si existen
+    if (typeof puntosCanjeados !== 'undefined' && puntosCanjeados && puntosCanjeados.dni && puntosCanjeados.puntos > 0) {
+        const pDni = document.getElementById('inputPuntosCanjeadosDni');
+        const pCant = document.getElementById('inputPuntosCanjeadosCantidad');
+        if (pDni) pDni.value = puntosCanjeados.dni;
+        if (pCant) pCant.value = puntosCanjeados.puntos;
+    } else {
+        const pDni = document.getElementById('inputPuntosCanjeadosDni');
+        const pCant = document.getElementById('inputPuntosCanjeadosCantidad');
+        if (pDni) pDni.value = '';
+        if (pCant) pCant.value = 0;
+    }
+
+    // Estado del cliente identificado en modal puntos
+    let clienteIdentificadoPuntos = false;
+    if (typeof clienteIdentificadoEnModalPuntos !== 'undefined') {
+        clienteIdentificadoPuntos = !!clienteIdentificadoEnModalPuntos;
+        const inputCIP = document.getElementById('inputClienteIdentificadoPuntos');
+        if (inputCIP) inputCIP.value = clienteIdentificadoPuntos ? 'true' : 'false';
+    }
+
+    // Calcular puntos ganados y balance final
+    const puntosGanados = (clienteIdentificadoPuntos && total >= 20) ? Math.round(total * 10) : 0;
+    const inputPuntosCanjeadosCantidad = document.getElementById('inputPuntosCanjeadosCantidad');
+    const puntosCanjeadosVal = inputPuntosCanjeadosCantidad ? (parseInt(inputPuntosCanjeadosCantidad.value) || 0) : 0;
+    const clientePuntos = document.getElementById('clientePuntos');
+    const puntosOriginales = (clienteIdentificadoPuntos) ? (parseInt(clientePuntos?.value) || 0) : 0;
+    const puntosBalanceFinal = (clienteIdentificadoPuntos) ? (puntosOriginales - puntosCanjeadosVal + puntosGanados) : 0;
+
+    const inputPG = document.getElementById('inputPuntosGanados');
+    const inputPB = document.getElementById('inputPuntosBalance');
+    if (inputPG) inputPG.value = puntosGanados;
+    if (inputPB) inputPB.value = puntosBalanceFinal;
+
+    // Tarifa seleccionada
+    const inputIdTarifa = document.getElementById('inputIdTarifa');
+    const tarifaVenta = document.getElementById('tarifaVenta');
+    if (inputIdTarifa && tarifaVenta) inputIdTarifa.value = tarifaVenta.value;
+
+    // Enviar el formulario al servidor
+    const formVenta = document.getElementById('formVenta');
+    if (formVenta) formVenta.submit();
+
+    // Resetear estados después de enviar
+    if (typeof puntosCanjeados !== 'undefined') puntosCanjeados = null;
+    if (typeof clienteIdentificadoEnModalPuntos !== 'undefined') clienteIdentificadoEnModalPuntos = false;
+    descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+}
+
+/**
+ * Genera un documento HTML formateado (ticket o factura) con los datos de la última venta
+ * y lo envía a la impresora mediante un iframe oculto.
+ */
+function imprimirDocumento() {
+    if (typeof ultimaVenta === 'undefined') return;
+
+    // Generar el contenido HTML usando el idioma guardado en la venta o el seleccionado
+    if (typeof generarHTMLComprobante !== 'function') return;
+    const contenido = generarHTMLComprobante(ultimaVenta, ultimaVenta.idioma_ticket || idiomaTicketSeleccionado);
+
+    // Crear un iframe oculto para imprimir sin afectar la página actual
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.top = '-10000px';
+    document.body.appendChild(iframe);
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(contenido);
+    iframe.contentDocument.close();
+
+    // Cuando el iframe cargue, ejecutar la impresión y luego eliminarlo
+    iframe.onload = function () {
+        iframe.contentWindow.print();
+        setTimeout(() => {
+            if (iframe.parentNode) iframe.remove();
+        }, 1000);
+    };
+}
+
+
+
+
+
+/**
+* Muestra el formulario de envío por correo electrónico dentro del modal de venta exitosa.
+*/
+function mostrarFormEmail() {
+    const formEmail = document.getElementById('formEmail');
+    if (formEmail) formEmail.style.display = 'block';
+    const inputEmail = document.getElementById('inputEmail');
+    if (inputEmail) inputEmail.focus();
+}
+
+/**
+* Envía los datos de la última venta por correo electrónico al cliente.
+*/
+function enviarPorCorreo() {
+    if (typeof ultimaVenta === 'undefined') return;
+
+    const inputEmail = document.getElementById('inputEmail');
+    const email = inputEmail ? inputEmail.value.trim() : '';
+    const statusEl = document.getElementById('emailStatus');
+
+    if (!statusEl) return;
+
+    // Validación básica del email
+    if (!email || !email.includes('@')) {
+        statusEl.textContent = t('cart.alert_valid_email');
+        statusEl.className = 'email-status email-error';
+        return;
+    }
+
+    // Generar el número de ticket con formato serieNumero
+    const ventaIdNumero = (ultimaVenta.serie || 'T') + String(ultimaVenta.numero || ultimaVenta.id || '').padStart(5, '0');
+    console.log('Enviando email con ventaId:', ventaIdNumero, 'serie:', ultimaVenta.serie, 'numero:', ultimaVenta.numero);
+
+    // Mostrar estado "Enviando..."
+    statusEl.textContent = t('cart.email_sending');
+    statusEl.className = 'email-status email-enviando';
+
+    // Petición AJAX al endpoint de envío de correo
+    ultimaVenta.mensajePersonalizado = ultimaVenta.mensajePersonalizado || '';
+
+    fetch('api/enviarCorreo.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            email: email,
+            tipoDocumento: ultimaVenta.tipo,
+            ventaId: ventaIdNumero,
+            total: ultimaVenta.total,
+            lineas: ultimaVenta.carrito,
+            fecha: ultimaVenta.fecha,
+            metodoPago: ultimaVenta.metodoPago,
+            entregado: ultimaVenta.entregado,
+            cambio: ultimaVenta.cambio,
+            clienteNif: ultimaVenta.clienteNif,
+            clienteNombre: ultimaVenta.clienteNombre,
+            clienteDir: ultimaVenta.clienteDir,
+            clienteObs: ultimaVenta.clienteObs,
+            descuentoTipo: ultimaVenta.descuentoTipo,
+            descuentoValor: ultimaVenta.descuentoValor,
+            descuentoCupon: ultimaVenta.descuentoCupon,
+            descuentoTarifaTipo: ultimaVenta.descuentoTarifaTipo,
+            descuentoTarifaValor: ultimaVenta.descuentoTarifaValor,
+            descuentoTarifaCupon: ultimaVenta.descuentoTarifaCupon,
+            descuentoManualTipo: ultimaVenta.descuentoManualTipo,
+            descuentoManualValor: ultimaVenta.descuentoManualValor,
+            descuentoManualCupon: ultimaVenta.descuentoManualCupon,
+            puntos_ganados: ultimaVenta.puntosGanados || 0,
+            puntos_canjeados: ultimaVenta.puntosCanjeados ? ultimaVenta.puntosCanjeados.puntos : 0,
+            puntos_balance: ultimaVenta.puntosBalance || 0,
+            mensajePersonalizado: ultimaVenta.mensajePersonalizado || '',
+            pagoMixtoDesglose: ultimaVenta.pagoMixtoDesglose || null,
+            qrUrl: ultimaVenta.qrUrl || '',
+            lang: ultimaVenta.idioma_ticket || 'es'
+        })
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                // Envío exitoso
+                statusEl.textContent = '✓ ' + t('cart.email_sent_to') + ' ' + email;
+                statusEl.className = 'email-status email-ok';
+            } else {
+                // Error del servidor
+                statusEl.textContent = '✗ ' + (data.mensaje || t('cart.email_error_sending'));
+                statusEl.className = 'email-status email-error';
+            }
+        })
+        .catch(err => {
+            // Error de conexión
+            statusEl.textContent = '✗ ' + t('cart.email_error_connection');
+            statusEl.className = 'email-status email-error';
+        });
+}
+
+/**
+* Muestra el formulario de envío por correo electrónico dentro del modal de devolución exitosa.
+*/
+function mostrarFormEmailDevolucion() {
+    const formEmailDev = document.getElementById('formEmailDev');
+    if (formEmailDev) formEmailDev.style.display = 'block';
+    const inputEmailDev = document.getElementById('inputEmailDev');
+    if (inputEmailDev) inputEmailDev.focus();
+}
+
+/**
+* Envía los datos de la devolución por correo electrónico al cliente.
+*/
+function enviarPorCorreoDevolucion() {
+    if (typeof ultimaDevolucion === 'undefined') return;
+
+    const inputEmailDev = document.getElementById('inputEmailDev');
+    const email = inputEmailDev ? inputEmailDev.value.trim() : '';
+    const statusEl = document.getElementById('emailStatusDev');
+
+    if (!statusEl) return;
+
+    // Validación básica del email
+    if (!email || !email.includes('@')) {
+        statusEl.textContent = t('cart.alert_valid_email');
+        statusEl.style.color = '#ef4444';
+        return;
+    }
+
+    // Mostrar estado "Enviando..."
+    statusEl.textContent = t('cart.email_sending');
+    statusEl.style.color = '#3b82f6';
+
+    // Petición AJAX al endpoint de envío de correo
+    fetch('api/enviarCorreo.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            email: email,
+            tipoDocumento: 'devolucion',
+            ventaId: ultimaDevolucion.id || '',
+            serie: ultimaDevolucion.serie || 'D',
+            numero: ultimaDevolucion.numero || '',
+            orig_serie: ultimaDevolucion.orig_serie || '',
+            orig_numero: ultimaDevolucion.orig_numero || '',
+            total: ultimaDevolucion.total,
+            lineas: ultimaDevolucion.lineas,
+            fecha: ultimaDevolucion.fecha,
+            metodoPago: ultimaDevolucion.metodoPago,
+            clienteObs: ultimaDevolucion.motivo, // pasamos el motivo como observaciones
+            qrUrl: ultimaDevolucion.qrUrl || ''
+        })
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                // Envío exitoso
+                statusEl.textContent = '✓ ' + t('cart.email_sent_to') + ' ' + email;
+                statusEl.style.color = '#10b981';
+            } else {
+                // Error del servidor
+                statusEl.textContent = '✗ ' + (data.mensaje || t('cart.email_error_sending'));
+                statusEl.style.color = '#ef4444';
+            }
+        })
+        .catch(err => {
+            // Error de conexión
+            statusEl.textContent = '✗ ' + t('cart.email_error_connection');
+            statusEl.style.color = '#ef4444';
+        });
+}
+
+
+
+
+
+/**
+* Verifica si el total del carrito supera los 1.000€ con método de pago en efectivo.
+*/
+function verificarLimiteEfectivo() {
+    const metodo = document.getElementById('metodoPago')?.value;
+    const total = typeof obtenerTotalCalculado === 'function' ? obtenerTotalCalculado() : 0;
+    const aviso = document.getElementById('avisoLimiteEfectivo');
+
+    if (aviso) {
+        if (metodo === 'efectivo' && total > 1000) {
+            aviso.style.display = 'block';
+        } else {
+            aviso.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Maneja el cambio de tarifa para aplicar descuentos según el tipo de cliente
+ */
+function cambiarTarifa() {
+    const tarifaId = document.getElementById('tarifaVenta')?.value;
+    const tarifasPrefijadas = (typeof TPV_CONTEXT !== 'undefined') ? TPV_CONTEXT.tarifasPrefijadas : [];
+
+    const tarifa = tarifasPrefijadas.find(t => t.id == tarifaId);
+
+    if (!tarifa) {
+        eliminarDescuentoPorTarifa();
+        return;
+    }
+
+    if (tarifa.requiere_cliente == 1 || tarifa.requiere_cliente === true) {
+        abrirModalBuscarClienteRegistrado();
+    } else if (parseFloat(tarifa.descuento_porcentaje) === 0) {
+        eliminarDescuentoPorTarifa();
+    } else {
+        descuentoTarifa = {
+            tipo: 'porcentaje',
+            valor: parseFloat(tarifa.descuento_porcentaje),
+            cupon: tarifa.nombre.toUpperCase().replace(/\s+/g, '_')
+        };
+        actualizarTicket();
+    }
+}
+
+/**
+ * Abre el modal para buscar un cliente registrado por DNI
+ */
+function abrirModalBuscarClienteRegistrado() {
+    const dniBusqueda = document.getElementById('dniBusquedaCliente');
+    const mensaje = document.getElementById('mensajeResultadoBusqueda');
+    const modal = document.getElementById('modalBuscarClienteRegistrado');
+
+    if (dniBusqueda) dniBusqueda.value = '';
+    if (mensaje) {
+        mensaje.textContent = '';
+        mensaje.className = '';
+    }
     if (modal) {
         modal.style.display = 'flex';
-        const input = document.getElementById('inputTicketIdDev');
+        if (dniBusqueda) dniBusqueda.focus();
+    }
+}
+
+/**
+ * Muestra el DNI y nombre del cliente identificado en la zona del ticket
+ */
+function mostrarDniEnTicket(dni) {
+    const indicador = document.getElementById('indicadorClienteDni');
+    const valorDni = document.getElementById('indicadorClienteDniValor');
+    const valorNombre = document.getElementById('indicadorClienteNombre');
+    const nombreInput = document.getElementById('clienteNombre');
+
+    if (indicador && valorDni && dni) {
+        valorDni.textContent = dni.toUpperCase();
+        if (valorNombre && nombreInput) {
+            valorNombre.textContent = nombreInput.value.toUpperCase();
+            valorNombre.title = nombreInput.value;
+        }
+        indicador.style.display = 'flex';
+    }
+}
+
+/**
+ * Oculta el indicador de DNI del cliente en la zona del ticket
+ */
+function ocultarDniEnTicket() {
+    const indicador = document.getElementById('indicadorClienteDni');
+    const valor = document.getElementById('indicadorClienteDniValor');
+    if (indicador) indicador.style.display = 'none';
+    if (valor) valor.textContent = '';
+}
+
+/**
+ * Desvincula el cliente actual de la venta, limpiando todos sus datos y puntos
+ */
+function desvincularCliente() {
+    clienteIdentificadoEnModalPuntos = false;
+
+    // Limpiar campos de datos del cliente
+    const ids = ['clienteNif', 'clienteNombre', 'clienteDireccion', 'clienteObservaciones',
+        'inputClienteNifFinal', 'inputClienteNombreFinal', 'inputClienteDireccionFinal',
+        'inputObservacionesFinal', 'inputPuntosCanjeadosDni', 'inputPuntosCanjeadosCantidad',
+        'dniPuntosCliente', 'dniBusquedaCliente', 'clientePuntos'];
+
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = (id === 'clientePuntos') ? '0' : '';
+    });
+
+    // Resetear flag de puntos
+    const identificadorPuntos = document.getElementById('inputClienteIdentificadoPuntos');
+    if (identificadorPuntos) identificadorPuntos.value = 'false';
+
+    // Resetear variables globales
+    puntosCanjeados = null;
+
+    // Ocultar indicador en UI
+    ocultarDniEnTicket();
+
+    // Si el descuento actual era por puntos (ej: PUNTOS_1000), lo quitamos también
+    if (descuento.cupon && descuento.cupon.startsWith('PUNTOS_')) {
+        descuento = { tipo: 'ninguno', valor: 0, cupon: '' };
+    }
+
+    // Restaurar tarifas por defecto (Cliente) al desvincular
+    restaurarTarifasCarritoPorDefecto();
+
+    actualizarTicket();
+}
+
+function cerrarYLimpiarClientePuntos() {
+    desvincularCliente();
+    cerrarModal('modalPuntosCliente');
+    const busqueda = document.getElementById('puntosClienteBusqueda');
+    const info = document.getElementById('puntosClienteInfo');
+    if (busqueda) busqueda.style.display = 'block';
+    if (info) info.style.display = 'none';
+}
+
+/**
+ * Solo acumula puntos sin aplicar descuento, y cierra el modal
+ */
+function acumularPuntosSolamente() {
+    puntosCanjeados = null;
+    clienteIdentificadoEnModalPuntos = true;
+
+    const dniCliente = document.getElementById('dniPuntosCliente')?.value.trim() || '';
+    mostrarDniEnTicket(dniCliente);
+
+    cerrarModal('modalPuntosCliente');
+    const busqueda = document.getElementById('puntosClienteBusqueda');
+    const info = document.getElementById('puntosClienteInfo');
+    if (busqueda) busqueda.style.display = 'block';
+    if (info) info.style.display = 'none';
+
+    // Actualizar tarifas del carrito al identificar cliente
+    actualizarTarifasCarritoPorCliente();
+
+    actualizarTicket();
+}
+
+/**
+ * Busca los puntos de un cliente por DNI
+ */
+async function buscarPuntosCliente() {
+    const dniInput = document.getElementById('dniPuntosCliente');
+    const dni = dniInput ? dniInput.value.trim() : '';
+    const mensajeDiv = document.getElementById('mensajePuntosCliente');
+
+    if (!dni) {
+        if (mensajeDiv) {
+            mensajeDiv.textContent = 'Por favor, introduce un DNI';
+            mensajeDiv.className = 'mensaje-error';
+            mensajeDiv.style.display = 'block';
+        }
+        return;
+    }
+
+    try {
+        const response = await fetch('api/clientes.php?dni=' + encodeURIComponent(dni));
+
+        if (!response.ok) {
+            if (mensajeDiv) {
+                mensajeDiv.textContent = t('points.error_client_not_found');
+                mensajeDiv.className = 'mensaje-error';
+                mensajeDiv.style.display = 'block';
+            }
+            return;
+        }
+
+        const data = await response.json();
+        const cliente = Array.isArray(data) ? data[0] : data;
+        if (cliente && cliente.activo == 1) {
+            const nifEl = document.getElementById('clienteNif');
+            const nombreEl = document.getElementById('clienteNombre');
+            const puntosEl = document.getElementById('clientePuntos');
+            const dirEl = document.getElementById('clienteDireccion');
+            const obsEl = document.getElementById('clienteObservaciones');
+
+            if (nifEl) nifEl.value = cliente.dni;
+            if (nombreEl) nombreEl.value = cliente.nombre + ' ' + cliente.apellidos;
+            if (puntosEl) puntosEl.value = cliente.puntos || 0;
+            if (dirEl) dirEl.value = '';
+            if (obsEl) obsEl.value = '';
+
+            const puntosDisponibles = cliente.puntos || 0;
+            const puntosDisponiblesCliente = document.getElementById('puntosDisponiblesCliente');
+            if (puntosDisponiblesCliente) puntosDisponiblesCliente.textContent = puntosDisponibles.toLocaleString('es-ES');
+
+            const busqueda = document.getElementById('puntosClienteBusqueda');
+            const info = document.getElementById('puntosClienteInfo');
+            if (busqueda) busqueda.style.display = 'none';
+            if (info) info.style.display = 'block';
+
+            const aCanjeer = document.getElementById('puntosACanjeer');
+            if (aCanjeer) {
+                aCanjeer.value = '';
+                aCanjeer.max = puntosDisponibles;
+            }
+            const preview = document.getElementById('descuentoPuntosPreview');
+            if (preview) preview.textContent = '';
+
+            const totalTicket = typeof obtenerTotalCalculado === 'function' ? obtenerTotalCalculado() : 0;
+            const infoPanel = document.getElementById('infoPointsPanel');
+            const puntosUsarMsg = document.getElementById('puntosQueSePuedenUsar');
+            const puntosGanadosMsg = document.getElementById('puntosQueSeGanaran');
+
+            if (totalTicket > 0) {
+                const puntosQueSeGanaran = Math.round(totalTicket * 10);
+                const maxDescuento = totalTicket * 0.30;
+                const maxPuntosCanjeables = Math.floor(maxDescuento / 5) * 1000;
+                const puntosParaSiguienteDescuento = Math.max(0, 1000 - (puntosDisponibles % 1000));
+
+                let mensajeUsar = '';
+                if (puntosDisponibles >= 1000) {
+                    const puedenUsarse = Math.floor(Math.min(puntosDisponibles, maxPuntosCanjeables) / 1000) * 1000;
+                    const descuentoMax = Math.floor(puedenUsarse / 1000) * 5;
+                    mensajeUsar = t('points.you_can_use') + ` ${puedenUsarse.toLocaleString('es-ES')} ` + t('points.points_text') + ` = ${descuentoMax.toFixed(2)}€ ` + t('points.of_discount') + ' (30% ' + t('points.max_of_ticket') + ')';
+                    if (aCanjeer) aCanjeer.max = puedenUsarse;
+                } else {
+                    mensajeUsar = t('points.you_need') + ` ${puntosParaSiguienteDescuento.toLocaleString('es-ES')} ` + t('points.points_for_next_discount');
+                }
+
+                if (puntosUsarMsg) puntosUsarMsg.textContent = mensajeUsar;
+                if (puntosGanadosMsg) puntosGanadosMsg.textContent = t('points.with_purchase_earn') + ` ${puntosQueSeGanaran.toLocaleString('es-ES')} ` + t('points.points_text') + ' (1€ = 10 ' + t('points.points_text') + ')';
+                if (infoPanel) infoPanel.style.display = 'block';
+            } else {
+                if (infoPanel) infoPanel.style.display = 'none';
+            }
+        } else {
+            if (mensajeDiv) {
+                mensajeDiv.textContent = t('points.error_client_inactive_or_none');
+                mensajeDiv.className = 'mensaje-error';
+                mensajeDiv.style.display = 'block';
+            }
+        }
+    } catch (error) {
+        console.error('Error al buscar cliente:', error);
+        if (mensajeDiv) {
+            mensajeDiv.textContent = t('points.error_searching_client');
+            mensajeDiv.className = 'mensaje-error';
+            mensajeDiv.style.display = 'block';
+        }
+    }
+}
+
+/**
+ * Calcula el descuento basado en los puntos a canjear
+ */
+function calcularDescuentoPuntos() {
+    const inputPuntos = document.getElementById('puntosACanjeer');
+    let puntos = inputPuntos ? parseInt(inputPuntos.value) || 0 : 0;
+    const preview = document.getElementById('descuentoPuntosPreview');
+    const puntosGanadosMsg = document.getElementById('puntosQueSeGanaran');
+    const totalTicket = typeof obtenerTotalCalculado === 'function' ? obtenerTotalCalculado() : 0;
+
+    let nuevoTotal = totalTicket;
+    const esMultiploDeMil = puntos % 1000 === 0;
+    const descVal = Math.floor(puntos / 1000) * 5;
+
+    if (preview) {
+        if (puntos >= 1000) {
+            preview.textContent = t('cart.discount') + `: ${descVal.toFixed(2)}€ (${puntos.toLocaleString('es-ES')} ` + t('points.points_text') + ')';
+            preview.style.color = '';
+            nuevoTotal = Math.max(0, totalTicket - descVal);
+        } else if (puntos > 0 && puntos < 1000) {
+            preview.textContent = t('points.error_min_1000');
+            preview.style.color = '#ef4444';
+        } else if (puntos > 0 && !esMultiploDeMil) {
+            preview.textContent = t('points.error_multiples_1000');
+            preview.style.color = '#ef4444';
+        } else {
+            preview.textContent = '';
+            preview.style.color = '';
+        }
+    }
+
+    if (puntosGanadosMsg) {
+        const puntosQueSeGanaran = Math.round(nuevoTotal * 10);
+        puntosGanadosMsg.textContent = t('points.with_purchase_earn') + ` ${puntosQueSeGanaran.toLocaleString('es-ES')} ` + t('points.points_text') + ' (1€ = 10 ' + t('points.points_text') + ')';
+    }
+}
+
+/**
+ * Aplica el descuento de puntos a la venta actual
+ */
+function aplicarDescuentoPuntos() {
+    const puntosInputVal = document.getElementById('puntosACanjeer')?.value || 0;
+    const puntosInput = parseInt(puntosInputVal) || 0;
+    const puntosRedondeados = Math.floor(puntosInput / 1000) * 1000;
+    const dni = document.getElementById('dniPuntosCliente')?.value.trim() || '';
+    const puntosDisponiblesStr = document.getElementById('puntosDisponiblesCliente')?.textContent.replace(/\./g, '') || '0';
+    const puntosDisponibles = parseInt(puntosDisponiblesStr) || 0;
+
+    if (!dni) {
+        alert(t('points.error_no_dni_specified'));
+        return;
+    }
+
+    if (puntosRedondeados < 1000) {
+        alert(t('points.error_min_1000_alert'));
+        return;
+    }
+
+    if (puntosRedondeados > puntosDisponibles) {
+        alert(t('points.error_not_enough_points') + '. ' + t('points.you_have') + ` ${puntosDisponibles.toLocaleString('es-ES')} ` + t('points.points_text') + '.');
+        return;
+    }
+
+    const totalTicket = typeof obtenerTotalCalculado === 'function' ? obtenerTotalCalculado() : 0;
+    const maxDescuento = totalTicket * 0.30;
+    const maxPuntos = Math.floor(maxDescuento / 5) * 1000;
+
+    let puntosFinales = puntosRedondeados;
+    if (puntosRedondeados > maxPuntos) {
+        alert(t('points.alert_exceeded_max') + ` (30% ` + t('points.of_ticket') + ` = ${maxDescuento.toFixed(2)}€). ` + t('points.will_use') + ` ${maxPuntos.toLocaleString('es-ES')} ` + t('points.points_text') + '.');
+        puntosFinales = maxPuntos;
+    }
+
+    const descuentoEuros = Math.floor(puntosFinales / 1000) * 5;
+
+    if (totalTicket - descuentoEuros <= 0) {
+        alert(t('points.error_discount_ticket_zero'));
+        return;
+    }
+
+    descuento.tipo = 'fijo';
+    descuento.valor = descuentoEuros;
+    descuento.cupon = 'PUNTOS_' + puntosFinales;
+
+    const puntosGanados = Math.round((totalTicket - descuentoEuros) * 10);
+
+    // Actualizar tarifas del carrito al identificar cliente
+    actualizarTarifasCarritoPorCliente();
+
+    actualizarTicket();
+    mostrarDniEnTicket(dni);
+
+    cerrarModal('modalPuntosCliente');
+    const busqueda = document.getElementById('puntosClienteBusqueda');
+    const info = document.getElementById('puntosClienteInfo');
+    if (busqueda) busqueda.style.display = 'block';
+    if (info) info.style.display = 'none';
+
+    clienteIdentificadoEnModalPuntos = true;
+    puntosCanjeados = {
+        dni: dni,
+        puntos: puntosFinales,
+        descuento: descuentoEuros
+    };
+
+    alert(t('points.alert_discount_applied') + ` ${descuentoEuros.toFixed(2)}€ (` + t('points.canjeados') + ` ${puntosFinales.toLocaleString('es-ES')} ` + t('points.points_text') + ')\n' +
+        t('points.with_purchase_earn') + ` ${puntosGanados.toLocaleString('es-ES')} ` + t('points.points_text'));
+}
+
+/**
+ * Busca un cliente por DNI y aplica el descuento configurado en la tarifa
+ */
+async function buscarClienteRegistrado() {
+    const dniInput = document.getElementById('dniBusquedaCliente');
+    const dni = dniInput ? dniInput.value.trim() : '';
+    const mensajeDiv = document.getElementById('mensajeResultadoBusqueda');
+    const modal = document.getElementById('modalBuscarClienteRegistrado');
+    const esModoPuntos = modal?.dataset.modo === 'puntos';
+    const tarifasPrefijadas = (typeof TPV_CONTEXT !== 'undefined') ? TPV_CONTEXT.tarifasPrefijadas : [];
+
+    let tarifaActual = null;
+    if (productoPendienteTarifa) {
+        const select = productoPendienteTarifa.card.querySelector('.tarifa-selector');
+        const tarifaId = select.options[select.selectedIndex].dataset.tarifaId;
+        tarifaActual = tarifasPrefijadas.find(t => t.id == tarifaId);
+    } else {
+        const tarifaIdActual = document.getElementById('tarifaVenta')?.value;
+        tarifaActual = tarifasPrefijadas.find(t => t.id == tarifaIdActual);
+    }
+
+    if (!dni) {
+        if (mensajeDiv) {
+            mensajeDiv.textContent = 'Por favor, introduce un DNI';
+            mensajeDiv.className = 'mensaje-error';
+            mensajeDiv.style.display = 'block';
+        }
+        return;
+    }
+
+    try {
+        const response = await fetch('api/clientes.php?dni=' + encodeURIComponent(dni));
+
+        if (!response.ok) {
+            if (esModoPuntos) {
+                if (mensajeDiv) {
+                    mensajeDiv.textContent = t('points.error_client_not_found_points');
+                    mensajeDiv.className = 'mensaje-error';
+                    mensajeDiv.style.display = 'block';
+                    mensajeDiv.innerHTML += `<br><button class="btn-modal-cancelar" onclick="confirmarSinPuntos()" style="margin-top:10px; width:100%;">` + t('points.btn_continue_no_points') + `</button>`;
+                }
+                return;
+            }
+            if (mensajeDiv) {
+                mensajeDiv.textContent = t('points.error_client_not_found');
+                mensajeDiv.className = 'mensaje-error';
+                mensajeDiv.style.display = 'block';
+            }
+            const tarifaVenta = document.getElementById('tarifaVenta');
+            if (tarifaVenta) {
+                let tarifaCliente = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+                if (tarifaCliente) {
+                    tarifaVenta.value = tarifaCliente.id;
+                } else if (tarifasPrefijadas.length > 0) {
+                    tarifaVenta.value = tarifasPrefijadas[0].id;
+                }
+            }
+            return;
+        }
+
+        const data = await response.json();
+        const cliente = Array.isArray(data) ? data[0] : data;
+
+        if (cliente && cliente.activo == 1) {
+            const nifEl = document.getElementById('clienteNif');
+            const nombreEl = document.getElementById('clienteNombre');
+            const puntosEl = document.getElementById('clientePuntos');
+            const dirEl = document.getElementById('clienteDireccion');
+            const obsEl = document.getElementById('clienteObservaciones');
+
+            if (nifEl) nifEl.value = cliente.dni;
+            if (nombreEl) nombreEl.value = cliente.nombre + ' ' + cliente.apellidos;
+            if (puntosEl) puntosEl.value = cliente.puntos || 0;
+            if (dirEl) dirEl.value = '';
+            if (obsEl) obsEl.value = '';
+
+            if (esModoPuntos) {
+                cerrarModal('modalBuscarClienteRegistrado');
+                cerrarModal('modalDatosCliente');
+                const modalTipoDoc = document.getElementById('modalTipoDoc');
+                if (modalTipoDoc) modalTipoDoc.style.display = 'flex';
+                return;
+            }
+
+            const nombreTarifa = tarifaActual ? tarifaActual.nombre : 'Cliente Registrado';
+            const descuentoValor = tarifaActual ? parseFloat(tarifaActual.descuento_porcentaje) : 0;
+
+            // Cambiar automáticamente todos los productos con tarifa "Cliente" a "Cliente Registrado"
+            actualizarTarifasCarritoPorCliente();
+
+            actualizarTicket();
+            if (mensajeDiv) {
+                mensajeDiv.textContent = t('points.client_found') + `: ${cliente.nombre} ${cliente.apellidos}. ` + t('cart.tarifa') + ` ${nombreTarifa} (${descuentoValor}%) ` + t('points.validated') + '.';
+                mensajeDiv.className = 'mensaje-exito';
+                mensajeDiv.style.display = 'block';
+            }
+
+            if (productoPendienteTarifa) {
+                agregarAlCarrito(productoPendienteTarifa.card);
+                productoPendienteTarifa = null;
+            }
+
+            setTimeout(() => {
+                cerrarModal('modalBuscarClienteRegistrado');
+            }, 1500);
+        } else if (cliente && cliente.activo == 0) {
+            if (mensajeDiv) {
+                mensajeDiv.textContent = t('points.error_client_inactive');
+                mensajeDiv.className = 'mensaje-error';
+                mensajeDiv.style.display = 'block';
+            }
+        } else {
+            if (mensajeDiv) {
+                mensajeDiv.textContent = t('points.error_client_not_found');
+                mensajeDiv.className = 'mensaje-error';
+                mensajeDiv.style.display = 'block';
+            }
+            const tarifaVenta = document.getElementById('tarifaVenta');
+            if (tarifaVenta) {
+                let tarifaCliente = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+                if (tarifaCliente) {
+                    tarifaVenta.value = tarifaCliente.id;
+                } else if (tarifasPrefijadas.length > 0) {
+                    tarifaVenta.value = tarifasPrefijadas[0].id;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error al buscar cliente:', error);
+        if (mensajeDiv) {
+            mensajeDiv.textContent = t('points.error_searching_client');
+            mensajeDiv.className = 'mensaje-error';
+        }
+        if (productoPendienteTarifa) {
+            revertirTarifaCard(productoPendienteTarifa.card.dataset.id);
+            productoPendienteTarifa = null;
+        }
+    }
+}
+
+/**
+ * Recorre el carrito y cambia todos los productos que tengan la tarifa "Cliente" 
+ * a la tarifa "Cliente Registrado" si existe.
+ */
+function actualizarTarifasCarritoPorCliente() {
+    const tarifasPrefijadas = (typeof TPV_CONTEXT !== 'undefined') ? TPV_CONTEXT.tarifasPrefijadas : [];
+
+    // Buscar la tarifa de cliente registrado de forma más flexible
+    const tarifaRegistrado = tarifasPrefijadas.find(t =>
+        (t.nombre && t.nombre.toLowerCase().trim() === 'cliente registrado') ||
+        (t.requiere_cliente == 1 && parseFloat(t.descuento_porcentaje) === 0)
+    );
+
+    if (!tarifaRegistrado) {
+        console.warn("TPV: No se encontró la tarifa 'Cliente Registrado' en TPV_CONTEXT.tarifasPrefijadas");
+        return;
+    }
+
+    let huboCambios = false;
+    const idTarifaRegistrado = tarifaRegistrado.id;
+
+    carrito.forEach(item => {
+        // Solo cambiamos si está en tarifa "Cliente" (ID 1 o nombre exacto)
+        // O si ya es "Cliente Registrado" pero queremos forzar actualización (aunque esto último no es necesario)
+        if (item.tarifaNombre === 'Cliente') {
+            const descuento = parseFloat(tarifaRegistrado.descuento_porcentaje) || 0;
+            const preciosTarifas = item.preciosTarifas || {};
+
+            let nuevoPrecioBase;
+            if (preciosTarifas[idTarifaRegistrado]) {
+                nuevoPrecioBase = preciosTarifas[idTarifaRegistrado].precio;
+            } else {
+                nuevoPrecioBase = (item.precioBaseOriginal || item.precio) * (1 - (descuento / 100));
+            }
+
+            const pvpUnitario = roundTo(nuevoPrecioBase * (1 + (item.iva / 100)), item.decimales || 2);
+
+            item.pvpUnitario = pvpUnitario;
+            item.tarifaNombre = tarifaRegistrado.nombre;
+            item.tarifaDescuento = descuento;
+            huboCambios = true;
+        }
+    });
+
+    if (huboCambios) {
+        // También actualizar el selector de tarifa global si está en "Cliente"
+        const selectTarifa = document.getElementById('tarifaVenta');
+        if (selectTarifa) {
+            const tarifaCliente = tarifasPrefijadas.find(t => t.nombre === 'Cliente');
+            if (tarifaCliente && selectTarifa.value == tarifaCliente.id) {
+                selectTarifa.value = idTarifaRegistrado;
+            }
+        }
+        actualizarTicket();
+    }
+}
+
+/**
+ * Restaura todos los productos del carrito a la tarifa "Cliente" por defecto.
+ */
+function restaurarTarifasCarritoPorDefecto() {
+    const tarifasPrefijadas = (typeof TPV_CONTEXT !== 'undefined') ? TPV_CONTEXT.tarifasPrefijadas : [];
+    const tarifaCliente = tarifasPrefijadas.find(t => t.id == 1 || t.nombre === 'Cliente');
+
+    if (!tarifaCliente) return;
+
+    carrito.forEach(item => {
+        const idTarifa = tarifaCliente.id;
+        const descuento = parseFloat(tarifaCliente.descuento_porcentaje) || 0;
+        const preciosTarifas = item.preciosTarifas || {};
+
+        let nuevoPrecioBase;
+        if (preciosTarifas[idTarifa]) {
+            nuevoPrecioBase = preciosTarifas[idTarifa].precio;
+        } else {
+            nuevoPrecioBase = (item.precioBaseOriginal || item.precio) * (1 - (descuento / 100));
+        }
+
+        const pvpUnitario = roundTo(nuevoPrecioBase * (1 + (item.iva / 100)), item.decimales || 2);
+
+        item.pvpUnitario = pvpUnitario;
+        item.tarifaNombre = tarifaCliente.nombre;
+        item.tarifaDescuento = descuento;
+    });
+
+    // Resetear el selector global de tarifas si existe
+    const selectTarifa = document.getElementById('tarifaVenta');
+    if (selectTarifa) {
+        selectTarifa.value = tarifaCliente.id;
+    }
+}
+
+/**
+ * Sobrescribimos el cierre del modal para manejar la reversión de tarifa si se cancela
+ */
+function cerrarModalBuscarClienteRegistrado() {
+    const modal = document.getElementById('modalBuscarClienteRegistrado');
+
+    if (modal?.dataset.modo === 'puntos') {
+        modal.dataset.modo = '';
+        const h3 = modal.querySelector('h3');
+        const subtitulo = modal.querySelector('.modal-subtitulo');
+        if (h3) h3.textContent = t('points.registered_client');
+        if (subtitulo) subtitulo.textContent = t('points.enter_client_dni');
+        confirmarSinPuntos();
+        return;
+    }
+
+    if (productoPendienteTarifa) {
+        revertirTarifaCard(productoPendienteTarifa.card.dataset.id);
+        productoPendienteTarifa = null;
+    }
+    cerrarModal('modalBuscarClienteRegistrado');
+}
+
+/**
+ * Elimina el descuento aplicado por tarifa
+ */
+function eliminarDescuentoPorTarifa() {
+    if (descuentoTarifa && descuentoTarifa.tipo !== 'ninguno') {
+        descuentoTarifa = { tipo: 'ninguno', valor: 0, cupon: '' };
+        actualizarTicket();
+    }
+}
+
+/**
+ * Abre el modal para añadir un nuevo cliente habitual
+ */
+function abrirModalClienteHabitual() {
+    const dniEl = document.getElementById('clienteHabitualDni');
+    const nombreEl = document.getElementById('clienteHabitualNombre');
+    const apellidosEl = document.getElementById('clienteHabitualApellidos');
+    const fechaEl = document.getElementById('clienteHabitualFecha');
+
+    if (dniEl) dniEl.value = '';
+    if (nombreEl) nombreEl.value = '';
+    if (apellidosEl) apellidosEl.value = '';
+
+    const now = new Date();
+    const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+    if (fechaEl) fechaEl.value = localDate;
+
+    const btnGuardar = document.getElementById('btnGuardarClienteHabitual');
+    if (btnGuardar) btnGuardar.onclick = guardarClienteHabitual;
+
+    const modal = document.getElementById('modalClienteHabitual');
+    if (modal) {
+        modal.style.display = 'flex';
+        if (dniEl) dniEl.focus();
+    }
+}
+
+/**
+ * Guarda un nuevo cliente habitual
+ */
+async function guardarClienteHabitual() {
+    const dni = document.getElementById('clienteHabitualDni')?.value.trim();
+    const nombre = document.getElementById('clienteHabitualNombre')?.value.trim();
+    const apellidos = document.getElementById('clienteHabitualApellidos')?.value.trim();
+    const direccion = document.getElementById('clienteHabitualDireccion')?.value.trim();
+    const fecha_alta = document.getElementById('clienteHabitualFecha')?.value || new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+
+    if (!dni || !nombre || !apellidos) {
+        alert(t('points.error_mandatory_habitual'));
+        return;
+    }
+
+    const btnGuardar = document.getElementById('btnGuardarClienteHabitual');
+    if (btnGuardar) {
+        btnGuardar.disabled = true;
+        btnGuardar.textContent = t('points.btn_saving');
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('dni', dni);
+        formData.append('nombre', nombre);
+        formData.append('apellidos', apellidos);
+        formData.append('direccion', direccion);
+        formData.append('fecha_alta', fecha_alta);
+
+        const response = await fetch('api/clientes.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.ok) {
+            alert(t('points.alert_habitual_saved'));
+            cerrarModal('modalClienteHabitual');
+        } else {
+            alert(data.error || t('points.error_saving_habitual'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert(t('points.error_server_communication'));
+    } finally {
+        if (btnGuardar) {
+            btnGuardar.disabled = false;
+            btnGuardar.textContent = t('points.btn_save');
+        }
+    }
+}
+
+/**
+ * Guarda un nuevo producto desde el modal de creación.
+ */
+function guardarNuevoProducto() {
+    const nombre = document.getElementById('nuevoProductoNombre')?.value.trim();
+    const categoria = document.getElementById('nuevoProductoCategoria')?.value;
+    const precio = document.getElementById('nuevoProductoPrecio')?.value;
+    const stock = document.getElementById('nuevoProductoStock')?.value;
+    const iva = document.getElementById('nuevoProductoIva')?.value;
+    const activo = document.getElementById('nuevoProductoEstado')?.value;
+    const imgInput = document.getElementById('editProductoImagenInput');
+
+    if (!nombre || !categoria || !precio || stock === '') {
+        alert(t('products.alert_fill_mandatory'));
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('nombre', nombre);
+    formData.append('categoria', categoria);
+    formData.append('precio', precio);
+    formData.append('stock', stock);
+    formData.append('iva', iva);
+    formData.append('activo', activo);
+    if (imgInput?.files[0]) {
+        formData.append('imagen', imgInput.files[0]);
+    }
+
+    fetch('api/productos.php', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                alert(t('products.alert_created_successfully'));
+                cerrarModal('modalNuevoProducto');
+                location.reload();
+            } else {
+                alert(t('products.alert_error') + ': ' + (data.error ?? ''));
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert(t('products.alert_error_creating'));
+        });
+}
+
+/**
+ * Carga el historial de ventas del día para el cajero
+ */
+function cargarHistorialVentas() {
+    const contenido = document.getElementById('historialVentasContenido');
+    const totalDiv = document.getElementById('historialVentasTotal');
+    const fechaDiv = document.getElementById('historialVentasFecha');
+
+    if (!contenido) return;
+
+    // Actualizar la fecha en el subtítulo
+    const hoy = new Date();
+    if (fechaDiv) {
+        fechaDiv.textContent = t('history.subtitle') + ' - ' + hoy.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    contenido.innerHTML = '<p style="text-align: center; padding: 40px;">' + t('history.loading') + '...</p>';
+
+    // Cargar ventas desde la API (la sesión se obtiene automáticamente en el servidor)
+    fetch('api/ventas.php?historialCaja=1')
+        .then(res => {
+            if (!res.ok) throw new Error('HTTP error ' + res.status);
+            return res.json();
+        })
+        .then(ventas => {
+            if (ventas.error) {
+                if (ventas.error.includes('No hay sesión')) {
+                    contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">' + t('history.no_session') + '</p>';
+                    if (totalDiv) totalDiv.textContent = '';
+                    return;
+                }
+                throw new Error(ventas.error);
+            }
+            if (!ventas || ventas.length === 0) {
+                contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">' + t('history.no_sales') + '</p>';
+                if (totalDiv) totalDiv.textContent = t('history.total') + ': 0.00 €';
+                return;
+            }
+
+            // Calcular total
+            let total = 0;
+            let html = '<table class="historial-ventas-tabla">';
+            html += '<thead><tr>';
+            html += '<th>' + t('history.time') + '</th>';
+            html += '<th>' + t('history.ticket_num') + '</th>'; // Nueva columna
+            html += '<th>' + t('history.user') + '</th>';
+            html += '<th>' + t('history.quantity') + '</th>';
+            html += '<th>' + t('history.payment_method') + '</th>';
+            html += '<th>' + t('history.total_table') + '</th>';
+            html += '<th>' + t('history.actions') + '</th>';
+            html += '</tr></thead><tbody>';
+
+            ventas.forEach(v => {
+                const fecha = new Date(v.fecha);
+                const hora = fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                const totalVenta = parseFloat(v.total);
+                const cantidad = v.cantidad_productos || 0;
+                total += totalVenta;
+
+                let formaPago = v.forma_pago || 'Efectivo';
+                let usuario = v.usuario_nombre || 'Cajero';
+
+                // Formatear el número de ticket (ej: T00001)
+                const serie = v.serie || 'T';
+                const numero = v.numero || v.id;
+                const numTicket = serie + String(numero).padStart(5, '0');
+
+                html += '<tr>';
+                html += '<td>' + hora + '</td>';
+                html += '<td style="font-family: monospace; font-weight: 600;">' + numTicket + '</td>';
+                html += '<td>' + usuario + '</td>';
+                html += '<td>' + cantidad + '</td>';
+                html += '<td>' + formaPago + '</td>';
+                html += '<td style="font-weight: 600;">' + totalVenta.toFixed(2).replace('.', ',') + ' €</td>';
+                html += '<td>';
+                html += '<div style="display: flex; gap: 5px; justify-content: center;">';
+                html += '<button class="btn-exito" onclick="verDetalleVenta(' + v.id + ')" title="Ver detalles" style="padding: 5px 10px; font-size: 12px;">👁️</button>';
+                html += '<button class="btn-exito" onclick="reimprimirTicket(' + v.id + ')" title="Reimprimir ticket" style="padding: 5px 10px; font-size: 12px;">🖨️</button>';
+                html += '</div>';
+                html += '</td>';
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            contenido.innerHTML = html;
+            if (totalDiv) totalDiv.textContent = t('history.total_day') + ': ' + total.toFixed(2).replace('.', ',') + ' € (' + ventas.length + ' ' + t('history.sales') + ')';
+        })
+        .catch(err => {
+            console.error('Error cargando historial:', err);
+            contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 40px;">' + t('history.error_loading') + ': ' + err.message + '</p>';
+            if (totalDiv) totalDiv.textContent = '';
+        });
+}
+
+/**
+ * Muestra los detalles de una venta específica en un modal
+ * @param {number} idVenta 
+ */
+function verDetalleVenta(idVenta) {
+    const modal = document.getElementById('modalDetalleVenta');
+    const contenido = document.getElementById('detalleVentaContenido');
+
+    if (!modal || !contenido) return;
+
+    modal.style.display = 'flex';
+    contenido.innerHTML = '<p style="text-align: center; padding: 20px;">' + t('sale_details.loading') + '</p>';
+
+    fetch('api/ventas.php?detalleVenta=' + idVenta)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;">' + t('sale_details.error') + ': ' + data.error + '</p>';
+                return;
+            }
+
+            const venta = data.venta;
+            const lineas = data.lineas;
+            const fecha = new Date(venta.fecha).toLocaleString('es-ES');
+
+            // Update header info
+            const serie = venta.serie || (venta.tipoDocumento === 'factura' ? 'F' : 'T');
+            const numero = venta.numero || venta.id;
+            const detalleVentaId = document.getElementById('detalleVentaId');
+            if (detalleVentaId) detalleVentaId.textContent = serie + String(numero).padStart(5, '0') + ' - ' + fecha;
+
+            const tipoIcono = venta.tipoDocumento === 'factura' ? '📄' : '🧾';
+            const tipoLabel = venta.tipoDocumento === 'factura' ? 'Factura' : 'Ticket';
+            const pagoIcono = venta.metodoPago && venta.metodoPago.toLowerCase().includes('tarjeta') ? '💳' : '💵';
+            const pagoLabel = venta.metodoPago || 'Efectivo';
+
+            let html = '';
+
+            // Info row
+            html += '<div style="display: flex; gap: 15px; margin-bottom: 20px;">';
+            html += '<div style="flex: 1; background: var(--bg-secondary); padding: 12px; border-radius: 8px;">';
+            html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">' + t('sale_details.type') + '</div>';
+            html += '<div style="font-weight: 600;">' + tipoIcono + ' ' + tipoLabel + '</div>';
+            html += '</div>';
+            html += '<div style="flex: 1; background: var(--bg-secondary); padding: 12px; border-radius: 8px;">';
+            html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">' + t('sale_details.payment') + '</div>';
+            html += '<div style="font-weight: 600;">' + pagoIcono + ' ' + pagoLabel + '</div>';
+            html += '</div>';
+            html += '</div>';
+
+            // Products table
+            html += '<div style="max-height: 250px; overflow-y: auto; margin-bottom: 20px;">';
+            html += '<table style="width: 100%; border-collapse: collapse;">';
+            html += '<thead><tr style="background: var(--bg-secondary);">';
+            html += '<th style="padding: 10px; text-align: left; font-size: 12px; color: var(--text-muted);">' + t('sale_details.product') + '</th>';
+            html += '<th style="padding: 10px; text-align: center; font-size: 12px; color: var(--text-muted);">' + t('sale_details.quantity') + '</th>';
+            html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);">' + t('sale_details.price') + '</th>';
+            html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);">' + t('sale_details.amount') + '</th>';
+            html += '</tr></thead><tbody>';
+
+            lineas.forEach(item => {
+                const iva = parseFloat(item.iva) || 0;
+                const precioBase = parseFloat(item.precioUnitario) || 0;
+                const precioConIVA = precioBase * (1 + iva / 100);
+                const subtotal = (precioConIVA * item.cantidad).toFixed(2).replace('.', ',');
+                html += '<tr style="border-bottom: 1px solid var(--border-main);">';
+                html += '<td style="padding: 10px;">' + item.producto_nombre + '</td>';
+                html += '<td style="padding: 10px; text-align: center;">' + item.cantidad + '</td>';
+                html += '<td style="padding: 10px; text-align: right;">' + precioConIVA.toFixed(2).replace('.', ',') + ' €</td>';
+                html += '<td style="padding: 10px; text-align: right; font-weight: 600; color: var(--accent);">' + subtotal + ' €</td>';
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            html += '</div>';
+
+            // Total
+            html += '<div style="background: var(--accent); color: white; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px;">';
+            html += t('sale_details.total') + ': ' + parseFloat(venta.total).toFixed(2).replace('.', ',') + ' €';
+            html += '</div>';
+
+            contenido.innerHTML = html;
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;">' + t('sale_details.error_loading') + '</p>';
+        });
+}
+
+/**
+ * Envía un ticket por correo electrónico
+ * @param {number} idVenta 
+ */
+function enviarTicketCorreo(idVenta) {
+    const email = prompt(t('email.prompt_ticket'));
+    if (!email || !email.includes('@')) {
+        alert(t('email.invalid_email'));
+        return;
+    }
+
+    fetch('api/ventas.php?detalleVenta=' + idVenta)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) { alert('Error: ' + data.error); return; }
+
+            const venta = data.venta;
+            const lineas = data.lineas;
+
+            const payload = {
+                ventaId: venta.serie + String(venta.numero || venta.id).padStart(5, '0'),
+                email: email,
+                tipoDocumento: venta.tipoDocumento || 'ticket',
+                lineas: lineas.map(item => ({
+                    nombre: item.producto_nombre,
+                    nombre_es: item.nombre_es,
+                    nombre_en: item.nombre_en,
+                    nombre_fr: item.nombre_fr,
+                    nombre_de: item.nombre_de,
+                    nombre_ru: item.nombre_ru,
+                    cantidad: item.cantidad,
+                    precio: item.precioUnitario,
+                    iva: (item.iva !== undefined && item.iva !== null && item.iva !== "") ? parseInt(item.iva) : 21,
+                    subtotal: item.subtotal
+                })),
+                total: venta.total,
+                fecha: venta.fecha,
+                metodoPago: venta.metodoPago,
+                lang: venta.idioma_ticket || 'es',
+                qrUrl: venta.qrUrl || ''
+            };
+
+            fetch('api/enviarCorreo.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+                .then(res => res.json())
+                .then(response => {
+                    alert(response.ok ? 'Ticket enviado correctamente al correo: ' + email : 'Error al enviar el correo');
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    alert('Error al enviar el correo');
+                });
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al obtener los datos del ticket');
+        });
+}
+
+/**
+ * Muestra el modal de puntos del cliente
+ */
+function abrirModalPuntosCliente() {
+    // Habilitar o deshabilitar el botón de canjear según si hay productos en el carrito
+    const btnCanjear = document.getElementById('btnAplicarDescuentoPuntos');
+    if (btnCanjear) {
+        if (carrito.length === 0) {
+            btnCanjear.disabled = true;
+            btnCanjear.title = t('points.title_add_to_canjear');
+            btnCanjear.style.opacity = '0.5';
+            btnCanjear.style.cursor = 'not-allowed';
+        } else {
+            btnCanjear.disabled = false;
+            btnCanjear.title = t('points.title_apply_descuento');
+            btnCanjear.style.opacity = '1';
+            btnCanjear.style.cursor = 'pointer';
+        }
+    }
+
+    const modal = document.getElementById('modalPuntosCliente');
+    if (modal) modal.style.display = 'flex';
+    const input = document.getElementById('dniPuntosCliente');
+    if (input) input.focus();
+}
+
+// Cache temporal para historial
+var ventaHistorialTemporal = null;
+var devolucionHistorialTemporal = null;
+
+/**
+ * Reimprime un ticket de una venta existente
+ * @param {number} idVenta 
+ */
+function reimprimirTicket(idVenta) {
+    fetch('api/ventas.php?detalleVenta=' + idVenta)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) { alert('Error: ' + data.error); return; }
+            const venta = data.venta;
+            const lineas = data.lineas;
+
+            // Usamos la variable global ultimaVenta esperada por imprimirDocumento()
+            window.ultimaVenta = {
+                id: venta.id,
+                serie: venta.serie,
+                numero: venta.numero,
+                tipo: venta.tipoDocumento,
+                total: parseFloat(venta.total),
+                fecha: venta.fecha,
+                metodoPago: venta.metodoPago,
+                entregado: parseFloat(venta.importeEntregado) || 0,
+                cambio: parseFloat(venta.cambioDevuelto) || 0,
+                descuentoTipo: venta.descuentoTipo || 'ninguno',
+                descuentoValor: parseFloat(venta.descuentoValor) || 0,
+                descuentoCupon: venta.descuentoCupon || '',
+                clienteNif: venta.cliente_dni || '',
+                clienteNombre: venta.cliente_nombre || '',
+                clienteDir: venta.cliente_direccion || '',
+                clienteObs: venta.cliente_observaciones || '',
+                puntosGanados: parseInt(venta.puntos_ganados) || 0,
+                puntosCanjeados: (parseInt(venta.puntos_canjeados) > 0) ? {
+                    puntos: parseInt(venta.puntos_canjeados),
+                    descuento: parseFloat(venta.descuentoValor) || 0
+                } : null,
+                puntosBalance: parseInt(venta.puntos_balance) || 0,
+                mensajePersonalizado: venta.mensaje_personalizado || '',
+                idioma_ticket: venta.idioma_ticket || 'es',
+                pagoMixtoDesglose: venta.desglose_pago ? JSON.parse(venta.desglose_pago) : null,
+                qrUrl: venta.qrUrl || '',
+                carrito: lineas.map(l => ({
+                    idProducto: l.idProducto,
+                    nombre: l.producto_nombre,
+                    nombre_es: l.nombre_es,
+                    nombre_en: l.nombre_en,
+                    nombre_fr: l.nombre_fr,
+                    nombre_de: l.nombre_de,
+                    nombre_ru: l.nombre_ru,
+                    precio: parseFloat(l.precioUnitario),
+                    iva: (l.iva !== undefined && l.iva !== null && l.iva !== "") ? parseInt(l.iva) : 21,
+                    cantidad: l.cantidad
+                }))
+            };
+            imprimirDocumento();
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al obtener los datos del ticket');
+        });
+}
+
+/**
+ * Muestra el modal para enviar un ticket por correo electrónico
+ * @param {number} idVenta 
+ */
+function mostrarModalEnviarCorreo(idVenta) {
+    fetch('api/ventas.php?detalleVenta=' + idVenta)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) { alert('Error: ' + data.error); return; }
+            const venta = data.venta;
+            const lineas = data.lineas;
+
+            window.ultimaVenta = {
+                id: venta.id,
+                serie: venta.serie,
+                numero: venta.numero,
+                tipo: venta.tipoDocumento,
+                total: parseFloat(venta.total),
+                fecha: venta.fecha,
+                metodoPago: venta.metodoPago,
+                entregado: parseFloat(venta.importeEntregado) || 0,
+                cambio: parseFloat(venta.cambioDevuelto) || 0,
+                descuentoTipo: venta.descuentoTipo || 'ninguno',
+                descuentoValor: parseFloat(venta.descuentoValor) || 0,
+                descuentoCupon: venta.descuentoCupon || '',
+                clienteNif: venta.cliente_dni || '',
+                clienteNombre: venta.cliente_nombre || '',
+                clienteDir: venta.cliente_direccion || '',
+                clienteObs: venta.cliente_observaciones || '',
+                puntosGanados: parseInt(venta.puntos_ganados) || 0,
+                puntosCanjeados: (parseInt(venta.puntos_canjeados) > 0) ? {
+                    puntos: parseInt(venta.puntos_canjeados),
+                    descuento: parseFloat(venta.descuentoValor) || 0
+                } : null,
+                puntosBalance: parseInt(venta.puntos_balance) || 0,
+                idioma_ticket: venta.idioma_ticket || 'es',
+                qrUrl: venta.qrUrl || '',
+                carrito: lineas.map(l => ({
+                    idProducto: l.idProducto,
+                    nombre: l.producto_nombre,
+                    nombre_es: l.nombre_es,
+                    nombre_en: l.nombre_en,
+                    nombre_fr: l.nombre_fr,
+                    nombre_de: l.nombre_de,
+                    nombre_ru: l.nombre_ru,
+                    precio: parseFloat(l.precioUnitario),
+                    iva: (l.iva !== undefined && l.iva !== null && l.iva !== "") ? parseInt(l.iva) : 21,
+                    cantidad: l.cantidad
+                }))
+            };
+
+            const ventaExito = document.getElementById('ventaExito');
+            if (ventaExito) ventaExito.style.display = 'flex';
+            if (typeof mostrarFormEmail === 'function') mostrarFormEmail();
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al obtener los datos del ticket');
+        });
+}
+
+// Variable para almacenar la devolución actual del historial
+
+/**
+ * Muestra el modal con el historial de devoluciones de hoy
+ */
+function mostrarHistorialDevoluciones() {
+    const modal = document.getElementById('modalHistorialDevoluciones');
+    const contenido = document.getElementById('historialDevolucionesContenido');
+    const totalDiv = document.getElementById('historialDevolucionesTotal');
+    const fechaDiv = document.getElementById('historialDevolucionesFecha');
+
+    if (!modal || !contenido) return;
+
+    // Actualizar la fecha en el subtítulo
+    const hoy = new Date();
+    if (fechaDiv) {
+        fechaDiv.textContent = t('history.returns_subtitle') + ' - ' + hoy.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    modal.style.display = 'flex';
+    contenido.innerHTML = '<p style="text-align: center; padding: 40px;">' + t('history.loading') + '...</p>';
+
+    fetch('api/devoluciones.php?historialSesion=1')
+        .then(res => {
+            if (!res.ok) throw new Error('HTTP error ' + res.status);
+            return res.json();
+        })
+        .then(devoluciones => {
+            if (devoluciones.error) {
+                if (devoluciones.error.includes('No hay sesión')) {
+                    contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">' + t('history.no_session') + '</p>';
+                    if (totalDiv) totalDiv.textContent = '';
+                    return;
+                }
+                throw new Error(devoluciones.error);
+            }
+            if (!devoluciones || devoluciones.length === 0) {
+                contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">' + t('history.no_returns') + '</p>';
+                if (totalDiv) totalDiv.textContent = t('history.total') + ': 0.00 €';
+                return;
+            }
+
+            // Calcular total
+            let total = 0;
+            let html = '<table class="historial-ventas-tabla">';
+            html += '<thead><tr>';
+            html += '<th>' + t('history.time') + '</th>';
+            html += '<th>' + t('history.user') + '</th>';
+            html += '<th>' + t('history.products') + '</th>';
+            html += '<th>' + t('history.payment_method') + '</th>';
+            html += '<th>' + t('history.total_table') + '</th>';
+            html += '<th>' + t('history.actions') + '</th>';
+            html += '</tr></thead><tbody>';
+
+            devoluciones.forEach(d => {
+                const fecha = new Date(d.fecha);
+                const hora = fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                const totalDevolucion = parseFloat(d.total);
+                const numItems = d.numItems || 1;
+                total += totalDevolucion;
+
+                let formaPago = d.metodoPago || 'Efectivo';
+                let usuario = d.usuario_nombre || 'Cajero';
+
+                html += '<tr>';
+                html += '<td>' + hora + '</td>';
+                html += '<td>' + usuario + '</td>';
+                html += '<td>' + numItems + '</td>';
+                html += '<td>' + formaPago + '</td>';
+                html += '<td style="font-weight: 600; color: #ef4444;">-' + totalDevolucion.toFixed(2).replace('.', ',') + ' €</td>';
+                html += '<td>';
+                html += '<div style="display: flex; gap: 5px; justify-content: center;">';
+                html += '<button class="btn-exito" onclick="verDetalleDevolucion(' + d.idVenta + ')" title="Ver detalles" style="padding: 5px 10px; font-size: 12px;">👁️</button>';
+                html += '<button class="btn-exito" onclick="reimprimirTicketDevolucionDesdeHistorial(' + d.idVenta + ')" title="Reimprimir ticket" style="padding: 5px 10px; font-size: 12px;">🖨️</button>';
+                html += '</div>';
+                html += '</td>';
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            contenido.innerHTML = html;
+            if (totalDiv) totalDiv.textContent = t('history.total_returned') + ': -' + total.toFixed(2).replace('.', ',') + ' € (' + devoluciones.length + ' ' + t('history.returns') + ')';
+        })
+        .catch(err => {
+            console.error('Error cargando historial:', err);
+            contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 40px;">' + t('history.error_loading') + ': ' + err.message + '</p>';
+            if (totalDiv) totalDiv.textContent = '';
+        });
+}
+
+/**
+ * Muestra los detalles de una devolución específica en un modal
+ * @param {number} idVenta 
+ */
+function verDetalleDevolucion(idVenta) {
+    const modal = document.getElementById('modalDetalleDevolucion');
+    const contenido = document.getElementById('detalleDevolucionContenido');
+
+    if (!modal || !contenido) return;
+
+    modal.style.display = 'flex';
+    contenido.innerHTML = '<p style="text-align: center; padding: 20px;">' + t('return_details.loading') + '</p>';
+
+    fetch('api/devoluciones.php?detalleVenta=' + idVenta)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;">' + t('return_details.error') + ': ' + data.error + '</p>';
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                contenido.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">' + t('return_details.not_found') + '</p>';
+                return;
+            }
+
+            const primera = data[0];
+            const fecha = new Date(primera.fecha).toLocaleString('es-ES');
+
+            // Update header info
+            const serie = primera.serie || 'T';
+            const numero = primera.numero || primera.idVenta || idVenta;
+            const detalleDevolucionId = document.getElementById('detalleDevolucionId');
+            if (detalleDevolucionId) detalleDevolucionId.textContent = t('return_details.return_name') + ' ' + serie + String(numero).padStart(5, '0') + ' - ' + fecha;
+
+            let html = '';
+
+            // Info row
+            html += '<div style="display: flex; gap: 15px; margin-bottom: 20px;">';
+            html += '<div style="flex: 1; background: var(--bg-secondary); padding: 12px; border-radius: 8px;">';
+            html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">' + t('return_details.payment') + '</div>';
+            html += '<div style="font-weight: 600;">💵 ' + (primera.metodoPago || 'Efectivo') + '</div>';
+            html += '</div>';
+            html += '<div style="flex: 1; background: var(--bg-secondary); padding: 12px; border-radius: 8px;">';
+            html += '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">' + t('return_details.reason') + '</div>';
+            html += '<div style="font-weight: 600;">' + (primera.motivo || t('return_details.no_reason')) + '</div>';
+            html += '</div>';
+            html += '</div>';
+
+            // Products table
+            html += '<div style="max-height: 250px; overflow-y: auto; margin-bottom: 20px;">';
+            html += '<table style="width: 100%; border-collapse: collapse;">';
+            html += '<thead><tr style="background: var(--bg-secondary);">';
+            html += '<th style="padding: 10px; text-align: left; font-size: 12px; color: var(--text-muted);">' + t('return_details.product') + '</th>';
+            html += '<th style="padding: 10px; text-align: center; font-size: 12px; color: var(--text-muted);">' + t('return_details.quantity') + '</th>';
+            html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);">' + t('return_details.price') + '</th>';
+            html += '<th style="padding: 10px; text-align: right; font-size: 12px; color: var(--text-muted);">' + t('return_details.amount') + '</th>';
+            html += '</tr></thead><tbody>';
+
+            let totalDevolucion = 0;
+            data.forEach(item => {
+                const subtotal = parseFloat(item.importeTotal || 0);
+                totalDevolucion += subtotal;
+                html += '<tr style="border-bottom: 1px solid var(--border-main);">';
+                html += '<td style="padding: 10px;">' + (item.producto_nombre || t('return_details.product_default')) + '</td>';
+                html += '<td style="padding: 10px; text-align: center;">' + item.cantidad + '</td>';
+                html += '<td style="padding: 10px; text-align: right;">' + parseFloat(item.precioUnitario || 0).toFixed(2).replace('.', ',') + ' €</td>';
+                html += '<td style="padding: 10px; text-align: right; font-weight: 600; color: #ef4444;">-' + subtotal.toFixed(2).replace('.', ',') + ' €</td>';
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            html += '</div>';
+
+            // Total
+            html += '<div style="background: #ef4444; color: white; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px;">';
+            html += t('return_details.total_returned') + ': -' + totalDevolucion.toFixed(2).replace('.', ',') + ' €';
+            html += '</div>';
+
+            contenido.innerHTML = html;
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            contenido.innerHTML = '<p style="text-align: center; color: #dc2626; padding: 20px;">' + t('return_details.error_loading') + '</p>';
+        });
+}
+
+/**
+ * Reimprime un ticket de devolución desde el historial
+ * @param {number} idVenta 
+ */
+function reimprimirTicketDevolucionDesdeHistorial(idVenta) {
+    fetch('api/devoluciones.php?detalleVenta=' + idVenta + '&_=' + Date.now(), {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) { alert('Error: ' + data.error); return; }
+            if (!data || data.length === 0) { alert(t('return_details.alert_not_found')); return; }
+
+            const primera = data[0];
+            const orig_serie = primera.orig_serie || '';
+            const orig_numero = primera.orig_numero || '';
+
+            if (!orig_numero) {
+                console.warn('No se encontró el número de ticket original para la devolución', idVenta);
+            }
+
+            const devolucion = {
+                id: idVenta,
+                orig_serie: orig_serie,
+                orig_numero: orig_numero,
+                serie: primera.rect_serie || 'D',
+                numero: primera.rect_numero || '',
+                qrUrl: primera.qrUrl || null,
+                fecha: primera.fecha,
+                metodoPago: primera.metodoPago || 'Efectivo',
+                total: data.reduce((sum, item) => sum + parseFloat(item.importeTotal || 0), 0),
+                motivo: primera.motivo || '',
+                lineas: data.map(l => ({
+                    idProducto: l.idProducto,
+                    nombre: l.producto_nombre || 'Producto',
+                    cantidad: l.cantidad,
+                    precioUnitario: l.precioUnitario,
+                    importeTotal: l.importeTotal,
+                    iva: (l.iva !== undefined && l.iva !== null && l.iva !== "") ? parseInt(l.iva) : 21
+                }))
+            };
+            imprimirDocumentoDevolucionConDatos(devolucion);
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error al obtener los datos del ticket');
+        });
+}
+
+/**
+ * Imprime ticket de devolucion recibiendo el objeto de devolucion directamente
+ * @param {Object} devolucion 
+ */
+function imprimirDocumentoDevolucionConDatos(devolucion) {
+    if (!devolucion) {
+        alert('No hay datos de devolución para imprimir');
+        return;
+    }
+
+    const carrito = (devolucion.lineas || []).map(linea => ({
+        nombre: linea.nombre || linea.producto_nombre || 'Producto',
+        cantidad: linea.cantidad,
+        precio: parseFloat(linea.precioUnitario || linea.precio) || 0,
+        iva: (linea.iva !== undefined) ? parseInt(linea.iva) : 21,
+        importeTotal: parseFloat(linea.importeTotal || linea.importe) || 0
+    }));
+
+    const totalGeneral = carrito.reduce((sum, item) => sum + item.importeTotal, 0);
+
+    const datosVenta = {
+        id: devolucion.numero || devolucion.id || '—',
+        serie: devolucion.serie || 'D',
+        numero: devolucion.numero || devolucion.id || '—',
+        fecha: new Date(devolucion.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        tipo: 'ticket',
+        es_rectificativa: true,
+        id_original: devolucion.orig_numero || devolucion.idVenta,
+        serie_original: devolucion.orig_serie || devolucion.serie_original || 'T',
+        total: -totalGeneral,
+        metodoPago: devolucion.metodoPago,
+        carrito: carrito,
+        usuario_nombre: devolucion.usuario_nombre,
+        qrUrl: devolucion.qrUrl
+    };
+
+    if (typeof generarHTMLComprobante === 'function') {
+        const html = generarHTMLComprobante(datosVenta, 'es');
+        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        if (printWindow) {
+            printWindow.document.write(html);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 500);
+        }
+    } else {
+        console.error('generarHTMLComprobante not found');
+    }
+}
+
+/**
+ * Imprime el ticket de la última devolución realizada
+ */
+function imprimirTicketDevolucion() {
+    if (typeof ultimaDevolucion === 'undefined' || !ultimaDevolucion) return;
+    imprimirDocumentoDevolucionConDatos(ultimaDevolucion);
+}
+
+/**
+ * Muestra el modal de apertura de caja
+ */
+function mostrarModalAbrirCaja() {
+    const modal = document.getElementById('modalAbrirCaja');
+    const recovery = document.getElementById('cambioRecovery');
+    const importeInput = document.getElementById('importeInicial');
+    const divImporte = document.getElementById('divImporteInicial');
+    const radioRecuperar = document.querySelector('input[name="opcionCambio"][value="recuperar"]');
+
+    if (!modal) return;
+
+    modal.style.display = 'flex';
+    if (recovery) recovery.value = '0';
+
+    if (importeInput) {
+        importeInput.value = '';
+        importeInput.required = false;
+    }
+
+    if (divImporte) {
+        divImporte.style.opacity = '0.5';
+    }
+
+    if (radioRecuperar) {
+        radioRecuperar.checked = true;
+        toggleCambio(false);
+    }
+
+    if (importeInput) importeInput.focus();
+}
+
+/**
+ * Alterna entre recuperar el cambio anterior o introducir un importe inicial nuevo
+ * @param {boolean} mostrarNuevo 
+ */
+function toggleCambio(mostrarNuevo) {
+    const divImporte = document.getElementById('divImporteInicial');
+    const importeInput = document.getElementById('importeInicial');
+    const cambioInput = document.getElementById('cambioRecovery');
+
+    if (!divImporte || !importeInput || !cambioInput) return;
+
+    if (mostrarNuevo) {
+        divImporte.style.opacity = '1';
+        importeInput.required = true;
+        cambioInput.value = '0';
+    } else {
+        divImporte.style.opacity = '0.5';
+        importeInput.required = false;
+        // El cambio anterior se inyecta en TPV_CONTEXT
+        const cambioAnterior = (typeof TPV_CONTEXT !== 'undefined') ? TPV_CONTEXT.cambioAnterior : 0;
+        cambioInput.value = cambioAnterior;
+    }
+}
+
+/**
+ * Muestra el modal de retiro de dinero
+ */
+function mostrarModalRetiro() {
+    const modal = document.getElementById('modalRetiro');
+    const input = document.getElementById('importeRetiro');
+    if (modal) {
+        modal.style.display = 'flex';
         if (input) input.focus();
     }
 }
 
 /**
- * Abre el modal para AÑADIR un NUEVO cliente habitual
+ * Valida que el importe a retirar sea correcto y no exceda el efectivo disponible
+ * @returns {boolean}
  */
-function abrirModalClienteHabitual() {
-    const modal = document.getElementById('modalClienteHabitual');
+function validarRetiro() {
+    const importeInput = document.getElementById('importeRetiro');
+    if (!importeInput) return false;
+
+    const importe = parseFloat(importeInput.value);
+    const efectivoDisponible = (typeof TPV_CONTEXT !== 'undefined') ? TPV_CONTEXT.efectivoActualCaja : 0;
+
+    if (isNaN(importe) || importe <= 0) {
+        alert(t('cashier.alert_valid_amount'));
+        return false;
+    }
+
+    if (importe > efectivoDisponible) {
+        alert(t('cashier.alert_insufficient_cash') + ': ' + efectivoDisponible.toFixed(2).replace('.', ',') + ' €');
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Actualiza la UI de los métodos de pago en el modal de devolución
+ * @param {HTMLInputElement} radio 
+ */
+function updateMethodUI(radio) {
+    document.querySelectorAll('.method-chip').forEach(chip => {
+        chip.style.border = '2px solid var(--border-main)';
+        chip.style.color = 'var(--text-muted)';
+        chip.style.fontWeight = '400';
+        chip.classList.remove('active');
+    });
+
+    const chip = document.getElementById('chip-' + radio.value);
+    if (chip) {
+        chip.style.border = '2px solid var(--accent-danger)';
+        chip.style.color = 'var(--accent-danger)';
+        chip.style.fontWeight = '600';
+        chip.classList.add('active');
+    }
+}
+
+// Variables para el flujo de devoluciones (Ya declaradas arriba, eliminando duplicados)
+
+
+/**
+ * Muestra el modal de devolución
+ */
+function mostrarModalDevolucion() {
+    const modal = document.getElementById('modalDevolucion');
+    const input = document.getElementById('inputTicketIdDev');
     if (modal) {
         modal.style.display = 'flex';
-        // Limpiar todos los campos
-        const inputs = modal.querySelectorAll('input');
-        inputs.forEach(input => input.value = '');
-        // Enfocar el primer campo
-        const primerInput = modal.querySelector('input');
-        if (primerInput) primerInput.focus();
+        if (input) input.focus();
     }
 }
 
 /**
- * Busca un ticket mediante su ID para iniciar el proceso de devolución.
+ * Busca un ticket para realizar una devolución
  */
 function buscarTicketParaDevolucion() {
     const input = document.getElementById('inputTicketIdDev');
-    if (!input) return;
+    const errorEl = document.getElementById('errorTicketDev');
+    if (!input || !errorEl) return;
 
     const ticketId = input.value.trim();
-    const errorEl = document.getElementById('errorTicketDev');
 
     if (!ticketId) {
-        if (errorEl) {
-            errorEl.textContent = 'Introduce el número de ticket';
-            errorEl.style.display = 'block';
-        }
+        errorEl.textContent = t('returns.error_no_ticket');
+        errorEl.style.display = 'block';
         return;
     }
 
-    if (errorEl) errorEl.style.display = 'none';
+    errorEl.style.display = 'none';
 
-    // Parse formato número de ticket (ej: "T00001" -> serie="T", numero=1)
+    // Parsear serie y número (ej: T00001)
     let serie = '';
     let numero = ticketId;
-
     const match = ticketId.match(/^([TF]?)0*(\d+)$/i);
     if (match) {
         serie = match[1].toUpperCase();
         numero = match[2];
     }
 
-    // Construir URL con serie y numero
     let url = `api/ventas.php?checkVentaDevolucion=${numero}`;
-    if (serie) {
-        url += `&serie=${serie}`;
-    }
+    if (serie) url += `&serie=${serie}`;
 
-    // Consultar API para verificar el ticket y obtener productos
     fetch(url)
         .then(res => res.json())
         .then(data => {
             if (data.error) {
-                if (errorEl) {
-                    errorEl.textContent = 'Error: ' + data.error;
-                    errorEl.style.display = 'block';
-                }
+                errorEl.textContent = 'Error: ' + data.error;
+                errorEl.style.display = 'block';
                 return;
             }
 
-            // Ticket encontrado correctamente, mostrar paso 2
+            ticketActualDevolucion = data.venta;
+            lineasVentaDevolucion = data.lineas;
 
-            // Ocultar paso 1 y mostrar paso 2
-            const paso1 = document.getElementById('devolucionPaso1');
-            const paso2 = document.getElementById('devolucionPaso2');
+            const totalDisponible = lineasVentaDevolucion.reduce((acc, linea) => {
+                return acc + (parseInt(linea.cantidad) - (parseInt(linea.cantidad_devuelta) || 0));
+            }, 0);
 
-            if (paso1) paso1.style.display = 'none';
-            if (paso2) paso2.style.display = 'block';
+            if (totalDisponible <= 0) {
+                errorEl.textContent = t('returns.error_no_products_avail');
+                errorEl.style.display = 'block';
+                return;
+            }
 
-            // Cargar los productos del ticket en el paso 2
-            console.log('Datos del ticket cargados:', data);
+            // UI Transitions
+            document.getElementById('devolucionPaso1').style.display = 'none';
+            document.getElementById('devolucionPaso2').style.display = 'block';
+            document.getElementById('btnConfirmarMultiDev').style.display = 'block';
+            document.getElementById('resumenReembolso').style.display = 'block';
+            document.getElementById('devolucionSubtitulo').textContent = t('returns.subtitle_select_units');
 
-            // ✅ CORRECCION: La API devuelve anidado: { venta: {}, lineas: [] }
-            // Renderizar los productos de la venta
-            renderizarProductosDevolucion(data);
+            const serieVenta = ticketActualDevolucion.serie || 'T';
+            const tipoDoc = serieVenta === 'F' ? t('print.factura') : t('print.ticket');
+            const numFmt = String(ticketActualDevolucion.numero || ticketActualDevolucion.id).padStart(5, '0');
+            const precGlobal = Math.max(2, ...lineasVentaDevolucion.map(l => l.decimales || 2));
 
-            // Actualizar totales (con comprobación de existencia para evitar errores)
-            const elTotalOriginal = document.getElementById('devTotalOriginal');
-            const elTotalDevolver = document.getElementById('devTotalDevolver');
+            document.getElementById('infoTicketId').textContent = tipoDoc + ' ' + serieVenta + numFmt;
+            document.getElementById('infoTicketFecha').textContent = new Date(ticketActualDevolucion.fecha).toLocaleString('es-ES');
+            document.getElementById('infoTicketTotal').textContent = parseFloat(ticketActualDevolucion.total).toFixed(precGlobal).replace('.', ',') + ' €';
+            document.getElementById('totalOriginalDisplay').textContent = parseFloat(ticketActualDevolucion.total).toFixed(precGlobal).replace('.', ',') + ' €';
 
-            if (elTotalOriginal && data.venta) elTotalOriginal.textContent = (data.venta.total || 0).toFixed(2).replace('.', ',') + ' €';
-            if (elTotalDevolver) elTotalDevolver.textContent = '0,00 €';
+            renderizarTablaDevolucion();
         })
         .catch(err => {
             console.error(err);
-            if (errorEl) {
-                errorEl.textContent = 'Error de conexión';
-                errorEl.style.display = 'block';
-            }
+            errorEl.textContent = t('returns.error_connection');
+            errorEl.style.display = 'block';
         });
 }
 
 /**
- * Cierra el modal y resetea su estado.
+ * Renderiza la tabla de productos para la devolución
  */
-function cerrarModalDevolucion() {
-    cerrarModal('modalDevolucion');
-    // Resetear estado del modal
-    const paso1 = document.getElementById('devolucionPaso1');
-    const paso2 = document.getElementById('devolucionPaso2');
-    const input = document.getElementById('inputTicketIdDev');
-    const errorEl = document.getElementById('errorTicketDev');
+function renderizarTablaDevolucion() {
+    const tbody = document.getElementById('tablaProductosDev');
+    if (!tbody) return;
 
-    if (paso1) paso1.style.display = 'block';
-    if (paso2) paso2.style.display = 'none';
-    if (input) input.value = '';
-    if (errorEl) errorEl.style.display = 'none';
+    tbody.innerHTML = '';
+
+    lineasVentaDevolucion.forEach((linea, index) => {
+        const disponible = parseInt(linea.cantidad) - (parseInt(linea.cantidad_devuelta) || 0);
+        const precio = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
+        const dec = linea.decimales || 2;
+
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid #f1f5f9';
+        tr.innerHTML = `
+            <td style="padding: 12px 15px;">
+                <div class="producto-nombre-dev" style="font-weight: 600;">${linea.producto_nombre}</div>
+                <div class="producto-precio-dev" style="font-size: 0.75rem;">Precio: ${precio.toFixed(dec)} € (IVA incl.)</div>
+            </td>
+            <td style="padding: 12px; text-align: center; color: #64748b; font-weight: 500;">${disponible}</td>
+            <td style="padding: 12px 15px; text-align: center;">
+                <div class="cantidad-control" style="justify-content: center;">
+                    <button onclick="cambiarCantidadDev(${index}, -1)" ${disponible <= 0 ? 'disabled' : ''}>−</button>
+                    <input type="number" class="cant-dev-input" 
+                        data-index="${index}" 
+                        min="0" max="${disponible}" value="0" 
+                        style="width: 50px; text-align: center; padding: 5px; border: 1px solid #e2e8f0; border-radius: 4px;"
+                        onchange="cambiarCantidadDev(${index}, 0)"
+                        ${disponible <= 0 ? 'disabled' : ''}>
+                    <button onclick="cambiarCantidadDev(${index}, 1)" ${disponible <= 0 ? 'disabled' : ''}>+</button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    recalcularTotalReembolso();
 }
 
 /**
- * Limita el input a un máximo de 4 decimales en tiempo real.
- * @param {HTMLInputElement} input
+ * Selecciona o deselecciona todos los productos disponibles para devolver
  */
-function validar4Decimales(input) {
-    if (input.value.includes('.')) {
-        const parts = input.value.split('.');
-        if (parts[1].length > 4) {
-            input.value = parts[0] + '.' + parts[1].slice(0, 4);
+function seleccionarTodosProductos() {
+    const inputs = document.querySelectorAll('.cant-dev-input');
+    let allSelected = true;
+
+    inputs.forEach(input => {
+        const index = input.dataset.index;
+        const linea = lineasVentaDevolucion[index];
+        const disponible = parseInt(linea.cantidad) - (parseInt(linea.cantidad_devuelta) || 0);
+        if (parseInt(input.value) !== disponible) allSelected = false;
+    });
+
+    inputs.forEach(input => {
+        const index = input.dataset.index;
+        const linea = lineasVentaDevolucion[index];
+        const disponible = parseInt(linea.cantidad) - (parseInt(linea.cantidad_devuelta) || 0);
+        input.value = allSelected ? 0 : disponible;
+    });
+
+    recalcularTotalReembolso();
+}
+
+/**
+ * Cambia la cantidad a devolver de un producto
+ * @param {number} index 
+ * @param {number} delta 
+ */
+function cambiarCantidadDev(index, delta) {
+    const input = document.querySelector('.cant-dev-input[data-index="' + index + '"]');
+    if (!input) return;
+
+    const linea = lineasVentaDevolucion[index];
+    const disponible = parseInt(linea.cantidad) - (parseInt(linea.cantidad_devuelta) || 0);
+
+    let cant = (parseInt(input.value) || 0) + delta;
+    if (cant < 0) cant = 0;
+    if (cant > disponible) cant = disponible;
+
+    input.value = cant;
+    recalcularTotalReembolso();
+}
+
+/**
+ * Recalcula el total del reembolso aplicando descuentos proporcionales
+ */
+function recalcularTotalReembolso() {
+    const precDevTotal = 2;
+    let total = 0;
+    let hayDevolucion = false;
+    const inputs = document.querySelectorAll('.cant-dev-input');
+    const venta = ticketActualDevolucion;
+    if (!venta) return;
+
+    const ventaTotal = parseFloat(venta.total);
+
+    let sumaBruta = 0;
+    lineasVentaDevolucion.forEach(linea => {
+        const precioBase = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
+        sumaBruta += parseInt(linea.cantidad) * precioBase;
+    });
+
+    const factorDescuento = sumaBruta > 0 ? ventaTotal / sumaBruta : 1;
+
+    inputs.forEach(input => {
+        const index = input.dataset.index;
+        const linea = lineasVentaDevolucion[index];
+        let cant = parseInt(input.value) || 0;
+
+        if (cant > 0) {
+            const precioBase = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
+            total += cant * precioBase * factorDescuento;
+            hayDevolucion = true;
+        }
+    });
+
+    if (total > ventaTotal) total = ventaTotal;
+    total = roundTo(total, precDevTotal);
+
+    const display = document.getElementById('totalReembolsoDisplay');
+    if (display) display.textContent = total.toFixed(precDevTotal).replace('.', ',') + ' €';
+
+    const errorEl = document.getElementById('errorEfectivoInsuficiente');
+    const btnConfirmar = document.getElementById('btnConfirmarMultiDev');
+    const dispEl = document.getElementById('efectivoDisponibleDisplay');
+    const efectivoActual = (typeof TPV_CONTEXT !== 'undefined') ? TPV_CONTEXT.efectivoActualCaja : 0;
+
+    if (Math.round(total * 100) > Math.round(efectivoActual * 100)) {
+        if (errorEl) errorEl.style.display = 'block';
+        if (dispEl) dispEl.textContent = efectivoActual.toFixed(precDevTotal).replace('.', ',') + ' €';
+        if (btnConfirmar) {
+            btnConfirmar.disabled = true;
+            btnConfirmar.style.opacity = '0.5';
+            btnConfirmar.style.cursor = 'not-allowed';
+        }
+    } else {
+        if (errorEl) errorEl.style.display = 'none';
+        if (btnConfirmar) {
+            btnConfirmar.disabled = !hayDevolucion;
+            btnConfirmar.style.opacity = hayDevolucion ? '1' : '0.5';
+            btnConfirmar.style.cursor = hayDevolucion ? 'pointer' : 'not-allowed';
         }
     }
 }
 
 /**
- * Renderiza la lista de productos disponibles para devolver
- * @param {Object} venta - Objeto de venta con lineas de productos
+ * Cierra el modal de devolución y resetea su estado
  */
-function renderizarProductosDevolucion(data) {
-    const container = document.getElementById('listaProductosDevolucion');
-    if (!container) return;
-
-    // ✅ CORRECCION: API devuelve { venta: {}, lineas: [] }
-    const lineas = data.lineas || [];
-
-    if (lineas.length === 0) {
-        container.innerHTML = '<p style="text-align:center; color: var(--text-muted); padding: 30px;">No hay productos disponibles para devolver</p>';
-        return;
-    }
-
-    let html = '';
-
-    lineas.forEach((linea, index) => {
-        const cantMax = linea.cantidad - (linea.devuelta || 0);
-
-        if (cantMax <= 0) return;
-
-        html += `
-        <div class="dev-producto-item" style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-input); border-radius: 8px; margin-bottom: 8px;">
-            <div style="flex-grow: 1; text-align: left;">
-                <div style="font-weight: 600; font-size: 0.95rem;">${linea.nombre}</div>
-                <div style="font-size: 0.85rem; color: var(--text-muted);">Precio: ${parseFloat(linea.precio).toFixed(2).replace('.', ',')} € | Disponibles: ${cantMax}</div>
-            </div>
-            <input type="number" 
-                   min="0" 
-                   max="${cantMax}" 
-                   value="0" 
-                   onchange="calcularTotalDevolucion()"
-                   class="dev-cantidad-input"
-                   style="width: 70px; padding: 6px 8px; border: 2px solid var(--border-main); border-radius: 6px; text-align: center; font-weight: 600;"
-                   data-precio="${linea.precio}"
-                   data-indice="${index}">
-        </div>`;
-    });
-
-    container.innerHTML = html;
+function cerrarModalDevolucion() {
+    cerrarModal('modalDevolucion');
+    document.getElementById('devolucionPaso1').style.display = 'block';
+    document.getElementById('devolucionPaso2').style.display = 'none';
+    document.getElementById('btnConfirmarMultiDev').style.display = 'none';
+    document.getElementById('resumenReembolso').style.display = 'none';
+    document.getElementById('devolucionSubtitulo').textContent = 'Introduce el número del Ticket (ej: T00001)';
+    const input = document.getElementById('inputTicketIdDev');
+    if (input) input.value = '';
+    const error = document.getElementById('errorTicketDev');
+    if (error) error.style.display = 'none';
+    const display = document.getElementById('totalOriginalDisplay');
+    if (display) display.textContent = '0,00 €';
+    lineasVentaDevolucion = [];
+    ticketActualDevolucion = null;
 }
 
 /**
- * Calcula el total de devolución automaticamente al cambiar cantidades
+ * Procesa la devolución enviando los datos al servidor
  */
-function calcularTotalDevolucion() {
-    let total = 0;
-    const inputs = document.querySelectorAll('.dev-cantidad-input');
+function procesarMultiDevolucion() {
+    const inputs = document.querySelectorAll('.cant-dev-input');
+    let productosDev = [];
+    let totalReembolso = 0;
+
+    if (!ticketActualDevolucion) return;
 
     inputs.forEach(input => {
         const cant = parseInt(input.value) || 0;
-        const precio = parseFloat(input.dataset.precio) || 0;
-        total += cant * precio;
+        if (cant > 0) {
+            const index = input.dataset.index;
+            const linea = lineasVentaDevolucion[index];
+            const dec = linea.decimales || 2;
+            const precioConIva = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
+
+            productosDev.push({
+                idProducto: linea.idProducto,
+                nombreProducto: linea.producto_nombre,
+                idLineaOriginal: linea.id,
+                cantidad: cant,
+                importe: roundTo(cant * precioConIva, dec),
+                decimales: dec
+            });
+        }
     });
 
-    const elTotalDevolver = document.getElementById('devTotalDevolver');
-    if (elTotalDevolver) elTotalDevolver.textContent = total.toFixed(2).replace('.', ',') + ' €';
+    if (productosDev.length === 0) return;
+
+    const ventaTotal = parseFloat(ticketActualDevolucion.total);
+    let sumaBruta = lineasVentaDevolucion.reduce((sum, l) => {
+        const p = l.precioConIva ? parseFloat(l.precioConIva) : parseFloat(l.precioUnitario) * (1 + (l.iva || 21) / 100);
+        return sum + (parseInt(l.cantidad) * p);
+    }, 0);
+
+    const factorDescuento = sumaBruta > 0 ? ventaTotal / sumaBruta : 1;
+
+    productosDev = productosDev.map(p => ({
+        ...p,
+        importe: roundTo(p.importe * factorDescuento, p.decimales || 2)
+    }));
+
+    totalReembolso = productosDev.reduce((sum, p) => sum + p.importe, 0);
+
+    if (totalReembolso > ventaTotal) {
+        const factorAjuste = ventaTotal / totalReembolso;
+        productosDev = productosDev.map(p => ({
+            ...p,
+            importe: roundTo(p.importe * factorAjuste, p.decimales || 2)
+        }));
+        totalReembolso = ventaTotal;
+    }
+
+    const metodoRadio = document.querySelector('input[name="metodoPagoDev"]:checked');
+    const metodoPago = metodoRadio ? metodoRadio.value : 'efectivo';
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'index.php';
+
+    const params = {
+        accion: 'tramitarMultiDevolucion',
+        motivo: document.getElementById('motivoDevolucionDev')?.value.trim() || '',
+        idVenta: ticketActualDevolucion.id,
+        metodoPago: metodoPago,
+        productos: JSON.stringify(productosDev),
+        totalReembolso: totalReembolso
+    };
+
+    for (const key in params) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = params[key];
+        form.appendChild(input);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
 }
+
+/**
+ * Limita el input a un máximo de N decimales en tiempo real.
+ * @param {HTMLInputElement} input
+ * @param {string} limitInputId
+ */
+function validarPrecisionDinamica(input, limitInputId) {
+    let limitInput = document.getElementById(limitInputId);
+    let limit = limitInput ? parseInt(limitInput.value) : 4;
+    if (isNaN(limit)) limit = 4;
+    if (limit > 4) limit = 4;
+    if (limit < 0) limit = 0;
+
+    let value = input.value;
+    if (!value) return;
+
+    // Use regex to keep only up to N decimals
+    let regex = new RegExp('^-?\\d*(\\.\\d{0,' + limit + '})?');
+    let match = value.match(regex);
+    if (match && match[0] !== value) {
+        input.value = match[0];
+    }
+}
+
+/**
+ * Abre el modal para crear un producto comodín
+ */
+function abrirModalProductoComodin() {
+    const modal = document.getElementById('modalProductoComodin');
+    const nombre = document.getElementById('comodinNombre');
+    const desc = document.getElementById('comodinDescripcion');
+    const precio = document.getElementById('comodinPrecio');
+    const iva = document.getElementById('comodinIva');
+
+    if (modal) modal.style.display = 'flex';
+    if (nombre) nombre.value = '';
+    if (desc) desc.value = '';
+    if (precio) precio.value = '';
+    if (iva) iva.value = '21';
+
+    actualizarComodinPrecioTotal();
+    if (nombre) nombre.focus();
+}
+
+/**
+ * Calcula el precio total con IVA en tiempo real para el producto comodín
+ */
+function actualizarComodinPrecioTotal() {
+    const precioEl = document.getElementById('comodinPrecio');
+    const ivaEl = document.getElementById('comodinIva');
+    const totalEl = document.getElementById('comodinPrecioTotal');
+
+    if (!precioEl || !ivaEl || !totalEl) return;
+
+    const precioBase = parseFloat(precioEl.value) || 0;
+    const iva = parseFloat(ivaEl.value) || 0;
+    const total = precioBase * (1 + (iva / 100));
+
+    totalEl.textContent = total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+/**
+ * Crea un producto temporal y lo añade al carrito
+ */
+function agregarProductoComodin() {
+    const nombreEl = document.getElementById('comodinNombre');
+    const descEl = document.getElementById('comodinDescripcion');
+    const precioEl = document.getElementById('comodinPrecio');
+    const ivaEl = document.getElementById('comodinIva');
+
+    if (!nombreEl || !precioEl || !ivaEl) return;
+
+    const nombre = nombreEl.value.trim();
+    const descripcion = descEl ? descEl.value.trim() : '';
+    const precioBase = parseFloat(precioEl.value);
+    const ivaPorcentaje = parseFloat(ivaEl.value);
+
+    // Validaciones
+    if (!nombre) {
+        alert(t('products.alert_enter_name'));
+        nombreEl.focus();
+        return;
+    }
+
+    if (isNaN(precioBase) || precioBase < 0) {
+        alert(t('products.alert_enter_valid_price'));
+        precioEl.focus();
+        return;
+    }
+
+    if (isNaN(ivaPorcentaje) || 0 > ivaPorcentaje) {
+        alert(t('products.alert_enter_valid_iva'));
+        ivaEl.focus();
+        return;
+    }
+
+    // Calcular precio con IVA
+    const precioConIva = Math.round(precioBase * (1 + (ivaPorcentaje / 100)) * 100) / 100;
+
+    // Crear objeto producto comodín
+    const productoComodin = {
+        idProducto: 'comodin_' + Date.now(),
+        nombre: nombre,
+        descripcion: descripcion,
+        precio: precioBase,
+        pvpUnitario: precioConIva,
+        pvpOriginalUnitario: precioConIva,
+        cantidad: 1,
+        iva: ivaPorcentaje,
+        tarifaNombre: t('cart.client_default_tarifa'),
+        stockMax: 999,
+        esComodin: true
+    };
+
+    // Añadir al carrito
+    if (typeof carrito !== 'undefined') {
+        const indiceExistente = carrito.findIndex(item =>
+            item.esComodin &&
+            item.nombre.toLowerCase() === nombre.toLowerCase() &&
+            parseFloat(item.precio) === precioBase &&
+            parseFloat(item.iva) === ivaPorcentaje
+        );
+
+        if (indiceExistente >= 0) {
+            carrito[indiceExistente].cantidad += 1;
+        } else {
+            carrito.push(productoComodin);
+        }
+
+        if (typeof actualizarTicket === 'function') actualizarTicket();
+        cerrarModal('modalProductoComodin');
+    }
+}
+
+/**
+ * Calcula el arqueo de caja en tiempo real
+ */
+function calcularArqueo() {
+    let total = 0;
+
+    // Calcular total de billetes
+    document.querySelectorAll('.arqueo-billete').forEach(input => {
+        const cantidad = parseInt(input.value) || 0;
+        const denominacion = parseFloat(input.dataset.denominacion);
+        total += cantidad * denominacion;
+    });
+
+    // Calcular total de monedas
+    document.querySelectorAll('.arqueo-moneda').forEach(input => {
+        const cantidad = parseInt(input.value) || 0;
+        const denominacion = parseFloat(input.dataset.denominacion);
+        total += cantidad * denominacion;
+    });
+
+    // Redondear a 2 decimales
+    total = Math.round(total * 100) / 100;
+
+    // Obtener el efectivo esperado
+    const arqueoEsperado = document.getElementById('arqueoEsperado');
+    if (!arqueoEsperado) return;
+
+    const efectivoEsperadoStr = arqueoEsperado.textContent.replace('€', '').trim();
+    const efectivoEsperado = parseFloat(efectivoEsperadoStr.replace(/\./g, '').replace(',', '.')) || 0;
+
+    // Calcular diferencia
+    const diferencia = Math.round((total - efectivoEsperado) * 100) / 100;
+
+    // Actualizar displays
+    const arqueoContado = document.getElementById('arqueoContado');
+    if (arqueoContado) arqueoContado.textContent = total.toFixed(2).replace('.', ',') + ' €';
+
+    const diffElement = document.getElementById('arqueoDiferencia');
+    if (diffElement) {
+        diffElement.textContent = (diferencia >= 0 ? '+' : '') + diferencia.toFixed(2).replace('.', ',') + ' €';
+
+        // Cambiar color según la diferencia
+        if (diferencia === 0) {
+            diffElement.style.color = '#059669';
+            diffElement.textContent = '✓ ' + t('cash_count.correct');
+        } else if (diferencia > 0) {
+            diffElement.style.color = '#2563eb';
+            diffElement.textContent = '+' + diferencia.toFixed(2).replace('.', ',') + ' € (' + t('cash_count.surplus') + ')';
+        } else {
+            diffElement.style.color = '#dc2626';
+            diffElement.textContent = diferencia.toFixed(2).replace('.', ',') + ' € (' + t('cash_count.shortage') + ')';
+        }
+    }
+
+    // Guardar el total en campos ocultos si existen
+    const arqueoTotalContado = document.getElementById('arqueoTotalContado');
+    if (arqueoTotalContado) arqueoTotalContado.value = total;
+
+    const arqueoDetalleConteo = document.getElementById('arqueoDetalleConteo');
+    if (arqueoDetalleConteo) {
+        const detalle = {};
+        document.querySelectorAll('.arqueo-billete').forEach(input => {
+            detalle['billete_' + input.dataset.denominacion] = parseInt(input.value) || 0;
+        });
+        document.querySelectorAll('.arqueo-moneda').forEach(input => {
+            detalle['moneda_' + input.dataset.denominacion] = parseInt(input.value) || 0;
+        });
+        arqueoDetalleConteo.value = JSON.stringify(detalle);
+    }
+}
+
+/**
+ * Continúa del arqueo al resumen de caja
+ */
+function continuarArqueo() {
+    // Calcular el total del arqueo
+    let total = 0;
+    document.querySelectorAll('.arqueo-billete').forEach(input => {
+        total += (parseInt(input.value) || 0) * parseFloat(input.dataset.denominacion);
+    });
+    document.querySelectorAll('.arqueo-moneda').forEach(input => {
+        total += (parseInt(input.value) || 0) * parseFloat(input.dataset.denominacion);
+    });
+    total = Math.round(total * 100) / 100;
+
+    // Obtener el efectivo esperado
+    const arqueoEsperado = document.getElementById('arqueoEsperado');
+    if (!arqueoEsperado) return;
+
+    const efectivoEsperadoStr = arqueoEsperado.textContent.replace('€', '').trim();
+    const efectivoEsperado = parseFloat(efectivoEsperadoStr.replace(/\./g, '').replace(',', '.')) || 0;
+
+    // Calcular diferencia
+    const diferencia = Math.round((total - efectivoEsperado) * 100) / 100;
+
+    // Crear detalle del conteo
+    const detalle = {};
+    document.querySelectorAll('.arqueo-billete').forEach(input => {
+        detalle['billete_' + input.dataset.denominacion] = parseInt(input.value) || 0;
+    });
+    document.querySelectorAll('.arqueo-moneda').forEach(input => {
+        detalle['moneda_' + input.dataset.denominacion] = parseInt(input.value) || 0;
+    });
+
+    // Actualizar los campos hidden del formulario de confirmación
+    const arqueoTotalForm = document.getElementById('arqueoTotalContadoForm');
+    const arqueoDetalleForm = document.getElementById('arqueoDetalleConteoForm');
+    if (arqueoTotalForm) arqueoTotalForm.value = total.toFixed(2);
+    if (arqueoDetalleForm) arqueoDetalleForm.value = JSON.stringify(detalle);
+
+    // Actualizar la visualización del arqueo en el resumen
+    const arqueoContadoResumen = document.getElementById('arqueoContadoResumen');
+    const arqueoDiferenciaResumen = document.getElementById('arqueoDiferenciaResumen');
+    if (arqueoContadoResumen) {
+        arqueoContadoResumen.textContent = total.toFixed(2).replace('.', ',') + ' €';
+    }
+    if (arqueoDiferenciaResumen) {
+        if (diferencia === 0) {
+            arqueoDiferenciaResumen.textContent = '✓ ' + t('cash_count.correct');
+            arqueoDiferenciaResumen.style.color = '#059669';
+        } else if (diferencia > 0) {
+            arqueoDiferenciaResumen.textContent = '+' + diferencia.toFixed(2).replace('.', ',') + ' € (' + t('cash_count.surplus') + ')';
+            arqueoDiferenciaResumen.style.color = '#2563eb';
+        } else {
+            arqueoDiferenciaResumen.textContent = diferencia.toFixed(2).replace('.', ',') + ' € (' + t('cash_count.shortage') + ')';
+            arqueoDiferenciaResumen.style.color = '#dc2626';
+        }
+    }
+
+    // Copiar observaciones si existen
+    const obs = document.getElementById('arqueoObservaciones');
+    const obsHidden = document.getElementById('arqueoObservacionesHidden');
+    if (obs && obsHidden) obsHidden.value = obs.value;
+
+    // Cerrar arqueo y abrir resumen
+    const arqueoModal = document.getElementById('arqueoModal');
+    const previsualizacion = document.getElementById('cajaPrevisualizacion');
+    if (arqueoModal) arqueoModal.style.display = 'none';
+    if (previsualizacion) previsualizacion.style.display = 'flex';
+}
+
+/**
+ * Muestra el historial de ventas (alias de cargarHistorialVentas para compatibilidad)
+ */
+function mostrarHistorialVentas() {
+    if (typeof cargarHistorialVentas === 'function') {
+        cargarHistorialVentas();
+        const modal = document.getElementById('modalHistorialVentas');
+        if (modal) modal.style.display = 'flex';
+    }
+}
+
+/**
+ * Actualiza el elemento .ticket-fecha con la fecha y hora actual
+ */
+function actualizarFechaHora() {
+    const ahora = new Date();
+    const dia = String(ahora.getDate()).padStart(2, '0');
+    const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+    const anio = ahora.getFullYear();
+    const horas = String(ahora.getHours()).padStart(2, '0');
+    const minutos = String(ahora.getMinutes()).padStart(2, '0');
+    const segundos = String(ahora.getSeconds()).padStart(2, '0');
+
+    const fechaHora = `${dia}/${mes}/${anio} ${horas}:${minutos}:${segundos}`;
+    const el = document.querySelector('.ticket-fecha');
+    if (el) el.textContent = fechaHora;
+}
+
+/**
+ * Cierra el modal de bienvenida y limpia el estado en el servidor.
+ */
+function cerrarModalBienvenida(idModal) {
+    const modal = document.getElementById(idModal);
+    if (modal) modal.style.display = 'none';
+
+    fetch('api/caja.php?accion=limpiarInterrupcion')
+        .then(response => response.json())
+        .then(data => {
+            if (data && !data.success) {
+                console.error('Error al limpiar interrupción:', data.message);
+            }
+        })
+        .catch(error => console.error('Error en fetch:', error));
+}
+
+
+console.log('[DEBUG cajero.js] File fully parsed - all functions defined');
+
+

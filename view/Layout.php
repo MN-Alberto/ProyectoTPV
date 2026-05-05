@@ -5,30 +5,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo t('app.title'); ?></title>
+    
+    <!-- Configuración Global de Idioma para JavaScript -->
     <script>
-        window.__LANG__ = <?php echo json_encode($LANG, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        // Inyectamos el diccionario actual y el código de idioma para uso en scripts del cliente (layout.js, cajero.js, etc.)
+        window.__LANG__ = <?php echo json_encode($LANG, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}'; ?>;
         window.__LANG_CODE__ = '<?php echo $_SESSION['lang'] ?? 'es'; ?>';
     </script>
+    
+    <!-- Scripts y Fuentes Base -->
     <script src="webroot/js/layout.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="webroot/css/login.css" rel="stylesheet" type="text/css">
-    <!-- Si la pagina en curso solicitada es la del cajero y la solicita el cajero o el admin, cargamos la hoja de estilos de cajero -->
-    <?php if (isset($_SESSION['paginaEnCurso']) && ($_SESSION['paginaEnCurso'] === 'cajero' || $_SESSION['paginaEnCurso'] === 'admin')): ?>
+    
+    <!-- Carga Condicional de Estilos según el Contexto -->
+    <?php 
+    /**
+     * Si el usuario está en el panel del Cajero o en el Admin, cargamos los estilos específicos.
+     * Se cargan por separado para mantener el CSS ligero en la pantalla de login.
+     */
+    if (isset($_SESSION['paginaEnCurso']) && ($_SESSION['paginaEnCurso'] === 'cajero' || $_SESSION['paginaEnCurso'] === 'admin')): ?>
         <link href="webroot/css/cajero.css" rel="stylesheet" type="text/css">
         <link href="webroot/css/idiomas-ticket.css" rel="stylesheet" type="text/css">
-        <?php
-    endif; ?>
-    <!-- Si la pagina en curso solicitada es la del admin o cajero, cargamos la hoja de estilos de admin (para modales) -->
-    <?php if (isset($_SESSION['paginaEnCurso']) && ($_SESSION['paginaEnCurso'] === 'admin' || $_SESSION['paginaEnCurso'] === 'cajero')): ?>
+    <?php endif; ?>
+
+    <?php 
+    /**
+     * El CSS de Admin contiene estilos para modales y tablas avanzadas que también
+     * se reutilizan en algunas partes del cajero.
+     */
+    if (isset($_SESSION['paginaEnCurso']) && ($_SESSION['paginaEnCurso'] === 'admin' || $_SESSION['paginaEnCurso'] === 'cajero')): ?>
         <link href="webroot/css/admin.css" rel="stylesheet" type="text/css">
-        <?php
-    endif; ?>
+    <?php endif; ?>
+    
     <link rel="icon" href="webroot/img/logoCPU.PNG" type="image/png" id="favicon-link">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
 <body>
     <header>
+        <!-- Logotipo y Nombre de la Aplicación -->
         <div style="display: flex; align-items: center; gap: 15px;">
             <div id="header-icon-container">
                 <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none"
@@ -48,18 +64,20 @@
             </div>
             <div style="display: flex; align-items: baseline; gap: 12px;">
                 <h1 style="margin: 0;"><?php echo t('app.title'); ?></h1>
+                <!-- Distintivo de cumplimiento fiscal -->
                 <span style="font-size: 10px; background: #ecfdf5; color: #059669; border: 1px solid #10b981; padding: 2px 6px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">VERI*FACTU</span>
             </div>
         </div>
 
         <div class="header-usuario">
-            <!-- Selector de idioma - SIEMPRE VISIBLE incluso sin login -->
+            <!-- Bloque: Selector de Idiomas (Flags) -->
             <div class="lang-toggle"
                 title="<?php echo isset($_SESSION['idUsuario']) ? t('header.language') : 'Idioma'; ?>">
                 <?php
                 $currentPage = $_SESSION['paginaEnCurso'] ?? 'login';
                 $currentLang = $_SESSION['lang'] ?? (isset($_COOKIE['lang']) ? $_COOKIE['lang'] : 'es');
                 ?>
+                <!-- Botón: Español -->
                 <a href="?lang=es&ctl=<?php echo $currentPage; ?>"
                     class="lang-btn <?php echo $currentLang === 'es' ? 'active' : ''; ?>" title="Español">
                     <svg width="20" height="15" viewBox="0 0 20 15">
@@ -67,6 +85,7 @@
                         <rect y="5" width="20" height="5" fill="#F1BF00" />
                     </svg>
                 </a>
+                <!-- Botón: Inglés -->
                 <a href="?lang=en&ctl=<?php echo $currentPage; ?>"
                     class="lang-btn <?php echo $currentLang === 'en' ? 'active' : ''; ?>" title="English (USA)">
                     <svg width="20" height="15" viewBox="0 0 20 15">
@@ -89,6 +108,7 @@
                         <circle cx="6" cy="7" r="0.5" fill="white" />
                     </svg>
                 </a>
+                <!-- Botón: Francés -->
                 <a href="?lang=fr&ctl=<?php echo $currentPage; ?>"
                     class="lang-btn <?php echo $currentLang === 'fr' ? 'active' : ''; ?>" title="Français">
                     <svg width="20" height="15" viewBox="0 0 20 15">
@@ -97,6 +117,7 @@
                         <rect x="13" width="7" height="15" fill="#EF4135" />
                     </svg>
                 </a>
+                <!-- Botón: Alemán -->
                 <a href="?lang=de&ctl=<?php echo $currentPage; ?>"
                     class="lang-btn <?php echo $currentLang === 'de' ? 'active' : ''; ?>" title="Deutsch">
                     <svg width="20" height="15" viewBox="0 0 20 15">
@@ -105,6 +126,7 @@
                         <rect y="10" width="20" height="5" fill="#FFCE00" />
                     </svg>
                 </a>
+                <!-- Botón: Ruso -->
                 <a href="?lang=ru&ctl=<?php echo $currentPage; ?>"
                     class="lang-btn <?php echo $currentLang === 'ru' ? 'active' : ''; ?>" title="Русский">
                     <svg width="20" height="15" viewBox="0 0 20 15">
@@ -114,6 +136,8 @@
                     </svg>
                 </a>
             </div>
+
+            <!-- Bloque: Control de Tema (Dark/Light) -->
             <div class="theme-toggle"
                 title="<?php echo isset($_SESSION['idUsuario']) ? t('header.change_theme') : 'Cambiar tema'; ?>">
                 <button class="theme-btn" id="btnModoClaro" onclick="setTheme('light')" title="Modo Claro">
@@ -124,44 +148,53 @@
                 </button>
             </div>
 
-            <!-- Si el id del usuario está guardado en la sesión, mostramos el nombre del usuario y el botón de cerrar sesión -->
+            <!-- Bloque: Información de Usuario y Navegación de Rol -->
             <?php if (isset($_SESSION['idUsuario'])): ?>
-                <?php if (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'admin'): ?>
+                <?php 
+                /**
+                 * Lógica de intercambio de paneles (Admin <-> Cajero)
+                 * Solo permitida si el usuario tiene rol de administrador.
+                 */
+                if (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'admin'): ?>
                     <a href="?ctl=cajero" class="btn-ir-cajero" title="<?php echo t('header.go_cashier'); ?>">
                         <i class="fas fa-cash-register"></i> <?php echo t('header.cashier'); ?>
                     </a>
-                    <?php
-                elseif (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'cajero' && isset($_SESSION['rolUsuario']) && $_SESSION['rolUsuario'] === 'admin'): ?>
+                <?php elseif (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'cajero' && isset($_SESSION['rolUsuario']) && $_SESSION['rolUsuario'] === 'admin'): ?>
                     <a href="?ctl=admin" class="btn-ir-cajero" title="<?php echo t('header.go_admin'); ?>">
                         <i class="fas fa-user-shield"></i> <?php echo t('header.admin'); ?>
                     </a>
-                    <?php
-                endif; ?>
+                <?php endif; ?>
+
                 <span><?php echo t('header.hello'); ?>,
                     <strong><?php echo htmlspecialchars($_SESSION['nombreUsuario']); ?></strong></span>
+                
+                <!-- Botón de Cierre de Sesión -->
                 <form action="<?php echo $_SERVER["PHP_SELF"]; ?>" method="post">
                     <input type="submit" name="cerrarSesion" class="btn-cerrar-sesion"
                         value="<?php echo t('header.logout'); ?>">
                 </form>
-            </div>
-            <?php
-            endif; ?>
+            <?php endif; ?>
+        </div>
     </header>
-    <?php
 
-    /*
-     * Autor: Alberto Méndez 
-     * Fecha de actualización: 24/02/2026
-     */
+    <!-- Área de Contenido Principal -->
+    <main>
+        <?php
+        /**
+         * Inyección Dinámica de la Vista
+         * El controlador determina qué archivo debe cargarse en $_SESSION["paginaEnCurso"]
+         * y lo insertamos aquí para que el layout actúe como marco.
+         */
+        require_once $view[$_SESSION["paginaEnCurso"]]; 
+        ?>
+    </main>
 
-    require_once $view[$_SESSION["paginaEnCurso"]]; //Añadimos la pagina en curso para cargarla.
-    ?>
+    <!-- Pie de Página -->
     <footer>
         <a href="https://github.com/MN-Alberto/ProyectoTPV" target="blank" id="link-repositorio">
-            <h4>Alberto Méndez Núñez</h4>
+            <h4>Alberto Méndez Núñez &copy; <?php echo date('Y'); ?></h4>
         </a>
     </footer>
 </body>
 
-
-</html>
+</html>
