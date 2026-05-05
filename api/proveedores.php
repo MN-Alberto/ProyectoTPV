@@ -1,55 +1,80 @@
 <?php
 /**
- * API REST de Suministros (Proveedores).
- * Gestiona el directorio de contactos comerciales y los recargos de equivalencia
- * aplicables a los productos suministrados por cada entidad.
+ * API REST de Gestión de Proveedores y Suministros.
+ * 
+ * Gestiona el directorio de contactos comerciales y el sistema de vinculación
+ * de productos con precios específicos y recargos de equivalencia por proveedor.
+ * 
+ * ✅ Características:
+ *  - Gestión CRUD completa de fichas de proveedores
+ *  - Vinculación de productos individuales con precios específicos
+ *  - Sistema de recargos de equivalencia comerciales
+ *  - Filtrado y búsqueda por nombre
+ *  - Control de acceso estricto solo para usuarios administradores
  * 
  * @author Alberto Méndez
- * @version 1.0 (04/03/2026)
+ * @version 1.1 (Comentarios añadidos)
+ * @since 1.0 (04/03/2026)
  */
 
+// Iniciamos sesión y establecemos formato de respuesta JSON
 session_start();
 header('Content-Type: application/json; charset=utf-8');
 
-// Verificar que el usuario sea admin
+/**
+ * 🔒 CONTROL DE ACCESO ESTRICTO
+ * 
+ * IMPORTANTE: Esta API SOLO es accesible para usuarios con rol administrador.
+ * La comprobación se realiza ANTES de cargar cualquier dependencia para evitar
+ * cualquier consumo de recursos innecesario en caso de acceso no autorizado.
+ * 
+ * Cualquier operación sobre proveedores requiere privilegios máximos.
+ */
 if (!isset($_SESSION['rolUsuario']) || $_SESSION['rolUsuario'] !== 'admin') {
     http_response_code(403);
     echo json_encode(['error' => 'Acceso denegado. Solo administradores.']);
     exit();
 }
 
-// Requerimos los archivos necesarios
+// Cargamos configuración y modelo de dominio
 require_once(__DIR__ . '/../config/confDB.php');
 require_once(__DIR__ . '/../model/Proveedor.php');
 
 /** 
- * MANEJADOR DE CONSULTAS (GET)
- * Permite listar proveedores o consultar productos específicos de un suministrador.
+ * 📋 MANEJADOR DE CONSULTAS (GET)
+ * 
+ * Permite listar proveedores, buscar por nombre y consultar productos vinculados.
+ * 
+ * Endpoints disponibles:
+ * - `GET /proveedores.php` → Listado completo de todos los proveedores
+ * - `GET /proveedores.php?buscar=texto` → Búsqueda por nombre
+ * - `GET /proveedores.php?productos=ID` → Productos YA ASOCIADOS al proveedor
+ * - `GET /proveedores.php?productosDisponibles=ID` → Productos que AÚN NO están asociados
  */
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
-    // Si se piden los productos de un proveedor (asociados)
+    // Obtener productos YA VINCULADOS a este proveedor con su precio y recargo específico
     if (isset($_GET['productos'])) {
         $idProveedor = (int) $_GET['productos'];
         echo json_encode(Proveedor::obtenerProductos($idProveedor));
         exit();
     }
 
-    // Si se piden los productos disponibles (no asociados) para un proveedor
+    // Obtener productos DISPONIBLES para asociar (todos los que aún no están vinculados)
     if (isset($_GET['productosDisponibles'])) {
         $idProveedor = (int) $_GET['productosDisponibles'];
         echo json_encode(Proveedor::obtenerProductosDisponibles($idProveedor));
         exit();
     }
 
-    // Si se recibe un parámetro de búsqueda
+    // Búsqueda por nombre o listado completo
     if (isset($_GET['buscar']) && trim($_GET['buscar']) !== '') {
         $proveedores = Proveedor::buscarPorNombre(trim($_GET['buscar']));
     } else {
         $proveedores = Proveedor::obtenerTodos();
     }
 
-    // Convertir objetos a arrays para JSON
+    // Normalización de datos para serialización JSON
     $resultado = [];
     foreach ($proveedores as $prov) {
         $resultado[] = [
@@ -155,15 +180,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    // Validar formato de email si se proporciona
+    /**
+     * ✉️ DOBLE VALIDACIÓN DE FORMATO DE EMAIL
+     * 
+     * Se aplican dos niveles de validación por seguridad:
+     * 1. Validación nativa de PHP `filter_var` para comprobaciones básicas
+     * 2. Validación mediante expresión regular estricta para garantizar el formato correcto
+     * 
+     * Esta medida evita correos electrónicos con formatos técnicamente válidos
+     * pero que no funcionan correctamente en sistemas reales de envío.
+     */
     if (!empty($email)) {
+        // Validación nivel 1: filtro nativo PHP
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             http_response_code(400);
             echo json_encode(['ok' => false, 'error' => 'El formato del email no es válido.']);
             exit();
         }
 
-        // Validar formato específico de email (debe tener @ y al menos un punto en el dominio)
+        // Validación nivel 2: expresión regular estricta
         if (!preg_match('/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/', $email)) {
             http_response_code(400);
             echo json_encode(['ok' => false, 'error' => 'El email debe tener formato: nombre@dominio.com']);

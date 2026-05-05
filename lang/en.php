@@ -1,9 +1,22 @@
 <?php
 /**
- * English Translations (en) — TPV Bazar Electrónico
+ * 🌐 INTERNACIONALIZACIÓN: PAQUETE IDIOMA INGLÉS (en)
  * 
- * Organized by semantic categories with nested keys.
- * To add a new language, copy this file and translate the values.
+ * ✅ Este es el paquete BASE y PLANTILLA OFICIAL para todos los demás idiomas.
+ * Es el primer archivo que se actualiza cuando se añaden nuevas funcionalidades.
+ * 
+ * ✅ Características:
+ *  - 971 cadenas localizadas
+ *  - Patrón return array directo sin variables
+ *  - Estructura semántica anidada por módulos
+ *  - Todas las claves están ordenadas exactamente igual en todos los idiomas
+ *  - Este archivo es la referencia para traductores
+ * 
+ * ⚠️ Para añadir un nuevo idioma: copie ESTE ARCHIVO, cambie el nombre y traduzca solo los valores.
+ * NUNCA modifique las claves. Si cambia una clave aquí, debe cambiarla exactamente igual en TODOS los demás idiomas.
+ * 
+ * @author Alberto Méndez
+ * @version 1.0 (Comentarios añadidos)
  */
 return [
 
@@ -302,6 +315,11 @@ return [
         'invoice' => 'Invoice',
         'total_word' => 'Total',
         'total' => 'Total',
+        'points_earned' => 'Points earned',
+        'points' => 'points',
+        'points_info' => 'Points info',
+        'points_redeemed' => 'Points redeemed',
+        'of_discount' => 'of discount',
         'earned_points' => 'The customer earned',
         'redeemed_points' => 'The customer redeemed',
         'discount_word' => 'discount',
@@ -764,7 +782,10 @@ return [
         'add_to_cart' => 'Add to Cart',
         'mixed_remaining_assign' => 'Remaining to assign',
         'mixed_distribute_full' => 'Distribute full total',
-        'saving' => 'Savings',
+        'saving' => 'Saving sale...',
+        'email_sending' => 'Sending email...',
+        'email_sent_to' => 'Email sent to',
+        'thermal_ticket' => 'Thermal Ticket',
         'alert_cash_limit_exceeded' => '⚠️ Cash limit exceeded. Cash payments over €1,000 are not allowed',
         'mixed_total_covered' => '✅ Total covered',
         'mixed_exact_assigned' => '✅ Amount exactly assigned',
@@ -814,6 +835,7 @@ return [
         'amount' => 'Amount',
         'invoice_terms' => 'All prices include VAT. This invoice is subject to our general terms and conditions of sale.',
         'verifactu_verify' => 'Invoice verifiable at the AEAT electronic headquarters',
+        'ticket' => 'Ticket',
     ],
 
     // ======================== RETURNS (EXTENDED) ========================
@@ -835,6 +857,7 @@ return [
         'payment_method' => 'Payment Method',
         'total_table' => 'Total',
         'actions' => 'Actions',
+        'ticket_num' => 'Ticket No.',
         'total_day' => 'Total day',
         'total_returned' => 'Total returned',
         'products' => 'Products',

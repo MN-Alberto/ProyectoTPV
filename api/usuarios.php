@@ -1,11 +1,22 @@
 <?php
 /**
- * API de Gestión de Usuarios y Permisos.
- * Centraliza las operaciones CRUD para el personal del establecimiento,
- * incluyendo la asignación de roles, auditoría de cambios y gestión de credenciales.
+ * API de Gestión de Usuarios, Permisos y Autenticación.
+ * 
+ * Núcleo de gestión de identidad y acceso del sistema. Contiene toda la lógica
+ * para creación, modificación, eliminación y recuperación de credenciales de personal.
+ * 
+ * ✅ Características:
+ *  - Auditoría completa de todas las operaciones
+ *  - Control de integridad referencial con historial de ventas
+ *  - Sistema de recuperación de contraseña seguro
+ *  - Detección automática de cambios diferenciales
+ *  - Actualización en vivo de permisos en sesiones activas
+ *  - Paginación y búsqueda inteligente
+ *  - Fallo silencioso de logs para no interrumpir operaciones
  * 
  * @author Alberto Méndez
- * @version 1.0 (03/03/2026)
+ * @version 1.1 (Comentarios añadidos)
+ * @since 1.0 (03/03/2026)
  */
 
 // Iniciamos la sesión para acceder a las variables de sesión
@@ -57,9 +68,15 @@ function registrarLogUsuario($pdo, $tipo, $usuario_id, $usuario_nombre, $descrip
     }
 }
 
-// NOTA: La seguridad ya está garantizada por el controlador cAdmin.php
-// que verifica que el usuario es administrador antes de mostrar la vista.
-// No necesitamos verificar la sesión aquí.
+/**
+ * 🔒 DELEGACIÓN DE SEGURIDAD
+ * 
+ * IMPORTANTE: No se verifica el rol de administrador en este archivo.
+ * 
+ * El controlador `cAdmin.php` ya garantiza que solo los administradores
+ * pueden acceder a esta API. Cualquier petición que llegue hasta aquí
+ * ya ha pasado por el filtro de seguridad centralizado.
+ */
 
 // ── ELIMINAR USUARIO (DELETE) ────────────────────────────────────────────
 /**
@@ -73,7 +90,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
 
     // Si el id es válido
     if ($id > 0) {
-        // Verificar si el usuario tiene ventas asociadas
+        /**
+         * 📊 INTEGRIDAD REFERENCIAL DEL HISTORIAL
+         * 
+         * NUNCA se permite eliminar un usuario que tenga ventas asociadas.
+         * Esto garantiza que el historial contable y de auditoría nunca se rompa.
+         * 
+         * Para dar de baja usuarios se debe marcar como inactivo, no eliminar.
+         */
         $stmtCheckVentas = $pdo->prepare("SELECT COUNT(*) as total FROM ventas WHERE idUsuario = :idUsuario");
         $stmtCheckVentas->execute([':idUsuario' => $id]);
         $resultadoVentas = $stmtCheckVentas->fetch(PDO::FETCH_ASSOC);
@@ -389,7 +413,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $adminId = $_SESSION['id'] ?? null;
                 $adminNombre = $_SESSION['nombre'] ?? 'Admin';
 
-                // Comparar cambios
+                /**
+                 * 📋 AUDITORÍA DIFERENCIAL
+                 * 
+                 * Se comparan uno a uno todos los campos con los valores anteriores.
+                 * Solo se registran en el log los campos que REALMENTE han cambiado.
+                 * 
+                 * Esto evita ruido en los logs y permite saber exactamente que se modificó
+                 * en cada operación, sin falsos positivos por campos que no variaron.
+                 */
                 $cambios = array();
                 if ($valoresAnteriores['nombre'] !== $nombre) {
                     $cambios['nombre'] = array('antes' => $valoresAnteriores['nombre'], 'después' => $nombre);
@@ -413,8 +445,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $detalles = count($cambios) > 0 ? $cambios : null;
                 registrarLogUsuario($pdo, 'modificacion_usuario', $adminId, $adminNombre, 'Usuario modificado: ' . $nombre . ' (ID: ' . $id . ')', $detalles);
 
-                // ✅ CORRECCION FINAL: Actualizar la SESION DEL USUARIO SI ESTA LOGEADO
-                // Si el usuario que estamos modificando es el mismo que tiene la sesion abierta, actualizamos los permisos en vivo
+                /**
+                 * 🔄 ACTUALIZACIÓN DE PERMISOS EN VIVO
+                 * 
+                 * Si el administrador se esta modificando a si mismo, los permisos
+                 * se actualizan INMEDIATAMENTE en su sesión actual.
+                 * 
+                 * Sin esta medida, el administrador tendría que cerrar y abrir sesión
+                 * para que los cambios de permisos tuvieran efecto.
+                 */
                 if (isset($_SESSION['idUsuario']) && $_SESSION['idUsuario'] == $id) {
                     $_SESSION['permisosUsuario'] = $permisos;
                 }

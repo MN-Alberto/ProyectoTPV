@@ -1,3 +1,9 @@
+<!-- 
+    Dependencias de JavaScript para la Administración
+    ------------------------------------------------
+    Se cargan todos los módulos necesarios para la gestión del TPV.
+    admin-main.js actúa como el orquestador principal.
+-->
 <script src="webroot/js/admin-backups.js"></script>
 <script src="webroot/js/admin-caja.js?v=4"></script>
 <script src="webroot/js/admin-clientes.js"></script>
@@ -15,6 +21,12 @@
 <script src="webroot/js/shared-impresion.js"></script>
 <script src="webroot/js/admin-ventas.js?v=4"></script>
 <script src="webroot/js/admin-main.js"></script>
+
+<!-- Librerías Externas: Gráficos (Chart.js), PDF (jsPDF), Alertas (SweetAlert2) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
     // Configuración global del TPV para impresión y fiscalidad
@@ -35,10 +47,6 @@
         'ru': <?php echo json_encode(include __DIR__ . '/../lang/ru.php'); ?>
     };
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <section id="cajero">
     <!-- Panel izquierdo: Navegación de Admin -->
     <div class="cajero-productos admin-sidebar" style="max-width: 260px; border-right: 1px solid #e5e7eb;">
@@ -150,7 +158,12 @@
         </div>
     </div>
 
-    <!-- Panel derecho: Contenido del Dashboard -->
+    <!-- 
+        Panel Derecho: Contenido Principal y Dashboard
+        ----------------------------------------------
+        Aquí se visualizan las métricas en tiempo real (Dashboard) y se cargan 
+        dinámicamente las diferentes secciones de gestión vía AJAX.
+    -->
     <div class="admin-dashboard">
         <div class="admin-header">
             <div style="display:flex;align-items:center;gap:15px">
@@ -227,7 +240,12 @@
     </div>
 </section>
 
-<!-- ##-----------------------------------MODAL VER PRODUCTO-----------------------------------## -->
+<!-- 
+    SECCIÓN DE MODALES
+    ------------------
+    Los modales están ocultos por defecto y se activan mediante Javascript para 
+    operaciones CRUD (Crear, Leer, Actualizar, Borrar) y visualización de detalles.
+-->
 
 <!-- ##-----------------------------------MODAL VER CATEGORÍA-----------------------------------## -->
 
@@ -1202,6 +1220,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <!-- ##-----------------------------------MODAL CENTRO DE TAREAS-----------------------------------## -->
+<!-- Muestra el progreso de tareas pesadas (Backups, Actualizaciones de IVA, etc.) -->
 <div class="modal-overlay" id="modalCentroTareas" style="display:none;">
     <div class="modal-content" style="max-width: 600px; width: 90%;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">

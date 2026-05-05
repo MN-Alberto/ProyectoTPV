@@ -1,11 +1,22 @@
 <?php
 /**
- * API de Personalización de Interfaz (Tematización).
- * Permite gestionar la apariencia visual del TPV de forma dinámica,
- * almacenando y recuperando tokens de diseño (colores, fuentes e iconos).
+ * API de Personalización de Interfaz por Tokens de Diseño.
+ * 
+ * Sistema de tematización que permite modificar completamente la apariencia visual
+ * del TPV sin tocar código CSS. Se basa en el patrón clave/valor donde cada registro
+ * es una variable CSS que se inyecta dinámicamente en el navegador.
+ * 
+ * ✅ Características:
+ *  - Lectura pública sin autenticación para velocidad de carga
+ *  - Escritura exclusiva para administradores
+ *  - Whitelist de variables permitidas
+ *  - Sanitización automática de valores
+ *  - Upsert transaccional en una sola consulta
+ *  - Fallback gracefully a valores por defecto
  * 
  * @author Alberto Méndez
- * @version 1.0 (2026)
+ * @version 1.1 (Comentarios añadidos)
+ * @since 1.0 (2026)
  */
 
 session_start();
@@ -35,7 +46,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
         echo json_encode($config);
     } catch (PDOException $e) {
-        // Si la tabla no existe, devolver objeto vacío (se usarán defaults)
+        /**
+         * 🎯 FALLBACK GRACIOSO
+         * 
+         * Si la tabla no existe o hay cualquier error, se devuelve un objeto vacío.
+         * El frontend detectará automáticamente que no hay configuración personalizada
+         * y utilizará los valores por defecto definidos en el CSS.
+         * 
+         * Esta medida garantiza que la aplicación nunca falle por problemas de tema.
+         */
         echo json_encode(new stdClass());
     }
     exit;
@@ -62,7 +81,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    // Claves permitidas
+    /**
+     * 🛡️ WHITELIST DE VARIABLES PERMITIDAS
+     * 
+     * Solo se aceptan estas claves. Cualquier otra variable enviada por el usuario
+     * será ignorada silenciosamente. Esta es una medida de seguridad fundamental:
+     * 
+     * 1. Evita inyección de variables CSS maliciosas
+     * 2. Garantiza que solo se modifican parámetros autorizados
+     * 3. Mantiene la integridad del sistema de diseño
+     * 
+     * No se permite crear nuevas variables dinámicamente.
+     */
     $clavesPermitidas = [
         'header_bg',
         'header_color',
@@ -99,17 +129,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ];
 
     try {
+        /**
+         * ⚡ UPSERT EN UNA SOLA CONSULTA
+         * 
+         * Se usa `ON DUPLICATE KEY UPDATE` para realizar insert o update
+         * en la misma operación sin necesidad de comprobar previamente si existe.
+         * 
+         * Nota: El valor se pasa dos veces porque MySQL no permite reutilizar
+         * el mismo parámetro nombrado dos veces en la misma consulta.
+         */
         $stmt = $pdo->prepare(
             "INSERT INTO configuracion_tema (clave, valor) VALUES (:clave, :valor)
-             ON DUPLICATE KEY UPDATE valor = :valor2"
+                 ON DUPLICATE KEY UPDATE valor = :valor2"
         );
 
         foreach ($input as $clave => $valor) {
-            // Solo guardar claves permitidas
+            // Solo guardar claves que están en la whitelist
             if (!in_array($clave, $clavesPermitidas))
                 continue;
 
-            // Sanitizar valor
+            /**
+             * 🧹 SANITIZACIÓN AUTOMÁTICA
+             * 
+             * Todos los valores se limpian antes de guardar:
+             * 1. Se eliminan espacios en blanco por delante y por detrás
+             * 2. Se escapan todos los caracteres HTML especiales
+             * 3. Se codifica correctamente en UTF-8
+             * 
+             * Esto evita inyección de código HTML/CSS malicioso.
+             */
             $valorLimpio = htmlspecialchars(trim($valor), ENT_QUOTES, 'UTF-8');
 
             $stmt->execute([

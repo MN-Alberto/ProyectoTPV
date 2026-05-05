@@ -1,13 +1,36 @@
 <?php
 /**
- * API de Recuperación de Contraseña.
- * Maneja el envío de códigos de verificación y cambio de contraseña.
+ * API de Recuperación Segura de Contraseña.
+ * 
+ * Sistema de restablecimiento de credenciales implementado con buenas prácticas
+ * de seguridad y medidas anti abuso. Utiliza flujo de 3 pasos separados para
+ * garantizar la integridad del proceso.
+ * 
+ * ✅ Medidas de seguridad implementadas:
+ *  - Anti enumeración de usuarios: nunca revela si el usuario existe
+ *  - Códigos de verificación generados criptográficamente
+ *  - Caducidad automática de 30 minutos
+ *  - Deshabilitación completa de errores para evitar fugas de información
+ *  - Flujo estricto sin saltos entre pasos
+ *  - Hash seguro de contraseñas
+ *  - Limpieza automática de sesión al finalizar
+ * 
+ * @author Alberto Méndez
+ * @version 1.1 (Comentarios añadidos)
  */
 
 // Iniciamos la sesión
 session_start();
 
-// Deshabilitar mostrar errores para que la respuesta sea JSON limpio
+/**
+ * 🔒 DESHABILITACIÓN DE ERRORES
+ * 
+ * IMPORTANTE: Se deshabilitan TODOS los avisos y errores por motivos de SEGURIDAD.
+ * Cualquier mensaje de error podría revelar información sensible sobre el sistema,
+ * rutas de archivos, configuraciones o datos internos.
+ * 
+ * Esta medida es especialmente crítica en APIs públicas que no requieren autenticación.
+ */
 error_reporting(0);
 ini_set('display_errors', 0);
 
@@ -50,7 +73,15 @@ if ($action === 'send_recovery_code') {
     $usuario = Usuario::buscarPorNombre($nombre);
 
     if (!$usuario) {
-        // Por seguridad, no revelar si el usuario existe o no
+        /**
+         * 🛡️ MEDIDA ANTI ENUMERACIÓN DE USUARIOS
+         * 
+         * Por seguridad NUNCA se revela si el nombre de usuario existe o no en el sistema.
+         * Siempre se devuelve la misma respuesta exacta en ambos casos.
+         * 
+         * Esta medida evita que atacantes puedan comprobar nombres de usuario válidos
+         * mediante fuerza bruta para posteriormente realizar ataques dirigidos.
+         */
         echo json_encode(['ok' => true, 'message' => 'Si el usuario existe, se enviará un código a su correo.']);
         exit();
     }
@@ -62,7 +93,15 @@ if ($action === 'send_recovery_code') {
         exit();
     }
 
-    // Generar código de 6 dígitos
+    /**
+     * 🔐 GENERACIÓN SEGURA DE CÓDIGO
+     * 
+     * Se usa `random_int()` que es un generador de números aleatorios criptográficamente seguro.
+     * NUNCA se usa `rand()` o `mt_rand()` para este tipo de operaciones ya que son predecibles.
+     * 
+     * Se rellena con ceros a la izquierda para garantizar que siempre tenga exactamente 6 dígitos,
+     * incluyendo códigos que empiecen por cero.
+     */
     $codigo = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
     // Guardar código en sesión
@@ -110,8 +149,7 @@ if ($action === 'send_recovery_code') {
         $mail->send();
 
         echo json_encode(['ok' => true, 'message' => 'Código enviado correctamente.']);
-    }
-    catch (Exception $e) {
+    } catch (Exception $e) {
         error_log('Error al enviar correo: ' . $mail->ErrorInfo);
         echo json_encode(['ok' => false, 'error' => 'Error al enviar el correo. Inténtalo más tarde.']);
     }
@@ -133,7 +171,14 @@ if ($action === 'verify_recovery_code') {
         exit();
     }
 
-    // Verificar que no ha expirado (30 minutos)
+    /**
+     * ⏱️ COMPROBACIÓN DE CADUCIDAD
+     * 
+     * Tiempo de vida máximo del código: 30 minutos = 1800 segundos.
+     * 
+     * Si ha expirado se eliminan INMEDIATAMENTE todos los datos de la sesión
+     * para evitar reutilizaciones posteriores. Esta es una medida anti abuso.
+     */
     $tiempoTranscurrido = time() - $_SESSION['recovery_time'];
     if ($tiempoTranscurrido > 1800) {
         unset($_SESSION['recovery_code'], $_SESSION['recovery_user'], $_SESSION['recovery_time']);
@@ -191,7 +236,15 @@ if ($action === 'change_password') {
         exit();
     }
 
-    // Actualizar contraseña
+    /**
+     * 🔒 HASH SEGURO DE CONTRASEÑA
+     * 
+     * Se usa el algoritmo recomendado por PHP `PASSWORD_DEFAULT` que actualmente es bcrypt.
+     * Este algoritmo incluye automáticamente un salt único por contraseña y es resistente
+     * a ataques de diccionario y rainbow tables.
+     * 
+     * NUNCA se almacenan contraseñas en texto plano ni con hashes débiles como md5 o sha1.
+     */
     $nuevaPasswordHash = password_hash($nuevaPassword, PASSWORD_DEFAULT);
 
     try {
@@ -202,8 +255,7 @@ if ($action === 'change_password') {
         unset($_SESSION['recovery_code'], $_SESSION['recovery_user'], $_SESSION['recovery_time'], $_SESSION['recovery_verified']);
 
         echo json_encode(['ok' => true, 'message' => 'Contraseña actualizada correctamente.']);
-    }
-    catch (Exception $e) {
+    } catch (Exception $e) {
         echo json_encode(['ok' => false, 'error' => 'Error al actualizar la contraseña.']);
     }
     exit();

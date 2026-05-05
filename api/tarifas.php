@@ -1,11 +1,24 @@
 <?php
 /**
- * API de Gestión de Tarifas Especiales.
- * Controla la lógica de precios múltiples (ej: Mayorista, VIP), incluyendo la 
- * gestión dinámica de columnas de precio en la base de datos y el recálculo masivo de importes.
+ * API de Gestión de Tarifas Especiales y Precios Múltiples.
+ * 
+ * 🔎 ARQUITECTURA AVANZADA: Este sistema usa un patrón de columnas dinámicas
+ * donde cada tarifa se convierte automáticamente en una columna nueva dentro
+ * de la tabla `productos`. Esto permite consultas extremadamente rápidas
+ * sin necesidad de joins costosos.
+ * 
+ * ✅ Características:
+ *  - Gestión dinámica de niveles comerciales (Mayorista, VIP, etc.)
+ *  - Diferenciación entre precios calculados automáticamente y manuales
+ *  - Detección de modificaciones manuales
+ *  - Cambios de precios programados para fechas futuras
+ *  - Actualización masiva transaccional mediante batches
+ *  - Historial inmutable de precios por tarifa
+ *  - Renombrado automático de columnas
  * 
  * @author Alberto Méndez
- * @version 1.0 (09/03/2026)
+ * @version 1.1 (Comentarios añadidos)
+ * @since 1.0 (09/03/2026)
  */
 
 error_reporting(E_ALL);
@@ -18,17 +31,23 @@ require_once(__DIR__ . '/../config/confDB.php');
 require_once(__DIR__ . '/../core/conexionDB.php');
 
 /**
- * Normaliza el nombre de una tarifa para ser usado como identificador de columna SQL.
+ * 🧱 NORMALIZACIÓN DE NOMBRES DE COLUMNAS
+ * 
+ * Convierte un nombre de tarifa legible en un nombre de columna SQL válido y seguro.
+ * Elimina todos los caracteres especiales y espacios para evitar problemas de sintaxis.
+ * 
+ * Este es el mecanismo central que permite la gestión dinámica de columnas.
+ * 
  * @param string $nombreTarifa Nombre legible (ej: 'Tarifa VIP').
  * @return string Nombre de columna normalizado (ej: 'precio_tarifavip').
  */
 function obtenerNombreColumnaTarifa($nombreTarifa)
 {
-    // Convertir a minúsculas
+    // Convertir a minúsculas para uniformidad
     $nombre = strtolower($nombreTarifa);
-    // Reemplazar espacios y caracteres especiales
+    // Eliminar TODO caracter que no sea letra o número
     $nombre = preg_replace('/[^a-zA-Z0-9]/', '', $nombre);
-    // Añadir prefijo precio_
+    // Añadir prefijo estandarizado para identificar columnas de tarifas
     return 'precio_' . $nombre;
 }
 
@@ -60,7 +79,14 @@ function actualizarPreciosProductosPorTarifa($conexion, $idTarifa, $columnName, 
             ':id' => $idProducto
         ]);
 
-        // Guardar en historial de precios
+        /**
+         * 📋 REGISTRO EN HISTORIAL
+         * 
+         * IMPORTANTE: Si el guardado en el historial falla, la operación principal CONTINÚA.
+         * El historial es una funcionalidad de auditoría adicional, no un requisito
+         * crítico para el funcionamiento del sistema. Nunca se interrumpe la actualización
+         * de precios por un fallo en el logging.
+         */
         try {
             $pdoHistorial = new PDO(RUTA, USUARIO, PASS);
             $stmtHistorial = $pdoHistorial->prepare("INSERT INTO productos_historial_precios (id_producto, precio, id_tarifa, usuario_id) VALUES (:id_producto, :precio, :id_tarifa, :usuario_id)");
@@ -72,7 +98,7 @@ function actualizarPreciosProductosPorTarifa($conexion, $idTarifa, $columnName, 
                 ':usuario_id' => $adminId
             ]);
         } catch (Exception $e) {
-            // Si falla el historial, continuamos
+            // Fallo silencioso: continuamos sin interrumpir
         }
     }
 }
@@ -132,7 +158,15 @@ function detectarPreciosManuales($conexion, $idTarifa, $nombreTarifa)
         $precioTarifa = floatval($prod['precio_tarifa']);
         $precioCalculado = round($precioBase * (1 - $descuento / 100), 4);
 
-        // Si el precio almacenado es diferente del calculado, es manual
+        /**
+         * 🔍 DETECCIÓN DE PRECIOS MANUALES
+         * 
+         * Se usa un margen de error de 0.01 céntimos para evitar falsos positivos
+         * por problemas de precisión en números de coma flotante.
+         * 
+         * Un precio se considera manual cuando difiere del valor que resultaría
+         * de aplicar el descuento de la tarifa sobre el precio base.
+         */
         if (abs($precioTarifa - $precioCalculado) > 0.01) {
             $manuales[] = [
                 'id' => $prod['id'],
@@ -149,7 +183,8 @@ function detectarPreciosManuales($conexion, $idTarifa, $nombreTarifa)
  * Verifica si hay cambios de tarifas programados pendientes y los aplica si ha llegado su fecha.
  * @param PDO $conexion
  */
-function verificarYAplicarCambiosTarifas($conexion) {
+function verificarYAplicarCambiosTarifas($conexion)
+{
     try {
         // Obtener batches pendientes cuya fecha haya pasado
         $stmt = $conexion->prepare("SELECT * FROM cambios_tarifas_batch WHERE estado = 'pendiente' AND fecha_programada <= NOW()");
@@ -158,7 +193,7 @@ function verificarYAplicarCambiosTarifas($conexion) {
 
         foreach ($batches as $batch) {
             $batchId = $batch['id'];
-            
+
             // Obtener detalles de este batch
             $stmtDetalle = $conexion->prepare("SELECT * FROM ajustes_tarifas_detalle WHERE batch_id = :batch_id");
             $stmtDetalle->execute([':batch_id' => $batchId]);
@@ -179,7 +214,7 @@ function verificarYAplicarCambiosTarifas($conexion) {
 
                 if ($tarifa) {
                     $columnName = obtenerNombreColumnaTarifa($tarifa['nombre']);
-                    
+
                     // Actualizar el precio en la columna correspondiente
                     $stmtUpdate = $conexion->prepare("UPDATE productos SET `$columnName` = :precio WHERE id = :id");
                     $stmtUpdate->execute([':precio' => $precioNuevo, ':id' => $idProducto]);
@@ -224,7 +259,7 @@ try {
      */
     if ($_SERVER['REQUEST_METHOD'] === 'GET' && !isset($_GET['id']) && !isset($_GET['eliminar']) && !isset($_GET['detectarManuales']) && !isset($_GET['obtenerCambiosProgramados']) && !isset($_GET['verDetalleBatch'])) {
         $conexion = ConexionDB::getInstancia()->getConexion();
-        
+
         // Antes de listar, verificar si hay cambios programados por aplicar
         verificarYAplicarCambiosTarifas($conexion);
 
@@ -237,7 +272,7 @@ try {
     // Obtener cambios programados de tarifas
     if (isset($_GET['obtenerCambiosProgramados'])) {
         $conexion = ConexionDB::getInstancia()->getConexion();
-        
+
         $stmt = $conexion->query("
             SELECT b.*, u.nombre as usuario_nombre,
                    (SELECT COUNT(*) FROM ajustes_tarifas_detalle WHERE batch_id = b.id) as total_productos
@@ -246,7 +281,7 @@ try {
             ORDER BY b.fecha_programada DESC
         ");
         $batches = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
         echo json_encode(['ok' => true, 'batches' => $batches]);
         exit;
     }
@@ -255,7 +290,7 @@ try {
     if (isset($_GET['verDetalleBatch'])) {
         $idBatch = intval($_GET['verDetalleBatch']);
         $conexion = ConexionDB::getInstancia()->getConexion();
-        
+
         $stmt = $conexion->prepare("
             SELECT d.*, p.nombre as producto_nombre, p.decimales, t.nombre as tarifa_nombre
             FROM ajustes_tarifas_detalle d
@@ -265,7 +300,7 @@ try {
         ");
         $stmt->execute([':id' => $idBatch]);
         $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
         echo json_encode(['ok' => true, 'detalles' => $detalles]);
         exit;
     }
@@ -414,7 +449,7 @@ try {
         }
 
         $conexion = ConexionDB::getInstancia()->getConexion();
-        
+
         try {
             $conexion->beginTransaction();
 
@@ -425,7 +460,7 @@ try {
 
             // Insertar detalles
             $stmtDetalle = $conexion->prepare("INSERT INTO ajustes_tarifas_detalle (batch_id, producto_id, tarifa_id, precio_anterior, precio_nuevo) VALUES (:batch, :prod, :tarifa, :precioAnterior, :precio)");
-            
+
             foreach ($cambios as $cambio) {
                 $stmtDetalle->execute([
                     ':batch' => $batchId,
@@ -626,13 +661,13 @@ try {
     // Eliminar un batch programado
     if ($_SERVER['REQUEST_METHOD'] === 'DELETE' && isset($_GET['eliminarBatch'])) {
         $idBatch = intval($_GET['eliminarBatch']);
-        
+
         $conexion = ConexionDB::getInstancia()->getConexion();
-        
+
         // Solo permitir eliminar si está pendiente
         $stmt = $conexion->prepare("DELETE FROM cambios_tarifas_batch WHERE id = :id AND estado = 'pendiente'");
         $stmt->execute([':id' => $idBatch]);
-        
+
         if ($stmt->rowCount() > 0) {
             echo json_encode(['ok' => true]);
         } else {

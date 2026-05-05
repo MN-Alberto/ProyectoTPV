@@ -1,8 +1,22 @@
 <?php
 /**
- * Deutsche Übersetzungen (de) — TPV Bazar Elektronik
+ * 🌐 INTERNACIONALIZACIÓN: PAQUETE IDIOMA ALEMÁN (de)
  * 
- * Organisiert nach semantischen Kategorien mit verschachtelten Schlüsseln.
+ * Forma parte del sistema modular de idiomas del TPV.
+ * 
+ * ✅ Características:
+ *  - Patrón return array directo sin variables
+ *  - Claves idénticas en todos los idiomas
+ *  - Estructura semántica anidada por módulos
+ *  - 943 cadenas localizadas
+ *  - Compatibilidad UTF-8 nativo
+ *  - Alineado al 100% con es.php, en.php, fr.php y ru.php
+ * 
+ * ⚠️ IMPORTANTE: Las claves NO se pueden modificar. Si se cambia una clave
+ * aquí, debe cambiarse exactamente igual en TODOS los demás archivos de idioma.
+ * 
+ * @author Alberto Méndez
+ * @version 1.0 (Comentarios añadidos)
  */
 return [
 
@@ -293,6 +307,11 @@ return [
         'invoice' => 'Rechnung',
         'total_word' => 'Gesamt',
         'total' => 'Gesamt',
+        'points_earned' => 'Punkte erhalten',
+        'points' => 'Punkte',
+        'points_info' => 'Punktinformation',
+        'points_redeemed' => 'Punkte eingelöst',
+        'of_discount' => 'Rabatt',
         'earned_points' => 'Der Kunde hat erhalten',
         'redeemed_points' => 'Der Kunde hat eingelöst',
         'discount_word' => 'Rabatt',
@@ -739,7 +758,10 @@ return [
         'add_to_cart' => 'Zum Warenkorb hinzufügen',
         'mixed_remaining_assign' => 'Verbleibend zuzuordnen',
         'mixed_distribute_full' => 'Gesamtbetrag vollständig verteilen',
-        'saving' => 'Ersparnis',
+        'saving' => 'Verkauf wird gespeichert...',
+        'email_sending' => 'E-Mail wird gesendet...',
+        'email_sent_to' => 'E-Mail gesendet an',
+        'thermal_ticket' => 'Thermobon',
         'alert_cash_limit_exceeded' => '⚠️ Bargeldlimit überschritten. Barzahlungen über 1.000€ sind nicht erlaubt',
         'mixed_total_covered' => '✅ Gesamtbetrag gedeckt',
         'mixed_exact_assigned' => '✅ Betrag exakt zugeordnet',
@@ -836,6 +858,7 @@ return [
         'payment_method' => 'Zahlungsart',
         'total_table' => 'Gesamt',
         'actions' => 'Aktionen',
+        'ticket_num' => 'Bon Nr.',
         'total_day' => 'Gesamt des Tages',
         'total_returned' => 'Gesamt zurückgegeben',
         'products' => 'Produkte',

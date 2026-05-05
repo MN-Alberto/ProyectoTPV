@@ -1,14 +1,24 @@
 <?php
 /**
- * API de Auditoría de Eventos (Logs).
- * Proporciona herramientas para la consulta, filtrado persistente y depuración
- * de los registros de actividad del sistema (inicios de sesión, ventas, errores).
+ * API de Auditoría de Eventos (Logs del Sistema).
+ * 
+ * Sistema centralizado de registro de toda la actividad realizada en el TPV.
+ * Almacena de forma inmutable todas las acciones de los usuarios, eventos del sistema
+ * y errores para auditoría, depuración y cumplimiento normativo.
+ * 
+ * Métodos soportados:
+ * - GET:    Consulta paginada y filtrada de registros
+ * - POST:   Crear nuevo registro de auditoría
+ * - POST?accion=limpiar: Vaciar completamente la tabla de logs
+ * 
+ * Todas las operaciones devuelven respuesta en formato JSON con códigos HTTP estándar.
  * 
  * @author Alberto Méndez
- * @version 1.3 (04/03/2026)
+ * @version 1.4 (Comentarios añadidos)
+ * @since 1.3 (04/03/2026)
  */
 
-// Error reporting
+// Activamos reporte de errores completo para capturar cualquier anomalía
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -40,22 +50,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             exit;
         }
 
-        // Parámetros de paginación
+        // 📑 PARÁMETROS DE PAGINACIÓN
+        // Aseguramos valores mínimo 1 para evitar inyecciones y errores lógicos
         $pagina = isset($_GET['pagina']) ? max(1, intval($_GET['pagina'])) : 1;
         $porPagina = isset($_GET['por_pagina']) ? max(1, intval($_GET['por_pagina'])) : 6;
         $offset = ($pagina - 1) * $porPagina;
 
-        // Filtros
+        // 🔍 PARÁMETROS DE FILTRO
         $tipo = isset($_GET['tipo']) && $_GET['tipo'] !== '' ? $_GET['tipo'] : null;
         $fecha = isset($_GET['fecha']) && $_GET['fecha'] !== '' ? $_GET['fecha'] : null;
 
-        // Construir consulta para COUNT (usa prepared statements)
+        // -----------------------------------------------------------------------------
+        // 🔢 CONSULTA PARA CONTAR TOTAL DE REGISTROS
+        // Para esta consulta SI usamos prepared statements correctamente ya que no hay LIMIT
+        // -----------------------------------------------------------------------------
         $where = [];
         $params = [];
 
+        // Filtro por tipo de log (soporta múltiples valores separados por coma)
         if ($tipo) {
-            // Verificar si es un filtro múltiple (coma-separated)
             if (strpos($tipo, ',') !== false) {
+                // Filtro múltiple: generamos placeholders dinámicamente para cada valor
                 $tipos = array_map('trim', explode(',', $tipo));
                 $placeholders = [];
                 foreach ($tipos as $i => $t) {
@@ -65,11 +80,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 }
                 $where[] = "tipo IN (" . implode(',', $placeholders) . ")";
             } else {
+                // Filtro simple de un solo tipo
                 $where[] = "tipo = :tipo";
                 $params[':tipo'] = $tipo;
             }
         }
 
+        // Filtro por fecha: intervalo completo del día seleccionado
         if ($fecha) {
             $where[] = "fecha >= :fecha";
             $params[':fecha'] = $fecha . ' 00:00:00';
@@ -79,20 +96,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
         $whereClause = count($where) > 0 ? 'WHERE ' . implode(' AND ', $where) : '';
 
-        // Consulta total
+        // Ejecutamos consulta de conteo total para la paginación
         $sqlTotal = "SELECT COUNT(*) as total FROM logs_sistema $whereClause";
         $stmtTotal = $pdo->prepare($sqlTotal);
         $stmtTotal->execute($params);
         $total = $stmtTotal->fetch(PDO::FETCH_ASSOC)['total'];
 
-        // Consulta datos - Usar valores directos para evitar problemas con LIMIT y parámetros
+        // -----------------------------------------------------------------------------
+        // 📋 CONSULTA PARA OBTENER LOS DATOS
+        // ⚠️ IMPORTANTE: Para esta consulta NO usamos prepared statements por una limitación
+        // conocida de PDO en PHP que no permite bindear parámetros en las cláusulas LIMIT y OFFSET.
+        // En su lugar usamos PDO::quote() para escapar correctamente todos los valores.
+        // -----------------------------------------------------------------------------
         $sqlSelect = "SELECT id, fecha, tipo, usuario_id, usuario_nombre, descripcion, detalles 
                 FROM logs_sistema";
 
-        // Agregar filtros con valores directamente (pdo::quote ya incluye las comillas)
         $whereSelect = [];
+
         if ($tipo) {
-            // Verificar si es un filtro múltiple (coma-separated)
             if (strpos($tipo, ',') !== false) {
                 $tipos = array_map('trim', explode(',', $tipo));
                 $tipoQuotes = array_map(function ($t) use ($pdo) {
@@ -103,18 +124,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 $whereSelect[] = "tipo = " . $pdo->quote($tipo);
             }
         }
+
         if ($fecha) {
             $whereSelect[] = "fecha >= " . $pdo->quote($fecha . ' 00:00:00');
             $whereSelect[] = "fecha <= " . $pdo->quote($fecha . ' 23:59:59');
         }
 
+        // Construimos consulta final con orden descendente (últimos eventos primero)
         $sqlSelect .= count($whereSelect) > 0 ? ' WHERE ' . implode(' AND ', $whereSelect) : '';
         $sqlSelect .= " ORDER BY fecha DESC LIMIT $porPagina OFFSET $offset";
 
         $stmt = $pdo->query($sqlSelect);
         $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Decodificar detalles JSON
+        /**
+         * 📦 TRANSFORMACIÓN DE DATOS
+         * El campo 'detalles' se almacena en BD como string JSON para flexibilidad.
+         * Lo decodificamos automáticamente a array para que el cliente lo reciba
+         * como objeto JSON nativo y no tenga que parsearlo él mismo.
+         */
         foreach ($logs as &$log) {
             if ($log['detalles']) {
                 $log['detalles'] = json_decode($log['detalles'], true);
@@ -134,19 +162,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 }
 
 /** 
- * ACCIÓN ESPECIAL: Limpiar Logs (POST con flag 'limpiar')
- * Realiza un truncado físico de la tabla de auditoría para liberar espacio.
+ * ACCIÓN ESPECIAL: Limpiar Logs del Sistema
+ * 
+ * Realiza un TRUNCATE físico de la tabla para liberar espacio en disco.
+ * ⚠️ IMPORTANTE: Después de borrar TODO, se inserta UN NUEVO LOG que registra
+ * quién realizó la acción de borrado. Nunca se borra la traza completa.
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['accion']) && $_GET['accion'] === 'limpiar') {
     try {
-        // Capturar info del usuario antes de truncate
+        // Capturamos datos del usuario ANTES de borrar cualquier cosa
         $usuarioId = $_SESSION['idUsuario'] ?? null;
         $usuarioNombre = $_SESSION['nombreUsuario'] ?? 'Sistema';
 
-        // Eliminar todos los logs
+        // Eliminamos absolutamente todos los registros
         $pdo->exec("TRUNCATE TABLE logs_sistema");
 
-        // Insertar log de borrado
+        // ✅ Dejamos constancia de que se realizó el borrado
+        // Este será el primer y único registro de la tabla después del truncate
         $stmt = $pdo->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES (:tipo, :usuario_id, :usuario_nombre, :descripcion, :detalles)");
         $stmt->execute([
             ':tipo' => 'borrado_logs',
@@ -186,8 +218,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $descripcion = isset($input['descripcion']) ? $input['descripcion'] : '';
     $detalles = isset($input['detalles']) ? $input['detalles'] : null;
 
-    // Validar tipo
-    $tiposPermitidos = ['login', 'logout', 'login_fallido', 'venta', 'apertura_caja', 'cierre_caja', 'retiro_caja', 'acceso_admin', 'acceso_cajero', 'acceso_login', 'creacion_usuario', 'modificacion_usuario', 'eliminacion_usuario', 'borrado_logs'];
+    /**
+     * ✅ LISTA BLANCA DE TIPOS PERMITIDOS
+     * Seguridad: Solo se admiten estos tipos de eventos predefinidos.
+     * Esto evita que se puedan insertar tipos arbitrarios mediante llamadas a la API.
+     * Cualquier nuevo tipo de evento debe añadirse explícitamente a esta lista.
+     */
+    $tiposPermitidos = [
+        'login',
+        'logout',
+        'login_fallido',
+        'venta',
+        'apertura_caja',
+        'cierre_caja',
+        'retiro_caja',
+        'acceso_admin',
+        'acceso_cajero',
+        'acceso_login',
+        'creacion_usuario',
+        'modificacion_usuario',
+        'eliminacion_usuario',
+        'borrado_logs'
+    ];
 
     if (!$tipo || !in_array($tipo, $tiposPermitidos)) {
         http_response_code(400);

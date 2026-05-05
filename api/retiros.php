@@ -1,11 +1,22 @@
 <?php
 /**
- * API de Gestión de Retiros de Efectivo.
- * Proporciona acceso administrativo al historial de extracciones de caja,
- * permitiendo auditar los motivos e importes retirados durante la jornada.
+ * API de Auditoría de Retiros de Efectivo.
+ * 
+ * API exclusiva para administradores que proporciona acceso al historial
+ * de extracciones de efectivo realizadas desde caja. Esta API es SOLO LECTURA,
+ * no permite crear ni modificar retiros, solamente consultarlos.
+ * 
+ * ✅ Características:
+ *  - Control de acceso estricto solo para administradores
+ *  - Filtros predefinidos por rango de fecha
+ *  - Ordenación configurable por fecha e importe
+ *  - Información contextual completa con usuario y sesión de caja
+ *  - Modo debug para diagnóstico
+ *  - Verificación automática de existencia de la tabla
  * 
  * @author Alberto Méndez
- * @version 1.0 (04/03/2026)
+ * @version 1.1 (Comentarios añadidos)
+ * @since 1.0 (04/03/2026)
  */
 
 session_start();
@@ -29,7 +40,16 @@ $method = $_SERVER['REQUEST_METHOD'];
 if ($method === 'GET') {
     $orden = $_GET['orden'] ?? 'fecha_desc';
 
-    // Validar orden
+    /**
+     * 🛡️ WHITELIST PARA ORDENACIÓN
+     * 
+     * Se usa una lista blanca de valores permitidos para la ordenación.
+     * Esta es una medida de seguridad contra SQL Injection ya que el parámetro
+     * `orden` proviene directamente del usuario y no se puede parametrizar en la consulta.
+     * 
+     * Cualquier valor no reconocido se sustituye por el valor por defecto `fecha_desc`.
+     * NUNCA se concatena directamente entrada del usuario en la sentencia SQL.
+     */
     $ordenesValidos = [
         'fecha_desc' => 'r.fecha DESC',
         'fecha_asc' => 'r.fecha ASC',
@@ -46,10 +66,17 @@ if ($method === 'GET') {
         $pdo = new PDO(RUTA, USUARIO, PASS);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-        // Verificar si la tabla existe
+        /**
+         * 🧱 VERIFICACIÓN DE EXISTENCIA DE TABLA
+         * 
+         * Se comprueba que la tabla exista antes de realizar la consulta.
+         * Esto es necesario porque la tabla `retiros` se crea dinámicamente
+         * cuando se registra el primer retiro, no durante la instalación inicial.
+         * 
+         * Si no existe la tabla se devuelve un array vacío sin generar errores.
+         */
         $tablaExiste = $pdo->query("SHOW TABLES LIKE 'retiros'")->rowCount() > 0;
         if (!$tablaExiste) {
-            // La tabla no existe, retornar array vacío
             echo json_encode([]);
             exit;
         }

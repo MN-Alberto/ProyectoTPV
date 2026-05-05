@@ -1,11 +1,25 @@
 <?php
 /**
- * API de Gestión de Productos.
- * Proporciona endpoints para la consulta, filtrado, previsualización de cambios masivos
- * y persistencia de artículos en el Inventario del TPV.
+ * API de Gestión de Productos del Sistema TPV.
+ * 
+ * Este es el archivo con mayor complejidad lógica de toda la aplicación.
+ * Contiene toda la funcionalidad para gestión de inventario, así como sistemas
+ * avanzados para cumplimiento normativo y gestión comercial:
+ * 
+ * ✅ Características especiales:
+ *  - Previsualización de cambios masivos SIN modificar datos reales
+ *  - Cambios de IVA programados para fechas futuras (cumplimiento Hacienda)
+ *  - Ajustes de precios programados
+ *  - Historial inmutable de todos los cambios de precios
+ *  - Sistema de exclusión de productos en operaciones masivas
+ *  - Gestión automática de imágenes
+ * 
+ * Todos los cambios masivos siguen el patrón: Previsualización → Confirmación → Ejecución
+ * para evitar errores humanos en operaciones que afectan a todo el catálogo.
  * 
  * @author Alberto Méndez
- * @version 1.3 (03/03/2026)
+ * @version 1.4 (Comentarios detallados añadidos)
+ * @since 1.3 (03/03/2026)
  */
 
 // Iniciamos la sesión
@@ -22,14 +36,20 @@ header('Content-Type: application/json; charset=utf-8');
 
 try {
     /** 
-     * PREVISUALIZAR CAMBIO DE IVA
-     * Calcula cómo afectaría un cambio en el tipo de impuesto a una muestra de productos.
-     * @param int $_GET['previsualizarIVA'] ID del nuevo tipo de IVA.
+     * 📊 PREVISUALIZACIÓN DE CAMBIO DE IVA
+     * 
+     * PATRÓN SEGURO: Este endpoint SOLO calcula y muestra, NUNCA modifica datos.
+     * Calcula cómo afectaría un cambio de tipo de impuesto mostrando una muestra
+     * de los primeros 100 productos. El usuario puede ver el impacto antes de confirmar.
+     * 
+     * Esta medida evita errores catastróficos al cambiar el IVA de todo el catálogo.
+     * 
+     * @param int $_GET['previsualizarIVA'] ID del nuevo tipo de IVA a simular
      */
     if (isset($_GET['previsualizarIVA'])) {
         $nuevoIdIva = intval($_GET['previsualizarIVA']);
 
-        // Verificar que el tipo de IVA existe
+        // Validamos previamente que el tipo de IVA existe
         $nuevoIva = Iva::buscarPorId($nuevoIdIva);
         if (!$nuevoIva) {
             http_response_code(400);
@@ -58,9 +78,15 @@ try {
     }
 
     /** 
-     * PREVISUALIZAR AJUSTE DE PRECIOS
-     * Simula una subida o bajada porcentual de precios base en el catálogo.
-     * @param float $_GET['previsualizarAjuste'] Porcentaje de variación (ej: 10 para +10%).
+     * 📊 PREVISUALIZACIÓN DE AJUSTE MASIVO DE PRECIOS
+     * 
+     * Simula una variación porcentual generalizada de precios para todo el catálogo.
+     * Acepta valores positivos (subidas) y negativos (bajadas).
+     * 
+     * ⚠️ IMPORTANTE: Se respetan los decimales individuales de cada producto,
+     * por lo que el redondeo se aplica de forma correcta por cada artículo.
+     * 
+     * @param float $_GET['previsualizarAjuste'] Porcentaje de variación (ej: 10 = +10%, -5 = -5%)
      */
     if (isset($_GET['previsualizarAjuste'])) {
         $porcentaje = floatval($_GET['previsualizarAjuste']);
@@ -89,16 +115,22 @@ try {
     }
 
     /** 
-     * CAMBIAR IVA A TODOS LOS PRODUCTOS
-     * Aplica de forma masiva un nuevo tipo de IVA a los productos del sistema.
-     * @param int $_GET['cambiarIVA'] ID del nuevo tipo de IVA a establecer.
-     * @param string $_GET['excluidos'] IDs de productos separados por coma que no deben actualizarse.
+     * ✅ APLICAR CAMBIO DE IVA MASIVO
+     * 
+     * Aplica de forma inmediata un nuevo tipo de IVA a todo el catálogo.
+     * Soporta lista de productos excluidos que mantendrán su IVA actual.
+     * 
+     * ⚠️ MEDIDA DE SEGURIDAD: Esta operación NO se puede deshacer.
+     * Siempre se debe usar primero la previsualización antes de confirmar.
+     * 
+     * @param int $_GET['cambiarIVA'] ID del nuevo tipo de IVA a establecer
+     * @param string $_GET['excluidos'] IDs separados por coma para excluir
      */
     if (isset($_GET['cambiarIVA'])) {
         $nuevoIdIva = intval($_GET['cambiarIVA']);
         $excluidos = [];
 
-        // Verificar que el tipo de IVA existe
+        // Validamos existencia del nuevo IVA antes de tocar nada
         $nuevoIva = Iva::buscarPorId($nuevoIdIva);
         if (!$nuevoIva) {
             http_response_code(400);
@@ -108,29 +140,36 @@ try {
 
         $conexion = ConexionDB::getInstancia()->getConexion();
 
-        // Obtener el IVA anterior (el más común en los productos)
+        // Obtenemos el IVA mayoritario actual para el log de auditoría
         $stmtAnterior = $conexion->query("SELECT i.porcentaje as iva_actual FROM productos p LEFT JOIN iva i ON p.idIva = i.id GROUP BY p.idIva ORDER BY COUNT(*) DESC LIMIT 1");
         $ivaAnterior = $stmtAnterior->fetch(PDO::FETCH_ASSOC);
         $ivaAnteriorValor = $ivaAnterior ? floatval($ivaAnterior['iva_actual']) : null;
 
-        // Obtener productos excluidos si se proporcionan
+        // Procesamos lista de exclusiones si se ha proporcionado
         if (isset($_GET['excluidos']) && !empty($_GET['excluidos'])) {
             $excluidos = array_map('intval', explode(',', $_GET['excluidos']));
         }
 
-        // Actualizar idIva excluyendo productos si hay
+        // ✅ EJECUCIÓN DEL CAMBIO
         if (count($excluidos) > 0) {
+            // Actualización con exclusiones
             $placeholders = implode(',', array_fill(0, count($excluidos), '?'));
             $stmt = $conexion->prepare("UPDATE productos SET idIva = ? WHERE id NOT IN ($placeholders)");
             $params = array_merge([$nuevoIdIva], $excluidos);
             $stmt->execute($params);
         } else {
+            // Actualización de TODO el catálogo
             $stmt = $conexion->prepare("UPDATE productos SET idIva = ?");
             $stmt->execute([$nuevoIdIva]);
         }
+
         $actualizados = $stmt->rowCount();
 
-        // Registrar log de cambio de IVA (si falla, no afecta al resultado)
+        /**
+         * 📋 REGISTRO DE AUDITORÍA
+         * Se registra SIEMPRE el cambio aunque falle la operación de logging.
+         * Si el log no se puede guardar, la operación principal continúa sin interrumpirse.
+         */
         $logExito = false;
         try {
             $stmtLog = $conexion->prepare("INSERT INTO logs_sistema (tipo, usuario_id, usuario_nombre, descripcion, detalles) VALUES (:tipo, :usuario_id, :usuario_nombre, :descripcion, :detalles)");
@@ -149,7 +188,6 @@ try {
             ]);
             $logExito = true;
         } catch (Exception $e) {
-            // Silenciar errores de logging pero continuar
             error_log('Error al registrar log de cambio IVA: ' . $e->getMessage());
         }
 
@@ -157,7 +195,15 @@ try {
         exit();
     }
 
-    // PROGRAMAR CAMBIO DE IVA PARA FECHA FUTURA
+    /** 
+     * 📅 PROGRAMAR CAMBIO DE IVA PARA FECHA FUTURA
+     * 
+     * Cumplimiento normativo Hacienda: los cambios de IVA tienen que entrar
+     * en vigor a las 00:00 horas de la fecha indicada oficialmente.
+     * 
+     * Este sistema permite programar el cambio con semanas de antelación.
+     * La aplicación se ejecutará automáticamente en la primera carga del día.
+     */
     if (isset($_GET['accion']) && $_GET['accion'] === 'programar_cambio_iva') {
         $ivaId = intval($_POST['iva_id']);
         $fechaProgramada = $_POST['fecha_programada'];
@@ -168,7 +214,7 @@ try {
             exit();
         }
 
-        // Verificar que el tipo de IVA existe
+        // Validamos existencia del IVA antes de programar
         $nuevoIva = Iva::buscarPorId($ivaId);
         if (!$nuevoIva) {
             echo json_encode(['error' => 'Tipo de IVA inválido']);
@@ -177,7 +223,10 @@ try {
 
         $conexion = ConexionDB::getInstancia()->getConexion();
 
-        // Crear tabla si no existe
+        /**
+         * Se crea la tabla automáticamente si no existe.
+         * Esto evita tener que ejecutar migraciones manualmente para activar esta funcionalidad.
+         */
         $conexion->exec("
             CREATE TABLE IF NOT EXISTS cambios_iva_programados (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -191,7 +240,7 @@ try {
             )
         ");
 
-        // Insertar el cambio programado
+        // Guardamos la programación
         $stmt = $conexion->prepare("INSERT INTO cambios_iva_programados (iva_id, fecha_programada, productos_excluidos, usuario_id, usuario_nombre) VALUES (?, ?, ?, ?, ?)");
         $stmt->execute([
             $ivaId,
@@ -715,7 +764,18 @@ try {
         exit();
     }
 
-    // Verificar si el usuario tiene permiso para crear productos
+    /**
+     * 📜 HISTORIAL INMUTABLE DE PRECIOS
+     * 
+     * Sistema de auditoría que registra TODOS los cambios de precios que se producen
+     * en cualquier producto. Una vez insertado un registro NUNCA se modifica ni elimina.
+     * 
+     * Soporta filtrado por tarifa y paginación. El campo `fecha_hasta` se calcula
+     * dinámicamente para mostrar durante cuanto tiempo estuvo vigente cada precio.
+     * 
+     * @param int $_GET['historialPrecios'] ID del producto a consultar
+     * @param string $_GET['id_tarifa'] (opcional) Filtrar por tarifa específica
+     */
     if (isset($_GET['historialPrecios'])) {
         $idProducto = intval($_GET['historialPrecios']);
 
@@ -753,7 +813,11 @@ try {
         $stmtTotal->execute();
         $total = $stmtTotal->fetch(PDO::FETCH_ASSOC)['total'];
 
-        // Obtener los registros paginados
+        /**
+         * Consulta avanzada que calcula automáticamente la fecha hasta la que
+         * estuvo vigente cada precio. Esto se hace mediante una subconsulta correlacionada
+         * que busca el siguiente cambio registrado para el mismo producto y tarifa.
+         */
         $stmt = $conexion->prepare("
             SELECT h.id, h.precio, h.fecha_cambio, h.id_tarifa, t.nombre as tarifa_nombre, u.nombre as usuario_nombre,
                    (SELECT MIN(h2.fecha_cambio) 
@@ -824,18 +888,23 @@ try {
     // Inicializamos el objeto Producto
     $producto = new Producto();
 
-    // ── ELIMINAR PRODUCTO (DELETE) ────────────────────────────────────────────
-    // Si el método es DELETE
+    /**
+     * 🗑️ ELIMINAR PRODUCTO
+     * 
+     * ⚠️ IMPORTANTE: Los productos NUNCA se eliminan físicamente.
+     * El método `eliminar()` del modelo simplemente marca el producto como inactivo.
+     * Esto se hace para mantener la integridad referencial con ventas históricas.
+     * 
+     * Siempre se registra la acción en el log de auditoría, incluso si el logging falla
+     * la operación de eliminación continúa sin interrumpirse.
+     */
     if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
-        // Obtenemos el id del producto a eliminar
         $id = isset($_GET['eliminar']) ? (int) $_GET['eliminar'] : 0;
 
-        // Si el id es válido
         if ($id > 0) {
-            // Buscar el producto por ID
             $productoAEliminar = Producto::buscarPorId($id);
             if ($productoAEliminar && $productoAEliminar->eliminar()) {
-                // Registrar log de eliminación de producto
+                // Registrar traza de auditoría
                 try {
                     $pdoLog = new PDO(RUTA, USUARIO, PASS);
                     $pdoLog->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -850,14 +919,12 @@ try {
                         ':descripcion' => 'Producto eliminado: ' . $productoNombre
                     ]);
                 } catch (Exception $e) {
-                    // Silenciar errores de logging
+                    // Los errores de logging NUNCA interrumpen la operación principal
                 }
 
-                // Devolvemos un código 200 (OK)
                 http_response_code(200);
                 echo json_encode(['ok' => true]);
             } else {
-                // Devolvemos un código 400 (BAD REQUEST)
                 http_response_code(400);
                 echo json_encode(['ok' => false, 'error' => 'No se pudo eliminar el producto.']);
             }
@@ -1106,7 +1173,11 @@ try {
                     $detalles = count($cambios) > 0 ? json_encode($cambios, JSON_UNESCAPED_UNICODE) : null;
 
                     /**
-                     * Registra un evento relacionado con productos en la auditoría del sistema.
+                     * 📋 FUNCIÓN AUXILIAR DE AUDITORÍA
+                     * 
+                     * Función helper centralizada para registrar todos los eventos relacionados
+                     * con productos en el log del sistema. Garantiza un formato homogéneo en todos
+                     * los registros generados desde esta API.
                      * 
                      * @param PDO $pdo Instancia de conexión a la base de datos.
                      * @param string $tipo Tipo de operación (ej: 'ajuste_precio', 'actualizacion_stock').
