@@ -574,121 +574,191 @@ async function guardarClienteEditado() {
 
 // ── Carrusel de compras ───────────────────────────────────────────────────────
 
-function verComprasCliente(dni) {
-    const isDark = document.body.classList.contains('dark-mode');
-    const textColor = isDark ? '#e5e7eb' : '#1f2937';
-    const labelColor = isDark ? '#9ca3af' : '#6b7280';
-    const borderColor = isDark ? '#374151' : '#e5e7eb';
-    const bgColor = isDark ? '#1f2937' : '#ffffff';
+// ── Carrusel de compras ───────────────────────────────────────────────────────
 
+function verComprasCliente(dni) {
     document.getElementById('modalVerCompras')?.remove();
-    const loadingModal = document.createElement('div');
-    loadingModal.id = 'modalVerCompras';
-    loadingModal.className = 'modal-overlay';
-    loadingModal.style.display = 'flex';
-    loadingModal.innerHTML = `<div class="modal-content" style="max-width:700px;text-align:left;">
-        <h3 style="margin-bottom:15px;">Compras del Cliente</h3>
-        <p>Cargando compras...</p></div>`;
-    document.body.appendChild(loadingModal);
+
+    const overlay = document.createElement('div');
+    overlay.id = 'modalVerCompras';
+    overlay.className = 'modal-overlay compras-modal-overlay';
+    overlay.innerHTML = `
+        <div class="compras-modal-shell">
+            <div class="compras-modal-header">
+                <div class="compras-modal-header-left">
+                    <i class="fas fa-receipt"></i>
+                    <div>
+                        <span class="compras-modal-title">Historial de Compras</span>
+                        <span class="compras-modal-dni">${dni}</span>
+                    </div>
+                </div>
+                <button class="compras-modal-close" onclick="document.getElementById('modalVerCompras').remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="compras-modal-body">
+                <div class="compras-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Cargando compras...</span>
+                </div>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
     fetch(`api/clientes.php?compras=1&dni=${encodeURIComponent(dni)}`)
         .then(r => r.json())
         .then(ventas => {
-            const modal = document.getElementById('modalVerCompras');
+            const body = overlay.querySelector('.compras-modal-body');
             if (!ventas || ventas.error) throw new Error(ventas?.error || 'Error');
+
             if (!ventas.length) {
-                modal.innerHTML = `<div class="modal-content" style="max-width:500px;text-align:left;">
-                    <h3>Compras del Cliente</h3>
-                    <p>Este cliente no tiene compras registradas.</p>
-                    <button class="btn-modal-cancelar" onclick="document.getElementById('modalVerCompras').remove()">Cerrar</button>
-                </div>`;
+                body.innerHTML = `
+                    <div class="compras-empty">
+                        <i class="fas fa-shopping-bag"></i>
+                        <p>Este cliente no tiene compras registradas.</p>
+                    </div>`;
                 return;
             }
 
-            let slidesHtml = '';
-            ventas.forEach((v, i) => {
-                const fecha = new Date(v.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                const icon = { efectivo: 'fa-money-bill-wave', tarjeta: 'fa-credit-card', bizum: 'fa-mobile-alt' }[v.metodoPago] || 'fa-money-bill-wave';
-                const lineasHtml = (v.lineas || []).map(l => `
-                    <tr style="border-bottom:1px solid ${borderColor};">
-                        <td style="padding:8px;">${l.producto_nombre || 'Producto'}</td>
-                        <td style="padding:8px;text-align:center;">${l.cantidad}</td>
-                        <td style="padding:8px;text-align:right;">${l.precioUnitarioConIva.toFixed(2).replace('.', ',')} €</td>
-                        <td style="padding:8px;text-align:right;">${l.subtotalConIva.toFixed(2).replace('.', ',')} €</td>
+            const metodoIconos = {
+                efectivo: { icon: 'fa-money-bill-wave', cls: 'metodo-efectivo', label: 'Efectivo' },
+                tarjeta: { icon: 'fa-credit-card', cls: 'metodo-tarjeta', label: 'Tarjeta' },
+                bizum: { icon: 'fa-mobile-alt', cls: 'metodo-bizum', label: 'Bizum' }
+            };
+
+            const slidesHtml = ventas.map((v, i) => {
+                const fecha = new Date(v.fecha).toLocaleDateString('es-ES',
+                    { day: '2-digit', month: 'short', year: 'numeric' });
+                const hora = new Date(v.fecha).toLocaleTimeString('es-ES',
+                    { hour: '2-digit', minute: '2-digit' });
+                const ticket = `${v.serie || 'T'}${String(v.numero || v.id).padStart(5, '0')}`;
+                const metodo = metodoIconos[v.metodoPago] || metodoIconos.efectivo;
+                const lineas = (v.lineas || []);
+                const totalUnidades = lineas.reduce((s, l) => s + l.cantidad, 0);
+
+                const lineasHtml = lineas.map(l => `
+                    <tr>
+                        <td class="compras-td-prod">${l.producto_nombre || 'Producto'}</td>
+                        <td class="compras-td-num">${l.cantidad}</td>
+                        <td class="compras-td-num">${parseFloat(l.precioUnitarioConIva).toFixed(2).replace('.', ',')} €</td>
+                        <td class="compras-td-num compras-subtotal">${parseFloat(l.subtotalConIva).toFixed(2).replace('.', ',')} €</td>
                     </tr>`).join('');
 
-                slidesHtml += `
-                    <div class="carousel-sale-slide" data-index="${i}" style="display:${i === 0 ? 'block' : 'none'};">
-                        <div style="background:${isDark ? '#374151' : '#f3f4f6'};padding:12px;border-radius:8px;margin-bottom:15px;">
-                            <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-                                <div><span style="color:${labelColor};font-size:13px;">${v.serie || 'T'}${String(v.numero || v.id).padStart(5, '0')}</span>
-                                    <div style="font-weight:600;">${fecha}</div></div>
-                                <div style="text-align:right;"><span style="color:${labelColor};font-size:13px;">${v.usuario_nombre || 'Cajero'}</span>
-                                    <div><i class="fas ${icon}"></i> ${v.metodoPago}</div></div>
+                return `
+                    <div class="compras-slide" data-index="${i}" style="display:${i === 0 ? 'flex' : 'none'}">
+                        <div class="compras-ticket-header">
+                            <div class="compras-ticket-num">
+                                <span class="compras-ticket-label">Ticket</span>
+                                <span class="compras-ticket-value">#${ticket}</span>
+                            </div>
+                            <div class="compras-ticket-meta">
+                                <div class="compras-fecha">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    <span>${fecha}</span>
+                                </div>
+                                <div class="compras-hora">
+                                    <i class="fas fa-clock"></i>
+                                    <span>${hora}</span>
+                                </div>
                             </div>
                         </div>
-                        <div style="max-height:250px;overflow-y:auto;border:1px solid ${borderColor};border-radius:8px;">
-                            <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                                <thead style="background:${isDark ? '#1f2937' : '#f9fafb'};position:sticky;top:0;">
+
+                        <div class="compras-info-row">
+                            <div class="compras-metodo-badge ${metodo.cls}">
+                                <i class="fas ${metodo.icon}"></i>
+                                <span>${metodo.label}</span>
+                            </div>
+                            <div class="compras-cajero">
+                                <i class="fas fa-user-circle"></i>
+                                <span>${v.usuario_nombre || 'Cajero'}</span>
+                            </div>
+                            <div class="compras-unidades">
+                                <i class="fas fa-box"></i>
+                                <span>${totalUnidades} ud${totalUnidades !== 1 ? 's' : ''}.</span>
+                            </div>
+                        </div>
+
+                        <div class="compras-tabla-wrapper">
+                            <table class="compras-tabla">
+                                <thead>
                                     <tr>
-                                        <th style="padding:8px;text-align:left;">Producto</th>
-                                        <th style="padding:8px;text-align:center;">Cant.</th>
-                                        <th style="padding:8px;text-align:right;">Precio</th>
-                                        <th style="padding:8px;text-align:right;">Subtotal</th>
+                                        <th class="compras-th-prod">Producto</th>
+                                        <th class="compras-th-num">Cant.</th>
+                                        <th class="compras-th-num">Precio</th>
+                                        <th class="compras-th-num">Subtotal</th>
                                     </tr>
                                 </thead>
                                 <tbody>${lineasHtml}</tbody>
                             </table>
                         </div>
-                        <div style="display:flex;justify-content:flex-end;margin-top:12px;">
-                            <div style="background:${isDark ? '#1f2937' : '#f3f4f6'};padding:10px 20px;border-radius:8px;">
-                                Total: <strong>${parseFloat(v.total).toFixed(2).replace('.', ',')} €</strong>
-                            </div>
+
+                        <div class="compras-total-row">
+                            <span class="compras-total-label">Total</span>
+                            <span class="compras-total-valor">${parseFloat(v.total).toFixed(2).replace('.', ',')} €</span>
                         </div>
                     </div>`;
-            });
+            }).join('');
 
-            modal.innerHTML = `
-                <div class="modal-content" style="width:900px;min-height:520px;max-height:85vh;text-align:left;
-                    overflow:hidden;display:flex;flex-direction:column;background:${bgColor};
-                    box-sizing:border-box;position:relative;padding:20px 90px;">
-                    <button onclick="firstSaleSlide()" style="position:absolute;left:15px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:20px;cursor:pointer;padding:10px;">
-                        <i class="fas fa-angle-double-left"></i></button>
-                    <button onclick="prevSaleSlide()" style="position:absolute;left:60px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:28px;cursor:pointer;padding:10px;">
-                        <i class="fas fa-chevron-left"></i></button>
-                    <button onclick="nextSaleSlide()" style="position:absolute;right:60px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:28px;cursor:pointer;padding:10px;">
-                        <i class="fas fa-chevron-right"></i></button>
-                    <button onclick="lastSaleSlide()" style="position:absolute;right:15px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:20px;cursor:pointer;padding:10px;">
-                        <i class="fas fa-angle-double-right"></i></button>
-                    <h3 style="margin-bottom:15px;text-align:center;">
-                        <span id="compraActualTitulo">Compra 1 de ${ventas.length}</span></h3>
-                    <div style="flex:1;overflow-y:auto;padding:5px;min-height:350px;max-height:400px;">${slidesHtml}</div>
-                    <div style="display:flex;justify-content:center;margin-top:5px;">
-                        <button class="btn-modal-cancelar" onclick="document.getElementById('modalVerCompras').remove()">Cerrar</button>
+            const MAX_DOTS = 8;
+            const dotsHtml = ventas.length > 1 && ventas.length <= MAX_DOTS
+                ? `<div class="compras-dots">${ventas.map((_, i) =>
+                    `<button class="compras-dot${i === 0 ? ' active' : ''}" onclick="goToSaleSlide(${i})" title="Compra ${i + 1}"></button>`
+                ).join('')}</div>`
+                : '';
+
+            body.innerHTML = `
+                <div class="compras-slides-container">${slidesHtml}</div>
+                <div class="compras-nav">
+                    <div class="compras-nav-left">
+                        <button class="compras-nav-btn" onclick="firstSaleSlide()" title="Primera"><i class="fas fa-angle-double-left"></i></button>
+                        <button class="compras-nav-btn" onclick="prevSaleSlide()" title="Anterior"><i class="fas fa-chevron-left"></i></button>
+                    </div>
+                    <div class="compras-nav-center">
+                        ${dotsHtml}
+                        <span class="compras-counter" id="compraActualTitulo">1 / ${ventas.length}</span>
+                    </div>
+                    <div class="compras-nav-right">
+                        <button class="compras-nav-btn" onclick="nextSaleSlide()" title="Siguiente"><i class="fas fa-chevron-right"></i></button>
+                        <button class="compras-nav-btn" onclick="lastSaleSlide()" title="Última"><i class="fas fa-angle-double-right"></i></button>
                     </div>
                 </div>`;
-            modal.dataset.totalSlides = ventas.length;
+
+            overlay.dataset.totalSlides = ventas.length;
             currentSaleSlide = 0;
+            _updateNavButtons();
         })
-        .catch(err => {
-            document.getElementById('modalVerCompras').innerHTML = `
-                <div class="modal-content" style="max-width:500px;">
-                    <h3>Error</h3><p>Error al cargar las compras del cliente.</p>
-                    <button class="btn-modal-cancelar" onclick="document.getElementById('modalVerCompras').remove()">Cerrar</button>
+        .catch(() => {
+            overlay.querySelector('.compras-modal-body').innerHTML = `
+                <div class="compras-empty compras-error">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>No se pudieron cargar las compras.</p>
                 </div>`;
         });
+}
+
+function _updateNavButtons() {
+    const modal = document.getElementById('modalVerCompras');
+    if (!modal) return;
+    const total = parseInt(modal.dataset.totalSlides) || 1;
+    const dots = modal.querySelectorAll('.compras-dot');
+    dots.forEach((d, i) => d.classList.toggle('active', i === currentSaleSlide));
+    const counter = document.getElementById('compraActualTitulo');
+    if (counter) counter.textContent = `${currentSaleSlide + 1} / ${total}`;
 }
 
 function changeSaleSlide(index) {
     const modal = document.getElementById('modalVerCompras');
     if (!modal) return;
-    const totalSlides = parseInt(modal.dataset.totalSlides) || 0;
-    modal.querySelectorAll('.carousel-sale-slide').forEach(s => s.style.display = 'none');
-    modal.querySelectorAll('.carousel-sale-slide')[index].style.display = 'block';
-    const titulo = document.getElementById('compraActualTitulo');
-    if (titulo) titulo.textContent = `Compra ${index + 1} de ${totalSlides}`;
+    const slides = modal.querySelectorAll('.compras-slide');
+    slides.forEach(s => s.style.display = 'none');
+    if (slides[index]) slides[index].style.display = 'flex';
     currentSaleSlide = index;
+    _updateNavButtons();
 }
+
+function goToSaleSlide(i) { changeSaleSlide(i); }
 function nextSaleSlide() { const m = document.getElementById('modalVerCompras'); if (m) changeSaleSlide((currentSaleSlide + 1) % parseInt(m.dataset.totalSlides)); }
 function prevSaleSlide() { const m = document.getElementById('modalVerCompras'); if (m) changeSaleSlide((currentSaleSlide - 1 + parseInt(m.dataset.totalSlides)) % parseInt(m.dataset.totalSlides)); }
 function firstSaleSlide() { changeSaleSlide(0); }

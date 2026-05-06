@@ -329,21 +329,18 @@ if (isset($_GET['detalleVenta'])) {
         }
 
         // Obtener datos de descuento de la venta (si existen)
-        $stmtDescuento = $conexion->prepare("SHOW COLUMNS FROM tickets LIKE 'descuento%'");
-        $stmtDescuento->execute();
-        $camposDescuento = $stmtDescuento->fetchAll(PDO::FETCH_COLUMN);
-
         $descuentosVenta = [];
-        if (!empty($camposDescuento)) {
-            $stmtDesc = $conexion->prepare("SELECT * FROM ventas WHERE id = ?");
-            $stmtDesc->execute([$idVenta]);
-            $ventaDesc = $stmtDesc->fetch(PDO::FETCH_ASSOC);
-            if ($ventaDesc) {
-                foreach ($camposDescuento as $campo) {
-                    if (isset($ventaDesc[$campo]) && $ventaDesc[$campo] !== '' && $ventaDesc[$campo] !== 'ninguno') {
-                        $descuentosVenta[$campo] = $ventaDesc[$campo];
-                    }
-                }
+        $camposInteres = [
+            'descuento_manual_tipo', 'descuento_manual_valor', 'descuento_manual_cupon',
+            'descuentoManualTipo', 'descuentoManualValor', 'descuentoManualCupon',
+            'descuento_tarifa_tipo', 'descuento_tarifa_valor', 'descuento_tarifa_cupon',
+            'descuentoTarifaTipo', 'descuentoTarifaValor', 'descuentoTarifaCupon',
+            'puntos_canjeados', 'puntos_ganados'
+        ];
+        
+        foreach ($camposInteres as $campo) {
+            if (isset($venta[$campo])) {
+                $descuentosVenta[$campo] = $venta[$campo];
             }
         }
 
@@ -352,7 +349,8 @@ if (isset($_GET['detalleVenta'])) {
         $nif = Verifactu::getConfig('TPV_NIF');
         $serieStr = $venta['serie'] ?? '';
         $numeroStr = $venta['numero'] ?? '';
-        $numSerie = preg_replace('/\s+/', '', $serieStr . $numeroStr);
+        $numeroPadded = str_pad($numeroStr, 5, '0', STR_PAD_LEFT);
+        $numSerie = preg_replace('/\s+/', '', $serieStr . $numeroPadded);
         $params = [
             'nif' => $nif,
             'numserie' => $numSerie,

@@ -281,7 +281,7 @@ function generarHTMLComprobante(datosVenta, idioma = 'es') {
                     <div style="color:#666">${T.print.date}: ${datosVenta.fecha}</div>
                     ${isRectificativa && datosVenta.id_original ? `
                         <div style="margin-top:5px; font-size:12px; font-weight:bold; color:#dc2626;">
-                            ${T.print.rectificativa_original_ref || 'Rectifica a:'} ${datosVenta.serie_original || 'T'}${String(datosVenta.id_original).padStart(5, '0')}
+                            ${T.print.rectificativa_original_ref || 'Rectifica a:'} ${datosVenta.serie_original || 'T'}${String(datosVenta.numero_original || datosVenta.id_original).padStart(5, '0')}
                         </div>
                     ` : ''}
                 </div>
@@ -329,11 +329,11 @@ function generarHTMLComprobante(datosVenta, idioma = 'es') {
                 <h1 style="margin:0; font-size:15px; text-transform:uppercase;">${TPV_CONFIG.nombre}</h1>
                 <div style="font-size:9px;">NIF: ${TPV_CONFIG.nif} | ${TPV_CONFIG.direccion}</div>
                 <div style="font-size:10px; margin-top:4px; font-weight:bold;">${tipoTitulo}</div>
-                <div class="flex-row" style="margin-top:6px;"><span>Nº: ${numComprobante}</span><span>${datosVenta.fecha}</span></div>
+                <div class="flex-row" style="margin-top:6px;"><span>Nº: ${numComprobante}</span><span style="margin-left: 10px;">${datosVenta.fecha}</span></div>
             </div>
                 ${isRectificativa && datosVenta.id_original ? `
                     <div style="margin-bottom:8px; font-size:10px; font-weight:bold; color:#dc2626;">
-                        ${T.print.rectificativa_original_ref || 'Rectifica a:'} ${datosVenta.serie_original || 'T'}${String(datosVenta.id_original).padStart(5, '0')}
+                        ${T.print.rectificativa_original_ref || 'Rectifica a:'} ${datosVenta.serie_original || 'T'}${String(datosVenta.numero_original || datosVenta.id_original).padStart(5, '0')}
                     </div>
                 ` : ''}
                 ${datosVenta.clienteNombre ? `<div style="margin-bottom:8px; font-size:10px; border:1px solid #eee; padding:4px;"><strong>Cliente:</strong> ${datosVenta.clienteNombre}</div>` : ''}

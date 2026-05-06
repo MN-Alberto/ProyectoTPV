@@ -433,13 +433,13 @@ return [
     ],
 
     // ======================== MODAL: FEHLER ========================
-    'errors' => [
-        'sale_error' => 'Verkaufsfehler',
+    'sale_error' => [
+        'title' => 'Verkaufsfehler',
         'accept' => 'Akzeptieren',
     ],
 
     // ======================== MODAL: PUNKTE NACH VERKAUF ========================
-    'points_post' => [
+    'points_earned' => [
         'title' => 'Punkte gesammelt!',
         'subtitle' => 'Der Kunde hat auf diesem Einkauf Punkte erhalten und/oder verwendet.',
         'earned_now' => 'Jetzt erhaltene Punkte:',
@@ -720,6 +720,7 @@ return [
 
     // ======================== WARENKORB ========================
     'cart' => [
+        'alert_invalid_coupon' => '❌ Ungültiger Gutschein!',
         'empty_message' => 'Fügen Sie Produkte hinzu um den Verkauf durchzuführen',
         'postponed_success1' => 'Verkauf erfolgreich verschoben mit',
         'postponed_success2' => 'Produkten. Sie kann jederzeit wiederhergestellt werden.',

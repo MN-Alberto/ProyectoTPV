@@ -5,6 +5,7 @@
  */
 
 let totalPaginasVentas = 1;
+let devolucionesListData = [];
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // VENTAS
@@ -275,12 +276,30 @@ function verDetalleVenta(idVenta) {
 
             // Descuentos
             let discountSection = '';
-            if (descuentos.descuentoTarifaCupon === 'CLIENTE_REGISTRADO' || (descuentos.descuentoManualCupon && descuentos.descuentoManualCupon !== '')) {
+            const manualCupon = descuentos.descuento_manual_cupon !== undefined ? descuentos.descuento_manual_cupon : descuentos.descuentoManualCupon;
+            const manualTipo = descuentos.descuento_manual_tipo !== undefined ? descuentos.descuento_manual_tipo : descuentos.descuentoManualTipo;
+            const manualValor = descuentos.descuento_manual_valor !== undefined ? descuentos.descuento_manual_valor : descuentos.descuentoManualValor;
+            const tarifaCupon = descuentos.descuento_tarifa_cupon !== undefined ? descuentos.descuento_tarifa_cupon : descuentos.descuentoTarifaCupon;
+            const tarifaValor = descuentos.descuento_tarifa_valor !== undefined ? descuentos.descuento_tarifa_valor : descuentos.descuentoTarifaValor;
+            const ptsCanjeados = parseInt(descuentos.puntos_canjeados !== undefined ? descuentos.puntos_canjeados : (descuentos.puntosCanjeados !== undefined ? descuentos.puntosCanjeados : (manualCupon && typeof manualCupon === 'string' && (manualCupon.startsWith('PUNTOS_CANJEADOS:') || manualCupon.startsWith('PUNTOS_')) ? (manualCupon.includes(':') ? manualCupon.split(':')[1] : manualCupon.split('_')[1]) : 0))) || 0;
+
+            const hasManualValor = manualValor !== undefined && manualValor !== null && manualValor !== '' && parseFloat(manualValor) !== 0;
+
+            if (tarifaCupon === 'CLIENTE_REGISTRADO' || (manualCupon && manualCupon !== '') || ptsCanjeados > 0 || hasManualValor) {
                 let items = [];
-                if (descuentos.descuentoTarifaCupon === 'CLIENTE_REGISTRADO') 
-                    items.push(`<li><i class="fas fa-user-tag"></i> Cliente registrado: <strong>-${descuentos.descuentoTarifaValor}%</strong></li>`);
-                if (descuentos.descuentoManualCupon && descuentos.descuentoManualCupon !== '') {
-                    const val = descuentos.descuentoManualTipo === 'porcentaje' ? `-${descuentos.descuentoManualValor}%` : `-${parseFloat(descuentos.descuentoManualValor).toFixed(2)}€`;
+                if (tarifaCupon === 'CLIENTE_REGISTRADO') 
+                    items.push(`<li><i class="fas fa-user-tag"></i> Cliente registrado: <strong>-${tarifaValor}%</strong></li>`);
+                
+                if (ptsCanjeados > 0) {
+                    let val = parseFloat(manualValor || 0);
+                    if (val === 0) val = (ptsCanjeados / 1000) * 5;
+                    const valStr = val.toFixed(2);
+                    items.push(`<li><i class="fas fa-coins" style="color:#f59e0b"></i> Puntos canjeados: <strong>${ptsCanjeados} pts (-${valStr}€)</strong></li>`);
+                } else if (manualCupon && manualCupon !== '') {
+                    const val = manualTipo === 'porcentaje' ? `-${manualValor}%` : `-${parseFloat(manualValor || 0).toFixed(2)}€`;
+                    items.push(`<li><i class="fas fa-ticket-alt" style="color:#6366f1"></i> Cupón aplicado (${manualCupon}): <strong>${val}</strong></li>`);
+                } else if (hasManualValor) {
+                    const val = manualTipo === 'porcentaje' ? `-${manualValor}%` : `-${parseFloat(manualValor || 0).toFixed(2)}€`;
                     items.push(`<li><i class="fas fa-tag"></i> Descuento manual: <strong>${val}</strong></li>`);
                 }
                 discountSection = `
@@ -459,6 +478,7 @@ function cargarDevolucionesAdmin(orden = 'fecha_desc', busquedaTicket = '', rese
 function renderDevolucionesAdmin(devoluciones, esPrimeraVez = true, orden = 'fecha_desc', busquedaTicket = '', total = 0) {
     const contenedor = document.getElementById('adminContenido');
     const totalDev = total || (devoluciones ? devoluciones.length : 0);
+    devolucionesListData = devoluciones || [];
 
     if (!devoluciones || !devoluciones.length) {
         if (esPrimeraVez || !adminTablaHeaderHTML) {
@@ -484,7 +504,7 @@ function renderDevolucionesAdmin(devoluciones, esPrimeraVez = true, orden = 'fec
             { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         return `
             <tr>
-                <td class="col-ticket" style="font-weight:600;color:#1e40af;">${dev.serie || 'T'}${String(dev.numero || dev.idVenta || '—').padStart(5, '0')}</td>
+                <td class="col-ticket" style="font-weight:600;color:#1e40af;">${dev.orig_serie || 'T'}${String(dev.orig_numero || dev.idVenta || '—').padStart(5, '0')}</td>
                 <td class="col-fecha">${fecha}</td>
                 <td class="col-usuario">${dev.usuario_nombre || '—'}</td>
                 <td class="col-producto">${dev.producto_nombre || '—'}</td>
@@ -536,20 +556,25 @@ function verDetalleDevolucion(id) {
             </div>`;
     }
 
-    fetch('api/devoluciones.php?todas=1')
+    // Buscar la devolución en la lista local para obtener el idVenta (original)
+    const devLocal = devolucionesListData.find(d => d.id == id);
+    if (!devLocal) { alert('No se encontró la devolución en la lista'); return; }
+
+    const idVentaOriginal = devLocal.idVenta;
+
+    fetch(`api/devoluciones.php?detalleVenta=${idVentaOriginal}`)
         .then(r => r.json())
         .then(data => {
-            const lista = data.devoluciones || data;
-            const dev = lista.find(d => d.id == id);
-            if (!dev) { alert('No se encontró la devolución'); return; }
-
-            // Guardar para el botón "Imprimir" (antes Ver Ticket)
-            window._ultimaDevAdmin = dev;
-            window._todasDevolucionesAdmin = lista;
-
-            // Agrupar lote
-            const lote = lista.filter(d => d.idVenta == dev.idVenta && d.fecha === dev.fecha);
+            if (!data || data.length === 0) { alert('No se encontraron detalles de la devolución'); return; }
             
+            // Filtrar lote: aquellas que coincidan en fecha con la seleccionada (o todas si solo hay un lote)
+            // En la API detalleVenta ya vienen agrupadas por el idVentaOriginal
+            const lote = data.filter(d => d.fecha === devLocal.fecha);
+            if (lote.length === 0) { alert('No se encontraron productos para esta fecha de devolución'); return; }
+
+            const devInfo = lote[0]; // Info común (serie, numero, rect_serie, etc)
+            window._ultimaDevAdmin = devLocal;
+
             const carrito = lote.map(linea => ({
                 nombre: linea.producto_nombre || '—',
                 cantidad: linea.cantidad,
@@ -560,40 +585,26 @@ function verDetalleDevolucion(id) {
 
             const totalGeneral = carrito.reduce((sum, item) => sum + item.importeTotal, 0);
 
-            const nifTpv = (window.TPV_CONFIG && window.TPV_CONFIG.nif) ? window.TPV_CONFIG.nif : '';
-            const serie = dev.serie || 'D';
-            const numeroReal = dev.numero || dev.idVenta || dev.id;
-            const numserie = serie + numeroReal;
-
-            const qrParams = new URLSearchParams({
-                nif: nifTpv,
-                numserie: numserie,
-                fecha: (() => {
-                    const d = new Date(dev.fecha);
-                    return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
-                })(),
-                importe: (-totalGeneral).toFixed(2)
-            });
-
+            // Mapeo correcto para generarHTMLComprobante
             const datosVenta = {
-                id: numeroReal,
-                serie: serie,
-                numero: numeroReal,
-                fecha: new Date(dev.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                id: devInfo.rect_numero || devInfo.id,
+                serie: devInfo.rect_serie || 'D',
+                numero: devInfo.rect_numero || devInfo.id,
+                fecha: new Date(devInfo.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
                 tipo: 'ticket',
                 es_rectificativa: true,
-                id_original: dev.idVenta,
-                serie_original: dev.serie_original || 'T',
+                id_original: devInfo.idVenta,
+                serie_original: devInfo.orig_serie || 'T',
+                numero_original: devInfo.orig_numero,
                 total: -totalGeneral,
-                metodoPago: dev.metodoPago,
+                metodoPago: devInfo.metodoPago,
                 carrito: carrito,
-                usuario_nombre: dev.usuario_nombre,
-                qrUrl: ((window.TPV_CONFIG && window.TPV_CONFIG.qrBaseUrl) || 'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR') + '?' + qrParams.toString()
+                usuario_nombre: devLocal.usuario_nombre,
+                qrUrl: devInfo.qrUrl
             };
 
             const html = generarHTMLComprobante(datosVenta, 'es');
             if (container) {
-                // Insertar solo el body del ticket generado para que se vea bien en el modal
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
                 const bodyContent = doc.body.innerHTML;
@@ -601,7 +612,10 @@ function verDetalleDevolucion(id) {
             }
             abrirModal('modalVerDevolucion');
         })
-        .catch(() => alert('Error al cargar detalles'));
+        .catch(err => {
+            console.error(err);
+            alert('Error al cargar detalles');
+        });
 }
 
 
@@ -892,7 +906,7 @@ function imprimirVentaDesdeHistorial(idVenta) {
             // Usar numero de ventas_ids, o id de la venta si no existe numero
             // Intentamos buscar ID en diferentes claves por si acaso (id, ID, idVenta)
             const numeroReal = venta.numero || venta.id || venta.ID || venta.idVenta || idVenta;
-            const numserie = serie + numeroReal;
+            const numserie = (serie + String(numeroReal).padStart(5, '0')).replace(/\s+/g, '');
 
             const qrParams = new URLSearchParams({
                 nif: nifTpv,

@@ -389,14 +389,18 @@ function verProducto(id) {
 
     document.getElementById('verProductoNombre').textContent = nombre;
     document.getElementById('verProductoCategoria').textContent = categoria;
-    document.getElementById('verProductoPrecio').textContent =
-        (mostrarConIva ? precioPVP : precioBase).toFixed(decimals).replace('.', ',') + ' €';
+    
+    const precioFmt = (mostrarConIva ? precioPVP : precioBase).toFixed(decimals).replace('.', ',') + ' €';
+    document.getElementById('verProductoPrecio').textContent = precioFmt;
+    document.getElementById('verProductoPrecioLabel').textContent = mostrarConIva ? 'Precio Final (PVP)' : 'Base Imponible (Sin IVA)';
+
     document.getElementById('verProductoStock').textContent = stock;
     document.getElementById('verProductoIva').textContent = `${ivaValue}% (${ivaNombre})`;
-    document.getElementById('verProductoDecimales').textContent = decimals;
-    document.getElementById('verProductoEstado').innerHTML = estado === 'Activo'
-        ? '<span class="admin-badge badge-activo">Activo</span>'
-        : '<span class="admin-badge badge-inactivo">Inactivo</span>';
+    
+    const badgeCont = document.getElementById('verProductoBadgeEstado');
+    badgeCont.innerHTML = estado === 'Activo'
+        ? '<span class="admin-badge badge-activo" style="box-shadow: 0 2px 8px rgba(30,64,175,0.2);">Activo</span>'
+        : '<span class="admin-badge badge-inactivo" style="box-shadow: 0 2px 8px rgba(0,0,0,0.1);">Inactivo</span>';
 
     document.getElementById('modalVerProducto').style.display = 'flex';
 }

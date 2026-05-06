@@ -293,7 +293,6 @@ return [
         'will_use' => 'Seront utilisés',
         'btn_continue_no_points' => 'Continuer sans points',
         'title_add_to_canjear' => 'Ajoutez des produits au panier pour échanger des points',
-        'title_apply_descuento' => 'Appliquer remise points',
     ],
 
     // ======================== MODAL: SUCCÈS VENTE ========================
@@ -431,13 +430,13 @@ return [
     ],
 
     // ======================== MODAL: ERREURS ========================
-    'errors' => [
-        'sale_error' => 'Erreur vente',
+    'sale_error' => [
+        'title' => 'Erreur vente',
         'accept' => 'Accepter',
     ],
 
     // ======================== MODAL: POINTS POST-VENTE ========================
-    'points_post' => [
+    'points_earned' => [
         'title' => 'Points accumulés !',
         'subtitle' => 'Le client a gagné et/ou utilisé des points sur cet achat.',
         'earned_now' => 'Points gagnés maintenant :',
@@ -718,6 +717,7 @@ return [
 
     // ======================== PANIER ========================
     'cart' => [
+        'alert_invalid_coupon' => '❌ Coupon non valide !',
         'empty_message' => 'Ajoutez des produits pour effectuer la vente',
         'postponed_success1' => 'Vente reportée avec succès avec',
         'postponed_success2' => 'produits. Vous pouvez la récupérer à tout moment.',

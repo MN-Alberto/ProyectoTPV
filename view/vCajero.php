@@ -1,4 +1,4 @@
-<?php 
+<?php
 // vCajero.php - Terminal Punto de Venta
 ?>
 <!-- ============================================================================
@@ -32,14 +32,14 @@
     };
 
     var idiomaTicketSeleccionado = '<?php echo $_SESSION['lang'] ?? 'es'; ?>';
-    var LANG = IDIOMAS_TICKET[idiomaTicketSeleccionado] || IDIOMAS_TICKET.es; 
+    var LANG = IDIOMAS_TICKET[idiomaTicketSeleccionado] || IDIOMAS_TICKET.es;
 
     // Datos fiscales del TPV para impresin (Dinmicos - Verifactu)
     var TPV_CONFIG = {
         nif: '<?php echo addslashes(Verifactu::getConfig('TPV_NIF', 'B00000000')); ?>',
         nombre: '<?php echo addslashes(Verifactu::getConfig('TPV_RAZON_SOCIAL', 'TPV Bazar')); ?>',
         direccion: '<?php echo addslashes(Verifactu::getConfig('TPV_DIRECCION', 'C/ Principal 1, Madrid')); ?>',
-        qrBaseUrl: 'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR'
+        qrBaseUrl: '<?php echo addslashes(Verifactu::getQRBaseUrl()); ?>'
     };
 
     // Contexto global del cajero (variables inyectadas desde PHP)
@@ -82,9 +82,9 @@
 
             <!-- INDICADOR DE EFECTIVO EN CAJA -->
             <?php if ($sesionCaja): ?>
-                <div class="indicador-efectivo" title="Efectivo actual en caja">
+                <div class="indicador-efectivo" id="cajeroIndicadorCaja" title="Efectivo actual en caja">
                     <span class="label"><?php echo t('cajero.cash_in_register'); ?></span>
-                    <span class="amount"><?php echo number_format($sesionCaja->getImporteActual(), 2, ',', '.'); ?> €</span>
+                    <span class="amount" id="cajeroEfectivoValor"><?php echo number_format($sesionCaja->getImporteActual(), 2, ',', '.'); ?> €</span>
                 </div>
                 <?php
             else: ?>
@@ -1721,7 +1721,7 @@ endif; ?>
                 </div>
 
                 <div
-                    style="border: 1px solid var(--border-main); border-radius: 12px; overflow: hidden; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); max-height: 300px; overflow-y: auto;">
+                    style="border: 1px solid var(--border-main); border-radius: 12px; overflow: hidden; margin-bottom: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
                     <table class="tabla-productos-devolucion" style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="background: var(--bg-panel); border-bottom: 2px solid var(--border-main);">
@@ -1743,6 +1743,9 @@ endif; ?>
                             <!-- Se rellena dinámicamente -->
                         </tbody>
                     </table>
+                </div>
+                <!-- Paginación de productos de devolución -->
+                <div id="paginacionDevolucion" style="display: flex; justify-content: center; margin-bottom: 15px;">
                 </div>
 
                 <div class="form-group-premium" style="margin-top: 25px;">
@@ -1877,8 +1880,10 @@ endif; ?>
                             €</span>
                     </p>
                     <?php if (isset($_SESSION['devolucionDetalles']['rectificativa']) && !$_SESSION['devolucionDetalles']['rectificativa']['success']): ?>
-                        <div style="margin-top: 10px; padding: 10px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px; color: #9a3412; font-size: 0.8rem;">
-                            <strong>⚠️ Error Fiscal (AEAT):</strong> <?php echo htmlspecialchars($_SESSION['devolucionDetalles']['rectificativa']['message'] ?? 'Error desconocido'); ?>
+                        <div
+                            style="margin-top: 10px; padding: 10px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px; color: #9a3412; font-size: 0.8rem;">
+                            <strong>⚠️ Error Fiscal (AEAT):</strong>
+                            <?php echo htmlspecialchars($_SESSION['devolucionDetalles']['rectificativa']['message'] ?? 'Error desconocido'); ?>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -1963,7 +1968,8 @@ endif; ?>
                 <div class="form-group-premium">
                     <label for="importeRetiro"><?php echo t('withdraw.amount'); ?></label>
                     <input type="number" name="importeRetiro" id="importeRetiro" step="0.0001" min="0.0001"
-                        oninput="validarPrecisionDinamica(this)" onblur="validarPrecisionDinamica(this)" placeholder="0.00" required>
+                        oninput="validarPrecisionDinamica(this)" onblur="validarPrecisionDinamica(this)"
+                        placeholder="0.00" required>
                     <small style="color: var(--text-muted); display: block; margin-top: 5px;">
                         <?php echo t('withdraw.available'); ?>: <span
                             id="efectivoDisponible"><?php echo number_format($sesionCaja ? $sesionCaja->getImporteActual() : 0, 2, ',', '.'); ?></span>
@@ -2005,7 +2011,8 @@ endif; ?>
                     <path d="M6 12h.01M18 12h.01"></path>
                 </svg>
             </div>
-            <h3 style="text-align: center; margin-top: 10px; border-top:none; padding-top:0; color: var(--text-header); font-size: 1.4rem;">
+            <h3
+                style="text-align: center; margin-top: 10px; border-top:none; padding-top:0; color: var(--text-header); font-size: 1.4rem;">
                 <?php echo t('withdraw_success.title'); ?>
             </h3>
             <p class="modal-subtitulo-cliente"><?php echo t('withdraw_success.subtitle'); ?></p>

@@ -73,4 +73,35 @@ if ($accion === 'limpiarInterrupcion') {
     exit();
 }
 
+/**
+ * ACCIÓN: Obtener estado actual de la caja
+ * 
+ * Devuelve el importe actual de efectivo en caja y el estado de la sesión.
+ * Usado para polling AJAX desde admin y cajero para mantener el indicador actualizado.
+ */
+if ($accion === 'estado') {
+    $sesionCaja = Caja::obtenerSesionAbierta();
+
+    if ($sesionCaja) {
+        echo json_encode([
+            'success' => true,
+            'cajaAbierta' => true,
+            'id' => $sesionCaja->getId(),
+            'importeActual' => round((float) $sesionCaja->getImporteActual(), 2),
+            'importeInicial' => round((float) $sesionCaja->getImporteInicial(), 2),
+            'estado' => $sesionCaja->getEstado()
+        ]);
+    } else {
+        // Devolver cambio de última sesión cerrada si existe
+        $ultimaCaja = Caja::obtenerUltimaSesionCerrada();
+        echo json_encode([
+            'success' => true,
+            'cajaAbierta' => false,
+            'importeActual' => 0,
+            'cambioSiguiente' => $ultimaCaja ? round((float) $ultimaCaja->getCambio(), 2) : 0
+        ]);
+    }
+    exit();
+}
+
 echo json_encode(['success' => false, 'message' => 'Acción no válida']);
