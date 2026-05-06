@@ -511,77 +511,74 @@ function verDetalleDevolucion(id) {
  * devueltos en el mismo lote (mismo idVenta y misma fecha).
  */
 function verTicketDevolucion(idDevolucion) {
-    console.log('🔴 verTicketDevolucion llamada para id: ', idDevolucion);
+    let dev = idDevolucion ? null : window._ultimaDevAdmin;
+    
+    // Si no tenemos el objeto dev, no podemos saber el idVenta original para la API detalle
+    if (!dev && !idDevolucion) {
+        alert('No hay datos de devolución');
+        return;
+    }
 
-    fetch('api/devoluciones.php?todas=1&_=' + Date.now(), {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
-    })
-    .then(res => res.json())
-    .then(data => {
-        const todas = data.devoluciones || data || [];
-        let dev = idDevolucion ? todas.find(d => d.id == idDevolucion) : window._ultimaDevAdmin;
+    // Si tenemos el ID pero no el objeto, lo buscamos en el listado global (si existe)
+    if (!dev && idDevolucion) {
+        dev = typeof devolucionesListData !== 'undefined' ? devolucionesListData.find(d => d.id == idDevolucion) : null;
+    }
 
-        if (!dev) {
-            alert('No hay datos de devolución');
-            return;
-        }
+    // Si seguimos sin dev, error
+    if (!dev) {
+        alert('No se pudieron recuperar los datos base de la devolución');
+        return;
+    }
 
-        // Agrupar todas las devoluciones del mismo lote (mismo idVenta y misma fecha)
-        const lote = todas.filter(d => d.idVenta == dev.idVenta && d.fecha === dev.fecha);
-        
-        // Preparar carrito para generarHTMLComprobante
-        const carrito = lote.map(linea => ({
-            nombre: linea.producto_nombre || '—',
-            cantidad: linea.cantidad,
-            precio: parseFloat(linea.precioUnitario) || 0,
-            iva: linea.iva || 21,
-            importeTotal: parseFloat(linea.importeTotal) || 0
-        }));
+    const idVentaOriginal = dev.idVenta;
+    const fechaReferencia = dev.fecha;
 
-        const totalGeneral = carrito.reduce((sum, item) => sum + item.importeTotal, 0);
+    fetch(`api/devoluciones.php?detalleVenta=${idVentaOriginal}`)
+        .then(res => res.json())
+        .then(data => {
+            if (!data || data.length === 0) { alert('No se encontraron detalles'); return; }
+            
+            const lote = data.filter(d => d.fecha === fechaReferencia);
+            if (lote.length === 0) { alert('No se encontraron productos para este lote'); return; }
 
-        // QR para Verifactu
-        const nifTpv = (window.TPV_CONFIG && window.TPV_CONFIG.nif) ? window.TPV_CONFIG.nif : '';
-        const serie = dev.serie || 'D'; // Devoluciones suelen ir en Serie D
-        const numeroReal = dev.numero || dev.idVenta || dev.id;
-        const numserie = serie + numeroReal;
+            const devInfo = lote[0];
 
-        const qrParams = new URLSearchParams({
-            nif: nifTpv,
-            numserie: numserie,
-            fecha: (() => {
-                const d = new Date(dev.fecha);
-                return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
-            })(),
-            importe: (-totalGeneral).toFixed(2)
+            const carrito = lote.map(linea => ({
+                nombre: linea.producto_nombre || '—',
+                cantidad: linea.cantidad,
+                precio: parseFloat(linea.precioUnitario) || 0,
+                iva: linea.iva || 21,
+                importeTotal: parseFloat(linea.importeTotal) || 0
+            }));
+
+            const totalGeneral = carrito.reduce((sum, item) => sum + item.importeTotal, 0);
+
+            const datosVenta = {
+                id: devInfo.rect_numero || devInfo.id,
+                serie: devInfo.rect_serie || 'D',
+                numero: devInfo.rect_numero || devInfo.id,
+                fecha: new Date(devInfo.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                tipo: 'ticket',
+                es_rectificativa: true,
+                id_original: devInfo.idVenta,
+                serie_original: devInfo.orig_serie || 'T',
+                numero_original: devInfo.orig_numero,
+                total: -totalGeneral,
+                metodoPago: devInfo.metodoPago,
+                carrito: carrito,
+                usuario_nombre: dev.usuario_nombre || devInfo.usuario_nombre,
+                qrUrl: devInfo.qrUrl
+            };
+
+            const html = generarHTMLComprobante(datosVenta, 'es');
+            const ventana = window.open('', '_blank', 'width=400,height=600');
+            ventana.document.write(html);
+            ventana.document.close();
+        })
+        .catch(err => {
+            console.error('Error al ver ticket de devolución:', err);
+            alert('Error al cargar datos');
         });
-
-        const datosVenta = {
-            id: numeroReal,
-            serie: serie,
-            numero: numeroReal,
-            fecha: new Date(dev.fecha).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-            tipo: 'ticket',
-            es_rectificativa: true,
-            id_original: dev.idVenta,
-            serie_original: dev.serie_original || 'T',
-            total: -totalGeneral,
-            metodoPago: dev.metodoPago,
-            carrito: carrito,
-            usuario_nombre: dev.usuario_nombre,
-            qrUrl: ((window.TPV_CONFIG && window.TPV_CONFIG.qrBaseUrl) || 'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR') + '?' + qrParams.toString()
-        };
-
-        const html = generarHTMLComprobante(datosVenta, 'es');
-        const ventana = window.open('', '_blank', 'width=400,height=600');
-        ventana.document.write(html);
-        ventana.document.close();
-    })
-    .catch(err => {
-        console.error('Error al ver ticket de devolución:', err);
-        alert('Error al cargar datos');
-    });
 }
 
 /**

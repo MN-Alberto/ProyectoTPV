@@ -216,4 +216,50 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof cargarTiposIva === 'function') cargarTiposIva();
     if (typeof verificarCambiosIvaProgramados === 'function') verificarCambiosIvaProgramados();
     if (typeof verificarAjustesPreciosProgramados === 'function') verificarAjustesPreciosProgramados();
+
+    // ======================== POLLING: EFECTIVO EN CAJA (cada 10s) ========================
+    function actualizarIndicadorCaja() {
+        fetch('api/caja.php?accion=estado&_=' + Date.now())
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+
+                const elValor = document.getElementById('adminEfectivoValor');
+                const elLabel = document.getElementById('adminEfectivoLabel');
+                const elEstado = document.getElementById('adminEstadoSistema');
+                const elContainer = document.getElementById('adminIndicadorCaja');
+
+                if (!elValor) return;
+
+                if (data.cajaAbierta) {
+                    const fmt = data.importeActual.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                    elValor.textContent = fmt + ' €';
+                    if (elLabel) elLabel.textContent = 'Efectivo en Caja:';
+                    if (elEstado) {
+                        elEstado.textContent = 'Online';
+                        elEstado.style.color = '#059669';
+                    }
+                    if (elContainer) {
+                        elContainer.style.background = '';
+                        elContainer.style.borderColor = '';
+                    }
+                } else {
+                    const cambio = (data.cambioSiguiente || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                    elValor.textContent = cambio + ' €';
+                    if (elLabel) elLabel.textContent = 'Fondo Siguiente Turno:';
+                    if (elEstado) {
+                        elEstado.textContent = 'Offline (Caja Cerrada)';
+                        elEstado.style.color = '#dc2626';
+                    }
+                    if (elContainer) {
+                        elContainer.style.background = '#fee2e2';
+                        elContainer.style.borderColor = '#fecaca';
+                    }
+                }
+            })
+            .catch(() => {}); // Silenciar errores de red
+    }
+
+    // Polling cada 10 segundos
+    setInterval(actualizarIndicadorCaja, 10000);
 });

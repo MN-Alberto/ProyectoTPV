@@ -235,25 +235,35 @@ function abrirModalNuevaCategoria() {
         modal.id = 'modalNuevaCategoria';
         modal.className = 'modal-overlay';
         modal.style.display = 'none';
-        modal.innerHTML = '<div class="modal-content" style="max-width:450px;max-height:80vh;overflow-y:auto;"></div>';
+        modal.innerHTML = '<div class="modal-content modal-premium" style="max-width:500px; padding: 0; overflow: hidden;"></div>';
         document.body.appendChild(modal);
     }
     modal.querySelector('.modal-content').innerHTML = `
-        <div class="modal-nueva-cat-container">
-            <div class="modal-nueva-cat-header"><h3>Nueva Categoría</h3></div>
-            <div class="modal-nueva-cat-body">
-                <div class="modal-nueva-cat-field">
-                    <label>Nombre:</label>
-                    <input type="text" id="nuevaCategoriaNombre" placeholder="Nombre de la categoría" class="modal-nueva-cat-input">
+        <div class="modal-header-premium" style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px 25px; text-align: left; position: relative;">
+            <h3 style="margin: 0; color: #fff; font-size: 1.3rem;">Nueva Categoría</h3>
+            <p class="modal-subtitulo" style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Crea una nueva clasificación para tus productos</p>
+            <button onclick="cerrarModal('modalNuevaCategoria')" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div style="padding: 25px;">
+            <div class="editar-prod-campos" style="display: flex; flex-direction: column; gap: 15px;">
+                <div class="editar-prod-fila-premium">
+                    <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Nombre <span style="color:#ef4444">*</span></label>
+                    <input type="text" id="nuevaCategoriaNombre" placeholder="Ej: Bebidas Calientes" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
                 </div>
-                <div class="modal-nueva-cat-field">
-                    <label>Descripción:</label>
-                    <textarea id="nuevaCategoriaDescripcion" placeholder="Descripción opcional" class="modal-nueva-cat-input" rows="3"></textarea>
+                <div class="editar-prod-fila-premium">
+                    <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Descripción</label>
+                    <textarea id="nuevaCategoriaDescripcion" placeholder="Opcional..." rows="3" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s; resize: vertical;"></textarea>
                 </div>
-                <div class="modal-nueva-cat-actions">
-                    <button onclick="cerrarModal('modalNuevaCategoria')" class="modal-nueva-cat-btn-cancelar">Cancelar</button>
-                    <button onclick="guardarNuevaCategoria()" class="modal-nueva-cat-btn-guardar">Guardar</button>
-                </div>
+            </div>
+            <div style="margin-top: 30px; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                <button onclick="cerrarModal('modalNuevaCategoria')" class="btn-modal-cancelar" style="margin: 0; padding: 10px 20px; border-radius: 8px; font-weight: 600;">
+                    Cancelar
+                </button>
+                <button onclick="guardarNuevaCategoria()" class="btn-exito" style="margin: 0; padding: 10px 25px; border-radius: 8px; font-weight: 600; background: #10b981; border: none; color: white; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.2s;">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
             </div>
         </div>`;
     modal.style.display = 'flex';
@@ -286,25 +296,34 @@ function abrirModalEditarCategoria(id, nombre, descripcion = '') {
         div.className = 'modal-overlay';
         div.style.display = 'none';
         div.innerHTML = `
-            <div class="modal-content" style="max-width:500px;overflow:hidden;">
-                <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:20px;display:flex;justify-content:space-between;align-items:center;">
-                    <h3 style="margin:0;">Editar Categoría</h3>
-                    <button onclick="cerrarModal('modalEditarCategoria')" style="background:none;border:none;color:white;font-size:24px;cursor:pointer;">&times;</button>
+            <div class="modal-content modal-premium" style="max-width:500px; padding: 0; overflow: hidden;">
+                <div class="modal-header-premium" style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px 25px; text-align: left; position: relative;">
+                    <h3 style="margin: 0; color: #fff; font-size: 1.3rem;">Editar Categoría</h3>
+                    <p class="modal-subtitulo" style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Modifica la información de la clasificación</p>
+                    <button onclick="cerrarModal('modalEditarCategoria')" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
-                <div style="padding:25px;">
+                <div style="padding: 25px;">
                     <input type="hidden" id="editarCategoriaId">
-                    <div style="margin-bottom:20px;">
-                        <label style="display:block;margin-bottom:8px;font-weight:600;">Nombre:</label>
-                        <input type="text" id="editarCategoriaNombre" style="width:100%;padding:12px;border:1px solid var(--border-main);border-radius:8px;box-sizing:border-box;background:var(--bg-input);color:var(--text-main);" required>
+                    <div class="editar-prod-campos" style="display: flex; flex-direction: column; gap: 15px;">
+                        <div class="editar-prod-fila-premium">
+                            <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Nombre <span style="color:#ef4444">*</span></label>
+                            <input type="text" id="editarCategoriaNombre" required style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                        </div>
+                        <div class="editar-prod-fila-premium">
+                            <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Descripción</label>
+                            <textarea id="editarCategoriaDescripcion" rows="4" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s; resize: vertical;"></textarea>
+                        </div>
                     </div>
-                    <div style="margin-bottom:20px;">
-                        <label style="display:block;margin-bottom:8px;font-weight:600;">Descripción:</label>
-                        <textarea id="editarCategoriaDescripcion" rows="4" style="width:100%;padding:12px;border:1px solid var(--border-main);border-radius:8px;box-sizing:border-box;resize:vertical;background:var(--bg-input);color:var(--text-main);"></textarea>
+                    <div style="margin-top: 30px; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                        <button onclick="cerrarModal('modalEditarCategoria')" class="btn-modal-cancelar" style="margin: 0; padding: 10px 20px; border-radius: 8px; font-weight: 600;">
+                            Cancelar
+                        </button>
+                        <button onclick="guardarEditarCategoria()" class="btn-exito" style="margin: 0; padding: 10px 25px; border-radius: 8px; font-weight: 600; background: #10b981; border: none; color: white; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.2s;">
+                            <i class="fas fa-save"></i> Guardar
+                        </button>
                     </div>
-                </div>
-                <div style="padding:15px 25px;background:var(--bg-secondary);display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--border-main);">
-                    <button onclick="cerrarModal('modalEditarCategoria')" class="btn-modal-cancelar">Cancelar</button>
-                    <button onclick="guardarEditarCategoria()" style="padding:10px 20px;background:#4f46e5;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:500;">Guardar</button>
                 </div>
             </div>`;
         document.body.appendChild(div);
@@ -1228,32 +1247,100 @@ function mostrarPanelTarifasPrefijadas(abrirModal = false) {
                 }
             </style>
 
-            <!-- Modal de Tarifas -->
-            <div id="modalTarifas" class="modal-overlay" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(2px);">
-                <div class="modal-content" style="background: ${modalContentBg}; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); max-width: 800px; width: 90%; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; border: 1px solid ${borderColor};">
-                    <div style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
-                        <h3 style="margin: 0; font-size: 18px; font-weight: 600;">Gestión de Tarifas</h3>
-                        <button onclick="cerrarModal('modalTarifas')" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1; opacity: 0.8; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">&times;</button>
+            <!-- Modal de Tarifas (Redesigned Premium) -->
+            <div id="modalTarifas" class="modal-overlay" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+                <div class="modal-content" style="background: ${modalContentBg}; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4); max-width: 900px; width: 95%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; border: 1px solid ${borderColor};">
+                    <!-- Header Premium -->
+                    <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%); color: white; padding: 24px 28px; display: flex; justify-content: space-between; align-items: center; position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: -20px; right: -20px; width: 120px; height: 120px; background: rgba(255,255,255,0.08); border-radius: 50%;"></div>
+                        <div style="position: absolute; bottom: -30px; left: 40%; width: 80px; height: 80px; background: rgba(255,255,255,0.05); border-radius: 50%;"></div>
+                        <div style="position: relative; z-index: 1;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="background: rgba(255,255,255,0.15); border-radius: 12px; padding: 10px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-tags" style="font-size: 20px;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.3px;">Gestión de Tarifas</h3>
+                                    <p style="margin: 3px 0 0; font-size: 13px; opacity: 0.85;">Administra las tarifas y descuentos del sistema</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="cerrarModal('modalTarifas')" style="background: rgba(255,255,255,0.15); border: none; color: white; width: 36px; height: 36px; border-radius: 10px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; position: relative; z-index: 1;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">&times;</button>
                     </div>
-                    <div style="padding: 20px; overflow-y: auto; flex: 1;">
-                        <div style="margin-bottom: 20px;">
-                            <button onclick="abrirModalNuevaTarifa()" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'">
+
+                    <!-- Body -->
+                    <div style="padding: 24px 28px; overflow-y: auto; flex: 1;">
+                        <!-- Stats Cards Row -->
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 22px;">
+                            <div style="background: ${isDark ? '#1e1b4b' : '#eef2ff'}; border: 1px solid ${isDark ? '#312e81' : '#c7d2fe'}; border-radius: 12px; padding: 16px; text-align: center;">
+                                <div style="font-size: 24px; font-weight: 700; color: #6366f1;">${tarifas.length}</div>
+                                <div style="font-size: 12px; font-weight: 600; color: ${isDark ? '#a5b4fc' : '#6366f1'}; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;">Tarifas Activas</div>
+                            </div>
+                            <div style="background: ${isDark ? '#052e16' : '#ecfdf5'}; border: 1px solid ${isDark ? '#166534' : '#a7f3d0'}; border-radius: 12px; padding: 16px; text-align: center;">
+                                <div style="font-size: 24px; font-weight: 700; color: #10b981;">${tarifas.filter(t => parseFloat(t.descuento_porcentaje) > 0).length}</div>
+                                <div style="font-size: 12px; font-weight: 600; color: ${isDark ? '#6ee7b7' : '#059669'}; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;">Con Descuento</div>
+                            </div>
+                            <div style="background: ${isDark ? '#1e293b' : '#f0f9ff'}; border: 1px solid ${isDark ? '#334155' : '#bae6fd'}; border-radius: 12px; padding: 16px; text-align: center;">
+                                <div style="font-size: 24px; font-weight: 700; color: #3b82f6;">${tarifas.filter(t => t.requiere_cliente).length}</div>
+                                <div style="font-size: 12px; font-weight: 600; color: ${isDark ? '#93c5fd' : '#2563eb'}; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;">Requieren Cliente</div>
+                            </div>
+                        </div>
+
+                        <!-- Action Bar -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+                            <p style="color: ${subTextColor}; margin: 0; font-size: 13px;"><i class="fas fa-info-circle" style="margin-right: 5px; color: #6366f1;"></i>Gestiona las tarifas disponibles en el selector de tickets del cajero.</p>
+                            <button onclick="abrirModalNuevaTarifa()" style="padding: 10px 20px; background: linear-gradient(135deg, #059669, #10b981); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 2px 8px rgba(16,185,129,0.3);" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(16,185,129,0.4)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 8px rgba(16,185,129,0.3)'">
                                 <i class="fas fa-plus"></i> Nueva Tarifa
                             </button>
                         </div>
-                        <p style="color: ${subTextColor}; margin-top: 0; margin-bottom: 15px; font-size: 14px;">Gestiona las tarifas disponibles en el selector de tickets del cajero.</p>
-                        <div style="overflow-x: auto; max-height: 400px; overflow-y: auto; border: 1px solid ${borderColor}; border-radius: 8px;">
+
+                        <!-- Table -->
+                        <div style="border: 1px solid ${borderColor}; border-radius: 12px; overflow: hidden;">
                             <table style="width: 100%; border-collapse: collapse; background: ${isDark ? '#111827' : 'white'};" class="tabla-tarifas">
-                                <thead class="tabla-tarifas-head" style="position: sticky; top: 0; z-index: 10; background: ${tableHeaderBg}; border-bottom: 2px solid ${borderColor};">
+                                <thead class="tabla-tarifas-head" style="background: ${isDark ? '#1f2937' : '#f8fafc'}; border-bottom: 2px solid ${isDark ? '#374151' : '#e2e8f0'};">
                                     <tr>
-                                        <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor};">Nombre</th>
-                                        <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor};">Descripción</th>
-                                        <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor};">Descuento</th>
-                                        <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor};">Requiere Cliente</th>
-                                        <th style="padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor};">Acciones</th>
+                                        <th style="padding: 14px 16px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: ${isDark ? '#94a3b8' : '#64748b'};">Nombre</th>
+                                        <th style="padding: 14px 16px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: ${isDark ? '#94a3b8' : '#64748b'};">Descripción</th>
+                                        <th style="padding: 14px 16px; text-align: center; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: ${isDark ? '#94a3b8' : '#64748b'};">Descuento</th>
+                                        <th style="padding: 14px 16px; text-align: center; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: ${isDark ? '#94a3b8' : '#64748b'};">Cliente</th>
+                                        <th style="padding: 14px 16px; text-align: right; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: ${isDark ? '#94a3b8' : '#64748b'};">Acciones</th>
                                     </tr>
                                 </thead>
-                                <tbody id="tablaTarifas">${filasTablaTarifas}</tbody>
+                                <tbody id="tablaTarifas">${tarifas.map((tarifa, idx) => {
+                                    const rowBg = idx % 2 === 0
+                                        ? (isDark ? '#111827' : '#ffffff')
+                                        : (isDark ? '#1a2234' : '#f8fafc');
+                                    const descPct = parseFloat(tarifa.descuento_porcentaje);
+                                    const descBadgeBg = descPct === 0
+                                        ? (isDark ? '#1f2937' : '#f1f5f9')
+                                        : (isDark ? '#1e3a5f' : '#dbeafe');
+                                    const descBadgeColor = descPct === 0
+                                        ? (isDark ? '#94a3b8' : '#64748b')
+                                        : (isDark ? '#93c5fd' : '#1d4ed8');
+                                    const clienteIcon = tarifa.requiere_cliente
+                                        ? '<i class="fas fa-user-check" style="color: #10b981; font-size: 16px;" title="Sí"></i>'
+                                        : '<i class="fas fa-user-times" style="color: ' + (isDark ? '#4b5563' : '#cbd5e1') + '; font-size: 16px;" title="No"></i>';
+                                    return `
+                                    <tr style="border-bottom: 1px solid ${isDark ? '#1f2937' : '#f1f5f9'}; background: ${rowBg}; transition: background 0.15s;">
+                                        <td style="padding: 14px 16px;">
+                                            <div style="display: flex; align-items: center; gap: 10px;">
+                                                <div style="width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #6366f1, #a855f7); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px; flex-shrink: 0;">${tarifa.nombre.charAt(0).toUpperCase()}</div>
+                                                <span style="font-weight: 600; color: ${textColor}; font-size: 14px;">${tarifa.nombre}</span>
+                                            </div>
+                                        </td>
+                                        <td style="padding: 14px 16px; color: ${subTextColor}; font-size: 13px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${tarifa.descripcion || '<span style="opacity: 0.4; font-style: italic;">Sin descripción</span>'}</td>
+                                        <td style="padding: 14px 16px; text-align: center;">
+                                            <span style="background: ${descBadgeBg}; color: ${descBadgeColor}; padding: 5px 14px; border-radius: 20px; font-weight: 700; font-size: 13px; display: inline-block; min-width: 50px;">${descPct}%</span>
+                                        </td>
+                                        <td style="padding: 14px 16px; text-align: center;">${clienteIcon}</td>
+                                        <td style="padding: 14px 16px; text-align: right;">
+                                            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                                                <button onclick="abrirModalEditarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}', '${(tarifa.descripcion || '').replace(/'/g, "\\'")}', ${tarifa.descuento_porcentaje}, ${tarifa.requiere_cliente ? 1 : 0})" style="padding: 8px 14px; background: ${isDark ? '#312e81' : '#eef2ff'}; color: #6366f1; border: 1px solid ${isDark ? '#4338ca' : '#c7d2fe'}; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;" onmouseover="this.style.background='#6366f1';this.style.color='white'" onmouseout="this.style.background='${isDark ? '#312e81' : '#eef2ff'}';this.style.color='#6366f1'"><i class="fas fa-pen" style="font-size: 11px;"></i> Editar</button>
+                                                <button onclick="eliminarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}')" style="padding: 8px 14px; background: ${isDark ? '#450a0a' : '#fef2f2'}; color: #ef4444; border: 1px solid ${isDark ? '#7f1d1d' : '#fecaca'}; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;" onmouseover="this.style.background='#ef4444';this.style.color='white'" onmouseout="this.style.background='${isDark ? '#450a0a' : '#fef2f2'}';this.style.color='#ef4444'"><i class="fas fa-trash" style="font-size: 11px;"></i> Eliminar</button>
+                                            </div>
+                                        </td>
+                                    </tr>`;
+                                }).join('')}</tbody>
                             </table>
                         </div>
                     </div>

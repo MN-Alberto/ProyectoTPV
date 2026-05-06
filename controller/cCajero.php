@@ -259,15 +259,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $venta->setTotal($total);
 
             // Guardamos los datos del descuento en la venta
-            $venta->setDescuentoTipo($_POST['descuentoTipo'] ?? 'ninguno');
-            $venta->setDescuentoValor((float) ($_POST['descuentoValor'] ?? 0));
-            $venta->setDescuentoCupon($_POST['descuentoCupon'] ?? '');
-            $venta->setDescuentoTarifaTipo('ninguno');
-            $venta->setDescuentoTarifaValor(0);
-            $venta->setDescuentoTarifaCupon('');
-            $venta->setDescuentoManualTipo($_POST['descuentoManualTipo'] ?? 'ninguno');
-            $venta->setDescuentoManualValor((float) ($_POST['descuentoManualValor'] ?? 0));
-            $venta->setDescuentoManualCupon($_POST['descuentoManualCupon'] ?? '');
+            $venta->setDescuentoTipo($_POST['descuentoTipo'] ?? $_POST['inputDescuentoTipo'] ?? $_POST['inputDescuentoManualTipo'] ?? 'ninguno');
+            $venta->setDescuentoValor((float) ($_POST['descuentoValor'] ?? $_POST['inputDescuentoValor'] ?? $_POST['inputDescuentoManualValor'] ?? 0));
+            $venta->setDescuentoCupon($_POST['descuentoCupon'] ?? $_POST['inputDescuentoCupon'] ?? $_POST['inputDescuentoManualCupon'] ?? '');
+            $venta->setDescuentoTarifaTipo($_POST['descuentoTarifaTipo'] ?? $_POST['inputDescuentoTarifaTipo'] ?? 'ninguno');
+            $venta->setDescuentoTarifaValor((float) ($_POST['descuentoTarifaValor'] ?? $_POST['inputDescuentoTarifaValor'] ?? 0));
+            $venta->setDescuentoTarifaCupon($_POST['descuentoTarifaCupon'] ?? $_POST['inputDescuentoTarifaCupon'] ?? '');
+            $venta->setDescuentoManualTipo($_POST['descuentoManualTipo'] ?? $_POST['inputDescuentoManualTipo'] ?? 'ninguno');
+            $venta->setDescuentoManualValor((float) ($_POST['descuentoManualValor'] ?? $_POST['inputDescuentoManualValor'] ?? 0));
+            $venta->setDescuentoManualCupon($_POST['descuentoManualCupon'] ?? $_POST['inputDescuentoManualCupon'] ?? '');
 
             // Si el pago es en efectivo, guardar datos extras para el control de caja
             if (($venta->getMetodoPago() === 'efectivo')) {
@@ -324,9 +324,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
             $venta->setDesglosePago($desglosePagoStr ?: null);
 
             // Guardar puntos en la venta para el historial
-            $venta->setPuntosGanados(isset($_POST['puntosGanados']) ? (int) $_POST['puntosGanados'] : 0);
-            $venta->setPuntosCanjeados(isset($_POST['puntosCanjeadosCantidad']) ? (int) $_POST['puntosCanjeadosCantidad'] : 0);
-            $venta->setPuntosBalance(isset($_POST['puntosBalance']) ? (int) $_POST['puntosBalance'] : 0);
+            $venta->setPuntosGanados(isset($_POST['puntosGanados']) ? (int) $_POST['puntosGanados'] : (isset($_POST['inputPuntosGanados']) ? (int) $_POST['inputPuntosGanados'] : 0));
+            $venta->setPuntosCanjeados(isset($_POST['puntosCanjeadosCantidad']) ? (int) $_POST['puntosCanjeadosCantidad'] : (isset($_POST['inputPuntosCanjeadosCantidad']) ? (int) $_POST['inputPuntosCanjeadosCantidad'] : 0));
+            $venta->setPuntosBalance(isset($_POST['puntosBalance']) ? (int) $_POST['puntosBalance'] : (isset($_POST['inputPuntosBalance']) ? (int) $_POST['inputPuntosBalance'] : 0));
 
             $venta->insertar();
 

@@ -444,13 +444,13 @@ return [
     ],
 
     // ======================== MODAL: ERRORS ========================
-    'errors' => [
-        'sale_error' => 'Sale error',
+    'sale_error' => [
+        'title' => 'Sale error',
         'accept' => 'Accept',
     ],
 
     // ======================== MODAL: POST-SALE POINTS ========================
-    'points_post' => [
+    'points_earned' => [
         'title' => 'Points Accumulated!',
         'subtitle' => 'The customer has earned and/or used points on this purchase.',
         'earned_now' => 'Points earned now:',
@@ -744,6 +744,7 @@ return [
 
     // ======================== CART (EXTENDED) ========================
     'cart' => [
+        'alert_invalid_coupon' => '❌ Invalid coupon!',
         'empty_message' => 'Add products to make a sale',
         'postponed_success1' => 'Sale successfully postponed with',
         'postponed_success2' => 'products. You can recover it anytime.',
@@ -826,7 +827,6 @@ return [
         'thanks_for_purchase' => 'Thank you for your purchase!',
         'ticket_number' => 'Invoice/Ticket No.',
         'operation_date' => 'Operation & Shipping Date',
-        'dto' => 'Desc.',
         'quantity_th' => 'Qty',
         'base_th' => 'Base',
         'delivered' => 'Delivered',

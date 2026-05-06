@@ -126,9 +126,9 @@ class Verifactu
     public static function calcularHuellaAnulacion($nif, $numSerie, $fechaExp, $prevHash, $fechaHito)
     {
         // Orden AEAT Anulación con etiquetas y ampersands
-        $str = "IDEmisorFactura=" . $nif .
-            "&NumSerieFactura=" . $numSerie .
-            "&FechaExpedicionFactura=" . $fechaExp .
+        $str = "IDEmisorFacturaAnulada=" . $nif .
+            "&NumSerieFacturaAnulada=" . $numSerie .
+            "&FechaExpedicionFacturaAnulada=" . $fechaExp .
             "&Huella=" . ($prevHash ?: '') .
             "&FechaHoraHusoGenRegistro=" . $fechaHito;
 
@@ -403,7 +403,8 @@ class Verifactu
         $fechaExp = date('d-m-Y', $fechaTs);
         $numero = htmlspecialchars($venta->getNumero(), ENT_XML1, 'UTF-8');
         $serie = $venta->getSerie() ? htmlspecialchars($venta->getSerie(), ENT_XML1, 'UTF-8') : '';
-        $numSerieSafe = preg_replace('/\s+/', '', $serie . $numero);
+        $numeroAcolchado = str_pad($numero, 5, '0', STR_PAD_LEFT);
+        $numSerieSafe = preg_replace('/\s+/', '', $serie . $numeroAcolchado);
         $fechaHito = date('Y-m-d\TH:i:sP');
         $prevHash = ($venta->getHashPrevio() && $venta->getHashPrevio() !== 'INITIAL_HASH_PLACEHOLDER') ? $venta->getHashPrevio() : '';
         $huella = self::calcularHuellaAnulacion($nif, $numSerieSafe, $fechaExp, $prevHash, $fechaHito);

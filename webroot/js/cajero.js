@@ -42,6 +42,7 @@ var ticketEsGrandeLocal = false;
 var timeoutEscalaTicket = null;
 var puntosCanjeados = null;
 var clienteIdentificadoEnModalPuntos = false;
+var PUEDE_PRODUCTO_COMODIN = (typeof TPV_CONTEXT !== 'undefined') ? TPV_CONTEXT.puedeProductoComodin : false;
 
 
 /**
@@ -216,88 +217,90 @@ function renderProductos(productos) {
     // Obtener el contenedor de la cuadrícula de productos.
     const grid = document.getElementById('productosGrid');
 
-    // Si no hay productos o el array está vacío, mostrar un mensaje informativo.
-    if (!productos || productos.length === 0) {
+    // Si no hay productos y no se puede mostrar el comodín, mostrar mensaje de "no hay productos"
+    if ((!productos || productos.length === 0) && !PUEDE_PRODUCTO_COMODIN) {
         grid.innerHTML = '<p class="sin-productos">' + t('cajero.no_products') + '</p>';
         return;
     }
 
     // Construir el HTML de todas las tarjetas de producto.
     let html = '';
-    productos.forEach(prod => {
-        // Formatear el precio con 2 decimales y coma.
-        const ivaProd = (prod.iva !== null && prod.iva !== undefined && prod.iva !== "") ? parseInt(prod.iva) : 21;
+    if (productos && productos.length > 0) {
+        productos.forEach(prod => {
+            // Formatear el precio con 2 decimales y coma.
+            const ivaProd = (prod.iva !== null && prod.iva !== undefined && prod.iva !== "") ? parseInt(prod.iva) : 21;
 
-        // 1. Encontrar tarifa 'Cliente' (por defecto)
-        const tarifaCliente = tarifasDisponibles.find(t => t.id == 1 || t.nombre === 'Cliente');
-        const tarifaClienteId = tarifaCliente ? tarifaCliente.id : 1;
+            // 1. Encontrar tarifa 'Cliente' (por defecto)
+            const tarifaCliente = tarifasDisponibles.find(t => t.id == 1 || t.nombre === 'Cliente');
+            const tarifaClienteId = tarifaCliente ? tarifaCliente.id : 1;
 
-        // 2. Comprobar si hay precio para esa tarifa (ya sea manual o calculado)
-        const preciosManuales = prod.preciosTarifas || {};
-        const precioBaseOriginal = parseFloat(prod.precio) || 0;
-        let precioBaseEfectivo = precioBaseOriginal;
+            // 2. Comprobar si hay precio para esa tarifa (ya sea manual o calculado)
+            const preciosManuales = prod.preciosTarifas || {};
+            const precioBaseOriginal = parseFloat(prod.precio) || 0;
+            let precioBaseEfectivo = precioBaseOriginal;
 
-        // Usar precio de tarifa si existe, sin importar si es manual o calculado
-        if (tarifaClienteId && preciosManuales[tarifaClienteId]) {
-            precioBaseEfectivo = preciosManuales[tarifaClienteId].precio;
-        }
+            // Usar precio de tarifa si existe, sin importar si es manual o calculado
+            if (tarifaClienteId && preciosManuales[tarifaClienteId]) {
+                precioBaseEfectivo = preciosManuales[tarifaClienteId].precio;
+            }
 
-        const decimales = parseInt(prod.decimales) !== undefined ? parseInt(prod.decimales) : 2;
-        const precioPVP = precioBaseEfectivo * (1 + (ivaProd / 100));
-        let precioFmt = roundTo(precioPVP, decimales).toFixed(decimales).replace('.', ',');
+            const decimales = parseInt(prod.decimales) !== undefined ? parseInt(prod.decimales) : 2;
+            const precioPVP = precioBaseEfectivo * (1 + (ivaProd / 100));
+            let precioFmt = roundTo(precioPVP, decimales).toFixed(decimales).replace('.', ',');
 
-        // Usar la imagen del producto si existe; de lo contrario, usar el logo por defecto.
-        let imgSrc = prod.imagen && prod.imagen !== '' ? prod.imagen : 'webroot/img/logo.PNG';
+            // Usar la imagen del producto si existe; de lo contrario, usar el logo por defecto.
+            let imgSrc = prod.imagen && prod.imagen !== '' ? prod.imagen : 'webroot/img/logo.PNG';
 
-        // Generar selector de tarifas
-        let selectorTarifas = `<select class="tarifa-selector" 
+            // Generar selector de tarifas
+            let selectorTarifas = `<select class="tarifa-selector" 
                                 onclick="event.stopPropagation()" 
                                 onfocus="guardarTarifaAnterior(this)"
                                 onchange="actualizarPrecioCard(this, ${precioBaseOriginal}, ${ivaProd})">`;
 
-        tarifasDisponibles.forEach(tarifa => {
-            const selected = (tarifa.id == 1 || tarifa.nombre === 'Cliente') ? 'selected' : '';
-            const claveTraduccion = 'tarifas.' + tarifa.nombre.toLowerCase().replaceAll(' ', '_');
-            selectorTarifas += `<option value="${tarifa.descuento_porcentaje}" 
-                                        data-requiere-cliente="${tarifa.requiere_cliente}" 
-                                        data-tarifa-id="${tarifa.id}"
-                                        ${selected}>${t(claveTraduccion)}</option>`;
-        });
-        selectorTarifas += `</select>`;
+            tarifasDisponibles.forEach(tarifa => {
+                const selected = (tarifa.id == 1 || tarifa.nombre === 'Cliente') ? 'selected' : '';
+                const claveTraduccion = 'tarifas.' + tarifa.nombre.toLowerCase().replaceAll(' ', '_');
+                selectorTarifas += `<option value="${tarifa.descuento_porcentaje}" 
+                                            data-requiere-cliente="${tarifa.requiere_cliente}" 
+                                            data-tarifa-id="${tarifa.id}"
+                                            ${selected}>${t(claveTraduccion)}</option>`;
+            });
+            selectorTarifas += `</select>`;
 
-        // Generar la tarjeta del producto.
-        html += `<div class="producto-card" data-id="${prod.id}"
-                    data-nombre="${(prod.nombre || '').replace(/"/g, '&quot;')}"
-                    data-nombre-es="${(prod.nombre_es || '').replace(/"/g, '&quot;')}"
-                    data-nombre-en="${(prod.nombre_en || '').replace(/"/g, '&quot;')}"
-                    data-nombre-fr="${(prod.nombre_fr || '').replace(/"/g, '&quot;')}"
-                    data-nombre-de="${(prod.nombre_de || '').replace(/"/g, '&quot;')}"
-                    data-nombre-ru="${(prod.nombre_ru || '').replace(/"/g, '&quot;')}"
-                    data-precio="${precioBaseEfectivo}" 
-                    data-precio-original="${precioBaseOriginal}"
-                    data-pvp="${roundTo(precioPVP, decimales).toFixed(decimales)}"
-                    data-iva="${ivaProd}"
-                    data-decimales="${decimales}"
-                    data-precios-tarifas='${JSON.stringify(preciosManuales)}'
-                    data-stock="${prod.stock || 0}"
-                    onclick="agregarAlCarrito(this)" style="${prod.stock <= 0 ? 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);' : ''}">
-                    <div class="producto-nombre">${getNombreTraducido(prod)}</div>
-                    <div class="producto-imagen">
-                        <img src="${imgSrc}" alt="${prod.nombre.replace(/"/g, '"')}">
-                    </div>
-                    <div class="producto-info-inferior" style="display: flex; flex-direction: column; gap: 2px;">
-                        <span class="producto-precio">${precioFmt} €</span>
-                        ${selectorTarifas}
-                        <span class="producto-stock" ${prod.stock <= 0 ? 'style="color: red; text-decoration: underline;"' : ''}>Stock: ${prod.stock}</span>
-                    </div>
-                </div>`;
-    });
+            // Generar la tarjeta del producto.
+            html += `<div class="producto-card" data-id="${prod.id}"
+                        data-nombre="${(prod.nombre || '').replace(/"/g, '&quot;')}"
+                        data-nombre-es="${(prod.nombre_es || '').replace(/"/g, '&quot;')}"
+                        data-nombre-en="${(prod.nombre_en || '').replace(/"/g, '&quot;')}"
+                        data-nombre-fr="${(prod.nombre_fr || '').replace(/"/g, '&quot;')}"
+                        data-nombre-de="${(prod.nombre_de || '').replace(/"/g, '&quot;')}"
+                        data-nombre-ru="${(prod.nombre_ru || '').replace(/"/g, '&quot;')}"
+                        data-precio="${precioBaseEfectivo}" 
+                        data-precio-original="${precioBaseOriginal}"
+                        data-pvp="${roundTo(precioPVP, decimales).toFixed(decimales)}"
+                        data-iva="${ivaProd}"
+                        data-decimales="${decimales}"
+                        data-precios-tarifas='${JSON.stringify(preciosManuales)}'
+                        data-stock="${prod.stock || 0}"
+                        onclick="agregarAlCarrito(this)" style="${prod.stock <= 0 ? 'opacity: 0.5; cursor: not-allowed; scale: 1; transform: translateY(0px);' : ''}">
+                        <div class="producto-nombre">${getNombreTraducido(prod)}</div>
+                        <div class="producto-imagen">
+                            <img src="${imgSrc}" alt="${prod.nombre.replace(/"/g, '"')}">
+                        </div>
+                        <div class="producto-info-inferior" style="display: flex; flex-direction: column; gap: 2px;">
+                            <span class="producto-precio">${precioFmt} €</span>
+                            ${selectorTarifas}
+                            <span class="producto-stock" ${prod.stock <= 0 ? 'style="color: red; text-decoration: underline;"' : ''}>Stock: ${prod.stock}</span>
+                        </div>
+                    </div>`;
+        });
+    }
 
     // Insertar todo el HTML generado en la cuadrícula de productos
     let contenidoGrid = html;
 
     // Añadir Producto Comodín SOLAMENTE si el usuario tiene permiso
-    if (window.PUEDE_PRODUCTO_COMODIN === true) {
+    if (PUEDE_PRODUCTO_COMODIN === true) {
         const comodinCard = `
             <div class="producto-card producto-comodin" onclick="abrirModalProductoComodin()"
                  style="cursor: pointer; border: 2px dashed var(--accent-main); background: var(--bg-panel);">
@@ -613,6 +616,38 @@ document.addEventListener('DOMContentLoaded', function () {
     initCarouselBotones();
     actualizarBotonesPospuestos();
     verificarCambiosIvaProgramados();
+
+    // ======================== POLLING: SINCRONIZAR EFECTIVO EN CAJA (cada 15s) ========================
+    function sincronizarEfectivoCaja() {
+        fetch('api/caja.php?accion=estado&_=' + Date.now())
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success || !data.cajaAbierta) return;
+
+                // Actualizar variable global JS para validaciones
+                if (typeof TPV_CONTEXT !== 'undefined') {
+                    TPV_CONTEXT.efectivoActualCaja = data.importeActual;
+                }
+                efectivoActualCaja = data.importeActual;
+
+                // Actualizar indicador visual del cajero
+                const elValor = document.getElementById('cajeroEfectivoValor');
+                if (elValor) {
+                    const fmt = data.importeActual.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                    elValor.textContent = fmt + ' €';
+                }
+
+                // Actualizar "efectivo disponible" del modal de retiro
+                const elDisponible = document.getElementById('efectivoDisponible');
+                if (elDisponible) {
+                    elDisponible.textContent = data.importeActual.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                }
+            })
+            .catch(() => {}); // Silenciar errores de red
+    }
+
+    // Polling cada 15 segundos
+    setInterval(sincronizarEfectivoCaja, 15000);
 });
 
 // ======================== FUNCIONES DE MODAL (necesarias para el modal de nuevo producto) ========================
@@ -2501,8 +2536,13 @@ function construirObjetoVentaTemporal(tipoDoc) {
         qrUrl: (TPV_CONTEXT.config.qrBaseUrl || 'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR') + '?' +
             (new URLSearchParams({
                 nif: TPV_CONTEXT.config.nif,
-                numserie: (proximosNumeros[tipoDoc] || ''),
-                fecha: new Date().toLocaleDateString('es-ES').split('/').join('-'),
+                numserie: (proximosNumeros[tipoDoc] || '').replace(/\s+/g, ''),
+                fecha: (() => {
+                    const d = new Date();
+                    return String(d.getDate()).padStart(2, '0') + '-' +
+                        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                        d.getFullYear();
+                })(),
                 importe: totalPVP.toFixed(2)
             })).toString()
     };
@@ -4778,7 +4818,11 @@ function updateMethodUI(radio) {
     }
 }
 
-// Variables para el flujo de devoluciones (Ya declaradas arriba, eliminando duplicados)
+// Variables para el flujo de devoluciones
+var ticketActualDevolucion = null;
+var lineasVentaDevolucion = [];
+var cantidadesDevSeleccion = [];
+
 
 
 /**
@@ -4834,6 +4878,7 @@ function buscarTicketParaDevolucion() {
 
             ticketActualDevolucion = data.venta;
             lineasVentaDevolucion = data.lineas;
+            cantidadesDevSeleccion = lineasVentaDevolucion.map(function () { return 0; });
 
             const totalDisponible = lineasVentaDevolucion.reduce((acc, linea) => {
                 return acc + (parseInt(linea.cantidad) - (parseInt(linea.cantidad_devuelta) || 0));
@@ -4871,8 +4916,12 @@ function buscarTicketParaDevolucion() {
         });
 }
 
+// Variables de paginación para la tabla de devolución
+var paginaActualDev = 1;
+var productosPorPaginaDev = 4;
+
 /**
- * Renderiza la tabla de productos para la devolución
+ * Renderiza la tabla de productos para la devolución (paginada)
  */
 function renderizarTablaDevolucion() {
     const tbody = document.getElementById('tablaProductosDev');
@@ -4880,10 +4929,20 @@ function renderizarTablaDevolucion() {
 
     tbody.innerHTML = '';
 
-    lineasVentaDevolucion.forEach((linea, index) => {
+    const totalItems = lineasVentaDevolucion.length;
+    const totalPaginas = Math.max(1, Math.ceil(totalItems / productosPorPaginaDev));
+    if (paginaActualDev > totalPaginas) paginaActualDev = totalPaginas;
+
+    const inicio = (paginaActualDev - 1) * productosPorPaginaDev;
+    const fin = Math.min(inicio + productosPorPaginaDev, totalItems);
+    const paginaLineas = lineasVentaDevolucion.slice(inicio, fin);
+
+    paginaLineas.forEach((linea, idx) => {
+        const index = inicio + idx;
         const disponible = parseInt(linea.cantidad) - (parseInt(linea.cantidad_devuelta) || 0);
         const precio = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
         const dec = linea.decimales || 2;
+        const valorActual = (typeof cantidadesDevSeleccion !== 'undefined' && cantidadesDevSeleccion[index] !== undefined) ? cantidadesDevSeleccion[index] : 0;
 
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid #f1f5f9';
@@ -4898,7 +4957,7 @@ function renderizarTablaDevolucion() {
                     <button onclick="cambiarCantidadDev(${index}, -1)" ${disponible <= 0 ? 'disabled' : ''}>−</button>
                     <input type="number" class="cant-dev-input" 
                         data-index="${index}" 
-                        min="0" max="${disponible}" value="0" 
+                        min="0" max="${disponible}" value="${valorActual}" 
                         style="width: 50px; text-align: center; padding: 5px; border: 1px solid #e2e8f0; border-radius: 4px;"
                         onchange="cambiarCantidadDev(${index}, 0)"
                         ${disponible <= 0 ? 'disabled' : ''}>
@@ -4909,31 +4968,112 @@ function renderizarTablaDevolucion() {
         tbody.appendChild(tr);
     });
 
+    renderizarPaginacionDevolucion(totalPaginas);
     recalcularTotalReembolso();
+}
+
+/**
+ * Renderiza los controles de paginación para la tabla de devolución
+ */
+function renderizarPaginacionDevolucion(totalPaginas) {
+    const contenedor = document.getElementById('paginacionDevolucion');
+    if (!contenedor) return;
+
+    if (totalPaginas <= 1) {
+        contenedor.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+    const pagina = paginaActualDev;
+
+    if (pagina > 1) {
+        html += `<button class="btn-paginacion" onclick="irAPaginaDev(1)" title="Primera página"><i class="fas fa-angle-double-left"></i></button>`;
+        html += `<button class="btn-paginacion" onclick="irAPaginaDev(${pagina - 1})" title="Página anterior"><i class="fas fa-chevron-left"></i></button>`;
+    }
+
+    html += `<div class="input-paginacion">
+        <input type="number" id="inputPaginaDev" class="input-numero-pagina"
+            value="${pagina}" min="1" max="${totalPaginas}"
+            onfocus="ajustarAnchoInput(this)" oninput="ajustarAnchoInput(this)"
+            onblur="irAPaginaDevInput(this)"
+            onkeypress="if(event.key==='Enter') irAPaginaDevInput(this)">
+        <span class="info-paginacion"> de ${totalPaginas}</span>
+    </div>`;
+
+    if (pagina < totalPaginas) {
+        html += `<button class="btn-paginacion" onclick="irAPaginaDev(${pagina + 1})" title="Siguiente página"><i class="fas fa-chevron-right"></i></button>`;
+        html += `<button class="btn-paginacion" onclick="irAPaginaDev(${totalPaginas})" title="Última página"><i class="fas fa-angle-double-right"></i></button>`;
+    }
+
+    contenedor.innerHTML = `<div class="admin-paginacion-wrapper"><div class="admin-paginacion">${html}</div></div>`;
+
+    setTimeout(function () {
+        var input = document.getElementById('inputPaginaDev');
+        if (input) ajustarAnchoInput(input);
+    }, 50);
+}
+
+/**
+ * Navega a una página específica en la tabla de devolución
+ */
+function irAPaginaDev(pagina) {
+    const totalPaginas = Math.max(1, Math.ceil(lineasVentaDevolucion.length / productosPorPaginaDev));
+    if (pagina < 1) pagina = 1;
+    if (pagina > totalPaginas) pagina = totalPaginas;
+    paginaActualDev = pagina;
+    renderizarTablaDevolucion();
+}
+
+/**
+ * Maneja la navegación desde el input de página al perder el foco o presionar Enter
+ */
+function irAPaginaDevInput(input) {
+    if (!input) return;
+    let pagina = parseInt(input.value);
+    if (!pagina || pagina < 1) pagina = 1;
+    const totalPaginas = Math.max(1, Math.ceil(lineasVentaDevolucion.length / productosPorPaginaDev));
+    if (pagina > totalPaginas) pagina = totalPaginas;
+    irAPaginaDev(pagina);
+}
+
+/**
+ * Ajusta el ancho de un input de paginación al contenido (fallback si admin-utils.js no está cargado)
+ */
+function ajustarAnchoInput(input) {
+    if (!input) return;
+    const tempSpan = document.createElement('span');
+    tempSpan.style.cssText = 'visibility:hidden;position:absolute;';
+    tempSpan.style.font = window.getComputedStyle(input).font;
+    tempSpan.style.padding = '0 5px';
+    tempSpan.textContent = input.value || '0';
+    document.body.appendChild(tempSpan);
+    input.style.width = (tempSpan.offsetWidth + 15) + 'px';
+    document.body.removeChild(tempSpan);
 }
 
 /**
  * Selecciona o deselecciona todos los productos disponibles para devolver
  */
 function seleccionarTodosProductos() {
-    const inputs = document.querySelectorAll('.cant-dev-input');
+    // Verificar si todos los productos ya están seleccionados (basado en el array, no en el DOM)
     let allSelected = true;
-
-    inputs.forEach(input => {
-        const index = input.dataset.index;
-        const linea = lineasVentaDevolucion[index];
+    for (let i = 0; i < lineasVentaDevolucion.length; i++) {
+        const linea = lineasVentaDevolucion[i];
         const disponible = parseInt(linea.cantidad) - (parseInt(linea.cantidad_devuelta) || 0);
-        if (parseInt(input.value) !== disponible) allSelected = false;
+        if ((cantidadesDevSeleccion[i] || 0) !== disponible) {
+            allSelected = false;
+            break;
+        }
+    }
+
+    // Actualizar TODOS los productos en el array
+    lineasVentaDevolucion.forEach((linea, index) => {
+        const disponible = parseInt(linea.cantidad) - (parseInt(linea.cantidad_devuelta) || 0);
+        cantidadesDevSeleccion[index] = allSelected ? 0 : disponible;
     });
 
-    inputs.forEach(input => {
-        const index = input.dataset.index;
-        const linea = lineasVentaDevolucion[index];
-        const disponible = parseInt(linea.cantidad) - (parseInt(linea.cantidad_devuelta) || 0);
-        input.value = allSelected ? 0 : disponible;
-    });
-
-    recalcularTotalReembolso();
+    renderizarTablaDevolucion();
 }
 
 /**
@@ -4953,6 +5093,9 @@ function cambiarCantidadDev(index, delta) {
     if (cant > disponible) cant = disponible;
 
     input.value = cant;
+    if (typeof cantidadesDevSeleccion !== 'undefined') {
+        cantidadesDevSeleccion[index] = cant;
+    }
     recalcularTotalReembolso();
 }
 
@@ -4977,10 +5120,8 @@ function recalcularTotalReembolso() {
 
     const factorDescuento = sumaBruta > 0 ? ventaTotal / sumaBruta : 1;
 
-    inputs.forEach(input => {
-        const index = input.dataset.index;
-        const linea = lineasVentaDevolucion[index];
-        let cant = parseInt(input.value) || 0;
+    lineasVentaDevolucion.forEach((linea, index) => {
+        let cant = (typeof cantidadesDevSeleccion !== 'undefined' && cantidadesDevSeleccion[index] !== undefined) ? cantidadesDevSeleccion[index] : 0;
 
         if (cant > 0) {
             const precioBase = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
@@ -5035,6 +5176,7 @@ function cerrarModalDevolucion() {
     const display = document.getElementById('totalOriginalDisplay');
     if (display) display.textContent = '0,00 €';
     lineasVentaDevolucion = [];
+    cantidadesDevSeleccion = [];
     ticketActualDevolucion = null;
 }
 
@@ -5048,11 +5190,9 @@ function procesarMultiDevolucion() {
 
     if (!ticketActualDevolucion) return;
 
-    inputs.forEach(input => {
-        const cant = parseInt(input.value) || 0;
+    lineasVentaDevolucion.forEach((linea, index) => {
+        const cant = (typeof cantidadesDevSeleccion !== 'undefined' && cantidadesDevSeleccion[index] !== undefined) ? cantidadesDevSeleccion[index] : 0;
         if (cant > 0) {
-            const index = input.dataset.index;
-            const linea = lineasVentaDevolucion[index];
             const dec = linea.decimales || 2;
             const precioConIva = linea.precioConIva ? parseFloat(linea.precioConIva) : parseFloat(linea.precioUnitario) * (1 + (linea.iva || 21) / 100);
 

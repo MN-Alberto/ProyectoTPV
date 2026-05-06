@@ -176,15 +176,15 @@
                     <span id="taskCountText">1 tarea activa</span>
                 </div>
             </div>
-            <div class="indicador-efectivo"
+            <div class="indicador-efectivo" id="adminIndicadorCaja"
                 style="<?php echo !$sesionCaja ? 'background: #fee2e2; border-color: #fecaca;' : ''; ?>">
                 <span class="label">Estado del Sistema:</span>
-                <span class="amount" style="color: <?php echo $sesionCaja ? '#059669' : '#dc2626'; ?>;">
+                <span class="amount" id="adminEstadoSistema" style="color: <?php echo $sesionCaja ? '#059669' : '#dc2626'; ?>;">
                     <?php echo $sesionCaja ? 'Online' : 'Offline (Caja Cerrada)'; ?>
                 </span>
                 <div class="separador"></div>
-                <span class="label"><?php echo $sesionCaja ? 'Efectivo en Caja:' : 'Fondo Siguiente Turno:'; ?></span>
-                <span class="amount">
+                <span class="label" id="adminEfectivoLabel"><?php echo $sesionCaja ? 'Efectivo en Caja:' : 'Fondo Siguiente Turno:'; ?></span>
+                <span class="amount" id="adminEfectivoValor">
                     <?php echo number_format($stats['efectivoCaja'], 2, ',', '.'); ?> €
                 </span>
             </div>
@@ -250,76 +250,86 @@
 <!-- ##-----------------------------------MODAL VER CATEGORÍA-----------------------------------## -->
 
 <div class="modal-overlay" id="modalVerCategoria" style="display:none;">
-    <div class="modal-content modal-verCategoria" style="max-width: 480px; width: 90%;">
-        <h3>Detalle de Categoría</h3>
-        <p class="modal-subtitulo">Información y productos asociados</p>
-
-        <!-- Info básica (Una sola columna) -->
-        <div style="display: flex; flex-direction: column; gap: 10px; margin: 15px 0;">
-            <div class="ver-cat-fila">
-                <span class="ver-cat-label">ID</span>
-                <span id="verCategoriaId" class="ver-cat-valor"></span>
-            </div>
-            <div class="ver-cat-fila">
-                <span class="ver-cat-label">Nombre</span>
-                <span id="verCategoriaNombre" class="ver-cat-valor" style="font-weight: 700;"></span>
-            </div>
-            <div class="ver-cat-fila">
-                <span class="ver-cat-label">Descripción</span>
-                <span id="verCategoriaDescripcion" class="ver-cat-valor"></span>
-            </div>
-        </div>
-
-        <!-- Carrusel de productos debajo -->
-        <div class="cat-prod-container">
-            <div class="cat-prod-title">
-                <span>Productos vinculados</span>
-                <span id="verCategoriaCantProdBadge" class="admin-badge"
-                    style="background: #e0e7ff; color: #3730a3;">0</span>
-            </div>
-
-            <div class="cat-carousel-wrapper">
-                <div style="display: flex; gap: 5px;">
-                    <button id="firstCatProd" class="cat-carousel-btn small" title="Primero"
-                        onclick="cambiarProductoCarrusel('first')">
-                        <i class="fas fa-angle-double-left"></i>
-                    </button>
-                    <button id="prevCatProd" class="cat-carousel-btn" title="Anterior"
-                        onclick="cambiarProductoCarrusel(-1)">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                </div>
-
-                <div id="verCategoriaListaProductos" class="cat-prod-card-wrapper">
-                    <!-- Se carga un solo producto aquí -->
-                    <div class="cat-prod-empty">Cargando...</div>
-                </div>
-
-                <div style="display: flex; gap: 5px;">
-                    <button id="nextCatProd" class="cat-carousel-btn" title="Siguiente"
-                        onclick="cambiarProductoCarrusel(1)">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
-                    <button id="lastCatProd" class="cat-carousel-btn small" title="Último"
-                        onclick="cambiarProductoCarrusel('last')">
-                        <i class="fas fa-angle-double-right"></i>
-                    </button>
-                </div>
-            </div>
-
-            <div id="catCarouselDots" class="cat-carousel-info" style="justify-content: center; margin-top: 15px;">
-                <span>Producto</span>
-                <input type="number" id="catCarouselInput" class="cat-carousel-input" min="1"
-                    onchange="saltarAProductoCarrusel(this.value)">
-                <span>de <span id="catCarouselTotal">0</span></span>
-            </div>
-        </div>
-
-        <div
-            style="display: flex; justify-content: center; margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--border-main);">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCategoria')" style="min-width: 120px;">
-                Cerrar
+    <div class="modal-content modal-premium" style="max-width: 550px; padding: 0; overflow: hidden; width: 90%;">
+        <!-- Header Premium -->
+        <div class="modal-header-premium" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); padding: 20px 25px; text-align: left; position: relative;">
+            <h3 style="margin: 0; color: #fff; font-size: 1.3rem;">Detalle de Categoría</h3>
+            <p class="modal-subtitulo" style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Información y productos asociados</p>
+            <button class="modal-close-btn" onclick="cerrarModal('modalVerCategoria')" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                <i class="fas fa-times"></i>
             </button>
+        </div>
+
+        <div style="padding: 25px;">
+            <!-- Info básica -->
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 25px;">
+                <div class="ver-prod-item-premium">
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">ID de Categoría</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-hashtag" style="color: #64748b; width: 16px;"></i>
+                        <span id="verCategoriaId" style="font-size: 0.95rem; color: #4b5563;"></span>
+                    </div>
+                </div>
+                <div class="ver-prod-item-premium">
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Nombre</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-folder-open" style="color: #3b82f6; width: 16px;"></i>
+                        <span id="verCategoriaNombre" style="font-size: 1.1rem; font-weight: 700; color: #1f2937;"></span>
+                    </div>
+                </div>
+                <div class="ver-prod-item-premium">
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Descripción</label>
+                    <div style="display: flex; align-items: flex-start; gap: 8px;">
+                        <i class="fas fa-align-left" style="color: #8b5cf6; width: 16px; margin-top: 3px;"></i>
+                        <span id="verCategoriaDescripcion" style="font-size: 0.95rem; color: #4b5563;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Carrusel de productos debajo -->
+            <div class="cat-prod-container" style="background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px;">
+                <div class="cat-prod-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span style="font-weight: 600; color: #334155; font-size: 0.9rem; text-transform: uppercase;">Productos vinculados</span>
+                    <span id="verCategoriaCantProdBadge" class="admin-badge" style="background: #e0e7ff; color: #3730a3; padding: 4px 10px; font-size: 0.8rem;">0</span>
+                </div>
+
+                <div class="cat-carousel-wrapper">
+                    <div style="display: flex; gap: 5px;">
+                        <button id="firstCatProd" class="cat-carousel-btn small" title="Primero" onclick="cambiarProductoCarrusel('first')">
+                            <i class="fas fa-angle-double-left"></i>
+                        </button>
+                        <button id="prevCatProd" class="cat-carousel-btn" title="Anterior" onclick="cambiarProductoCarrusel(-1)">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                    </div>
+
+                    <div id="verCategoriaListaProductos" class="cat-prod-card-wrapper">
+                        <!-- Se carga un solo producto aquí -->
+                        <div class="cat-prod-empty">Cargando...</div>
+                    </div>
+
+                    <div style="display: flex; gap: 5px;">
+                        <button id="nextCatProd" class="cat-carousel-btn" title="Siguiente" onclick="cambiarProductoCarrusel(1)">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                        <button id="lastCatProd" class="cat-carousel-btn small" title="Último" onclick="cambiarProductoCarrusel('last')">
+                            <i class="fas fa-angle-double-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="catCarouselDots" class="cat-carousel-info" style="justify-content: center; margin-top: 15px; font-size: 0.85rem; color: #64748b;">
+                    <span>Producto</span>
+                    <input type="number" id="catCarouselInput" class="cat-carousel-input" min="1" onchange="saltarAProductoCarrusel(this.value)">
+                    <span>de <span id="catCarouselTotal">0</span></span>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerCategoria')" style="margin: 0; padding: 10px 25px; border-radius: 8px; font-weight: 600;">
+                    Cerrar
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -327,53 +337,80 @@
 <!-- ##-----------------------------------MODAL VER PRODUCTO-----------------------------------## -->
 
 <div class="modal-overlay" id="modalVerProducto" style="display:none;">
-    <div class="modal-content modal-verProducto" style="max-width: 420px;">
-        <h3>Detalle del Producto</h3>
-        <p class="modal-subtitulo">Información completa</p>
-
-        <div style="display: flex; gap: 20px; align-items: flex-start; margin: 15px 0;">
-            <!-- Imagen -->
-            <img id="verProductoImagen" src="" alt=""
-                style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb; flex-shrink: 0;">
-
-            <!-- Datos -->
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
-                <div class="ver-prod-fila">
-                    <span class="ver-prod-label">Nombre</span>
-                    <span id="verProductoNombre" class="ver-prod-valor"></span>
-                </div>
-                <div class="ver-prod-fila">
-                    <span class="ver-prod-label">Categoría</span>
-                    <span id="verProductoCategoria" class="ver-prod-valor"></span>
-                </div>
-                <div class="ver-prod-fila">
-                    <span class="ver-prod-label">Precio</span>
-                    <span id="verProductoPrecio" class="ver-prod-valor"
-                        style="color: #059669; font-weight: 700;"></span>
-                </div>
-                <div class="ver-prod-fila">
-                    <span class="ver-prod-label">Stock</span>
-                    <span id="verProductoStock" class="ver-prod-valor"></span>
-                </div>
-                <div class="ver-prod-fila">
-                    <span class="ver-prod-label">Estado</span>
-                    <span id="verProductoEstado" class="ver-prod-valor"></span>
-                </div>
-                <div class="ver-prod-fila">
-                    <span class="ver-prod-label">IVA</span>
-                    <span id="verProductoIva" class="ver-prod-valor"></span>
-                </div>
-                <div class="ver-prod-fila">
-                    <span class="ver-prod-label">Decimales</span>
-                    <span id="verProductoDecimales" class="ver-prod-valor"></span>
-                </div>
-            </div>
+    <div class="modal-content modal-premium" style="max-width: 500px; padding: 0; overflow: hidden;">
+        <!-- Header Premium -->
+        <div class="modal-header-premium" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); padding: 20px 25px; text-align: left; position: relative;">
+            <h3 style="margin: 0; color: #fff; font-size: 1.3rem;">Detalle del Producto</h3>
+            <p class="modal-subtitulo" style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Ficha técnica e información de inventario</p>
+            <button class="modal-close-btn" onclick="cerrarModal('modalVerProducto')" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
 
-        <div style="display: flex; justify-content: center; margin-top: 20px;">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerProducto')" style="min-width: 100px;">
-                Cerrar
-            </button>
+        <div style="padding: 25px;">
+            <div class="ver-prod-layout-premium" style="display: flex; gap: 25px; align-items: flex-start;">
+                <!-- Imagen con efecto -->
+                <div class="ver-prod-img-container" style="flex-shrink: 0; position: relative;">
+                    <img id="verProductoImagen" src="" alt="" 
+                        style="width: 140px; height: 140px; object-fit: cover; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: transform 0.3s ease;">
+                    <div id="verProductoBadgeEstado" style="position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); white-space: nowrap;">
+                        <!-- Badge se inyecta por JS -->
+                    </div>
+                </div>
+
+                <!-- Datos con iconos -->
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                    <div class="ver-prod-item-premium">
+                        <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Nombre del Producto</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-tag" style="color: #3b82f6; width: 16px;"></i>
+                            <span id="verProductoNombre" style="font-size: 1.1rem; font-weight: 700; color: #1f2937;"></span>
+                        </div>
+                    </div>
+
+                    <div class="ver-prod-item-premium">
+                        <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Categoría</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-folder" style="color: #6366f1; width: 16px;"></i>
+                            <span id="verProductoCategoria" style="font-size: 0.95rem; color: #4b5563;"></span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 15px;">
+                        <div class="ver-prod-item-premium" style="flex: 1;">
+                            <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Stock</label>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-cubes" style="color: #f59e0b; width: 16px;"></i>
+                                <span id="verProductoStock" style="font-size: 1rem; font-weight: 700; color: #1f2937;"></span>
+                            </div>
+                        </div>
+                        <div class="ver-prod-item-premium" style="flex: 1;">
+                            <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">IVA</label>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-percentage" style="color: #10b981; width: 16px;"></i>
+                                <span id="verProductoIva" style="font-size: 0.95rem; color: #4b5563;"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección de Precio Destacada -->
+            <div style="margin-top: 25px; padding: 15px 20px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span style="display: block; font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Precio de Venta</span>
+                    <span id="verProductoPrecioLabel" style="font-size: 0.8rem; color: #94a3b8;">Base imponible</span>
+                </div>
+                <div style="text-align: right;">
+                    <span id="verProductoPrecio" style="font-size: 1.8rem; font-weight: 800; color: #059669; letter-spacing: -0.02em;"></span>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerProducto')" style="margin: 0; padding: 10px 25px; border-radius: 8px; font-weight: 600;">
+                    Cerrar
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -381,72 +418,84 @@
 <!-- ##-----------------------------------MODAL EDITAR PRODUCTO-----------------------------------## -->
 
 <div class="modal-overlay" id="modalEditarProducto" style="display:none;">
-    <div class="modal-content modal-editarProducto">
-        <h3 id="editProductoTitulo">Editar Producto</h3>
-        <p id="editProductoSubtitulo" class="modal-subtitulo">Modifica los datos del producto</p>
+    <div class="modal-content modal-premium" style="max-width: 600px; padding: 0; overflow: hidden;">
+        <!-- Header Premium -->
+        <div class="modal-header-premium" style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px 25px; text-align: left; position: relative;">
+            <h3 id="editProductoTitulo" style="margin: 0; color: #fff; font-size: 1.3rem;">Editar Producto</h3>
+            <p id="editProductoSubtitulo" class="modal-subtitulo" style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Modifica los datos del producto</p>
+            <button class="modal-close-btn" onclick="cerrarModal('modalEditarProducto')" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
 
         <input type="hidden" id="editProductoId">
 
-        <div class="editar-prod-layout">
-            <!-- Imagen -->
-            <div class="editar-prod-imagen-wrapper">
-                <img id="editProductoImagen" src="" alt="" style="cursor: zoom-in;"
-                    onclick="abrirImagenGrande(this.src, this.alt)">
-                <label class="btn-cambiar-imagen" title="Cambiar imagen">
-                    <i class="fas fa-camera"></i> Cambiar imagen
-                    <input type="file" id="editProductoImagenInput" accept="image/*" style="display:none;"
-                        onchange="previsualizarImagen(event)">
-                </label>
+        <div style="padding: 25px;">
+            <div class="editar-prod-layout-premium" style="display: flex; gap: 25px; align-items: flex-start;">
+                
+                <!-- Columna Izquierda: Imagen -->
+                <div class="editar-prod-imagen-wrapper" style="flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; width: 140px;">
+                    <div style="position: relative; width: 140px; height: 140px; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; box-shadow: 0 4px 12px rgba(0,0,0,0.05); background: #f9fafb;">
+                        <img id="editProductoImagen" src="" alt="" style="width: 100%; height: 100%; object-fit: cover; cursor: zoom-in;" onclick="abrirImagenGrande(this.src, this.alt)">
+                    </div>
+                    <label class="btn-cambiar-imagen" title="Cambiar imagen" style="display: flex; align-items: center; justify-content: center; gap: 8px; background: #f3f4f6; border: 1px solid #d1d5db; padding: 8px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #4b5563; transition: all 0.2s;">
+                        <i class="fas fa-camera"></i> Subir foto
+                        <input type="file" id="editProductoImagenInput" accept="image/*" style="display:none;" onchange="previsualizarImagen(event)">
+                    </label>
+                </div>
+
+                <!-- Columna Derecha: Formulario -->
+                <div class="editar-prod-campos" style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="editar-prod-fila-premium" style="grid-column: span 2;">
+                        <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Nombre <span style="color:#ef4444">*</span></label>
+                        <input type="text" id="editProductoNombre" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;" placeholder="Ej: Café con Leche">
+                    </div>
+                    
+                    <div class="editar-prod-fila-premium" style="grid-column: span 2;">
+                        <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Categoría <span style="color:#ef4444">*</span></label>
+                        <select id="editProductoCategoria" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s; background-color: #fff;">
+                        </select>
+                    </div>
+                    
+                    <div class="editar-prod-fila-premium">
+                        <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Precio Base (€) <span style="color:#ef4444">*</span></label>
+                        <input type="number" id="editProductoPrecio" step="0.0001" min="0" oninput="validarPrecisionDinamica(this, 'editProductoDecimales')" onblur="validarPrecisionDinamica(this, 'editProductoDecimales')" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                    </div>
+                    
+                    <div class="editar-prod-fila-premium">
+                        <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Stock <span style="color:#ef4444">*</span></label>
+                        <input type="number" id="editProductoStock" min="0" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                    </div>
+
+                    <div class="editar-prod-fila-premium">
+                        <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Tipo de IVA</label>
+                        <select id="editProductoIva" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s; background-color: #fff;">
+                        </select>
+                    </div>
+
+                    <div class="editar-prod-fila-premium">
+                        <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Estado</label>
+                        <select id="editProductoEstado" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s; background-color: #fff;">
+                            <option value="1">Activo</option>
+                            <option value="0">Inactivo</option>
+                        </select>
+                    </div>
+
+                    <div class="editar-prod-fila-premium" style="grid-column: span 2;">
+                        <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Decimales permitidos (máx 4)</label>
+                        <input type="number" id="editProductoDecimales" min="0" max="4" step="1" value="2" oninput="validarDecimalesRango(this, 'editProductoPrecio')" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                    </div>
+                </div>
             </div>
 
-            <!-- Campos -->
-            <div class="editar-prod-campos">
-                <div class="editar-prod-fila">
-                    <label>Nombre</label>
-                    <input type="text" id="editProductoNombre">
-                </div>
-                <div class="editar-prod-fila">
-                    <label>Categoría</label>
-                    <select id="editProductoCategoria"
-                        style="padding: 8px; border-radius: 4px; border: 1px solid #d1d5db;">
-                    </select>
-                </div>
-                <div class="editar-prod-fila">
-                    <label>Precio (€)</label>
-                    <input type="number" id="editProductoPrecio" step="0.0001" min="0"
-                        oninput="validarPrecisionDinamica(this, 'editProductoDecimales')"
-                        onblur="validarPrecisionDinamica(this, 'editProductoDecimales')">
-                </div>
-                <div class="editar-prod-fila">
-                    <label>Stock</label>
-                    <input type="number" id="editProductoStock" min="0">
-                </div>
-                <div class="editar-prod-fila">
-                    <label>Estado</label>
-                    <select id="editProductoEstado">
-                        <option value="1">Activo</option>
-                        <option value="0">Inactivo</option>
-                    </select>
-                </div>
-                <div class="editar-prod-fila">
-                    <label>Tipo de IVA</label>
-                    <select id="editProductoIva">
-                        <!-- Se rellena dinámicamente desde api/iva.php -->
-                    </select>
-                </div>
-                <div class="editar-prod-fila">
-                    <label>Decimales (máx 4)</label>
-                    <input type="number" id="editProductoDecimales" min="0" max="4" step="1" value="2"
-                        oninput="validarDecimalesRango(this, 'editProductoPrecio')">
-                </div>
+            <div style="margin-top: 30px; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalEditarProducto')" style="margin: 0; padding: 10px 20px; border-radius: 8px; font-weight: 600;">
+                    Cancelar
+                </button>
+                <button class="btn-exito" onclick="guardarCambiosProducto()" style="margin: 0; padding: 10px 25px; border-radius: 8px; font-weight: 600; background: #10b981; border: none; color: white; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.2s;">
+                    <i class="fas fa-save"></i> Guardar Cambios
+                </button>
             </div>
-        </div>
-
-        <div class="editar-prod-botones">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalEditarProducto')">Cancelar</button>
-            <button class="btn-exito" onclick="guardarCambiosProducto()">
-                <i class="fas fa-save"></i> Guardar Cambios
-            </button>
         </div>
     </div>
 </div>
@@ -454,57 +503,102 @@
 <!-- ##-----------------------------------MODAL VER USUARIO-----------------------------------## -->
 
 <div class="modal-overlay" id="modalVerUsuario" style="display:none;">
-    <div class="modal-content modal-verProducto" style="max-width: 420px;">
-        <h3>Detalle del Usuario</h3>
-        <p class="modal-subtitulo">Información completa</p>
-
-        <div style="display: flex; flex-direction: column; gap: 15px; margin: 20px 0;">
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Nombre</span>
-                <span id="verUsuarioNombre" class="ver-prod-valor"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Email</span>
-                <span id="verUsuarioEmail" class="ver-prod-valor"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Rol</span>
-                <span id="verUsuarioRol" class="ver-prod-valor"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Fecha de Alta</span>
-                <span id="verUsuarioFecha" class="ver-prod-valor"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Estado</span>
-                <span id="verUsuarioEstado" class="ver-prod-valor"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Crear Productos</span>
-                <span id="verUsuarioCrearProductos" class="ver-prod-valor"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Producto Comodín</span>
-                <span id="verUsuarioProductoComodin" class="ver-prod-valor"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Retirar Dinero Caja</span>
-                <span id="verUsuarioRetirarDinero" class="ver-prod-valor"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Total Descansos</span>
-                <span id="verUsuarioTotalDescansos" class="ver-prod-valor"></span>
-            </div>
-            <div class="ver-prod-fila">
-                <span class="ver-prod-label">Total Cambios Turno</span>
-                <span id="verUsuarioTotalTurnos" class="ver-prod-valor"></span>
-            </div>
+    <div class="modal-content modal-premium" style="max-width: 600px; padding: 0; overflow: hidden; width: 90%;">
+        <!-- Header Premium -->
+        <div class="modal-header-premium" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); padding: 20px 25px; text-align: left; position: relative;">
+            <h3 style="margin: 0; color: #fff; font-size: 1.3rem;">Detalle del Usuario</h3>
+            <p class="modal-subtitulo" style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Información completa y permisos</p>
+            <button class="modal-close-btn" onclick="cerrarModal('modalVerUsuario')" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
 
-        <div style="display: flex; justify-content: center; margin-top: 20px;">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerUsuario')" style="min-width: 100px;">
-                Cerrar
-            </button>
+        <div style="padding: 25px; max-height: 75vh; overflow-y: auto;">
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                <div class="ver-prod-item-premium">
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Nombre</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-user" style="color: #3b82f6; width: 16px;"></i>
+                        <span id="verUsuarioNombre" style="font-size: 1.05rem; font-weight: 700; color: #1f2937;"></span>
+                    </div>
+                </div>
+                <div class="ver-prod-item-premium">
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Email</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-envelope" style="color: #8b5cf6; width: 16px;"></i>
+                        <span id="verUsuarioEmail" style="font-size: 0.95rem; color: #4b5563;"></span>
+                    </div>
+                </div>
+                <div class="ver-prod-item-premium">
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Rol</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-user-shield" style="color: #f59e0b; width: 16px;"></i>
+                        <span id="verUsuarioRol" style="font-size: 0.95rem; color: #4b5563; text-transform: capitalize;"></span>
+                    </div>
+                </div>
+                <div class="ver-prod-item-premium">
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Fecha de Alta</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-calendar-alt" style="color: #10b981; width: 16px;"></i>
+                        <span id="verUsuarioFecha" style="font-size: 0.95rem; color: #4b5563;"></span>
+                    </div>
+                </div>
+                <div class="ver-prod-item-premium">
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Estado</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="verUsuarioEstado" style="font-size: 0.95rem; font-weight: 600;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <h4 style="font-size: 0.9rem; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; margin-bottom: 15px;"><i class="fas fa-chart-line" style="margin-right: 5px; color: #6366f1;"></i> Estadísticas</h4>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 25px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <div class="ver-prod-item-premium" style="margin: 0; padding: 0; background: transparent; border: none;">
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Total Descansos</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-coffee" style="color: #d97706; width: 16px;"></i>
+                        <span id="verUsuarioTotalDescansos" style="font-size: 1.1rem; font-weight: 700; color: #1f2937;"></span>
+                    </div>
+                </div>
+                <div class="ver-prod-item-premium" style="margin: 0; padding: 0; background: transparent; border: none;">
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Total Cambios Turno</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-exchange-alt" style="color: #059669; width: 16px;"></i>
+                        <span id="verUsuarioTotalTurnos" style="font-size: 1.1rem; font-weight: 700; color: #1f2937;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Permissions -->
+            <h4 style="font-size: 0.9rem; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; margin-bottom: 15px;"><i class="fas fa-key" style="margin-right: 5px; color: #ef4444;"></i> Permisos Especiales</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
+                <div class="ver-prod-item-premium">
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Crear Productos</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="verUsuarioCrearProductos" style="font-size: 0.95rem; font-weight: 600;"></span>
+                    </div>
+                </div>
+                <div class="ver-prod-item-premium">
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Producto Comodín</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="verUsuarioProductoComodin" style="font-size: 0.95rem; font-weight: 600;"></span>
+                    </div>
+                </div>
+                <div class="ver-prod-item-premium">
+                    <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Retirar Dinero Caja</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="verUsuarioRetirarDinero" style="font-size: 0.95rem; font-weight: 600;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 25px; display: flex; justify-content: flex-end; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalVerUsuario')" style="margin: 0; padding: 10px 25px; border-radius: 8px; font-weight: 600;">
+                    Cerrar
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -543,72 +637,87 @@
 <!-- ##-----------------------------------MODAL EDITAR/CREAR USUARIO-----------------------------------## -->
 
 <div class="modal-overlay" id="modalEditarUsuario" style="display:none;">
-    <div class="modal-content modal-editarProducto">
-        <h3 id="editUsuarioTitulo">Editar Usuario</h3>
-        <p class="modal-subtitulo">Modifica los datos del usuario</p>
-
-        <input type="hidden" id="editUsuarioId">
-
-        <div class="editar-prod-campos" style="max-width: 100%;">
-            <div class="editar-prod-fila">
-                <label>Nombre <span style="color:red">*</span></label>
-                <input type="text" id="editUsuarioNombre" required>
-            </div>
-            <div class="editar-prod-fila">
-                <label>Email <span style="color:red">*</span></label>
-                <input type="email" id="editUsuarioEmail" required>
-            </div>
-            <div class="editar-prod-fila">
-                <label>Password <span style="color:red">*</span></label>
-                <input type="password" id="editUsuarioPassword">
-            </div>
-            <div class="editar-prod-fila">
-                <label>Rol</label>
-                <select id="editUsuarioRol">
-                    <option value="empleado">Empleado</option>
-                    <option value="admin">Administrador</option>
-                </select>
-            </div>
-            <div class="editar-prod-fila">
-                <label>Estado</label>
-                <select id="editUsuarioEstado">
-                    <option value="1">Activo</option>
-                    <option value="0">Inactivo</option>
-                </select>
-            </div>
-            <div class="editar-prod-fila" id="filaPermisos" style="display: none;">
-                <label>Permisos adicionales</label>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="editUsuarioPermisoCrearProductos" value="crear_productos"
-                        style="width: auto;">
-                    <span>Permitir crear productos</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
-                    <input type="checkbox" id="editUsuarioPermisoModificarPrecios" value="modificar_precios"
-                        style="width: auto;">
-                    <span>Permitir modificar precios en caja</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
-                    <input type="checkbox" id="editUsuarioPermisoProductoComodin" value="producto_comodin"
-                        style="width: auto;">
-                    <span>Permitir usar Producto Comodín</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
-                    <input type="checkbox" id="editUsuarioPermisoRetirarDinero" value="retirar_dinero"
-                        style="width: auto;">
-                    <span>Permitir Retirar Dinero de Caja</span>
-                </div>
-                <p style="font-size: 0.8rem; color: #6b7280; margin-top: 4px;">El empleado podrá añadir productos y
-                    modificar precios desde
-                    su vista de cajero</p>
-            </div>
+    <div class="modal-content modal-premium" style="max-width: 650px; padding: 0; overflow: hidden; width: 90%;">
+        <!-- Header Premium -->
+        <div class="modal-header-premium" style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px 25px; text-align: left; position: relative;">
+            <h3 id="editUsuarioTitulo" style="margin: 0; color: #fff; font-size: 1.3rem;">Editar Usuario</h3>
+            <p class="modal-subtitulo" style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Modifica los datos del usuario</p>
+            <button class="modal-close-btn" onclick="cerrarModal('modalEditarUsuario')" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
 
-        <div class="editar-prod-botones">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalEditarUsuario')">Cancelar</button>
-            <button class="btn-exito" onclick="guardarCambiosUsuario()">
-                <i class="fas fa-save"></i> Guardar Cambios
-            </button>
+        <div style="padding: 25px;">
+            <input type="hidden" id="editUsuarioId">
+
+            <div class="editar-prod-campos" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 25px;">
+                <!-- Columna Izquierda -->
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <div class="editar-prod-fila-premium">
+                        <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Nombre <span style="color:#ef4444">*</span></label>
+                        <input type="text" id="editUsuarioNombre" required style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                    </div>
+                    <div class="editar-prod-fila-premium">
+                        <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Password <span style="color:#ef4444">*</span></label>
+                        <input type="password" id="editUsuarioPassword" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                    </div>
+                    <div class="editar-prod-fila-premium">
+                        <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Rol</label>
+                        <select id="editUsuarioRol" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s; background-color: #fff;">
+                            <option value="empleado">Empleado</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Columna Derecha -->
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <div class="editar-prod-fila-premium">
+                        <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Email <span style="color:#ef4444">*</span></label>
+                        <input type="email" id="editUsuarioEmail" required style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                    </div>
+                    <div class="editar-prod-fila-premium">
+                        <label style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Estado</label>
+                        <select id="editUsuarioEstado" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s; background-color: #fff;">
+                            <option value="1">Activo</option>
+                            <option value="0">Inactivo</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fila Permisos (Ocupa todo el ancho) -->
+            <div class="editar-prod-fila-premium" id="filaPermisos" style="display: none; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+                <label style="display: block; font-size: 0.85rem; color: #374151; font-weight: 700; text-transform: uppercase; margin-bottom: 10px;">Permisos Adicionales</label>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #4b5563; cursor: pointer;">
+                        <input type="checkbox" id="editUsuarioPermisoCrearProductos" value="crear_productos" style="width: 16px; height: 16px; cursor: pointer;">
+                        Permitir crear productos
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #4b5563; cursor: pointer;">
+                        <input type="checkbox" id="editUsuarioPermisoModificarPrecios" value="modificar_precios" style="width: 16px; height: 16px; cursor: pointer;">
+                        Permitir modificar precios
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #4b5563; cursor: pointer;">
+                        <input type="checkbox" id="editUsuarioPermisoProductoComodin" value="producto_comodin" style="width: 16px; height: 16px; cursor: pointer;">
+                        Usar Producto Comodín
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #4b5563; cursor: pointer;">
+                        <input type="checkbox" id="editUsuarioPermisoRetirarDinero" value="retirar_dinero" style="width: 16px; height: 16px; cursor: pointer;">
+                        Retirar Dinero de Caja
+                    </label>
+                </div>
+                <p style="font-size: 0.75rem; color: #6b7280; margin-top: 10px; font-style: italic;">El empleado podrá acceder a estas funciones desde su vista de cajero.</p>
+            </div>
+
+            <div style="margin-top: 10px; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalEditarUsuario')" style="margin: 0; padding: 10px 20px; border-radius: 8px; font-weight: 600;">
+                    Cancelar
+                </button>
+                <button class="btn-exito" onclick="guardarCambiosUsuario()" style="margin: 0; padding: 10px 25px; border-radius: 8px; font-weight: 600; background: #10b981; border: none; color: white; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.2s;">
+                    <i class="fas fa-save"></i> Guardar Cambios
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -775,132 +884,96 @@
 <!-- ##=========================== MODAL: NUEVO CLIENTE (ADMIN) ===========================## -->
 <!-- Modal para añadir un cliente habitual (DNI, nombre, apellidos, fecha alta) -->
 <div class="modal-overlay" id="modalClienteHabitual" style="display:none;">
-    <div class="modal-content" style="max-width: 500px; text-align: left;">
-        <h3 style="margin-bottom: 5px;">Nuevo Cliente</h3>
-        <p class="modal-subtitulo" style="margin-bottom: 20px;">Complete los datos del cliente</p>
-
-        <div style="display: grid; gap: 15px;">
-            <!-- Campo DNI -->
-            <div>
-                <label for="clienteHabitualDni"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">DNI <span
-                        style="color: #ef4444;">*</span></label>
-                <input type="text" id="clienteHabitualDni"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="12345678A" maxlength="20">
-            </div>
-
-            <!-- Campo Nombre -->
-            <div>
-                <label for="clienteHabitualNombre"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Nombre <span
-                        style="color: #ef4444;">*</span></label>
-                <input type="text" id="clienteHabitualNombre"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="Juan" maxlength="100">
-            </div>
-
-            <!-- Campo Apellidos -->
-            <div>
-                <label for="clienteHabitualApellidos"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Apellidos <span
-                        style="color: #ef4444;">*</span></label>
-                <input type="text" id="clienteHabitualApellidos"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="García López" maxlength="150">
-            </div>
-
-            <!-- Campo Dirección -->
-            <div>
-                <label for="clienteHabitualDireccion"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Dirección</label>
-                <input type="text" id="clienteHabitualDireccion"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="Calle, Número, Ciudad" maxlength="255">
-            </div>
-
-            <!-- Campo Fecha de Alta (solo lectura - se establece automáticamente) -->
-            <div>
-                <label for="clienteHabitualFecha"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Fecha de
-                    Alta</label>
-                <input type="datetime-local" id="clienteHabitualFecha" readonly
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; background-color: #f3f4f6; color: #6b7280;">
-            </div>
+    <div class="modal-content modal-premium" style="max-width: 600px; padding: 0; overflow: hidden; width: 90%;">
+        <!-- Header Premium -->
+        <div class="modal-header-premium" style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px 25px; text-align: left; position: relative;">
+            <h3 style="margin: 0; color: #fff; font-size: 1.3rem;">Nuevo Cliente</h3>
+            <p class="modal-subtitulo" style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Complete los datos del cliente</p>
+            <button class="modal-close-btn" onclick="cerrarModal('modalClienteHabitual')" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
 
-        <!-- Botones: Cancelar y Guardar -->
-        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalClienteHabitual')">Cancelar</button>
-            <button class="btn-exito" id="btnGuardarClienteHabitual" onclick="guardarClienteHabitualAdmin()"
-                style="margin: 0;">Guardar</button>
+        <div style="padding: 25px;">
+            <div class="editar-prod-campos" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div class="editar-prod-fila-premium">
+                    <label for="clienteHabitualDni" style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">DNI <span style="color:#ef4444">*</span></label>
+                    <input type="text" id="clienteHabitualDni" placeholder="12345678A" maxlength="20" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                </div>
+                <div class="editar-prod-fila-premium">
+                    <label for="clienteHabitualNombre" style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Nombre <span style="color:#ef4444">*</span></label>
+                    <input type="text" id="clienteHabitualNombre" placeholder="Juan" maxlength="100" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                </div>
+                <div class="editar-prod-fila-premium">
+                    <label for="clienteHabitualApellidos" style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Apellidos <span style="color:#ef4444">*</span></label>
+                    <input type="text" id="clienteHabitualApellidos" placeholder="García López" maxlength="150" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                </div>
+                <div class="editar-prod-fila-premium">
+                    <label for="clienteHabitualDireccion" style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Dirección</label>
+                    <input type="text" id="clienteHabitualDireccion" placeholder="Calle, Número, Ciudad" maxlength="255" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                </div>
+                <div class="editar-prod-fila-premium">
+                    <label for="clienteHabitualFecha" style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Fecha de Alta</label>
+                    <input type="datetime-local" id="clienteHabitualFecha" readonly style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s; background-color: #f3f4f6; color: #6b7280;">
+                </div>
+            </div>
+
+            <!-- Botones: Cancelar y Guardar -->
+            <div style="margin-top: 30px; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalClienteHabitual')" style="margin: 0; padding: 10px 20px; border-radius: 8px; font-weight: 600;">Cancelar</button>
+                <button class="btn-exito" id="btnGuardarClienteHabitual" onclick="guardarClienteHabitualAdmin()" style="margin: 0; padding: 10px 25px; border-radius: 8px; font-weight: 600; background: #10b981; border: none; color: white; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.2s;">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- ##=========================== MODAL: EDITAR CLIENTE (ADMIN) ===========================## -->
 <div class="modal-overlay" id="modalEditarCliente" style="display:none;">
-    <div class="modal-content" style="max-width: 500px; text-align: left;">
-        <h3 style="margin-bottom: 5px;">Editar Cliente</h3>
-        <p class="modal-subtitulo" style="margin-bottom: 20px;">Modifique los datos del cliente</p>
-
-        <input type="hidden" id="editarClienteId">
-
-        <div style="display: grid; gap: 15px;">
-            <!-- Campo DNI -->
-            <div>
-                <label for="editarClienteDni"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">DNI <span
-                        style="color: #ef4444;">*</span></label>
-                <input type="text" id="editarClienteDni"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="12345678A" maxlength="20">
-            </div>
-
-            <!-- Campo Nombre -->
-            <div>
-                <label for="editarClienteNombre"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Nombre <span
-                        style="color: #ef4444;">*</span></label>
-                <input type="text" id="editarClienteNombre"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="Juan" maxlength="100">
-            </div>
-
-            <!-- Campo Apellidos -->
-            <div>
-                <label for="editarClienteApellidos"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Apellidos <span
-                        style="color: #ef4444;">*</span></label>
-                <input type="text" id="editarClienteApellidos"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="García López" maxlength="150">
-            </div>
-
-            <!-- Campo Dirección -->
-            <div>
-                <label for="editarClienteDireccion"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Dirección</label>
-                <input type="text" id="editarClienteDireccion"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="Calle, Número, Ciudad" maxlength="255">
-            </div>
-
-            <!-- Campo Puntos -->
-            <div>
-                <label for="editarClientePuntos"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">Puntos</label>
-                <input type="number" id="editarClientePuntos"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" placeholder="0"
-                    min="0" onchange="this.value = Math.max(0, this.value);">
-            </div>
+    <div class="modal-content modal-premium" style="max-width: 600px; padding: 0; overflow: hidden; width: 90%;">
+        <!-- Header Premium -->
+        <div class="modal-header-premium" style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px 25px; text-align: left; position: relative;">
+            <h3 style="margin: 0; color: #fff; font-size: 1.3rem;">Editar Cliente</h3>
+            <p class="modal-subtitulo" style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Modifique los datos del cliente</p>
+            <button class="modal-close-btn" onclick="cerrarModal('modalEditarCliente')" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
 
-        <!-- Botones: Cancelar y Guardar -->
-        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalEditarCliente')">Cancelar</button>
-            <button class="btn-exito" id="btnGuardarClienteEditado" onclick="guardarClienteEditado()"
-                style="margin: 0;">Guardar</button>
+        <div style="padding: 25px;">
+            <input type="hidden" id="editarClienteId">
+
+            <div class="editar-prod-campos" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div class="editar-prod-fila-premium">
+                    <label for="editarClienteDni" style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">DNI <span style="color:#ef4444">*</span></label>
+                    <input type="text" id="editarClienteDni" placeholder="12345678A" maxlength="20" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                </div>
+                <div class="editar-prod-fila-premium">
+                    <label for="editarClienteNombre" style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Nombre <span style="color:#ef4444">*</span></label>
+                    <input type="text" id="editarClienteNombre" placeholder="Juan" maxlength="100" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                </div>
+                <div class="editar-prod-fila-premium">
+                    <label for="editarClienteApellidos" style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Apellidos <span style="color:#ef4444">*</span></label>
+                    <input type="text" id="editarClienteApellidos" placeholder="García López" maxlength="150" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                </div>
+                <div class="editar-prod-fila-premium">
+                    <label for="editarClienteDireccion" style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Dirección</label>
+                    <input type="text" id="editarClienteDireccion" placeholder="Calle, Número, Ciudad" maxlength="255" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                </div>
+                <div class="editar-prod-fila-premium">
+                    <label for="editarClientePuntos" style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Puntos</label>
+                    <input type="number" id="editarClientePuntos" placeholder="0" min="0" onchange="this.value = Math.max(0, this.value);" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                </div>
+            </div>
+
+            <!-- Botones: Cancelar y Guardar -->
+            <div style="margin-top: 30px; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalEditarCliente')" style="margin: 0; padding: 10px 20px; border-radius: 8px; font-weight: 600;">Cancelar</button>
+                <button class="btn-exito" id="btnGuardarClienteEditado" onclick="guardarClienteEditado()" style="margin: 0; padding: 10px 25px; border-radius: 8px; font-weight: 600; background: #10b981; border: none; color: white; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.2s;">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+            </div>
         </div>
     </div>
 </div>

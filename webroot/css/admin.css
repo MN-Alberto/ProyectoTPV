@@ -620,6 +620,81 @@ body.dark-mode .input-numero-pagina {
     text-align: right;
 }
 
+/* Rediseño Modal Premium */
+.modal-premium {
+    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header-premium .modal-close-btn:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+    transform: rotate(90deg);
+}
+
+.ver-prod-img-container img:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+}
+
+.ver-prod-item-premium {
+    transition: all 0.2s ease;
+}
+
+body.dark-mode .modal-header-premium {
+    background: linear-gradient(135deg, #1e3a8a, #1e40af) !important;
+}
+
+body.dark-mode .ver-prod-layout-premium span {
+    color: #e5e7eb !important;
+}
+
+body.dark-mode .ver-prod-layout-premium label {
+    color: #9ca3af !important;
+}
+
+body.dark-mode div[style*="background: #f8fafc"] {
+    background: #111827 !important;
+    border-color: #374151 !important;
+}
+
+body.dark-mode #verProductoPrecioLabel {
+    color: #6b7280 !important;
+}
+
+/* Edit Modal Dark Mode */
+body.dark-mode .editar-prod-fila-premium input,
+body.dark-mode .editar-prod-fila-premium select {
+    background: #374151 !important;
+    color: #e5e7eb !important;
+    border-color: #4b5563 !important;
+}
+
+body.dark-mode .editar-prod-fila-premium label {
+    color: #9ca3af !important;
+}
+
+body.dark-mode .btn-cambiar-imagen {
+    background: #374151 !important;
+    color: #e5e7eb !important;
+    border-color: #4b5563 !important;
+}
+
+body.dark-mode .editar-prod-imagen-wrapper>div {
+    background: #1f2937 !important;
+    border-color: #374151 !important;
+}
+
 /* Estilos para modal de ver categoría */
 .ver-cat-fila {
     display: flex;
@@ -3319,4 +3394,496 @@ body.dark-mode #tablaBackupsContainer tr:hover {
 
 .task-indicator {
     animation: task-pulse 2s infinite ease-in-out;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODAL VER COMPRAS — rediseño
+═══════════════════════════════════════════════════════════════ */
+
+.compras-modal-overlay {
+    backdrop-filter: blur(4px);
+}
+
+.compras-modal-shell {
+    background: var(--bg-panel);
+    border-radius: 18px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+    width: 560px;
+    max-width: 96vw;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: comprasSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes comprasSlideUp {
+    from {
+        transform: translateY(24px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ── Header ── */
+.compras-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #2d2d4e 100%);
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.compras-modal-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.compras-modal-header-left>i {
+    font-size: 1.3rem;
+    opacity: 0.85;
+}
+
+.compras-modal-title {
+    display: block;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.compras-modal-dni {
+    display: block;
+    font-size: 0.78rem;
+    opacity: 0.65;
+    margin-top: 1px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.compras-modal-close {
+    background: rgba(255, 255, 255, 0.12);
+    border: none;
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.compras-modal-close:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* ── Body ── */
+.compras-modal-body {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* ── Loading / empty ── */
+.compras-loading,
+.compras-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 60px 20px;
+    color: #9ca3af;
+    font-size: 0.95rem;
+}
+
+.compras-loading i,
+.compras-empty i {
+    font-size: 2rem;
+    opacity: 0.5;
+}
+
+.compras-error i {
+    color: #dc2626;
+    opacity: 0.7;
+}
+
+/* ── Slides container ── */
+.compras-slides-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px 22px 0;
+    min-height: 0;
+}
+
+/* ── Slide individual ── */
+.compras-slide {
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* Ticket header */
+.compras-ticket-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 14px;
+    border-bottom: 2px dashed #e5e7eb;
+}
+
+body.dark-mode .compras-ticket-header {
+    border-bottom-color: #374151;
+}
+
+.compras-ticket-label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #9ca3af;
+}
+
+.compras-ticket-value {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-main, #1a1a2e);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 2px;
+}
+
+.compras-ticket-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.compras-fecha,
+.compras-hora {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: #6b7280;
+}
+
+.compras-fecha i,
+.compras-hora i {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+/* Info row */
+.compras-info-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.compras-metodo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.metodo-efectivo {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.metodo-tarjeta {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.metodo-bizum {
+    background: #ede9fe;
+    color: #5b21b6;
+}
+
+body.dark-mode .metodo-efectivo {
+    background: #064e3b;
+    color: #6ee7b7;
+}
+
+body.dark-mode .metodo-tarjeta {
+    background: #1e3a5f;
+    color: #93c5fd;
+}
+
+body.dark-mode .metodo-bizum {
+    background: #2e1065;
+    color: #c4b5fd;
+}
+
+.compras-cajero,
+.compras-unidades {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.78rem;
+    color: #6b7280;
+    padding: 5px 10px;
+    background: #f3f4f6;
+    border-radius: 999px;
+}
+
+body.dark-mode .compras-cajero,
+body.dark-mode .compras-unidades {
+    background: #374151;
+    color: #9ca3af;
+}
+
+/* Tabla de líneas */
+.compras-tabla-wrapper {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+body.dark-mode .compras-tabla-wrapper {
+    border-color: #374151;
+}
+
+.compras-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+
+.compras-tabla thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #f8fafc;
+}
+
+body.dark-mode .compras-tabla thead {
+    background: #1f2937;
+}
+
+.compras-tabla th {
+    padding: 9px 12px;
+    font-weight: 600;
+    color: #64748b;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+body.dark-mode .compras-tabla th {
+    color: #9ca3af;
+    border-bottom-color: #374151;
+}
+
+.compras-th-prod {
+    text-align: left;
+}
+
+.compras-th-num {
+    text-align: right;
+}
+
+.compras-tabla td {
+    padding: 9px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    color: var(--text-main, #1a1a2e);
+    vertical-align: middle;
+}
+
+body.dark-mode .compras-tabla td {
+    border-bottom-color: #374151;
+    color: #e5e7eb;
+}
+
+.compras-tabla tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.compras-tabla tbody tr:hover {
+    background: #f9fafb;
+}
+
+body.dark-mode .compras-tabla tbody tr:hover {
+    background: #263040;
+}
+
+.compras-td-prod {
+    text-align: left;
+    font-weight: 500;
+}
+
+.compras-td-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.compras-subtotal {
+    font-weight: 700;
+    color: #059669;
+}
+
+body.dark-mode .compras-subtotal {
+    color: #34d399;
+}
+
+/* Total */
+.compras-total-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    margin-bottom: 4px;
+}
+
+body.dark-mode .compras-total-row {
+    background: #052e16;
+    border-color: #166534;
+}
+
+.compras-total-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #166534;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+body.dark-mode .compras-total-label {
+    color: #4ade80;
+}
+
+.compras-total-valor {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #15803d;
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+body.dark-mode .compras-total-valor {
+    color: #6ee7b7;
+}
+
+/* ── Navegación inferior ── */
+.compras-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 22px 18px;
+    border-top: 1px solid #f1f5f9;
+    flex-shrink: 0;
+}
+
+body.dark-mode .compras-nav {
+    border-top-color: #374151;
+}
+
+.compras-nav-left,
+.compras-nav-right {
+    display: flex;
+    gap: 6px;
+}
+
+.compras-nav-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.compras-nav-btn {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    color: #374151;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.compras-nav-btn:hover {
+    background: #1a1a2e;
+    color: #fff;
+    border-color: #1a1a2e;
+    transform: translateY(-1px);
+}
+
+body.dark-mode .compras-nav-btn {
+    background: #374151;
+    border-color: #4b5563;
+    color: #e5e7eb;
+}
+
+body.dark-mode .compras-nav-btn:hover {
+    background: #6366f1;
+    border-color: #6366f1;
+    color: #fff;
+}
+
+.compras-counter {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Dots */
+.compras-dots {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.compras-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: #d1d5db;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.2s;
+}
+
+.compras-dot.active {
+    background: #1a1a2e;
+    width: 20px;
+}
+
+body.dark-mode .compras-dot {
+    background: #4b5563;
+}
+
+body.dark-mode .compras-dot.active {
+    background: #6366f1;
 }

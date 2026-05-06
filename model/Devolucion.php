@@ -361,7 +361,7 @@ class Devolucion
         $total = (int)$stmtCount->fetchColumn();
 
         // 2. Obtenemos los registros de la página actual
-        $sql = "SELECT d.*, COALESCE(d.nombreProducto, p.nombre) as producto_nombre, u.nombre as usuario_nombre, vi.serie, vi.numero
+        $sql = "SELECT d.*, COALESCE(d.nombreProducto, p.nombre) as producto_nombre, u.nombre as usuario_nombre, vi.serie as orig_serie, vi.numero as orig_numero
                 FROM devoluciones d
                 LEFT JOIN productos p ON d.idProducto = p.id
                 LEFT JOIN usuarios u ON d.idUsuario = u.id

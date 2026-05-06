@@ -442,13 +442,13 @@ return [
     ],
 
     // ======================== MODAL: ERRORES ========================
-    'errors' => [
-        'sale_error' => 'Error en la venta',
+    'sale_error' => [
+        'title' => 'Error en la venta',
         'accept' => 'Aceptar',
     ],
 
     // ======================== MODAL: PUNTOS POST-VENTA ========================
-    'points_post' => [
+    'points_earned' => [
         'title' => '¡Puntos Acumulados!',
         'subtitle' => 'El cliente ha ganado y/o usado puntos en esta compra.',
         'earned_now' => 'Puntos ganados ahora:',
@@ -741,6 +741,7 @@ return [
 
     // ======================== CART (EXTENDED) ========================
     'cart' => [
+        'alert_invalid_coupon' => '❌ ¡Cupón no válido!',
         'empty_message' => 'Añade productos para realizar la venta',
         'postponed_success1' => 'Venta pospuesta correctamente con',
         'postponed_success2' => 'productos. Puedes recuperarla cuando quieras.',

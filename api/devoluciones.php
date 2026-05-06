@@ -230,17 +230,21 @@ if ($method === 'GET') {
             }
 
             // 2. Buscar datos de la rectificativa (Serie D) de forma eficiente
-            // Usamos una consulta separada para evitar JOINs pesados con subconsultas
+            // Usamos una consulta que busque la rectificativa vinculada a esta venta
             $sqlRect = "SELECT v.id, vi.serie, vi.numero, v.fecha, v.total
                         FROM (
-                            SELECT id, fecha, total FROM tickets WHERE id_documento_original = ? AND es_rectificativa = 1
+                            SELECT id, fecha, total, id_documento_original FROM tickets WHERE es_rectificativa = 1
                             UNION ALL
-                            SELECT id, fecha, total FROM facturas WHERE id_documento_original = ? AND es_rectificativa = 1
+                            SELECT id, fecha, total, id_documento_original FROM facturas WHERE es_rectificativa = 1
                         ) v
                         JOIN ventas_ids vi ON v.id = vi.id
+                        WHERE v.id_documento_original = ?
+                        ORDER BY ABS(TIMESTAMPDIFF(SECOND, v.fecha, ?)) ASC
                         LIMIT 1";
             $stmtRect = $conexion->prepare($sqlRect);
-            $stmtRect->execute([$idVenta, $idVenta]);
+            // Intentamos buscar la que tenga la fecha más cercana a la primera línea de devolución
+            $fechaRef = $detalle[0]['fecha'] ?? date('Y-m-d H:i:s');
+            $stmtRect->execute([$idVenta, $fechaRef]);
             $rectData = $stmtRect->fetch(PDO::FETCH_ASSOC);
 
             // 3. Generar QR si existe la rectificativa
