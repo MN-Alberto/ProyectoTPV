@@ -236,7 +236,8 @@ class Venta
         if (!$this->serie || !$this->numero) {
             return '';
         }
-        return $this->serie . str_pad($this->numero, 5, '0', STR_PAD_LEFT);
+        $n = substr((string)$this->numero, -5);
+        return $this->serie . str_pad($n, 5, '0', STR_PAD_LEFT);
     }
 
     public function getClienteNombre()
@@ -1348,7 +1349,7 @@ class Venta
         $qrUrl = Verifactu::generarURLQR($rectificativa);
         $datosRect = [
             'serie' => $serie,
-            'numero' => str_pad($numero, 5, '0', STR_PAD_LEFT),
+            'numero' => str_pad(substr((string)$numero, -5), 5, '0', STR_PAD_LEFT),
             'fecha' => $ventaOriginal->getFecha(),
             'tipoOriginal' => $tipoOriginal
         ];
@@ -1367,7 +1368,7 @@ class Venta
         $stmtVeri = $conexion->prepare("UPDATE {$tabla} SET hash = ?, xml_datos = ? WHERE id = ?");
         $stmtVeri->execute([$hashRect, $xmlRect, $rectificativa->getId()]);
         
-        $numDoc = $serieRect . str_pad($siguienteNumero, 5, '0', STR_PAD_LEFT);
+        $numDoc = $serieRect . str_pad(substr((string)$siguienteNumero, -5), 5, '0', STR_PAD_LEFT);
 
         // Comprobar cooldown AEAT (TiempoEsperaEnvio)
         $cooldownRestante = Verifactu::getCooldownRestante();

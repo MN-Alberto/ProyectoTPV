@@ -1424,7 +1424,7 @@ function mostrarModalVentasPospuestas() {
                             <div style="border: 1px solid ${borderColor}; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: ${isDark ? '#111827' : '#f9fafb'};">
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
                                     <div>
-                                        <strong style="color: ${textColor};">${venta.serie || 'T'}${String(venta.numero || (index + 1)).padStart(5, '0')}</strong>
+                                        <strong style="color: ${textColor};">${venta.serie || 'T'}${String(venta.numero || (index + 1)).padStart(5, '0').slice(-5)}</strong>
                                         <div style="font-size: 12px; color: ${subTextColor};">${venta.fecha}</div>
                                     </div>
                                     <div style="text-align: right;">
@@ -4143,7 +4143,7 @@ function verDetalleVenta(idVenta) {
             const serie = venta.serie || (venta.tipoDocumento === 'factura' ? 'F' : 'T');
             const numero = venta.numero || venta.id;
             const detalleVentaId = document.getElementById('detalleVentaId');
-            if (detalleVentaId) detalleVentaId.textContent = serie + String(numero).padStart(5, '0') + ' - ' + fecha;
+            if (detalleVentaId) detalleVentaId.textContent = serie + String(numero).padStart(5, '0').slice(-5) + ' - ' + fecha;
 
             const tipoIcono = venta.tipoDocumento === 'factura' ? '📄' : '🧾';
             const tipoLabel = venta.tipoDocumento === 'factura' ? 'Factura' : 'Ticket';
@@ -4223,7 +4223,7 @@ function enviarTicketCorreo(idVenta) {
             const lineas = data.lineas;
 
             const payload = {
-                ventaId: venta.serie + String(venta.numero || venta.id).padStart(5, '0'),
+                ventaId: venta.serie + String(venta.numero || venta.id).padStart(5, '0').slice(-5),
                 email: email,
                 tipoDocumento: venta.tipoDocumento || 'ticket',
                 lineas: lineas.map(item => ({
@@ -4540,7 +4540,7 @@ function verDetalleDevolucion(idVenta) {
             const serie = primera.serie || 'T';
             const numero = primera.numero || primera.idVenta || idVenta;
             const detalleDevolucionId = document.getElementById('detalleDevolucionId');
-            if (detalleDevolucionId) detalleDevolucionId.textContent = t('return_details.return_name') + ' ' + serie + String(numero).padStart(5, '0') + ' - ' + fecha;
+            if (detalleDevolucionId) detalleDevolucionId.textContent = t('return_details.return_name') + ' ' + serie + String(numero).padStart(5, '0').slice(-5) + ' - ' + fecha;
 
             let html = '';
 
@@ -5340,6 +5340,12 @@ function agregarProductoComodin() {
     // Validaciones
     if (!nombre) {
         alert(t('products.alert_enter_name'));
+        nombreEl.focus();
+        return;
+    }
+
+    if (nombre.length > 26) {
+        alert(t('products.alert_name_too_long') || 'El nombre no puede tener más de 26 caracteres');
         nombreEl.focus();
         return;
     }

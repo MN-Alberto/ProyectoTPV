@@ -200,78 +200,107 @@ function verDetalleLog(idLog) {
     const tipoIcono = getTipoLogIcono(log.tipo);
     const tipoClase = getTipoLogClase(log.tipo);
     const fecha = new Date(log.fecha).toLocaleString('es-ES');
-    const isDarkMode = document.body.classList.contains('dark-mode');
-
-    const c = isDarkMode ? {
-        background: '#1f2937', text: '#e5e7eb', textMuted: '#9ca3af', border: '#4b5563',
-        headerBg: '#374151', buttonBg: '#4b5563', buttonText: '#f3f4f6',
-        delete: '#f87171', add: '#34d399'
-    } : {
-        background: '#ffffff', text: '#333333', textMuted: '#666666', border: '#e0e0e0',
-        headerBg: '#f3f4f6', buttonBg: '#e5e7eb', buttonText: '#333333',
-        delete: '#dc2626', add: '#059669'
-    };
-
-    let detallesHtml = `<p style="margin:5px 0;color:${c.textMuted};">Sin detalles</p>`;
+    
+    // Simplificamos los colores usando variables de CSS del sistema
+    let detallesHtml = `<p style="margin:5px 0; color: var(--text-muted); font-size: 0.9rem; font-style: italic;">Sin detalles adicionales</p>`;
 
     if (log.detalles && Object.keys(log.detalles).length > 0) {
-        if (Array.isArray(log.detalles) && log.detalles.length > 0 && log.detalles[0].campo) {
-            detallesHtml = `<table style="width:100%;margin-top:5px;border-collapse:collapse;">
-                <tr style="background:${c.headerBg};"><th style="padding:5px;text-align:left;font-size:0.85rem;color:${c.text};">Campo</th><th style="padding:5px;text-align:left;font-size:0.85rem;color:${c.text};">Valor Anterior</th><th style="padding:5px;text-align:left;font-size:0.85rem;color:${c.text};">Valor Nuevo</th></tr>`;
+        if (Array.isArray(log.detalles) && log.detalles.length > 0 && (log.detalles[0].campo || log.detalles[0].antes !== undefined)) {
+            const isTypeCampo = log.detalles[0].campo !== undefined;
+            detallesHtml = `<div style="overflow-x: auto; border-radius: 8px; border: 1px solid var(--border-main); margin-top: 5px;">
+                <table style="width:100%; border-collapse: collapse; font-size: 0.85rem;">
+                <tr style="background: var(--bg-secondary);">
+                    <th style="padding: 10px; text-align: left; color: var(--text-muted); font-weight: 600;">Campo</th>
+                    <th style="padding: 10px; text-align: left; color: var(--text-muted); font-weight: 600;">Anterior / Antes</th>
+                    <th style="padding: 10px; text-align: left; color: var(--text-muted); font-weight: 600;">Nuevo / Después</th>
+                </tr>`;
             log.detalles.forEach(cambio => {
-                detallesHtml += `<tr style="border-bottom:1px solid ${c.border};">
-                    <td style="padding:5px;font-weight:bold;color:${c.text};">${cambio.campo}</td>
-                    <td style="padding:5px;color:${c.delete};text-decoration:line-through;">${cambio.anterior ?? '(vacío)'}</td>
-                    <td style="padding:5px;color:${c.add};font-weight:bold;">${cambio.nuevo ?? '(vacío)'}</td>
+                const valAnt = isTypeCampo ? (cambio.anterior ?? '(vacío)') : (cambio.antes ?? '(vacío)');
+                const valNew = isTypeCampo ? (cambio.nuevo ?? '(vacío)') : (cambio.despues ?? '(vacío)');
+                detallesHtml += `<tr style="border-bottom: 1px solid var(--border-main); background: var(--bg-main);">
+                    <td style="padding: 10px; font-weight: 600; color: var(--text-main);">${cambio.campo || Object.keys(cambio)[0]}</td>
+                    <td style="padding: 10px; color: #dc2626; text-decoration: line-through; opacity: 0.8;">${valAnt}</td>
+                    <td style="padding: 10px; color: #059669; font-weight: 700;">${valNew}</td>
                 </tr>`;
             });
-            detallesHtml += '</table>';
-        } else if (Array.isArray(log.detalles) && log.detalles.length > 0 && log.detalles[0].antes !== undefined) {
-            detallesHtml = `<table style="width:100%;margin-top:5px;border-collapse:collapse;">
-                <tr style="background:${c.headerBg};"><th style="padding:5px;text-align:left;font-size:0.85rem;color:${c.text};">Campo</th><th style="padding:5px;text-align:left;font-size:0.85rem;color:${c.text};">Antes</th><th style="padding:5px;text-align:left;font-size:0.85rem;color:${c.text};">Después</th></tr>`;
-            log.detalles.forEach(cambio => {
-                detallesHtml += `<tr style="border-bottom:1px solid ${c.border};">
-                    <td style="padding:5px;font-weight:bold;color:${c.text};">${cambio.campo || Object.keys(cambio)[0]}</td>
-                    <td style="padding:5px;color:${c.delete};text-decoration:line-through;">${cambio.antes ?? '(vacío)'}</td>
-                    <td style="padding:5px;color:${c.add};font-weight:bold;">${cambio.despues ?? '(vacío)'}</td>
-                </tr>`;
-            });
-            detallesHtml += '</table>';
+            detallesHtml += '</table></div>';
         } else {
-            detallesHtml = `<table style="width:100%;margin-top:5px;border-collapse:collapse;">`;
+            detallesHtml = `<div style="overflow-x: auto; border-radius: 8px; border: 1px solid var(--border-main); margin-top: 5px;">
+                <table style="width:100%; border-collapse: collapse; font-size: 0.85rem;">`;
             for (const [key, value] of Object.entries(log.detalles)) {
                 let displayValue = typeof value === 'object' && value !== null
-                    ? JSON.stringify(value, null, 2)
+                    ? `<pre style="margin:0; font-family: monospace; font-size: 0.75rem;">${JSON.stringify(value, null, 2)}</pre>`
                     : (typeof value === 'number' ? parseFloat(value).toFixed(2).replace('.', ',') : value);
-                detallesHtml += `<tr style="border-bottom:1px solid ${c.border};">
-                    <td style="padding:5px;font-weight:bold;width:40%;color:${c.textMuted};">${key}</td>
-                    <td style="padding:5px;color:${c.text};word-break:break-all;">${displayValue}</td>
+                detallesHtml += `<tr style="border-bottom: 1px solid var(--border-main); background: var(--bg-main);">
+                    <td style="padding: 10px; font-weight: 600; width: 35%; color: var(--text-muted); background: var(--bg-secondary);">${key}</td>
+                    <td style="padding: 10px; color: var(--text-main); word-break: break-all;">${displayValue}</td>
                 </tr>`;
             }
-            detallesHtml += '</table>';
+            detallesHtml += '</table></div>';
         }
     }
 
     const modalContent = `
-        <div style="padding:20px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
-                <h3 style="margin:0;color:${c.text};font-size:1.2rem;">Detalles del Log</h3>
-                <button onclick="document.getElementById('modalDetalleLog').remove()"
-                    style="background:${c.buttonBg};border:none;font-size:1.5rem;cursor:pointer;color:${c.buttonText};width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;">&times;</button>
+        <div class="modal-content modal-premium" style="max-width: 600px; padding: 0; overflow: hidden; width: 95%; background: var(--bg-panel);">
+            <!-- Header Premium -->
+            <div class="modal-header-premium" style="background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 25px 30px; text-align: left; position: relative; color: white;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="background: rgba(255,255,255,0.2); width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-list-alt" style="color: #fff; font-size: 1.5rem;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; color: #fff; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px;">Detalles del Log</h3>
+                        <p style="margin: 3px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.9rem;">Referencia del sistema #${log.id}</p>
+                    </div>
+                </div>
+                <button class="modal-close-btn" onclick="document.getElementById('modalDetalleLog').remove()" 
+                    style="position: absolute; top: 25px; right: 25px; background: rgba(255,255,255,0.15); border: none; color: white; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <div style="color:${c.text};font-size:0.9rem;">
-                <table style="width:100%;border-collapse:collapse;">
-                    <tr style="border-bottom:1px solid ${c.border};"><td style="padding:8px 5px;font-weight:bold;color:${c.textMuted};width:35%;">ID</td><td style="padding:8px 5px;color:${c.text};">${log.id}</td></tr>
-                    <tr style="border-bottom:1px solid ${c.border};"><td style="padding:8px 5px;font-weight:bold;color:${c.textMuted};">Fecha/Hora</td><td style="padding:8px 5px;color:${c.text};">${fecha}</td></tr>
-                    <tr style="border-bottom:1px solid ${c.border};"><td style="padding:8px 5px;font-weight:bold;color:${c.textMuted};">Tipo</td><td style="padding:8px 5px;"><span class="logs-tipo ${tipoClase}"><i class="${tipoIcono}"></i> ${getTipoLogTexto(log.tipo)}</span></td></tr>
-                    <tr style="border-bottom:1px solid ${c.border};"><td style="padding:8px 5px;font-weight:bold;color:${c.textMuted};">Usuario</td><td style="padding:8px 5px;color:${c.text};">${log.usuario_nombre || 'Sistema'} (ID: ${log.usuario_id || '-'})</td></tr>
-                    <tr style="border-bottom:1px solid ${c.border};"><td style="padding:8px 5px;font-weight:bold;color:${c.textMuted};">Descripción</td><td style="padding:8px 5px;color:${c.text};">${log.descripcion || '-'}</td></tr>
-                    <tr><td style="padding:8px 5px;font-weight:bold;color:${c.textMuted};vertical-align:top;">Detalles</td><td style="padding:8px 5px;">${detallesHtml}</td></tr>
-                </table>
+
+            <div style="padding: 30px;">
+                <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">
+                    <!-- Información Principal en Grid -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 10px;">
+                        <div class="ver-prod-item-premium" style="padding: 12px; background: var(--bg-main); border: 1px solid var(--border-main); border-radius: 10px;">
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 5px;">Fecha / Hora</label>
+                            <div style="display: flex; align-items: center; gap: 8px; color: var(--text-main); font-weight: 600;">
+                                <i class="far fa-clock" style="color: #6366f1;"></i> ${fecha}
+                            </div>
+                        </div>
+                        <div class="ver-prod-item-premium" style="padding: 12px; background: var(--bg-main); border: 1px solid var(--border-main); border-radius: 10px;">
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 5px;">Usuario Ejecutor</label>
+                            <div style="display: flex; align-items: center; gap: 8px; color: var(--text-main); font-weight: 600;">
+                                <i class="far fa-user" style="color: #10b981;"></i> ${log.usuario_nombre || 'Sistema'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ver-prod-item-premium" style="padding: 12px; background: var(--bg-main); border: 1px solid var(--border-main); border-radius: 10px;">
+                        <label style="display: block; font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 5px;">Tipo de Evento</label>
+                        <span class="logs-tipo ${tipoClase}" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.8rem;">
+                            <i class="${tipoIcono}"></i> ${getTipoLogTexto(log.tipo)}
+                        </span>
+                    </div>
+
+                    <div class="ver-prod-item-premium" style="padding: 12px; background: var(--bg-main); border: 1px solid var(--border-main); border-radius: 10px;">
+                        <label style="display: block; font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 5px;">Descripción</label>
+                        <div style="color: var(--text-main); font-weight: 500; line-height: 1.4;">${log.descripcion || '-'}</div>
+                    </div>
+
+                    <div class="ver-prod-item-premium">
+                        <label style="display: block; font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">Detalle Técnico / Cambios</label>
+                        ${detallesHtml}
+                    </div>
+                </div>
             </div>
-            <div style="margin-top:20px;text-align:right;">
-                <button onclick="document.getElementById('modalDetalleLog').remove()"
-                    style="background:#3b82f6;color:white;padding:8px 20px;border:none;border-radius:5px;cursor:pointer;font-size:0.9rem;">Cerrar</button>
+
+            <div style="padding: 20px 30px; background: var(--bg-panel); border-top: 1px solid var(--border-main); display: flex; justify-content: flex-end;">
+                <button class="btn-modal-cancelar" onclick="document.getElementById('modalDetalleLog').remove()" 
+                    style="margin: 0; padding: 12px 25px; border-radius: 10px; font-weight: 600; background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-main); cursor: pointer; transition: all 0.2s;">
+                    Cerrar Detalle
+                </button>
             </div>
         </div>`;
 
@@ -280,14 +309,23 @@ function verDetalleLog(idLog) {
 
     const modalDiv = document.createElement('div');
     modalDiv.id = 'modalDetalleLog';
-    modalDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:10000;display:flex;justify-content:center;align-items:center;';
+    modalDiv.className = 'modal-overlay';
+    modalDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:10000; display:flex; justify-content:center; align-items:center; backdrop-filter: blur(4px);';
 
-    const modalInner = document.createElement('div');
-    modalInner.style.cssText = `background:${c.background};border-radius:10px;width:90%;max-width:550px;max-height:85vh;overflow-y:auto;box-shadow:0 4px 20px rgba(0,0,0,0.5);color:${c.text};border:1px solid ${c.border};`;
-    modalInner.innerHTML = modalContent;
-
-    modalDiv.appendChild(modalInner);
+    modalDiv.innerHTML = modalContent;
     document.body.appendChild(modalDiv);
+    
+    // Animación suave de entrada
+    const inner = modalDiv.querySelector('.modal-content');
+    inner.style.opacity = '0';
+    inner.style.transform = 'translateY(20px)';
+    inner.style.transition = 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    
+    requestAnimationFrame(() => {
+        inner.style.opacity = '1';
+        inner.style.transform = 'translateY(0)';
+    });
+
     modalDiv.addEventListener('click', e => { if (e.target === modalDiv) modalDiv.remove(); });
 }
 

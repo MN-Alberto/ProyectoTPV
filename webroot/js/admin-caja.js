@@ -429,7 +429,7 @@ function renderDevolucionesAdmin(devoluciones, isFirstTime = true, orden = 'fech
 
             filasHtml += `
                 <tr>
-                    <td class="col-ticket" style="font-weight:600;color:#1e40af;">${dev.serie || 'T'}${String(dev.numero || dev.idVenta || '—').padStart(5, '0')}</td>
+                    <td class="col-ticket" style="font-weight:600;color:#1e40af;">${dev.orig_serie || 'T'}${String(dev.orig_numero || dev.idVenta || '—').padStart(5, '0').slice(-5)}</td>
                     <td class="col-fecha">${fecha}</td>
                     <td class="col-usuario">${dev.usuario_nombre || '—'}</td>
                     <td class="col-producto">${dev.producto_nombre || '—'}</td>
@@ -489,7 +489,7 @@ function verDetalleDevolucion(id) {
 
             document.getElementById('verDevolucionId').textContent = dev.id;
             if (document.getElementById('verDevolucionTicket')) {
-                document.getElementById('verDevolucionTicket').textContent = (dev.serie || 'T') + String(dev.numero || dev.idVenta || '—').padStart(5, '0');
+                document.getElementById('verDevolucionTicket').textContent = (dev.orig_serie || 'T') + String(dev.orig_numero || dev.idVenta || '—').padStart(5, '0').slice(-5);
             }
             document.getElementById('verDevolucionFecha').textContent = fecha;
             document.getElementById('verDevolucionProducto').textContent = dev.producto_nombre || '—';

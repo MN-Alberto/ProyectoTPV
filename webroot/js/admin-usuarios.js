@@ -489,32 +489,116 @@ function verCliente(id) {
     const fila = document.querySelector(`tr [onclick="verCliente(${id})"]`).closest('tr');
     const celdas = fila.querySelectorAll('td');
     const estado = celdas[7].querySelector('.admin-badge')?.textContent.trim() || 'Activo';
+    const dni = celdas[0].textContent.trim();
+    const nombre = celdas[1].textContent.trim();
+    const apellidos = celdas[2].textContent.trim();
+    const direccion = fila.dataset.direccion || '—';
+    const fechaAlta = celdas[3].textContent.trim();
+    const productosComprados = celdas[4].textContent.trim();
+    const comprasRealizadas = celdas[5].textContent.trim();
+    const puntos = fila.dataset.puntos || '0';
 
     const modal = document.createElement('div');
     modal.id = 'modalVerCliente';
     modal.className = 'modal-overlay';
     modal.style.display = 'flex';
+
+    const estadoHtml = estado === 'Activo'
+        ? '<span class="admin-badge badge-activo">Activo</span>'
+        : '<span class="admin-badge badge-inactivo">Inactivo</span>';
+
     modal.innerHTML = `
-        <div class="modal-content" style="max-width:450px;text-align:left;">
-            <h3 style="margin-bottom:20px;">Detalles del Cliente</h3>
-            <div style="display:grid;gap:12px;">
-                ${[['DNI', celdas[0].textContent.trim()], ['Nombre', celdas[1].textContent.trim()],
-        ['Apellidos', celdas[2].textContent.trim()], ['Dirección', fila.dataset.direccion || '—'], ['Fecha de Alta', celdas[3].textContent.trim()],
-        ['Productos Comprados', celdas[4].textContent.trim()], ['Compras Realizadas', celdas[5].textContent.trim()]]
-            .map(([k, v]) => `<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border-main);padding-bottom:8px;">
-                        <span style="font-weight:500;">${k}:</span><span>${v}</span></div>`).join('')}
-                <div style="display:flex;justify-content:space-between;padding-bottom:8px;">
-                    <span style="font-weight:500;">Estado:</span>
-                    <span class="admin-badge ${estado === 'Activo' ? 'badge-activo' : 'badge-inactivo'}">${estado}</span>
-                </div>
+        <div class="modal-content modal-premium" style="max-width: 520px; padding: 0; overflow: hidden; width: 90%;">
+            <!-- Header Premium -->
+            <div class="modal-header-premium" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); padding: 20px 25px; text-align: left; position: relative;">
+                <h3 style="margin: 0; color: #fff; font-size: 1.3rem;">Detalles del Cliente</h3>
+                <p class="modal-subtitulo" style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Información completa del cliente</p>
+                <button class="modal-close-btn" onclick="cerrarModal('modalVerCliente');document.getElementById('modalVerCliente').remove();" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <div style="display:flex;justify-content:center;gap:15px;margin-top:25px;">
-                <button class="btn-admin-accion btn-ver"
-                    onclick="cerrarModal('modalVerCliente');document.getElementById('modalVerCliente').remove();verComprasCliente('${celdas[0].textContent.trim()}')"
-                    style="min-width:180px;"><i class="fas fa-shopping-bag"></i> Ver Compras</button>
-                <button class="btn-modal-cancelar"
-                    onclick="cerrarModal('modalVerCliente');document.getElementById('modalVerCliente').remove();"
-                    style="min-width:100px;">Cerrar</button>
+
+            <div style="padding: 25px;">
+                <!-- Datos personales -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+                    <div class="ver-prod-item-premium">
+                        <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">DNI</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-id-card" style="color: #3b82f6; width: 16px;"></i>
+                            <span style="font-size: 1.05rem; font-weight: 700; color: #1f2937;">${dni}</span>
+                        </div>
+                    </div>
+                    <div class="ver-prod-item-premium">
+                        <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Nombre</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-user" style="color: #3b82f6; width: 16px;"></i>
+                            <span style="font-size: 1.05rem; font-weight: 700; color: #1f2937;">${nombre}</span>
+                        </div>
+                    </div>
+                    <div class="ver-prod-item-premium">
+                        <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Apellidos</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-user-friends" style="color: #8b5cf6; width: 16px;"></i>
+                            <span style="font-size: 1rem; color: #4b5563;">${apellidos}</span>
+                        </div>
+                    </div>
+                    <div class="ver-prod-item-premium">
+                        <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Dirección</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-map-marker-alt" style="color: #f59e0b; width: 16px;"></i>
+                            <span style="font-size: 1rem; color: #4b5563;">${direccion}</span>
+                        </div>
+                    </div>
+                    <div class="ver-prod-item-premium">
+                        <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Fecha de Alta</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-calendar-alt" style="color: #10b981; width: 16px;"></i>
+                            <span style="font-size: 1rem; color: #4b5563;">${fechaAlta}</span>
+                        </div>
+                    </div>
+                    <div class="ver-prod-item-premium">
+                        <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Estado</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-circle" style="color: ${estado === 'Activo' ? '#10b981' : '#6b7280'}; width: 16px; font-size: 0.7rem;"></i>
+                            ${estadoHtml}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección de Estadísticas -->
+                <div style="background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 18px 20px; margin-bottom: 25px;">
+                    <h4 style="margin: 0 0 12px 0; font-size: 0.85rem; color: #374151; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-chart-simple" style="color: #6366f1;"></i> Estadísticas
+                    </h4>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                        <div style="text-align: center; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #e5e7eb;">
+                            <span style="display: block; font-size: 0.65rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Productos</span>
+                            <span style="display: block; font-size: 1.3rem; font-weight: 800; color: #3b82f6;">${productosComprados}</span>
+                        </div>
+                        <div style="text-align: center; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #e5e7eb;">
+                            <span style="display: block; font-size: 0.65rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Compras</span>
+                            <span style="display: block; font-size: 1.3rem; font-weight: 800; color: #10b981;">${comprasRealizadas}</span>
+                        </div>
+                        <div style="text-align: center; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #e5e7eb;">
+                            <span style="display: block; font-size: 0.65rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Puntos</span>
+                            <span style="display: block; font-size: 1.3rem; font-weight: 800; color: #f59e0b;">${parseInt(puntos).toLocaleString('es-ES')}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones -->
+                <div style="display: flex; justify-content: center; gap: 15px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                    <button class="btn-admin-accion btn-ver"
+                        onclick="cerrarModal('modalVerCliente');document.getElementById('modalVerCliente').remove();verComprasCliente('${dni}')"
+                        style="min-width: 180px; padding: 10px 20px; border-radius: 8px;">
+                        <i class="fas fa-shopping-bag"></i> Ver Compras
+                    </button>
+                    <button class="btn-modal-cancelar"
+                        onclick="cerrarModal('modalVerCliente');document.getElementById('modalVerCliente').remove();"
+                        style="min-width: 100px; padding: 10px 20px; border-radius: 8px; font-weight: 600;">
+                        Cerrar
+                    </button>
+                </div>
             </div>
         </div>`;
 
@@ -576,8 +660,19 @@ async function guardarClienteEditado() {
 
 // ── Carrusel de compras ───────────────────────────────────────────────────────
 
+// ── Variables de estado para el modal de compras ─────────────────────
+let _comprasModalDNI = '';
+let _comprasData = [];
+let _devolucionesData = [];
+let _tabActivo = 'compras'; // 'compras' | 'devoluciones'
+
 function verComprasCliente(dni) {
     document.getElementById('modalVerCompras')?.remove();
+
+    _comprasModalDNI = dni;
+    _comprasData = [];
+    _devolucionesData = [];
+    _tabActivo = 'compras';
 
     const overlay = document.createElement('div');
     overlay.id = 'modalVerCompras';
@@ -588,7 +683,7 @@ function verComprasCliente(dni) {
                 <div class="compras-modal-header-left">
                     <i class="fas fa-receipt"></i>
                     <div>
-                        <span class="compras-modal-title">Historial de Compras</span>
+                        <span class="compras-modal-title">Historial del Cliente</span>
                         <span class="compras-modal-dni">${dni}</span>
                     </div>
                 </div>
@@ -596,7 +691,15 @@ function verComprasCliente(dni) {
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="compras-modal-body">
+            <div class="compras-modal-tabs">
+                <button class="compras-tab-btn active" data-tab="compras" onclick="_cambiarTab('compras')">
+                    <i class="fas fa-shopping-bag"></i> Compras
+                </button>
+                <button class="compras-tab-btn" data-tab="devoluciones" onclick="_cambiarTab('devoluciones')">
+                    <i class="fas fa-undo"></i> Devoluciones
+                </button>
+            </div>
+            <div class="compras-modal-body" id="comprasModalBody">
                 <div class="compras-loading">
                     <i class="fas fa-spinner fa-spin"></i>
                     <span>Cargando compras...</span>
@@ -607,135 +710,234 @@ function verComprasCliente(dni) {
 
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
+    // Cargar compras primero (pestaña activa por defecto)
+    _cargarCompras(dni);
+}
+
+function _cargarCompras(dni) {
+    const body = document.getElementById('comprasModalBody');
+    if (!body) return;
+    body.innerHTML = `
+        <div class="compras-loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>Cargando compras...</span>
+        </div>`;
+
     fetch(`api/clientes.php?compras=1&dni=${encodeURIComponent(dni)}`)
         .then(r => r.json())
         .then(ventas => {
-            const body = overlay.querySelector('.compras-modal-body');
-            if (!ventas || ventas.error) throw new Error(ventas?.error || 'Error');
-
-            if (!ventas.length) {
-                body.innerHTML = `
-                    <div class="compras-empty">
-                        <i class="fas fa-shopping-bag"></i>
-                        <p>Este cliente no tiene compras registradas.</p>
-                    </div>`;
-                return;
-            }
-
-            const metodoIconos = {
-                efectivo: { icon: 'fa-money-bill-wave', cls: 'metodo-efectivo', label: 'Efectivo' },
-                tarjeta: { icon: 'fa-credit-card', cls: 'metodo-tarjeta', label: 'Tarjeta' },
-                bizum: { icon: 'fa-mobile-alt', cls: 'metodo-bizum', label: 'Bizum' }
-            };
-
-            const slidesHtml = ventas.map((v, i) => {
-                const fecha = new Date(v.fecha).toLocaleDateString('es-ES',
-                    { day: '2-digit', month: 'short', year: 'numeric' });
-                const hora = new Date(v.fecha).toLocaleTimeString('es-ES',
-                    { hour: '2-digit', minute: '2-digit' });
-                const ticket = `${v.serie || 'T'}${String(v.numero || v.id).padStart(5, '0')}`;
-                const metodo = metodoIconos[v.metodoPago] || metodoIconos.efectivo;
-                const lineas = (v.lineas || []);
-                const totalUnidades = lineas.reduce((s, l) => s + l.cantidad, 0);
-
-                const lineasHtml = lineas.map(l => `
-                    <tr>
-                        <td class="compras-td-prod">${l.producto_nombre || 'Producto'}</td>
-                        <td class="compras-td-num">${l.cantidad}</td>
-                        <td class="compras-td-num">${parseFloat(l.precioUnitarioConIva).toFixed(2).replace('.', ',')} €</td>
-                        <td class="compras-td-num compras-subtotal">${parseFloat(l.subtotalConIva).toFixed(2).replace('.', ',')} €</td>
-                    </tr>`).join('');
-
-                return `
-                    <div class="compras-slide" data-index="${i}" style="display:${i === 0 ? 'flex' : 'none'}">
-                        <div class="compras-ticket-header">
-                            <div class="compras-ticket-num">
-                                <span class="compras-ticket-label">Ticket</span>
-                                <span class="compras-ticket-value">#${ticket}</span>
-                            </div>
-                            <div class="compras-ticket-meta">
-                                <div class="compras-fecha">
-                                    <i class="fas fa-calendar-alt"></i>
-                                    <span>${fecha}</span>
-                                </div>
-                                <div class="compras-hora">
-                                    <i class="fas fa-clock"></i>
-                                    <span>${hora}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="compras-info-row">
-                            <div class="compras-metodo-badge ${metodo.cls}">
-                                <i class="fas ${metodo.icon}"></i>
-                                <span>${metodo.label}</span>
-                            </div>
-                            <div class="compras-cajero">
-                                <i class="fas fa-user-circle"></i>
-                                <span>${v.usuario_nombre || 'Cajero'}</span>
-                            </div>
-                            <div class="compras-unidades">
-                                <i class="fas fa-box"></i>
-                                <span>${totalUnidades} ud${totalUnidades !== 1 ? 's' : ''}.</span>
-                            </div>
-                        </div>
-
-                        <div class="compras-tabla-wrapper">
-                            <table class="compras-tabla">
-                                <thead>
-                                    <tr>
-                                        <th class="compras-th-prod">Producto</th>
-                                        <th class="compras-th-num">Cant.</th>
-                                        <th class="compras-th-num">Precio</th>
-                                        <th class="compras-th-num">Subtotal</th>
-                                    </tr>
-                                </thead>
-                                <tbody>${lineasHtml}</tbody>
-                            </table>
-                        </div>
-
-                        <div class="compras-total-row">
-                            <span class="compras-total-label">Total</span>
-                            <span class="compras-total-valor">${parseFloat(v.total).toFixed(2).replace('.', ',')} €</span>
-                        </div>
-                    </div>`;
-            }).join('');
-
-            const MAX_DOTS = 8;
-            const dotsHtml = ventas.length > 1 && ventas.length <= MAX_DOTS
-                ? `<div class="compras-dots">${ventas.map((_, i) =>
-                    `<button class="compras-dot${i === 0 ? ' active' : ''}" onclick="goToSaleSlide(${i})" title="Compra ${i + 1}"></button>`
-                ).join('')}</div>`
-                : '';
-
-            body.innerHTML = `
-                <div class="compras-slides-container">${slidesHtml}</div>
-                <div class="compras-nav">
-                    <div class="compras-nav-left">
-                        <button class="compras-nav-btn" onclick="firstSaleSlide()" title="Primera"><i class="fas fa-angle-double-left"></i></button>
-                        <button class="compras-nav-btn" onclick="prevSaleSlide()" title="Anterior"><i class="fas fa-chevron-left"></i></button>
-                    </div>
-                    <div class="compras-nav-center">
-                        ${dotsHtml}
-                        <span class="compras-counter" id="compraActualTitulo">1 / ${ventas.length}</span>
-                    </div>
-                    <div class="compras-nav-right">
-                        <button class="compras-nav-btn" onclick="nextSaleSlide()" title="Siguiente"><i class="fas fa-chevron-right"></i></button>
-                        <button class="compras-nav-btn" onclick="lastSaleSlide()" title="Última"><i class="fas fa-angle-double-right"></i></button>
-                    </div>
-                </div>`;
-
-            overlay.dataset.totalSlides = ventas.length;
-            currentSaleSlide = 0;
-            _updateNavButtons();
+            _comprasData = ventas;
+            if (_tabActivo === 'compras') _renderizarComprasOVentas('compras');
         })
         .catch(() => {
-            overlay.querySelector('.compras-modal-body').innerHTML = `
-                <div class="compras-empty compras-error">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <p>No se pudieron cargar las compras.</p>
-                </div>`;
+            if (_tabActivo === 'compras') {
+                body.innerHTML = `
+                    <div class="compras-empty compras-error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>No se pudieron cargar las compras.</p>
+                    </div>`;
+            }
         });
+}
+
+function _cargarDevoluciones(dni) {
+    const body = document.getElementById('comprasModalBody');
+    if (!body) return;
+    body.innerHTML = `
+        <div class="compras-loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>Cargando devoluciones...</span>
+        </div>`;
+
+    fetch(`api/devoluciones.php?cliente_dni=${encodeURIComponent(dni)}`)
+        .then(r => r.json())
+        .then(devoluciones => {
+            _devolucionesData = Array.isArray(devoluciones) ? devoluciones : [];
+            if (_tabActivo === 'devoluciones') _renderizarComprasOVentas('devoluciones');
+        })
+        .catch(() => {
+            if (_tabActivo === 'devoluciones') {
+                body.innerHTML = `
+                    <div class="compras-empty compras-error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>No se pudieron cargar las devoluciones.</p>
+                    </div>`;
+            }
+        });
+}
+
+function _cambiarTab(tab) {
+    if (tab === _tabActivo) return;
+    _tabActivo = tab;
+
+    // Actualizar clases de las pestañas
+    document.querySelectorAll('.compras-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+
+    const body = document.getElementById('comprasModalBody');
+    if (!body) return;
+
+    if (tab === 'compras') {
+        if (_comprasData.length > 0) {
+            _renderizarComprasOVentas('compras');
+        } else {
+            _cargarCompras(_comprasModalDNI);
+        }
+    } else {
+        if (_devolucionesData.length > 0) {
+            _renderizarComprasOVentas('devoluciones');
+        } else {
+            _cargarDevoluciones(_comprasModalDNI);
+        }
+    }
+}
+
+function _renderizarComprasOVentas(tipo) {
+    const body = document.getElementById('comprasModalBody');
+    if (!body) return;
+
+    const datos = tipo === 'compras' ? _comprasData : _devolucionesData;
+
+    if (!datos || !datos.length) {
+        const icono = tipo === 'compras' ? 'fa-shopping-bag' : 'fa-undo';
+        const texto = tipo === 'compras' ? 'compras' : 'devoluciones';
+        body.innerHTML = `
+            <div class="compras-empty">
+                <i class="fas ${icono}"></i>
+                <p>Este cliente no tiene ${texto} registradas.</p>
+            </div>`;
+        return;
+    }
+
+    const metodoIconos = {
+        efectivo: { icon: 'fa-money-bill-wave', cls: 'metodo-efectivo', label: 'Efectivo' },
+        tarjeta: { icon: 'fa-credit-card', cls: 'metodo-tarjeta', label: 'Tarjeta' },
+        bizum: { icon: 'fa-mobile-alt', cls: 'metodo-bizum', label: 'Bizum' }
+    };
+
+    const esDevolucion = tipo === 'devoluciones';
+
+    const slidesHtml = datos.map((v, i) => {
+        const fecha = new Date(v.fecha).toLocaleDateString('es-ES',
+            { day: '2-digit', month: 'short', year: 'numeric' });
+        const hora = new Date(v.fecha).toLocaleTimeString('es-ES',
+            { hour: '2-digit', minute: '2-digit' });
+
+        let ticket;
+        if (esDevolucion) {
+            const serie = v.ticket_serie || 'T';
+            const num = v.ticket_numero || v.idVenta;
+            ticket = `${serie}${String(num).padStart(5, '0')}`;
+        } else {
+            ticket = `${v.serie || 'T'}${String(v.numero || v.id).padStart(5, '0')}`;
+        }
+
+        const metodo = metodoIconos[v.metodoPago] || metodoIconos.efectivo;
+        const lineas = (v.lineas || []);
+        const totalUnidades = lineas.reduce((s, l) => s + l.cantidad, 0);
+
+        const lineasHtml = lineas.map(l => `
+            <tr>
+                <td class="compras-td-prod">${l.producto_nombre || 'Producto'}</td>
+                <td class="compras-td-num">${l.cantidad}</td>
+                <td class="compras-td-num">${parseFloat(l.precioUnitarioConIva).toFixed(2).replace('.', ',')} €</td>
+                <td class="compras-td-num compras-subtotal">${parseFloat(l.subtotalConIva).toFixed(2).replace('.', ',')} €</td>
+            </tr>`).join('');
+
+        const badgeDevolucion = esDevolucion
+            ? `<div class="compras-metodo-badge" style="background:#fef2f2;color:#991b1b;">
+                <i class="fas fa-undo"></i>
+                <span>Devolución</span>
+               </div>`
+            : '';
+
+        return `
+            <div class="compras-slide" data-index="${i}" style="display:${i === 0 ? 'flex' : 'none'}">
+                <div class="compras-ticket-header">
+                    <div class="compras-ticket-num">
+                        <span class="compras-ticket-label">${esDevolucion ? 'Ticket Original' : 'Ticket'}</span>
+                        <span class="compras-ticket-value">#${ticket}</span>
+                    </div>
+                    <div class="compras-ticket-meta">
+                        <div class="compras-fecha">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>${fecha}</span>
+                        </div>
+                        <div class="compras-hora">
+                            <i class="fas fa-clock"></i>
+                            <span>${hora}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="compras-info-row">
+                    ${badgeDevolucion}
+                    <div class="compras-metodo-badge ${metodo.cls}">
+                        <i class="fas ${metodo.icon}"></i>
+                        <span>${metodo.label}</span>
+                    </div>
+                    <div class="compras-cajero">
+                        <i class="fas fa-user-circle"></i>
+                        <span>${v.usuario_nombre || 'Cajero'}</span>
+                    </div>
+                    <div class="compras-unidades">
+                        <i class="fas fa-box"></i>
+                        <span>${totalUnidades} ud${totalUnidades !== 1 ? 's' : ''}.</span>
+                    </div>
+                </div>
+
+                <div class="compras-tabla-wrapper">
+                    <table class="compras-tabla">
+                        <thead>
+                            <tr>
+                                <th class="compras-th-prod">Producto</th>
+                                <th class="compras-th-num">Cant.</th>
+                                <th class="compras-th-num">Precio</th>
+                                <th class="compras-th-num">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>${lineasHtml}</tbody>
+                    </table>
+                </div>
+
+                <div class="compras-total-row" style="${esDevolucion ? 'background:#fef2f2;border-color:#fecaca;' : ''}">
+                    <span class="compras-total-label" style="${esDevolucion ? 'color:#991b1b;' : ''}">${esDevolucion ? 'Total Devuelto' : 'Total'}</span>
+                    <span class="compras-total-valor" style="${esDevolucion ? 'color:#dc2626;' : ''}">${parseFloat(v.total).toFixed(2).replace('.', ',')} €</span>
+                </div>
+            </div>`;
+    }).join('');
+
+    const MAX_DOTS = 8;
+    const dotsHtml = datos.length > 1 && datos.length <= MAX_DOTS
+        ? `<div class="compras-dots">${datos.map((_, i) =>
+            `<button class="compras-dot${i === 0 ? ' active' : ''}" onclick="goToSaleSlide(${i})" title="${tipo === 'compras' ? 'Compra' : 'Devolución'} ${i + 1}"></button>`
+        ).join('')}</div>`
+        : '';
+
+    body.innerHTML = `
+        <div class="compras-slides-container">${slidesHtml}</div>
+        <div class="compras-nav">
+            <div class="compras-nav-left">
+                <button class="compras-nav-btn" onclick="firstSaleSlide()" title="Primera"><i class="fas fa-angle-double-left"></i></button>
+                <button class="compras-nav-btn" onclick="prevSaleSlide()" title="Anterior"><i class="fas fa-chevron-left"></i></button>
+            </div>
+            <div class="compras-nav-center">
+                ${dotsHtml}
+                <span class="compras-counter" id="compraActualTitulo">1 / ${datos.length}</span>
+            </div>
+            <div class="compras-nav-right">
+                <button class="compras-nav-btn" onclick="nextSaleSlide()" title="Siguiente"><i class="fas fa-chevron-right"></i></button>
+                <button class="compras-nav-btn" onclick="lastSaleSlide()" title="Última"><i class="fas fa-angle-double-right"></i></button>
+            </div>
+        </div>`;
+
+    const modalEl = document.getElementById('modalVerCompras');
+    if (modalEl) {
+        modalEl.dataset.totalSlides = datos.length;
+    }
+    currentSaleSlide = 0;
+    _updateNavButtons();
 }
 
 function _updateNavButtons() {
