@@ -247,12 +247,14 @@ try {
             exit;
         }
 
-        // Obtener las ventas del cliente
+        // Obtener las ventas del cliente (excluyendo tickets de serie D = rectificativas/devoluciones)
         $stmt = $pdo->prepare("
             SELECT v.*, u.nombre as usuario_nombre 
             FROM ventas v 
             LEFT JOIN usuarios u ON v.idUsuario = u.id 
-            WHERE v.cliente_dni = ? AND v.estado = 'completada' 
+            LEFT JOIN ventas_ids vi ON v.id = vi.id
+            WHERE v.cliente_dni = ? AND v.estado = 'completada'
+              AND (vi.serie IS NULL OR vi.serie != 'D')
             ORDER BY v.fecha DESC
         ");
         $stmt->execute([$dni]);

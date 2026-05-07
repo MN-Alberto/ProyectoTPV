@@ -98,6 +98,7 @@ return [
         'change_prices' => 'Cambiar Precios',
         'see_prev_options' => 'Ver opciones anteriores',
         'see_more_options' => 'Ver más opciones',
+        'alert_insufficient_cash' => 'No hay suficiente efectivo en caja',
     ],
 
     // ======================== TICKET / CARRITO ========================
@@ -784,6 +785,8 @@ return [
         'email_sending' => 'Enviando email...',
         'email_sent_to' => 'Email enviado a',
         'thermal_ticket' => 'Ticket Térmico',
+        'alert_discount_range' => 'El descuento debe estar entre 0 y 100',
+        'client_default_tarifa' => 'Cliente',
     ],
 
     // ======================== PRINT ========================

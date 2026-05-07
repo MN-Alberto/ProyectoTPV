@@ -81,7 +81,7 @@ function generarFilaVenta(venta) {
     else if (esRect) estadoBadge = '<span style="background:#8b5cf6;color:#fff;padding:2px 6px;border-radius:4px;font-size:0.7rem;margin-left:4px;">' + (venta.tipo_factura_verifactu || 'RECT') + '</span>';
     return `
         <tr style="${esAnulada ? 'opacity:0.6;' : ''}">
-            <td class="col-id">${venta.serie || 'T'}${String(venta.numero || venta.id).padStart(5, '0')}${estadoBadge}</td>
+            <td class="col-id">${venta.serie || 'T'}${String(venta.numero || venta.id).padStart(5, '0').slice(-5)}${estadoBadge}</td>
             <td class="col-fecha">${fecha}</td>
             <td class="col-usuario">${venta.usuario_nombre || '—'}</td>
             <td class="col-productos">${venta.cantidad_productos || 0}</td>
@@ -256,7 +256,7 @@ function verDetalleVenta(idVenta) {
             const fecha = new Date(venta.fecha).toLocaleString('es-ES',
                 { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
             const tipoDoc = venta.tipoDocumento === 'factura' ? '📄 Factura' : '🧾 Ticket';
-            const ticketNum = `${venta.serie || 'T'}${String(venta.numero || venta.id).padStart(5, '0')}`;
+            const ticketNum = `${venta.serie || 'T'}${String(venta.numero || venta.id).padStart(5, '0').slice(-5)}`;
 
             // Información de pago mejorada
             let pagoLabel = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', bizum: 'Bizum', mixto: 'Mixto' }[venta.metodoPago] || venta.metodoPago;
@@ -504,7 +504,7 @@ function renderDevolucionesAdmin(devoluciones, esPrimeraVez = true, orden = 'fec
             { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         return `
             <tr>
-                <td class="col-ticket" style="font-weight:600;color:#1e40af;">${dev.orig_serie || 'T'}${String(dev.orig_numero || dev.idVenta || '—').padStart(5, '0')}</td>
+                <td class="col-ticket" style="font-weight:600;color:#1e40af;">${dev.orig_serie || 'T'}${String(dev.orig_numero || dev.idVenta || '—').padStart(5, '0').slice(-5)}</td>
                 <td class="col-fecha">${fecha}</td>
                 <td class="col-usuario">${dev.usuario_nombre || '—'}</td>
                 <td class="col-producto">${dev.producto_nombre || '—'}</td>

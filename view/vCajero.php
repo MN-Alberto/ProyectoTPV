@@ -1165,65 +1165,72 @@
 <!-- ##=========================== MODAL: CLIENTE HABITUAL ===========================## -->
 <!-- Modal para añadir un cliente habitual (DNI, nombre, apellidos, fecha alta, compras) -->
 <div class="modal-overlay" id="modalClienteHabitual" style="display:none;">
-    <div class="modal-content" style="max-width: 500px; text-align: left;">
-        <h3 style="margin-bottom: 5px;"><?php echo t('new_client.title'); ?></h3>
-        <p class="modal-subtitulo" style="margin-bottom: 20px;"><?php echo t('new_client.subtitle'); ?></p>
-
-        <div style="display: grid; gap: 15px;">
-            <!-- Campo DNI -->
-            <div>
-                <label for="clienteHabitualDni"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;">DNI <span
-                        style="color: #ef4444;">*</span></label>
-                <input type="text" id="clienteHabitualDni"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="12345678A" maxlength="20">
+    <div class="modal-content modal-premium" style="max-width: 550px;">
+        <div class="modal-header-premium">
+            <div class="icon-container-client">
+                <i class="fas fa-user-plus"></i>
             </div>
+            <h3><?php echo t('new_client.title'); ?></h3>
+            <p><?php echo t('new_client.subtitle'); ?></p>
+        </div>
 
-            <!-- Campo Nombre -->
-            <div>
-                <label for="clienteHabitualNombre"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('new_client.name'); ?>
-                    <span style="color: #ef4444;">*</span></label>
-                <input type="text" id="clienteHabitualNombre"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="Juan" maxlength="100">
-            </div>
+        <div class="modal-body-premium">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- Campo DNI -->
+                <div class="form-group-premium">
+                    <label for="clienteHabitualDni">DNI <span style="color: #ef4444;">*</span></label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-id-card"></i>
+                        <input type="text" id="clienteHabitualDni" placeholder="12345678A" maxlength="20">
+                    </div>
+                </div>
 
-            <!-- Campo Apellidos -->
-            <div>
-                <label for="clienteHabitualApellidos"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('new_client.surname'); ?>
-                    <span style="color: #ef4444;">*</span></label>
-                <input type="text" id="clienteHabitualApellidos"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="García López" maxlength="150">
-            </div>
+                <!-- Campo Fecha de Alta -->
+                <div class="form-group-premium">
+                    <label for="clienteHabitualFecha"><?php echo t('new_client.created_at'); ?></label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-calendar-alt"></i>
+                        <input type="datetime-local" id="clienteHabitualFecha" disabled>
+                    </div>
+                </div>
 
-            <!-- Campo Dirección -->
-            <div>
-                <label for="clienteHabitualDireccion"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('new_client.address'); ?></label>
-                <input type="text" id="clienteHabitualDireccion"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="Calle Principal 123" maxlength="255">
-            </div>
+                <!-- Campo Nombre -->
+                <div class="form-group-premium">
+                    <label for="clienteHabitualNombre"><?php echo t('new_client.name'); ?> <span style="color: #ef4444;">*</span></label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="clienteHabitualNombre" placeholder="Juan" maxlength="100">
+                    </div>
+                </div>
 
-            <!-- Campo Fecha de Alta -->
-            <div>
-                <label for="clienteHabitualFecha"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('new_client.created_at'); ?></label>
-                <input type="datetime-local" id="clienteHabitualFecha"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" disabled>
+                <!-- Campo Apellidos -->
+                <div class="form-group-premium">
+                    <label for="clienteHabitualApellidos"><?php echo t('new_client.surname'); ?> <span style="color: #ef4444;">*</span></label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-signature"></i>
+                        <input type="text" id="clienteHabitualApellidos" placeholder="García López" maxlength="150">
+                    </div>
+                </div>
+
+                <!-- Campo Dirección -->
+                <div class="form-group-premium" style="grid-column: span 2;">
+                    <label for="clienteHabitualDireccion"><?php echo t('new_client.address'); ?></label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <input type="text" id="clienteHabitualDireccion" placeholder="Calle Principal 123" maxlength="255">
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- Botones: Cancelar y Guardar -->
-        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
-            <button class="btn-modal-cancelar"
-                onclick="cerrarModal('modalClienteHabitual')"><?php echo t('new_client.cancel'); ?></button>
-            <button class="btn-exito" id="btnGuardarClienteHabitual"
-                style="margin: 0;"><?php echo t('new_client.save'); ?></button>
+        <div class="modal-footer-premium">
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalClienteHabitual')">
+                <?php echo t('new_client.cancel'); ?>
+            </button>
+            <button class="btn-apply-premium" id="btnGuardarClienteHabitual">
+                <i class="fas fa-save" style="margin-right: 8px;"></i> <?php echo t('new_client.save'); ?>
+            </button>
         </div>
     </div>
 </div>
@@ -2148,93 +2155,89 @@ endif; ?>
 <!-- Primer modal: conteo de dinero antes del cierre -->
 <?php if (isset($_SESSION['cajaPrevisualizacion']) && $_SESSION['cajaPrevisualizacion'] && isset($_SESSION['resumenCaja'])): ?>
     <div class="modal-overlay" id="arqueoModal">
-        <div class="modal-content modal-exito" style="max-width: 500px;">
-            <!-- Icono de caja/billete en azul -->
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2563eb"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 15px;">
-                <rect x="2" y="6" width="20" height="12" rx="2"></rect>
-                <path d="M12 12h.01"></path>
-                <path d="M17 12h.01"></path>
-                <path d="M7 12h.01"></path>
-            </svg>
-            <h3 style="color: var(--text-main); font-size: 1.4rem; margin-bottom: 10px;">
-                <?php echo t('cash_count.title'); ?>
-            </h3>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
-                <?php echo t('cash_count.expected_cash'); ?>: <strong
-                    style="color: var(--accent); font-size: 1.1rem;"><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?>
-                    €</strong>
-            </p>
+        <div class="modal-content modal-premium" style="max-width: 600px;">
+            <div class="modal-header-premium" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                <div class="icon-container-client" style="background: rgba(255, 255, 255, 0.2);">
+                    <i class="fas fa-cash-register"></i>
+                </div>
+                <h3><?php echo t('cash_count.title'); ?></h3>
+                <p><?php echo t('cash_count.expected_cash'); ?>: <strong><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?> €</strong></p>
+            </div>
 
-            <!-- Billetes -->
-            <div style="margin-bottom: 12px;">
-                <p style="margin: 0 0 6px 0; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">
-                    <?php echo t('cash_count.bills'); ?>
-                </p>
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
-                    <?php foreach ([500, 200, 100, 50, 20, 10, 5] as $valor): ?>
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <span style="font-size: 0.75rem; width: 40px;"><?php echo $valor; ?>€</span>
-                            <input type="number" min="0" value="0" data-denominacion="<?php echo $valor; ?>"
-                                class="arqueo-billete"
-                                style="width: 50px; padding: 4px; text-align: center; border: 1px solid var(--border-main); border-radius: 4px; font-size: 0.8rem; background: var(--bg-input); color: var(--text-main);"
-                                onchange="calcularArqueo()" oninput="calcularArqueo()">
+            <div class="modal-body-premium">
+                <div class="arqueo-grid-container">
+                    <!-- Billetes -->
+                    <div class="arqueo-section">
+                        <div class="arqueo-section-header">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <span><?php echo t('cash_count.bills'); ?></span>
                         </div>
-                        <?php
-                    endforeach; ?>
-                </div>
-            </div>
-
-            <!-- Monedas -->
-            <div style="margin-bottom: 12px;">
-                <p style="margin: 0 0 6px 0; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">
-                    <?php echo t('cash_count.coins'); ?>
-                </p>
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
-                    <?php foreach ([2, 1, 0.50, 0.20, 0.10, 0.05, 0.02, 0.01] as $valor): ?>
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <span style="font-size: 0.75rem; width: 40px;"><?php echo str_replace('.', ',', $valor); ?>€</span>
-                            <input type="number" min="0" value="0" data-denominacion="<?php echo $valor; ?>"
-                                class="arqueo-moneda"
-                                style="width: 50px; padding: 4px; text-align: center; border: 1px solid var(--border-main); border-radius: 4px; font-size: 0.8rem; background: var(--bg-input); color: var(--text-main);"
-                                onchange="calcularArqueo()" oninput="calcularArqueo()">
+                        <div class="arqueo-inputs-grid">
+                            <?php foreach ([500, 200, 100, 50, 20, 10, 5] as $valor): ?>
+                                <div class="arqueo-input-item">
+                                    <span class="denominacion-label"><?php echo $valor; ?>€</span>
+                                    <input type="number" min="0" value="0" data-denominacion="<?php echo $valor; ?>"
+                                        class="arqueo-billete"
+                                        onchange="calcularArqueo()" oninput="calcularArqueo()">
+                                </div>
+                            <?php endforeach; ?>
                         </div>
-                        <?php
-                    endforeach; ?>
+                    </div>
+
+                    <!-- Monedas -->
+                    <div class="arqueo-section">
+                        <div class="arqueo-section-header">
+                            <i class="fas fa-coins"></i>
+                            <span><?php echo t('cash_count.coins'); ?></span>
+                        </div>
+                        <div class="arqueo-inputs-grid">
+                            <?php foreach ([2, 1, 0.50, 0.20, 0.10, 0.05, 0.02, 0.01] as $valor): ?>
+                                <div class="arqueo-input-item">
+                                    <span class="denominacion-label"><?php echo str_replace('.', ',', $valor); ?>€</span>
+                                    <input type="number" min="0" value="0" data-denominacion="<?php echo $valor; ?>"
+                                        class="arqueo-moneda"
+                                        onchange="calcularArqueo()" oninput="calcularArqueo()">
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resultado Resumen -->
+                <div class="arqueo-summary-premium">
+                    <div class="summary-row">
+                        <span class="summary-label"><?php echo t('cash_count.expected_cash'); ?></span>
+                        <span id="arqueoEsperado" class="summary-value"><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?> €</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label"><?php echo t('cash_count.counted_cash'); ?></span>
+                        <span id="arqueoContado" class="summary-value highlight">0,00 €</span>
+                    </div>
+                    <div class="summary-row total">
+                        <span class="summary-label"><?php echo t('cash_count.difference'); ?></span>
+                        <span id="arqueoDiferencia" class="summary-value diff-neutral">0,00 €</span>
+                    </div>
+                </div>
+
+                <!-- Observaciones -->
+                <div class="form-group-premium" style="margin-top: 20px;">
+                    <label for="arqueoObservaciones"><?php echo t('cash_count.observations'); ?></label>
+                    <textarea id="arqueoObservaciones" 
+                        placeholder="<?php echo t('cash_count.observations'); ?>"
+                        style="width: 100%; padding: 12px; border: 2px solid var(--border-main); border-radius: 14px; 
+                               background: var(--bg-input); color: var(--text-main); font-size: 0.9rem; resize: none;"
+                        rows="2"></textarea>
                 </div>
             </div>
-
-            <!-- Resultado -->
-            <div
-                style="background: var(--bg-main); padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border-main);">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: var(--text-muted);"><?php echo t('cash_count.expected_cash'); ?>:</span>
-                    <span id="arqueoEsperado"
-                        style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?>
-                        €</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: var(--text-muted);"><?php echo t('cash_count.counted_cash'); ?>:</span>
-                    <span id="arqueoContado" style="font-weight: 600; color: var(--accent);">0,00 €</span>
-                </div>
-                <div
-                    style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px dashed var(--border-main);">
-                    <span style="font-weight: 600;"><?php echo t('cash_count.difference'); ?>:</span>
-                    <span id="arqueoDiferencia" style="font-weight: 700; color: var(--accent-success);">0,00 €</span>
-                </div>
-            </div>
-
-            <!-- Observaciones -->
-            <textarea id="arqueoObservaciones" placeholder="<?php echo t('cash_count.observations'); ?>"
-                style="width: 100%; padding: 10px; border: 1px solid var(--border-main); border-radius: 6px; resize: none; font-size: 0.85rem; margin-bottom: 20px; background: var(--bg-input); color: var(--text-main);"
-                rows="2"></textarea>
 
             <!-- Botones -->
-            <div style="display: flex; gap: 10px; justify-content: center;">
+            <div class="modal-footer-premium">
                 <button class="btn-modal-cancelar"
                     onclick="document.getElementById('arqueoModal').style.display='none';"><?php echo t('cash_count.cancel'); ?></button>
-                <button class="btn-cerrar-exito" style="margin-top: 0; background: var(--accent);"
-                    onclick="continuarArqueo()"><?php echo t('cash_count.continue'); ?></button>
+                <button class="btn-apply-premium" style="background: linear-gradient(135deg, #3b82f6, #2563eb); box-shadow: 0 8px 15px rgba(37, 99, 235, 0.3);"
+                    onclick="continuarArqueo()">
+                    <i class="fas fa-arrow-right" style="margin-right: 8px;"></i> <?php echo t('cash_count.continue'); ?>
+                </button>
             </div>
         </div>
     </div>
@@ -2242,155 +2245,134 @@ endif; ?>
     <!-- ##=========================== MODAL: RESUMEN DE CAJA ===========================## -->
     <!-- Segundo modal: resumen de ventas -->
     <div class="modal-overlay" id="cajaPrevisualizacion" style="display: none;">
-        <div class="modal-content modal-exito" style="max-width: 450px;">
-
-            <!-- Contenedor imprimible del resumen de caja -->
-            <div id="cajaResumenImprimible" class="resumen-caja-container">
-
-                <!-- Header visible solo al imprimir (clase .solo-impresion) -->
-                <div class="solo-impresion" style="text-align: center; margin-bottom: 15px;">
-                    <h2>TPV Bazar</h2>
-                    <p><?php echo t('cash_summary.title'); ?> - <?php echo date('d/m/Y H:i'); ?></p>
+        <div class="modal-content modal-premium" style="max-width: 500px;">
+            <div class="modal-header-premium" style="background: linear-gradient(135deg, #6366f1, #4f46e5);">
+                <div class="icon-container-client">
+                    <i class="fas fa-file-invoice-dollar"></i>
                 </div>
+                <h3><?php echo t('cash_summary.title'); ?></h3>
+                <p><?php echo date('d/m/Y H:i'); ?></p>
+            </div>
 
-                <h4 class="resumen-caja-titulo">
-                    <?php echo t('cash_summary.sales_summary'); ?>
-                </h4>
+            <div class="modal-body-premium">
+                <!-- Contenedor imprimible del resumen de caja -->
+                <div id="cajaResumenImprimible" class="resumen-caja-premium">
+                    
+                    <div class="resumen-section-title">
+                        <i class="fas fa-chart-line"></i> <?php echo t('cash_summary.sales_summary'); ?>
+                    </div>
 
-                <!-- Desglose por EFECTIVO: cantidad de tickets, total y devoluciones -->
-                <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem;">
-                    <span><strong style="color: #4b5563;"><?php echo t('cash_summary.cash'); ?>:</strong>
-                        (<?php echo $_SESSION['resumenCaja']['efectivo']['cantidad']; ?>
-                        <?php echo t('cash_summary.tickets'); ?>)</span>
-                    <div style="text-align: right;">
-                        <span
-                            style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['efectivo']['total'], 2, ',', '.'); ?>
-                            €</span>
-                        <?php if ($_SESSION['resumenCaja']['efectivo']['devoluciones'] > 0): ?>
-                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(<?php echo t('cash_summary.returns'); ?>:
-                                -<?php echo number_format($_SESSION['resumenCaja']['efectivo']['devoluciones'], 2, ',', '.'); ?>
-                                €)</span>
-                            <?php
-                        endif; ?>
-                        <?php if (isset($_SESSION['resumenCaja']['totalRetiros']) && $_SESSION['resumenCaja']['totalRetiros'] > 0): ?>
-                            <br><span style="font-size: 0.75rem; color: #ea580c;">(<?php echo t('cash_summary.withdrawals'); ?>:
-                                -<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'], 2, ',', '.'); ?>
-                                €)</span>
-                            <?php
-                        endif; ?>
-                    </div>
-                </div>
-
-                <!-- Desglose por TARJETA: cantidad de tickets, total y devoluciones -->
-                <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem;">
-                    <span><strong style="color: #4b5563;"><?php echo t('cash_summary.card'); ?>:</strong>
-                        (<?php echo $_SESSION['resumenCaja']['tarjeta']['cantidad']; ?>
-                        <?php echo t('cash_summary.tickets'); ?>)</span>
-                    <div style="text-align: right;">
-                        <span
-                            style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['tarjeta']['total'], 2, ',', '.'); ?>
-                            €</span>
-                        <?php if ($_SESSION['resumenCaja']['tarjeta']['devoluciones'] > 0): ?>
-                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(<?php echo t('cash_summary.returns'); ?>:
-                                -<?php echo number_format($_SESSION['resumenCaja']['tarjeta']['devoluciones'], 2, ',', '.'); ?>
-                                €)</span>
-                            <?php
-                        endif; ?>
-                    </div>
-                </div>
-
-                <!-- Desglose por BIZUM: cantidad de tickets, total y devoluciones -->
-                <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.95rem;">
-                    <span><strong style="color: #4b5563;"><?php echo t('cash_summary.bizum'); ?>:</strong>
-                        (<?php echo $_SESSION['resumenCaja']['bizum']['cantidad']; ?>
-                        <?php echo t('cash_summary.tickets'); ?>)</span>
-                    <div style="text-align: right;">
-                        <span
-                            style="font-weight: 600;"><?php echo number_format($_SESSION['resumenCaja']['bizum']['total'], 2, ',', '.'); ?>
-                            €</span>
-                        <?php if ($_SESSION['resumenCaja']['bizum']['devoluciones'] > 0): ?>
-                            <br><span style="font-size: 0.75rem; color: #b91c1c;">(<?php echo t('cash_summary.returns'); ?>:
-                                -<?php echo number_format($_SESSION['resumenCaja']['bizum']['devoluciones'], 2, ',', '.'); ?>
-                                €)</span>
-                            <?php
-                        endif; ?>
-                    </div>
-                </div>
-
-                <!-- TOTAL GENERAL de ventas del día (suma de todos los métodos) -->
-                <div class="resumen-total-ventas">
-                    <strong><?php echo t('cash_summary.total_sales'); ?>:</strong>
-                    <strong
-                        class="total-monto-verde"><?php echo number_format($_SESSION['resumenCaja']['totalGeneral'], 2, ',', '.'); ?>
-                        €</strong>
-                </div>
-
-                <!-- Detalles reales de la caja: fondo inicial, devoluciones y efectivo real -->
-                <div class="resumen-caja-detalles">
-                    <!-- Fondo de caja inicial (importe con el que se abrió la caja) -->
-                    <div class="resumen-detalle-fila">
-                        <span><?php echo t('cash_summary.initial_cash'); ?>:</span>
-                        <span><?php echo number_format($_SESSION['resumenCaja']['importeInicial'], 2, ',', '.'); ?> €</span>
-                    </div>
-                    <!-- Total de devoluciones realizadas durante la sesión -->
-                    <div class="resumen-detalle-fila" style="color: #ef4444;">
-                        <span><?php echo t('cash_summary.total_returns'); ?>:</span>
-                        <span
-                            style="font-weight: 600;">-<?php echo number_format($_SESSION['resumenCaja']['totalDevoluciones'], 2, ',', '.'); ?>
-                            €</span>
-                    </div>
-                    <!-- Total de retiros realizados durante la sesión -->
-                    <div class="resumen-detalle-fila" style="color: #ef4444;">
-                        <span><?php echo t('cash_summary.total_withdrawals'); ?>:</span>
-                        <span
-                            style="font-weight: 600;">-<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'] ?? 0, 2, ',', '.'); ?>
-                            €</span>
-                    </div>
-                    <!-- Efectivo real que debería haber en la caja física -->
-                    <div class="caja-efectivo-real">
-                        <span><?php echo t('cash_summary.expected_cash'); ?>:</span>
-                        <span><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?> €</span>
-                    </div>
-                    <!-- Arqueo: efectivo contado y diferencia -->
-                    <div id="arqueoResumen"
-                        style="background: var(--bg-accent-success); padding: 10px; border-radius: 8px; margin-top: 10px; border: 1px solid var(--accent-success); opacity: 0.9;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                            <span style="color: var(--text-main);"><?php echo t('cash_count.counted_cash'); ?>:</span>
-                            <span id="arqueoContadoResumen" style="font-weight: 600; color: var(--text-main);">--</span>
+                    <div class="metodo-pago-rows">
+                        <!-- Desglose por EFECTIVO -->
+                        <div class="metodo-pago-item">
+                            <div class="metodo-info">
+                                <div class="metodo-icon cash"><i class="fas fa-money-bill-wave"></i></div>
+                                <div class="metodo-details">
+                                    <span class="metodo-name"><?php echo t('cash_summary.cash'); ?></span>
+                                    <span class="metodo-count"><?php echo $_SESSION['resumenCaja']['efectivo']['cantidad']; ?> <?php echo t('cash_summary.tickets'); ?></span>
+                                </div>
+                            </div>
+                            <div class="metodo-amounts">
+                                <span class="amount-main"><?php echo number_format($_SESSION['resumenCaja']['efectivo']['total'], 2, ',', '.'); ?> €</span>
+                                <?php if ($_SESSION['resumenCaja']['efectivo']['devoluciones'] > 0): ?>
+                                    <span class="amount-sub neg">-<?php echo number_format($_SESSION['resumenCaja']['efectivo']['devoluciones'], 2, ',', '.'); ?> €</span>
+                                <?php endif; ?>
+                                <?php if (isset($_SESSION['resumenCaja']['totalRetiros']) && $_SESSION['resumenCaja']['totalRetiros'] > 0): ?>
+                                    <span class="amount-sub withdrawal">-<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'], 2, ',', '.'); ?> €</span>
+                                <?php endif; ?>
+                            </div>
                         </div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <span style="color: var(--text-main);"><?php echo t('cash_count.difference'); ?>:</span>
-                            <span id="arqueoDiferenciaResumen" style="font-weight: 600;">--</span>
+
+                        <!-- Desglose por TARJETA -->
+                        <div class="metodo-pago-item">
+                            <div class="metodo-info">
+                                <div class="metodo-icon card"><i class="fas fa-credit-card"></i></div>
+                                <div class="metodo-details">
+                                    <span class="metodo-name"><?php echo t('cash_summary.card'); ?></span>
+                                    <span class="metodo-count"><?php echo $_SESSION['resumenCaja']['tarjeta']['cantidad']; ?> <?php echo t('cash_summary.tickets'); ?></span>
+                                </div>
+                            </div>
+                            <div class="metodo-amounts">
+                                <span class="amount-main"><?php echo number_format($_SESSION['resumenCaja']['tarjeta']['total'], 2, ',', '.'); ?> €</span>
+                                <?php if ($_SESSION['resumenCaja']['tarjeta']['devoluciones'] > 0): ?>
+                                    <span class="amount-sub neg">-<?php echo number_format($_SESSION['resumenCaja']['tarjeta']['devoluciones'], 2, ',', '.'); ?> €</span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <!-- Desglose por BIZUM -->
+                        <div class="metodo-pago-item">
+                            <div class="metodo-info">
+                                <div class="metodo-icon bizum"><i class="fas fa-mobile-alt"></i></div>
+                                <div class="metodo-details">
+                                    <span class="metodo-name"><?php echo t('cash_summary.bizum'); ?></span>
+                                    <span class="metodo-count"><?php echo $_SESSION['resumenCaja']['bizum']['cantidad']; ?> <?php echo t('cash_summary.tickets'); ?></span>
+                                </div>
+                            </div>
+                            <div class="metodo-amounts">
+                                <span class="amount-main"><?php echo number_format($_SESSION['resumenCaja']['bizum']['total'], 2, ',', '.'); ?> €</span>
+                                <?php if ($_SESSION['resumenCaja']['bizum']['devoluciones'] > 0): ?>
+                                    <span class="amount-sub neg">-<?php echo number_format($_SESSION['resumenCaja']['bizum']['devoluciones'], 2, ',', '.'); ?> €</span>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
-                    <input type="hidden" id="arqueoTotalContado" value="0">
-                    <input type="hidden" id="arqueoDiferenciaValue" value="0">
+
+                    <div class="resumen-total-bar">
+                        <span><?php echo t('cash_summary.total_sales'); ?></span>
+                        <span class="total-value"><?php echo number_format($_SESSION['resumenCaja']['totalGeneral'], 2, ',', '.'); ?> €</span>
+                    </div>
+
+                    <div class="resumen-caja-detalles-premium">
+                        <div class="detalle-row">
+                            <span><?php echo t('cash_summary.initial_cash'); ?></span>
+                            <span><?php echo number_format($_SESSION['resumenCaja']['importeInicial'], 2, ',', '.'); ?> €</span>
+                        </div>
+                        <div class="detalle-row neg">
+                            <span><?php echo t('cash_summary.total_returns'); ?></span>
+                            <span>-<?php echo number_format($_SESSION['resumenCaja']['totalDevoluciones'], 2, ',', '.'); ?> €</span>
+                        </div>
+                        <div class="detalle-row neg">
+                            <span><?php echo t('cash_summary.total_withdrawals'); ?></span>
+                            <span>-<?php echo number_format($_SESSION['resumenCaja']['totalRetiros'] ?? 0, 2, ',', '.'); ?> €</span>
+                        </div>
+                        <div class="detalle-row expected">
+                            <span><?php echo t('cash_summary.expected_cash'); ?></span>
+                            <span><?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, ',', '.'); ?> €</span>
+                        </div>
+
+                        <!-- Arqueo Info -->
+                        <div id="arqueoResumen" class="arqueo-summary-box">
+                            <div class="arqueo-row">
+                                <span><?php echo t('cash_count.counted_cash'); ?></span>
+                                <span id="arqueoContadoResumen">--</span>
+                            </div>
+                            <div class="arqueo-row diff">
+                                <span><?php echo t('cash_count.difference'); ?></span>
+                                <span id="arqueoDiferenciaResumen">--</span>
+                            </div>
+                        </div>
+                        <input type="hidden" id="arqueoTotalContado" value="0">
+                        <input type="hidden" id="arqueoDiferenciaValue" value="0">
+                    </div>
                 </div>
 
-                <!-- Footer visible solo al imprimir: espacio para firma y sello -->
-                <div class="solo-impresion solo-impresion-footer">
-                    <p><?php echo t('cash_summary.signature'); ?>:</p>
-                    <br><br><br>
+                <!-- Cambio para el siguiente turno -->
+                <div class="cambio-next-turn">
+                    <label for="cambio"><i class="fas fa-coins"></i> <?php echo t('cash_summary.next_turn_change'); ?></label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-euro-sign"></i>
+                        <input type="number" id="cambio" name="cambio" step="0.0001" oninput="validarPrecisionDinamica(this)"
+                            onblur="validarPrecisionDinamica(this)" min="0"
+                            value="<?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, '.', ''); ?>"
+                            placeholder="0,00">
+                    </div>
+                    <p class="help-text"><?php echo t('cash_summary.change_help'); ?></p>
                 </div>
             </div>
 
-            <!-- Opción para guardar cambio para el siguiente turno -->
-            <div class="cambio-turno-container">
-                <label for="cambio" class="cambio-turno-label">
-                    💰 <?php echo t('cash_summary.next_turn_change'); ?>
-                </label>
-                <input type="number" id="cambio" name="cambio" step="0.0001" oninput="validarPrecisionDinamica(this)"
-                    onblur="validarPrecisionDinamica(this)" min="0"
-                    value="<?php echo number_format($_SESSION['resumenCaja']['importeActual'], 2, '.', ''); ?>"
-                    placeholder="0,00"
-                    style="width: 100%; padding: 10px; text-align: center; font-size: 16px; border-radius: 6px;">
-                <p class="cambio-turno-subtitulo">
-                    <?php echo t('cash_summary.change_help'); ?>
-                </p>
-            </div>
-
-            <!-- Botones: Cancelar (cierra sin cerrar caja) y Confirmar Cierre (cierra la caja definitivamente) -->
-            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+            <!-- Botones -->
+            <div class="modal-footer-premium">
                 <button class="btn-modal-cancelar"
                     onclick="document.getElementById('cajaPrevisualizacion').style.display='none';"><?php echo t('cash_summary.cancel'); ?></button>
                 <form method="POST" action="index.php" style="margin: 0;">
@@ -2400,8 +2382,10 @@ endif; ?>
                     <input type="hidden" name="arqueoTotalContado" id="arqueoTotalContadoForm" value="0">
                     <input type="hidden" name="arqueoDetalleConteo" id="arqueoDetalleConteoForm" value="">
                     <input type="hidden" name="arqueoObservaciones" id="arqueoObservacionesHidden" value="">
-                    <button type="submit" class="btn-cerrar-exito" style="margin-top: 0; background: #2563eb;"
-                        onclick="document.getElementById('cambioHidden').value = document.getElementById('cambio').value; document.getElementById('arqueoObservacionesHidden').value = document.getElementById('arqueoObservaciones').value || '';"><?php echo t('cash_summary.confirm'); ?></button>
+                    <button type="submit" class="btn-apply-premium"
+                        onclick="document.getElementById('cambioHidden').value = document.getElementById('cambio').value; document.getElementById('arqueoObservacionesHidden').value = document.getElementById('arqueoObservaciones').value || '';">
+                        <i class="fas fa-check-double" style="margin-right: 8px;"></i> <?php echo t('cash_summary.confirm'); ?>
+                    </button>
                 </form>
             </div>
         </div>
@@ -2938,7 +2922,7 @@ endif; ?>
                 <label for="comodinNombre"
                     style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);"><?php echo t('products.label_comodin_name'); ?>
                     *</label>
-                <input type="text" id="comodinNombre"
+                <input type="text" id="comodinNombre" maxlength="26"
                     placeholder="Ej: <?php echo t('products.comodin_name_placeholder'); ?>"
                     style="width: 100%; padding: 12px 15px; border: 1px solid var(--border-main); border-radius: 8px; font-size: 14px; box-sizing: border-box; background: var(--bg-input); color: var(--text-main);"
                     onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='var(--border-main)'">

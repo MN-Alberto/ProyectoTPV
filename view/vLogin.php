@@ -1,107 +1,174 @@
-<section id="login">
+<div class="login-page-wrapper">
+    <!-- Fondo dinámico / Gradiente Mesh -->
+    <div class="login-mesh-bg"></div>
 
-    <div class="login-card">
-        <div class="login-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-            </svg>
+    <section id="login">
+        <div class="login-card">
+            <div class="login-brand">
+                <div class="brand-logo">
+                    <i class="fas fa-cash-register"></i>
+                </div>
+                <div class="brand-info">
+                    <h2><?php echo t('login.title'); ?></h2>
+                    <p class="login-subtitle"><?php echo t('app.subtitle'); ?></p>
+                </div>
+            </div>
+
+            <!-- Manejo de Errores -->
+            <?php if (!empty($error)): ?>
+                <div class="login-error-premium">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span><?php echo $error; ?></span>
+                </div>
+            <?php endif; ?>
+
+            <form method="POST" action="index.php" autocomplete="off" class="login-form">
+                <div class="form-group-premium">
+                    <label for="usuario"><?php echo t('login.user'); ?></label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="usuario" name="usuario" placeholder="<?php echo t('login.user_placeholder'); ?>" required autofocus>
+                    </div>
+                </div>
+                
+                <div class="form-group-premium">
+                    <label for="password"><?php echo t('login.password'); ?></label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="password" name="password" placeholder="<?php echo t('login.password_placeholder'); ?>" required>
+                        <button type="button" class="toggle-password" onclick="togglePasswordVisibility()">
+                            <i class="fas fa-eye" id="eye-icon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-login-premium">
+                    <span><?php echo t('login.submit'); ?></span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </form>
+
+            <div class="login-footer-links">
+                <a href="#" id="link-recuperar-password" class="link-forgot">
+                    <i class="fas fa-key"></i> <?php echo t('login.forgot_password'); ?>
+                </a>
+            </div>
         </div>
-        <h2>
-            <?php echo t('login.title'); ?>
-        </h2>
-        <p class="login-subtitle">
-            <?php echo t('app.subtitle'); ?>
-        </p>
 
-        <!-- Si hay algún error, se muestra en un div con la clase login-error -->
-        <?php if (!empty($error)): ?>
-            <div class="login-error">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="15" y1="9" x2="9" y2="15"></line>
-                    <line x1="9" y1="9" x2="15" y2="15"></line>
-                </svg>
-                <?php echo $error; ?>
-            </div>
-            <?php
-        endif; ?>
+        <!-- Modal de Recuperación de Contraseña (Premium) -->
+        <div id="modal-recuperar-password" class="modal-overlay" style="display: none;">
+            <div class="modal-content modal-premium" style="max-width: 450px;">
+                <div class="modal-header-premium" style="background: linear-gradient(135deg, #6366f1, #4f46e5); padding: 30px;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="background: rgba(255,255,255,0.2); width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-shield-alt" style="color: #fff; font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; color: #fff; font-size: 1.3rem; font-weight: 700;"><?php echo t('login.recover_title'); ?></h3>
+                            <p style="margin: 3px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Siga los pasos para restablecer su acceso</p>
+                        </div>
+                    </div>
+                    <button class="modal-close-btn" id="cerrar-modal-recuperar" style="position: absolute; top: 25px; right: 25px; background: rgba(255,255,255,0.15); border: none; color: white; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
 
-        <form method="POST" action="index.php" autocomplete="off">
-            <div class="form-group">
-                <label for="usuario">
-                    <?php echo t('login.user'); ?>
-                </label>
-                <input type="text" id="usuario" name="usuario" placeholder="<?php echo t('login.user_placeholder'); ?>"
-                    required autofocus>
-            </div>
-            <div class="form-group">
-                <label for="password"><?php echo t('login.password'); ?></label>
-                <input type="password" id="password" name="password"
-                    placeholder="<?php echo t('login.password_placeholder'); ?>" required>
-            </div>
-            <button type="submit" class="btn-login"><?php echo t('login.submit'); ?></button>
-        </form>
+                <!-- Indicador de Progreso -->
+                <div class="recovery-progress" style="display: flex; justify-content: space-between; padding: 25px 50px 10px; position: relative;">
+                    <div class="progress-line" style="position: absolute; top: 40px; left: 50px; right: 50px; height: 2px; background: #e2e8f0; z-index: 1;">
+                        <div id="progress-fill" style="width: 0%; height: 100%; background: #6366f1; transition: width 0.3s ease;"></div>
+                    </div>
+                    <div class="progress-step active" id="step-dot-1" style="z-index: 2; position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                        <div style="width: 30px; height: 30px; border-radius: 50%; background: #6366f1; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; border: 4px solid #fff; box-shadow: 0 0 0 1px #6366f1;"><i class="fas fa-user" style="font-size: 0.7rem;"></i></div>
+                    </div>
+                    <div class="progress-step" id="step-dot-2" style="z-index: 2; position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                        <div style="width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; border: 2px solid #e2e8f0;"><i class="fas fa-key" style="font-size: 0.7rem;"></i></div>
+                    </div>
+                    <div class="progress-step" id="step-dot-3" style="z-index: 2; position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                        <div style="width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; border: 2px solid #e2e8f0;"><i class="fas fa-lock" style="font-size: 0.7rem;"></i></div>
+                    </div>
+                </div>
 
-        <div class="forgot-password-link">
-            <a href="#" id="link-recuperar-password"><?php echo t('login.forgot_password'); ?></a>
+                <div style="padding: 30px;">
+                    <!-- Paso 1: Introducir nombre de usuario -->
+                    <div id="paso-usuario">
+                        <p class="modal-instruction"><?php echo t('login.recover_step1'); ?></p>
+                        <div class="form-group-premium">
+                            <label for="recup-usuario"><?php echo t('login.user'); ?></label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-user"></i>
+                                <input type="text" id="recup-usuario" placeholder="<?php echo t('login.user_placeholder'); ?>" required>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-login-premium" id="btn-enviar-codigo" style="margin-top: 10px;">
+                            <?php echo t('login.recover_send_code'); ?>
+                        </button>
+                    </div>
+
+                    <!-- Paso 2: Introducir código -->
+                    <div id="paso-codigo" style="display: none;">
+                        <p class="modal-instruction"><?php echo t('login.recover_step2'); ?></p>
+                        <div class="form-group-premium">
+                            <label for="recup-codigo"><?php echo t('login.recover_code'); ?></label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-hashtag"></i>
+                                <input type="text" id="recup-codigo" placeholder="123456" maxlength="6" required style="text-align: center; letter-spacing: 5px; font-weight: 800; font-size: 1.2rem;">
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 15px;">
+                            <button type="button" class="btn-modal-cancelar" id="btn-volver-usuario" style="flex: 1;">
+                                <?php echo t('login.recover_back'); ?>
+                            </button>
+                            <button type="button" class="btn-login-premium" id="btn-verificar-codigo" style="flex: 2;">
+                                <?php echo t('login.recover_verify'); ?>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Paso 3: Nueva contraseña -->
+                    <div id="paso-nueva-password" style="display: none;">
+                        <p class="modal-instruction"><?php echo t('login.recover_step3'); ?></p>
+                        <div class="form-group-premium">
+                            <label for="recup-nueva-password"><?php echo t('login.recover_new_password'); ?></label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="recup-nueva-password" placeholder="<?php echo t('login.recover_min_chars'); ?>" required>
+                            </div>
+                        </div>
+                        <div class="form-group-premium">
+                            <label for="recup-confirmar-password"><?php echo t('login.recover_confirm_password'); ?></label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-check-circle"></i>
+                                <input type="password" id="recup-confirmar-password" placeholder="<?php echo t('login.recover_repeat'); ?>" required>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-login-premium" id="btn-cambiar-password" style="margin-top: 10px;">
+                            <?php echo t('login.recover_change'); ?>
+                        </button>
+                    </div>
+
+                    <div id="recuperar-mensaje" class="login-error-premium" style="display: none; margin-top: 20px;"></div>
+                </div>
+            </div>
         </div>
-    </div>
+    </section>
+</div>
 
-    <!-- Modal de Recuperación de Contraseña -->
-    <div id="modal-recuperar-password" class="modal" style="display: none;">
-        <div class="modal-content">
-            <span class="modal-close" id="cerrar-modal-recuperar">&times;</span>
-            <h3><?php echo t('login.recover_title'); ?></h3>
-
-            <!-- Paso 1: Introducir nombre de usuario -->
-            <div id="paso-usuario">
-                <p class="modal-subtitle"><?php echo t('login.recover_step1'); ?></p>
-                <div class="form-group">
-                    <label for="recup-usuario"><?php echo t('login.user'); ?></label>
-                    <input type="text" id="recup-usuario" placeholder="<?php echo t('login.user_placeholder'); ?>"
-                        required>
-                </div>
-                <button type="button" class="btn-login"
-                    id="btn-enviar-codigo"><?php echo t('login.recover_send_code'); ?></button>
-            </div>
-
-            <!-- Paso 2: Introducir código -->
-            <div id="paso-codigo" style="display: none;">
-                <p class="modal-subtitle"><?php echo t('login.recover_step2'); ?></p>
-                <div class="form-group">
-                    <label for="recup-codigo"><?php echo t('login.recover_code'); ?></label>
-                    <input type="text" id="recup-codigo" placeholder="123456" maxlength="6" required>
-                </div>
-                <button type="button" class="btn-login"
-                    id="btn-verificar-codigo"><?php echo t('login.recover_verify'); ?></button>
-                <button type="button" class="btn-secondary"
-                    id="btn-volver-usuario"><?php echo t('login.recover_back'); ?></button>
-            </div>
-
-            <!-- Paso 3: Nueva contraseña -->
-            <div id=" paso-nueva-password" style="display: none;">
-                <p class="modal-subtitle"><?php echo t('login.recover_step3'); ?></p>
-                <div class="form-group">
-                    <label for="recup-nueva-password"><?php echo t('login.recover_new_password'); ?></label>
-                    <input type="password" id="recup-nueva-password"
-                        placeholder="<?php echo t('login.recover_min_chars'); ?>" required>
-                </div>
-                <div class="form-group">
-                    <label for="recup-confirmar-password"><?php echo t('login.recover_confirm_password'); ?></label>
-                    <input type="password" id="recup-confirmar-password"
-                        placeholder="<?php echo t('login.recover_repeat'); ?>" required>
-                </div>
-                <button type="button" class="btn-login"
-                    id="btn-cambiar-password"><?php echo t('login.recover_change'); ?></button>
-            </div>
-
-            <div id="recuperar-mensaje" class="login-error" style="display: none;"></div>
-        </div>
-    </div>
-</section>
+<script>
+    function togglePasswordVisibility() {
+        const passwordInput = document.getElementById('password');
+        const eyeIcon = document.getElementById('eye-icon');
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            eyeIcon.classList.remove('fa-eye');
+            eyeIcon.classList.add('fa-eye-slash');
+        } else {
+            passwordInput.type = 'password';
+            eyeIcon.classList.remove('fa-eye-slash');
+            eyeIcon.classList.add('fa-eye');
+        }
+    }
+</script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -113,7 +180,7 @@
         // Pasos del modal
         const pasoUsuario = document.getElementById('paso-usuario');
         const pasoCodigo = document.getElementById('paso-codigo');
-        const pasoNuevaPassword = document.getElementById(' paso-nueva-password');
+        const pasoNuevaPassword = document.getElementById('paso-nueva-password');
 
         // Botones
         const btnEnviarCodigo = document.getElementById('btn-enviar-codigo');
@@ -132,9 +199,9 @@
 
         // Función para mostrar mensaje
         function mostrarMensaje(texto, tipo) {
-            mensajeDiv.textContent = texto;
-            mensajeDiv.className = 'login-error ' + tipo;
-            mensajeDiv.style.display = 'block';
+            mensajeDiv.innerHTML = `<i class="fas ${tipo === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> <span>${texto}</span>`;
+            mensajeDiv.className = 'login-error-premium ' + tipo;
+            mensajeDiv.style.display = 'flex';
         }
 
         // Función para ocultar mensaje
@@ -163,6 +230,40 @@
             }
         });
 
+        // Indicadores de progreso
+        const progressFill = document.getElementById('progress-fill');
+        const stepDots = [
+            document.getElementById('step-dot-1'),
+            document.getElementById('step-dot-2'),
+            document.getElementById('step-dot-3')
+        ];
+
+        function updateProgress(step) {
+            const percentages = [0, 50, 100];
+            progressFill.style.width = percentages[step - 1] + '%';
+            
+            stepDots.forEach((dot, index) => {
+                const dotInner = dot.querySelector('div');
+                if (index < step) {
+                    dotInner.style.background = '#6366f1';
+                    dotInner.style.color = 'white';
+                    dotInner.style.borderColor = '#fff';
+                    dotInner.style.boxShadow = '0 0 0 1px #6366f1';
+                    if (index < step - 1) {
+                        dotInner.innerHTML = '<i class="fas fa-check" style="font-size: 0.7rem;"></i>';
+                    }
+                } else {
+                    dotInner.style.background = '#fff';
+                    dotInner.style.color = '#94a3b8';
+                    dotInner.style.borderColor = '#e2e8f0';
+                    dotInner.style.boxShadow = 'none';
+                    // Reset icons
+                    const icons = ['fa-user', 'fa-key', 'fa-lock'];
+                    dotInner.innerHTML = `<i class="fas ${icons[index]}" style="font-size: 0.7rem;"></i>`;
+                }
+            });
+        }
+
         // Resetear modal
         function resetModal() {
             pasoUsuario.style.display = 'block';
@@ -173,6 +274,7 @@
             inputNuevaPassword.value = '';
             inputConfirmarPassword.value = '';
             ocultarMensaje();
+            updateProgress(1);
         }
 
         // Enviar código
@@ -185,7 +287,7 @@
             }
 
             btnEnviarCodigo.disabled = true;
-            btnEnviarCodigo.textContent = _t('login.recover_sending');
+            btnEnviarCodigo.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + _t('login.recover_sending');
 
             let response;
             try {
@@ -205,29 +307,17 @@
                     pasoUsuario.style.display = 'none';
                     pasoCodigo.style.display = 'block';
                     inputCodigo.focus();
+                    updateProgress(2);
                 } else {
                     mostrarMensaje(data.error, 'error');
                 }
             } catch (err) {
                 console.error('Error:', err);
-                if (response) {
-                    console.log('Response status:', response.status);
-                    mostrarMensaje(_t('login.error_connection_status') + ' ' + response.status, 'error');
-                } else {
-                    mostrarMensaje(_t('login.error_connection'), 'error');
-                }
+                mostrarMensaje(_t('login.error_connection'), 'error');
             }
 
             btnEnviarCodigo.disabled = false;
             btnEnviarCodigo.textContent = _t('login.recover_send_code');
-        });
-
-        // Permitir enviar con Enter en usuario
-        inputUsuario.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                btnEnviarCodigo.click();
-            }
         });
 
         // Volver a usuario
@@ -235,6 +325,7 @@
             pasoCodigo.style.display = 'none';
             pasoUsuario.style.display = 'block';
             ocultarMensaje();
+            updateProgress(1);
         });
 
         // Verificar código
@@ -246,13 +337,8 @@
                 return;
             }
 
-            if (codigo.length !== 6) {
-                mostrarMensaje(_t('login.error_code_6digits'), 'error');
-                return;
-            }
-
             btnVerificarCodigo.disabled = true;
-            btnVerificarCodigo.textContent = _t('login.recover_verifying');
+            btnVerificarCodigo.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + _t('login.recover_verifying');
 
             try {
                 const formData = new FormData();
@@ -270,6 +356,7 @@
                     pasoCodigo.style.display = 'none';
                     pasoNuevaPassword.style.display = 'block';
                     inputNuevaPassword.focus();
+                    updateProgress(3);
                 } else {
                     mostrarMensaje(data.error, 'error');
                 }

@@ -238,8 +238,8 @@ if (isset($_GET['accion']) && $_GET['accion'] === 'proximos_numeros') {
 
         echo json_encode([
             'status' => 'success',
-            'proximo_ticket' => 'T' . str_pad($nextT, 5, '0', STR_PAD_LEFT),
-            'proximo_factura' => 'F' . str_pad($nextF, 5, '0', STR_PAD_LEFT)
+            'proximo_ticket' => 'T' . str_pad(substr((string)$nextT, -5), 5, '0', STR_PAD_LEFT),
+            'proximo_factura' => 'F' . str_pad(substr((string)$nextF, -5), 5, '0', STR_PAD_LEFT)
         ]);
     } catch (Exception $e) {
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);

@@ -99,6 +99,7 @@ return [
         'change_prices' => 'Change Prices',
         'see_prev_options' => 'See previous options',
         'see_more_options' => 'See more options',
+        'alert_insufficient_cash' => 'Insufficient cash in register',
     ],
 
     // ======================== TICKET / CART ========================
@@ -787,6 +788,8 @@ return [
         'email_sending' => 'Sending email...',
         'email_sent_to' => 'Email sent to',
         'thermal_ticket' => 'Thermal Ticket',
+        'alert_discount_range' => 'Discount must be between 0 and 100',
+        'client_default_tarifa' => 'Client',
         'alert_cash_limit_exceeded' => '⚠️ Cash limit exceeded. Cash payments over €1,000 are not allowed',
         'mixed_total_covered' => '✅ Total covered',
         'mixed_exact_assigned' => '✅ Amount exactly assigned',
@@ -828,7 +831,6 @@ return [
         'ticket_number' => 'Invoice/Ticket No.',
         'operation_date' => 'Operation & Shipping Date',
         'quantity_th' => 'Qty',
-        'base_th' => 'Base',
         'delivered' => 'Delivered',
         'prices_include_vat' => 'Prices shown include VAT.',
         'unit_price' => 'Unit Price',

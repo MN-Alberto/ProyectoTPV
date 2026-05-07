@@ -44,28 +44,16 @@
 
 <body>
     <header>
-        <!-- Logotipo y Nombre de la Aplicación -->
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <div id="header-icon-container">
-                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    style="color: #60a5fa;">
-                    <rect x="4" y="4" width="16" height="16" rx="2"></rect>
-                    <rect x="9" y="9" width="6" height="6"></rect>
-                    <path d="M15 2v2"></path>
-                    <path d="M15 20v2"></path>
-                    <path d="M2 15h2"></path>
-                    <path d="M2 9h2"></path>
-                    <path d="M20 15h2"></path>
-                    <path d="M20 9h2"></path>
-                    <path d="M9 2v2"></path>
-                    <path d="M9 20v2"></path>
-                </svg>
+        <div class="header-brand">
+            <div class="brand-icon-wrapper">
+                <i class="fas fa-microchip"></i>
             </div>
-            <div style="display: flex; align-items: baseline; gap: 12px;">
-                <h1 style="margin: 0;"><?php echo t('app.title'); ?></h1>
-                <!-- Distintivo de cumplimiento fiscal -->
-                <span style="font-size: 10px; background: #ecfdf5; color: #059669; border: 1px solid #10b981; padding: 2px 6px; border-radius: 4px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">VERI*FACTU</span>
+            <div class="brand-text-wrapper">
+                <h1 class="app-title-header"><?php echo t('app.title'); ?></h1>
+                <!-- Distintivo de cumplimiento fiscal Premium -->
+                <span class="badge-verifactu">
+                    <i class="fas fa-check-circle"></i> VERI*FACTU
+                </span>
             </div>
         </div>
 

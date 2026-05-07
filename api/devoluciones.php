@@ -321,6 +321,76 @@ if ($method === 'GET') {
         exit;
     }
 
+    /**
+     * ENDPOINT: Devoluciones por DNI de cliente
+     * 
+     * Devuelve todas las devoluciones asociadas a un cliente mediante
+     * JOIN con la tabla ventas que almacena el cliente_dni.
+     * 
+     * @param cliente_dni DNI del cliente a consultar
+     */
+    if (isset($_GET['cliente_dni'])) {
+        $dni = $_GET['cliente_dni'];
+        try {
+            $conexion = ConexionDB::getInstancia()->getConexion();
+
+            // Obtener devoluciones agrupadas por venta, filtrando por DNI del cliente
+            $sql = "SELECT
+                        d.idVenta,
+                        d.fecha,
+                        d.metodoPago,
+                        d.motivo,
+                        d.idUsuario,
+                        SUM(d.importeTotal) as total,
+                        COUNT(*) as numItems,
+                        vi.serie as ticket_serie,
+                        vi.numero as ticket_numero,
+                        u.nombre as usuario_nombre,
+                        v.cliente_dni
+                    FROM devoluciones d
+                    JOIN ventas v ON d.idVenta = v.id
+                    LEFT JOIN ventas_ids vi ON d.idVenta = vi.id
+                    LEFT JOIN usuarios u ON d.idUsuario = u.id
+                    WHERE v.cliente_dni = ?
+                    GROUP BY d.idVenta
+                    ORDER BY d.fecha DESC";
+            $stmt = $conexion->prepare($sql);
+            $stmt->execute([$dni]);
+            $devoluciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Para cada devolución, obtener las líneas de productos
+            foreach ($devoluciones as &$dev) {
+                $sqlLineas = "SELECT
+                                d.id, d.idProducto, d.cantidad, d.precioUnitario, d.iva,
+                                d.importeTotal, COALESCE(p.nombre, 'Producto') as producto_nombre
+                              FROM devoluciones d
+                              LEFT JOIN productos p ON d.idProducto = p.id
+                              WHERE d.idVenta = ?";
+                $stmtLineas = $conexion->prepare($sqlLineas);
+                $stmtLineas->execute([$dev['idVenta']]);
+                $lineas = $stmtLineas->fetchAll(PDO::FETCH_ASSOC);
+
+                // Calcular precioUnitarioConIva y subtotalConIva para cada línea
+                foreach ($lineas as &$linea) {
+                    $iva = isset($linea['iva']) ? floatval($linea['iva']) : 21;
+                    $precioBase = floatval($linea['precioUnitario']);
+                    $precioConIva = $precioBase * (1 + $iva / 100);
+                    $linea['precioUnitarioConIva'] = round($precioConIva, 2);
+                    $linea['subtotalConIva'] = round($precioConIva * $linea['cantidad'], 2);
+                }
+
+                $dev['lineas'] = $lineas;
+                $dev['total'] = abs($dev['total'] ?? 0);
+            }
+
+            echo json_encode($devoluciones);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'Error al obtener devoluciones: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+
     if (isset($_GET['id'])) {
         // Implementar detalle si es necesario, por ahora obtenerTodas ya trae lo básico
         http_response_code(501);

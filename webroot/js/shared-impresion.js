@@ -240,7 +240,7 @@ function generarHTMLComprobante(datosVenta, idioma = 'es') {
     </table>`;
 
     const rawNum = datosVenta.numero || datosVenta.id || '0';
-    const paddedNum = (!isNaN(rawNum) && String(rawNum).trim() !== '' && rawNum !== '—') ? String(rawNum).padStart(5, '0') : rawNum;
+    const paddedNum = (!isNaN(rawNum) && String(rawNum).trim() !== '' && rawNum !== '—') ? String(rawNum).padStart(5, '0').slice(-5) : rawNum;
     const numComprobante = (datosVenta.serie || '') + paddedNum;
 
     let finalPuntosBalance = parseInt(datosVenta.puntosBalance);
@@ -281,7 +281,7 @@ function generarHTMLComprobante(datosVenta, idioma = 'es') {
                     <div style="color:#666">${T.print.date}: ${datosVenta.fecha}</div>
                     ${isRectificativa && datosVenta.id_original ? `
                         <div style="margin-top:5px; font-size:12px; font-weight:bold; color:#dc2626;">
-                            ${T.print.rectificativa_original_ref || 'Rectifica a:'} ${datosVenta.serie_original || 'T'}${String(datosVenta.numero_original || datosVenta.id_original).padStart(5, '0')}
+                            ${T.print.rectificativa_original_ref || 'Rectifica a:'} ${datosVenta.serie_original || 'T'}${String(datosVenta.numero_original || datosVenta.id_original).padStart(5, '0').slice(-5)}
                         </div>
                     ` : ''}
                 </div>

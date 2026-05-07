@@ -1369,39 +1369,72 @@ function abrirModalTarifas() {
  */
 function abrirModalNuevaTarifa() {
     const modalesDiv = document.getElementById('modalesTarifas');
-    const isDark = document.body.classList.contains('dark-mode');
-    const bgColor = isDark ? '#1f2937' : 'white';
-    const textColor = isDark ? '#e5e7eb' : '#374151';
-
+    
     modalesDiv.innerHTML = `
-        <div id="modalNuevaTarifa" class="modal-overlay" style="display: flex; position: fixed; z-index: 10001;">
-            <div class="modal-content" style="background: ${bgColor}; border-radius: 12px; max-width: 500px; width: 90%;">
-                <div style="background: linear-gradient(135deg, #059669, #10b981); color: white; padding: 20px;">
-                    <h3 style="margin: 0;">Nueva Tarifa</h3>
+        <div id="modalNuevaTarifa" class="modal-overlay" style="display: flex; position: fixed; z-index: 10001; backdrop-filter: blur(4px);">
+            <div class="modal-content modal-premium" style="max-width: 500px; padding: 0; overflow: hidden; width: 95%;">
+                <!-- Header Premium -->
+                <div class="modal-header-premium" style="background: linear-gradient(135deg, #10b981, #059669); padding: 25px 30px; text-align: left; position: relative;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="background: rgba(255,255,255,0.2); width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-plus-circle" style="color: #fff; font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; color: #fff; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px;">Nueva Tarifa</h3>
+                            <p class="modal-subtitulo" style="margin: 3px 0 0 0; color: rgba(255,255,255,0.85); font-size: 0.9rem;">Cree una nueva tarifa personalizada para sus productos</p>
+                        </div>
+                    </div>
+                    <button class="modal-close-btn" onclick="cerrarModal('modalNuevaTarifa')" 
+                        style="position: absolute; top: 25px; right: 25px; background: rgba(255,255,255,0.15); border: none; color: white; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
-                <div style="padding: 25px;">
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Nombre:</label>
-                        <input type="text" id="nuevaTarifaNombre" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; box-sizing: border-box;" required>
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Descripción:</label>
-                        <textarea id="nuevaTarifaDescripcion" rows="3" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; box-sizing: border-box; resize: vertical;"></textarea>
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Descuento (%):</label>
-                        <input type="number" id="nuevaTarifaDescuento" step="0.0001" min="0" max="100" value="0" oninput="validar4Decimales(this)" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; box-sizing: border-box;">
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="checkbox" id="nuevaTarifaRequiereCliente" style="width: 18px; height: 18px; margin-right: 8px;">
-                            <span style="font-weight: 500; color: ${textColor};">Requiere búsqueda de cliente</span>
-                        </label>
+
+                <div style="padding: 30px; background: var(--bg-panel);">
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <div class="ver-prod-item-premium">
+                            <label style="display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 8px;">Nombre de la Tarifa <span style="color:#ef4444">*</span></label>
+                            <div style="display: flex; align-items: center; gap: 12px; background: var(--bg-main); padding: 5px 15px; border-radius: 10px; border: 1px solid var(--border-main);">
+                                <i class="fas fa-tag" style="color: #10b981; width: 16px;"></i>
+                                <input type="text" id="nuevaTarifaNombre" placeholder="Ej: Tarifa VIP" style="flex: 1; padding: 10px 0; border: none; background: transparent; outline: none; font-size: 0.95rem; color: var(--text-main);" required>
+                            </div>
+                        </div>
+
+                        <div class="ver-prod-item-premium">
+                            <label style="display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 8px;">Descripción</label>
+                            <div style="display: flex; align-items: flex-start; gap: 12px; background: var(--bg-main); padding: 12px 15px; border-radius: 10px; border: 1px solid var(--border-main);">
+                                <i class="fas fa-align-left" style="color: #8b5cf6; width: 16px; margin-top: 4px;"></i>
+                                <textarea id="nuevaTarifaDescripcion" rows="3" placeholder="Breve descripción de la tarifa..." style="flex: 1; border: none; background: transparent; outline: none; font-size: 0.95rem; color: var(--text-main); resize: vertical; min-height: 80px;"></textarea>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div class="ver-prod-item-premium">
+                                <label style="display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 8px;">Descuento (%)</label>
+                                <div style="display: flex; align-items: center; gap: 12px; background: var(--bg-main); padding: 5px 15px; border-radius: 10px; border: 1px solid var(--border-main);">
+                                    <i class="fas fa-percent" style="color: #f59e0b; width: 16px;"></i>
+                                    <input type="number" id="nuevaTarifaDescuento" step="0.0001" min="0" max="100" value="0" oninput="validar4Decimales(this)" style="flex: 1; padding: 10px 0; border: none; background: transparent; outline: none; font-size: 0.95rem; color: var(--text-main);">
+                                </div>
+                            </div>
+                            <div class="ver-prod-item-premium" style="display: flex; flex-direction: column; justify-content: center;">
+                                <label style="display: flex; align-items: center; cursor: pointer; gap: 10px; padding: 10px; background: var(--bg-main); border-radius: 10px; border: 1px solid var(--border-main); height: 100%;">
+                                    <input type="checkbox" id="nuevaTarifaRequiereCliente" style="width: 20px; height: 20px; cursor: pointer; accent-color: #10b981;">
+                                    <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">Requiere Cliente</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div style="padding: 15px 25px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e5e7eb;">
-                    <button onclick="cerrarModal('modalNuevaTarifa')" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer;">Cancelar</button>
-                    <button onclick="guardarNuevaTarifa()" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer;">Guardar</button>
+
+                <div style="padding: 20px 30px; background: var(--bg-panel); border-top: 1px solid var(--border-main); display: flex; justify-content: flex-end; gap: 12px;">
+                    <button class="btn-modal-cancelar" onclick="cerrarModal('modalNuevaTarifa')" 
+                        style="margin: 0; padding: 12px 25px; border-radius: 10px; font-weight: 600; background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-main); cursor: pointer; transition: all 0.2s;">
+                        <i class="fas fa-times" style="margin-right: 8px;"></i> Cancelar
+                    </button>
+                    <button class="btn-exito" onclick="guardarNuevaTarifa()" 
+                        style="margin: 0; padding: 12px 30px; border-radius: 10px; font-weight: 600; background: #10b981; color: #fff; border: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-save"></i> Guardar Tarifa
+                    </button>
                 </div>
             </div>
         </div>`;
@@ -1446,40 +1479,74 @@ function guardarNuevaTarifa() {
  */
 function abrirModalEditarTarifa(id, nombre, descripcion, descuento, requiereCliente) {
     const modalesDiv = document.getElementById('modalesTarifas');
-    const isDark = document.body.classList.contains('dark-mode');
-    const bgColor = isDark ? '#1f2937' : 'white';
-    const textColor = isDark ? '#e5e7eb' : '#374151';
-
+    
     modalesDiv.innerHTML = `
-        <div id="modalEditarTarifa" class="modal-overlay" style="display: flex; position: fixed; z-index: 10001;">
-            <div class="modal-content" style="background: ${bgColor}; border-radius: 12px; max-width: 500px; width: 90%;">
-                <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 20px;">
-                    <h3 style="margin: 0;">Editar Tarifa</h3>
+        <div id="modalEditarTarifa" class="modal-overlay" style="display: flex; position: fixed; z-index: 10001; backdrop-filter: blur(4px);">
+            <div class="modal-content modal-premium" style="max-width: 500px; padding: 0; overflow: hidden; width: 95%;">
+                <!-- Header Premium -->
+                <div class="modal-header-premium" style="background: linear-gradient(135deg, #6366f1, #4f46e5); padding: 25px 30px; text-align: left; position: relative;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="background: rgba(255,255,255,0.2); width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-pen-fancy" style="color: #fff; font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; color: #fff; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px;">Editar Tarifa</h3>
+                            <p class="modal-subtitulo" style="margin: 3px 0 0 0; color: rgba(255,255,255,0.85); font-size: 0.9rem;">Modifique los parámetros de la tarifa seleccionada</p>
+                        </div>
+                    </div>
+                    <button class="modal-close-btn" onclick="cerrarModal('modalEditarTarifa')" 
+                        style="position: absolute; top: 25px; right: 25px; background: rgba(255,255,255,0.15); border: none; color: white; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
-                <div style="padding: 25px;">
-                    <input type="hidden" id="editarTarifaId" value="${id}">
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Nombre:</label>
-                        <input type="text" id="editarTarifaNombre" value="${nombre}" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; box-sizing: border-box;" required>
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Descripción:</label>
-                        <textarea id="editarTarifaDescripcion" rows="3" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; box-sizing: border-box; resize: vertical;">${descripcion}</textarea>
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 600; color: ${textColor};">Descuento (%):</label>
-                        <input type="number" id="editarTarifaDescuento" step="0.01" min="0" max="100" value="${descuento}" style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; box-sizing: border-box;">
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="checkbox" id="editarTarifaRequiereCliente" ${requiereCliente ? 'checked' : ''} style="width: 18px; height: 18px; margin-right: 8px;">
-                            <span style="font-weight: 500; color: ${textColor};">Requiere búsqueda de cliente</span>
-                        </label>
+
+                <div style="padding: 30px; background: var(--bg-panel);">
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <input type="hidden" id="editarTarifaId" value="${id}">
+                        
+                        <div class="ver-prod-item-premium">
+                            <label style="display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 8px;">Nombre de la Tarifa <span style="color:#ef4444">*</span></label>
+                            <div style="display: flex; align-items: center; gap: 12px; background: var(--bg-main); padding: 5px 15px; border-radius: 10px; border: 1px solid var(--border-main);">
+                                <i class="fas fa-tag" style="color: #6366f1; width: 16px;"></i>
+                                <input type="text" id="editarTarifaNombre" value="${nombre}" placeholder="Ej: Tarifa VIP" style="flex: 1; padding: 10px 0; border: none; background: transparent; outline: none; font-size: 0.95rem; color: var(--text-main);" required>
+                            </div>
+                        </div>
+
+                        <div class="ver-prod-item-premium">
+                            <label style="display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 8px;">Descripción</label>
+                            <div style="display: flex; align-items: flex-start; gap: 12px; background: var(--bg-main); padding: 12px 15px; border-radius: 10px; border: 1px solid var(--border-main);">
+                                <i class="fas fa-align-left" style="color: #8b5cf6; width: 16px; margin-top: 4px;"></i>
+                                <textarea id="editarTarifaDescripcion" rows="3" placeholder="Breve descripción de la tarifa..." style="flex: 1; border: none; background: transparent; outline: none; font-size: 0.95rem; color: var(--text-main); resize: vertical; min-height: 80px;">${descripcion}</textarea>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div class="ver-prod-item-premium">
+                                <label style="display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 8px;">Descuento (%)</label>
+                                <div style="display: flex; align-items: center; gap: 12px; background: var(--bg-main); padding: 5px 15px; border-radius: 10px; border: 1px solid var(--border-main);">
+                                    <i class="fas fa-percent" style="color: #f59e0b; width: 16px;"></i>
+                                    <input type="number" id="editarTarifaDescuento" step="0.01" min="0" max="100" value="${descuento}" style="flex: 1; padding: 10px 0; border: none; background: transparent; outline: none; font-size: 0.95rem; color: var(--text-main);">
+                                </div>
+                            </div>
+                            <div class="ver-prod-item-premium" style="display: flex; flex-direction: column; justify-content: center;">
+                                <label style="display: flex; align-items: center; cursor: pointer; gap: 10px; padding: 10px; background: var(--bg-main); border-radius: 10px; border: 1px solid var(--border-main); height: 100%;">
+                                    <input type="checkbox" id="editarTarifaRequiereCliente" ${requiereCliente ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer; accent-color: #6366f1;">
+                                    <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">Requiere Cliente</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div style="padding: 15px 25px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e5e7eb;">
-                    <button onclick="cerrarModal('modalEditarTarifa')" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer;">Cancelar</button>
-                    <button onclick="guardarEditarTarifa()" style="padding: 10px 20px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer;">Guardar</button>
+
+                <div style="padding: 20px 30px; background: var(--bg-panel); border-top: 1px solid var(--border-main); display: flex; justify-content: flex-end; gap: 12px;">
+                    <button class="btn-modal-cancelar" onclick="cerrarModal('modalEditarTarifa')" 
+                        style="margin: 0; padding: 12px 25px; border-radius: 10px; font-weight: 600; background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-main); cursor: pointer; transition: all 0.2s;">
+                        <i class="fas fa-times" style="margin-right: 8px;"></i> Cancelar
+                    </button>
+                    <button class="btn-exito" onclick="guardarEditarTarifa()" 
+                        style="margin: 0; padding: 12px 30px; border-radius: 10px; font-weight: 600; background: #6366f1; color: #fff; border: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
                 </div>
             </div>
         </div>`;
@@ -1571,14 +1638,14 @@ function cargarCambiosTarifasBatches() {
                 }
 
                 let html = `
-            <table style="width:100%; border-collapse: collapse;">
-                <thead style="background: var(--bg-secondary);">
+            <table class="admin-tabla" style="width:100%; border-collapse: collapse;">
+                <thead>
                     <tr>
-                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-main);">ID</th>
-                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-main);">Fecha Programada</th>
-                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-main);">Productos</th>
-                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-main);">Estado</th>
-                        <th style="padding: 12px; text-align: right; border-bottom: 2px solid var(--border-main);">Acciones</th>
+                        <th style="padding: 15px; text-align: center; width: 60px;">ID</th>
+                        <th style="padding: 15px; text-align: left;">Fecha Programada</th>
+                        <th style="padding: 15px; text-align: center;">Productos</th>
+                        <th style="padding: 15px; text-align: center;">Estado</th>
+                        <th style="padding: 15px; text-align: center; width: 120px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -1586,20 +1653,39 @@ function cargarCambiosTarifasBatches() {
                 data.batches.forEach(b => {
                     const isPendiente = b.estado === 'pendiente';
                     const statusBadge = isPendiente
-                        ? '<span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Pendiente</span>'
-                        : '<span style="background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Aplicado</span>';
+                        ? '<span class="admin-badge" style="background: #fef3c7; color: #92400e; padding: 5px 12px; border-radius: 20px; font-weight: 700; font-size: 0.75rem;">PENDIENTE</span>'
+                        : '<span class="admin-badge" style="background: #d1fae5; color: #065f46; padding: 5px 12px; border-radius: 20px; font-weight: 700; font-size: 0.75rem;">APLICADO</span>';
 
-                    const fecha = new Date(b.fecha_programada).toLocaleString();
+                    const fecha = new Date(b.fecha_programada).toLocaleString('es-ES', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    });
 
                     html += `
-                <tr style="border-bottom: 1px solid var(--border-main);">
-                    <td style="padding: 12px;">#${b.id}</td>
-                    <td style="padding: 12px;">${fecha}</td>
-                    <td style="padding: 12px;">${b.total_productos} ítems</td>
-                    <td style="padding: 12px;">${statusBadge}</td>
-                    <td style="padding: 12px; text-align: right; display: flex; justify-content: flex-end; gap: 5px;">
-                        <button onclick="verDetalleBatchTarifas(${b.id})" class="btn-info" style="padding: 5px 10px; font-size: 12px;"><i class="fas fa-eye"></i></button>
-                        ${isPendiente ? `<button onclick="eliminarBatchTarifas(${b.id})" class="btn-danger" style="padding: 5px 10px; font-size: 12px;"><i class="fas fa-trash"></i></button>` : ''}
+                <tr>
+                    <td style="padding: 12px; text-align: center; font-weight: 600; color: var(--text-muted);">#${b.id}</td>
+                    <td style="padding: 12px; font-weight: 500;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="far fa-calendar-alt" style="color: #6366f1;"></i>
+                            ${fecha}
+                        </div>
+                    </td>
+                    <td style="padding: 12px; text-align: center;">
+                        <span style="background: #eef2ff; color: #4f46e5; padding: 2px 10px; border-radius: 6px; font-weight: 600; font-size: 0.85rem;">
+                            ${b.total_productos} ítems
+                        </span>
+                    </td>
+                    <td style="padding: 12px; text-align: center;">${statusBadge}</td>
+                    <td style="padding: 12px; text-align: center;">
+                        <div style="display: flex; justify-content: center; gap: 8px;">
+                            <button onclick="verDetalleBatchTarifas(${b.id})" class="btn-admin-accion btn-ver" title="Ver Detalles">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            ${isPendiente ? `
+                                <button onclick="eliminarBatchTarifas(${b.id})" class="btn-admin-accion btn-eliminar" title="Cancelar Programación">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>` : ''}
+                        </div>
                     </td>
                 </tr>`;
                 });
@@ -1628,14 +1714,14 @@ function verDetalleBatchTarifas(id) {
             if (data.ok) {
                 if (data.detalles && data.detalles.length > 0) {
                     let html = `
-                <table style="width:100%; border-collapse: collapse; font-size: 13px;">
-                    <thead style="background: var(--bg-secondary);">
+                <table class="admin-tabla" style="width:100%; border-collapse: collapse; font-size: 0.85rem;">
+                    <thead>
                         <tr>
-                            <th style="padding: 8px; text-align: left;">Producto</th>
-                            <th style="padding: 8px; text-align: left;">Tarifa</th>
-                            <th style="padding: 8px; text-align: right;">Precio Anterior</th>
-                            <th style="padding: 8px; text-align: right;">Nuevo Precio</th>
-                            <th style="padding: 8px; text-align: right;">Diferencia</th>
+                            <th style="padding: 12px; text-align: left;">Producto</th>
+                            <th style="padding: 12px; text-align: left;">Tarifa</th>
+                            <th style="padding: 12px; text-align: right;">P. Anterior</th>
+                            <th style="padding: 12px; text-align: right;">P. Nuevo</th>
+                            <th style="padding: 12px; text-align: right;">Cambio</th>
                         </tr>
                     </thead>
                     <tbody>`;
@@ -1644,17 +1730,34 @@ function verDetalleBatchTarifas(id) {
                         const precioAnterior = parseFloat(d.precio_anterior || 0);
                         const precioNuevo = parseFloat(d.precio_nuevo);
                         const diferencia = precioNuevo - precioAnterior;
-                        const diferenciaSigno = diferencia >= 0 ? '+' : '';
-                        const diferenciaColor = diferencia >= 0 ? '#10b981' : '#ef4444';
+                        const prec = parseInt(d.decimales ?? 2);
+                        
+                        const diffPercent = precioAnterior !== 0 ? ((diferencia / precioAnterior) * 100).toFixed(2) : '100';
+                        const colorDiff = diferencia > 0 ? '#059669' : (diferencia < 0 ? '#dc2626' : 'var(--text-muted)');
+                        const iconDiff = diferencia > 0 ? 'fa-arrow-up' : (diferencia < 0 ? 'fa-arrow-down' : 'fa-equals');
 
-                            const prec = parseInt(d.decimales ?? 2);
                         html += `
-                    <tr style="border-bottom: 1px solid var(--border-main);">
-                        <td style="padding: 8px;">${d.producto_nombre}</td>
-                        <td style="padding: 8px;">${d.tarifa_nombre}</td>
-                        <td style="padding: 8px; text-align: right;">${precioAnterior.toFixed(prec)} €</td>
-                        <td style="padding: 8px; text-align: right; font-weight: 600;">${precioNuevo.toFixed(prec)} €</td>
-                        <td style="padding: 8px; text-align: right; font-weight: 600; color: ${diferenciaColor};">${diferenciaSigno}${diferencia.toFixed(prec)} €</td>
+                    <tr>
+                        <td style="padding: 10px 15px;">
+                            <div style="font-weight: 600; color: var(--text-main);">${d.producto_nombre}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">ID: ${d.id_producto}</div>
+                        </td>
+                        <td style="padding: 10px 15px;">
+                            <span style="background: #f3f4f6; color: #374151; padding: 2px 8px; border-radius: 4px; font-weight: 500; font-size: 0.75rem;">
+                                ${d.tarifa_nombre}
+                            </span>
+                        </td>
+                        <td style="padding: 10px 15px; text-align: right; color: var(--text-muted);">${precioAnterior.toFixed(prec)} €</td>
+                        <td style="padding: 10px 15px; text-align: right; font-weight: 700; color: var(--text-main);">${precioNuevo.toFixed(prec)} €</td>
+                        <td style="padding: 10px 15px; text-align: right;">
+                            <div style="color: ${colorDiff}; font-weight: 700; display: flex; align-items: center; justify-content: flex-end; gap: 5px;">
+                                <i class="fas ${iconDiff}" style="font-size: 0.7rem;"></i>
+                                ${Math.abs(diffPercent)}%
+                            </div>
+                            <div style="font-size: 0.7rem; color: ${colorDiff}; opacity: 0.8;">
+                                ${diferencia >= 0 ? '+' : ''}${diferencia.toFixed(prec)} €
+                            </div>
+                        </td>
                     </tr>`;
                     });
 
@@ -1721,22 +1824,84 @@ function abrirModalProgramarIVA() {
 }
 
 function abrirModalVerCambiosProgramados() {
+    const contenedor = document.getElementById('listaCambiosProgramadosIVA');
+    if (contenedor) {
+        contenedor.innerHTML = `
+            <div style="padding: 40px; text-align: center; color: #64748b;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                <p>Cargando tareas...</p>
+            </div>`;
+    }
+
     fetch('api/productos.php?accion=obtener_cambios_iva_programados')
         .then(res => res.json())
         .then(data => {
-            const contenedor = document.getElementById('listaCambiosProgramadosIVA');
             if (!contenedor) return;
 
             if (!data.cambios || data.cambios.length === 0) {
-                contenedor.innerHTML = '<p style="padding: 20px; text-align: center; color: var(--text-secondary);">No hay cambios de IVA programados</p>';
+                contenedor.innerHTML = `
+                    <div style="padding: 60px 20px; text-align: center; color: #94a3b8;">
+                        <i class="fas fa-calendar-times" style="font-size: 3.5rem; opacity: 0.2; margin-bottom: 15px; display: block;"></i>
+                        <p style="font-size: 1.1rem; font-weight: 500;">No hay cambios programados</p>
+                        <p style="font-size: 0.9rem; opacity: 0.7;">Los cambios de IVA que programes aparecerán aquí.</p>
+                    </div>`;
             } else {
-                let html = '<table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;"><thead style="background: var(--bg-secondary); position: sticky; top: 0;"><tr><th style="padding: 10px; text-align: left;">Fecha</th><th style="padding: 10px; text-align: left;">Nuevo IVA</th><th style="padding: 10px; text-align: center;">Estado</th><th style="padding: 10px; text-align: center;">Acciones</th></tr></thead><tbody>';
+                let html = `
+                    <table class="admin-tabla" style="width: 100%; margin-bottom: 0; border: none;">
+                        <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                            <tr>
+                                <th style="padding: 15px 20px; text-align: left; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.025em; color: #64748b;">Fecha Ejecución</th>
+                                <th style="padding: 15px 20px; text-align: center; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.025em; color: #64748b;">Nuevo IVA</th>
+                                <th style="padding: 15px 20px; text-align: center; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.025em; color: #64748b;">Estado</th>
+                                <th style="padding: 15px 20px; text-align: right; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.025em; color: #64748b;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody style="background: #fff;">`;
+
                 data.cambios.forEach(cambio => {
-                    const fecha = new Date(cambio.fecha_programada);
-                    const fechaFormateada = fecha.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                    const estadoClass = cambio.estado === 'aplicado' ? 'style="color: green;"' : cambio.estado === 'pendiente' ? 'style="color: orange;"' : 'style="color: red;"';
-                    const acciones = cambio.estado === 'pendiente' ? `<button class="btn-admin-accion" onclick="verDetallesCambioIVA(${cambio.id})"><i class="fas fa-eye"></i></button><button class="btn-admin-accion" onclick="editarCambioProgramadoIVA(${cambio.id})"><i class="fas fa-edit"></i></button><button class="btn-admin-accion btn-eliminar" onclick="eliminarCambioProgramadoIVA(${cambio.id})"><i class="fas fa-trash"></i></button>` : `<button class="btn-admin-accion" onclick="verDetallesCambioIVA(${cambio.id})"><i class="fas fa-eye"></i></button>`;
-                    html += `<tr><td style="padding: 10px;">${fechaFormateada}</td><td style="padding: 10px;">${cambio.iva_porcentaje}%</td><td style="padding: 10px; text-align: center;" ${estadoClass}>${cambio.estado.toUpperCase()}</td><td style="padding: 10px; text-align: center;">${acciones}</td></tr>`;
+                    const fecha = new Date(cambio.fecha_programada).toLocaleString('es-ES', { 
+                        day: '2-digit', month: '2-digit', year: 'numeric', 
+                        hour: '2-digit', minute: '2-digit' 
+                    });
+                    
+                    // Badge de estado
+                    let statusBadge = '';
+                    if (cambio.estado === 'aplicado') {
+                        statusBadge = '<span style="background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;"><i class="fas fa-check-circle" style="margin-right: 5px;"></i>Aplicado</span>';
+                    } else if (cambio.estado === 'pendiente') {
+                        statusBadge = '<span style="background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;"><i class="fas fa-clock" style="margin-right: 5px;"></i>Pendiente</span>';
+                    } else {
+                        statusBadge = `<span style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">${cambio.estado}</span>`;
+                    }
+
+                    const esPendiente = cambio.estado === 'pendiente';
+                    
+                    html += `
+                        <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;">
+                            <td style="padding: 15px 20px; font-weight: 600; color: #1e293b;">${fecha}</td>
+                            <td style="padding: 15px 20px; text-align: center;">
+                                <span style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 1rem;">${cambio.iva_porcentaje}%</span>
+                            </td>
+                            <td style="padding: 15px 20px; text-align: center;">${statusBadge}</td>
+                            <td style="padding: 15px 20px; text-align: right;">
+                                <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                                    <button class="btn-admin-accion btn-ver" onclick="verDetallesCambioIVA(${cambio.id})" title="Ver Detalles"
+                                        style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #6366f1; border: none; cursor: pointer; transition: all 0.2s;">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    ${esPendiente ? `
+                                        <button class="btn-admin-accion btn-editar" onclick="editarCambioProgramadoIVA(${cambio.id})" title="Editar"
+                                            style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #f59e0b; border: none; cursor: pointer; transition: all 0.2s;">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn-admin-accion btn-eliminar" onclick="eliminarCambioProgramadoIVA(${cambio.id})" title="Eliminar"
+                                            style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #fef2f2; color: #ef4444; border: none; cursor: pointer; transition: all 0.2s;">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </td>
+                        </tr>`;
                 });
                 html += '</tbody></table>';
                 contenedor.innerHTML = html;
@@ -1757,23 +1922,86 @@ function eliminarCambioProgramadoIVA(id) {
 }
 
 function verDetallesCambioIVA(id) {
+    const infoEl = document.getElementById('detallesCambioIVAInfo');
+    const tablaEl = document.getElementById('detallesCambioIVATabla');
+    
+    if (infoEl) infoEl.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Cargando información...</div>';
+    if (tablaEl) tablaEl.innerHTML = '';
+
     fetch('api/productos.php?accion=obtener_cambio_iva_programado&id=' + id)
         .then(res => res.json())
         .then(data => {
             if (data.cambio) {
                 const cambio = data.cambio;
-                const infoHTML = `<div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px;"><p><strong>Fecha:</strong> ${new Date(cambio.fecha_programada).toLocaleString('es-ES')}</p><p><strong>Nuevo IVA:</strong> ${cambio.iva_porcentaje}%</p><p><strong>Estado:</strong> ${cambio.estado}</p></div>`;
-                const infoEl = document.getElementById('detallesCambioIVAInfo');
-                if (infoEl) infoEl.innerHTML = infoHTML;
+                const fecha = new Date(cambio.fecha_programada).toLocaleString('es-ES', { 
+                    day: '2-digit', month: '2-digit', year: 'numeric', 
+                    hour: '2-digit', minute: '2-digit' 
+                });
+
+                let statusBadge = '';
+                if (cambio.estado === 'aplicado') {
+                    statusBadge = '<span style="background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Aplicado</span>';
+                } else if (cambio.estado === 'pendiente') {
+                    statusBadge = '<span style="background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Pendiente</span>';
+                }
+
+                if (infoEl) {
+                    infoEl.innerHTML = `
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Fecha Ejecución</span>
+                            <span style="font-size: 1rem; font-weight: 600; color: #1e293b;"><i class="far fa-calendar-alt" style="margin-right: 8px; color: #7c3aed;"></i>${fecha}</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 5px; border-left: 1px solid #e2e8f0; padding-left: 20px;">
+                            <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Nuevo IVA</span>
+                            <span style="font-size: 1.1rem; font-weight: 800; color: #7c3aed;">${cambio.iva_porcentaje}%</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 5px; border-left: 1px solid #e2e8f0; padding-left: 20px;">
+                            <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Estado</span>
+                            <div style="margin-top: 2px;">${statusBadge}</div>
+                        </div>`;
+                }
+
                 fetch('api/productos.php?accion=obtener_productos_cambio_iva&id=' + id)
                     .then(res => res.json())
                     .then(dataProd => {
-                        let tablaHTML = '';
                         if (dataProd.productos?.length > 0) {
-                            tablaHTML = '<table style="width:100%;font-size:13px;"><thead><tr><th>ID</th><th>Nombre</th><th>IVA Anterior</th><th>IVA Nuevo</th></tr></thead><tbody>' + dataProd.productos.map(p => `<tr><td>${p.id}</td><td>${p.nombre}</td><td>${p.iva_anterior}%</td><td>${p.iva_nuevo}%</td></tr>`).join('') + '</tbody></table>';
-                        } else { tablaHTML = '<p>No hay productos afectados</p>'; }
-                        const tablaEl = document.getElementById('detallesCambioIVATabla');
-                        if (tablaEl) tablaEl.innerHTML = tablaHTML;
+                            let tablaHTML = `
+                                <table class="admin-tabla" style="width: 100%; margin-bottom: 0; border: none;">
+                                    <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                                        <tr>
+                                            <th style="padding: 12px 20px; text-align: left; font-size: 0.75rem; text-transform: uppercase; color: #64748b;">Producto</th>
+                                            <th style="padding: 12px 20px; text-align: center; font-size: 0.75rem; text-transform: uppercase; color: #64748b;">IVA Anterior</th>
+                                            <th style="padding: 12px 20px; text-align: center; font-size: 0.75rem; text-transform: uppercase; color: #64748b;"></th>
+                                            <th style="padding: 12px 20px; text-align: center; font-size: 0.75rem; text-transform: uppercase; color: #64748b;">IVA Nuevo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>`;
+                            
+                            dataProd.productos.forEach(p => {
+                                tablaHTML += `
+                                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                                        <td style="padding: 12px 20px;">
+                                            <div style="font-weight: 600; color: #1e293b;">${p.nombre}</div>
+                                            <div style="font-size: 0.7rem; color: #94a3b8;">ID: ${p.id}</div>
+                                        </td>
+                                        <td style="padding: 12px 20px; text-align: center; color: #64748b; font-weight: 500;">
+                                            ${p.iva_anterior}%
+                                        </td>
+                                        <td style="padding: 12px 20px; text-align: center; color: #94a3b8;">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </td>
+                                        <td style="padding: 12px 20px; text-align: center;">
+                                            <span style="font-weight: 800; color: #7c3aed; background: #f5f3ff; padding: 4px 10px; border-radius: 6px;">
+                                                ${p.iva_nuevo}%
+                                            </span>
+                                        </td>
+                                    </tr>`;
+                            });
+                            tablaHTML += '</tbody></table>';
+                            if (tablaEl) tablaEl.innerHTML = tablaHTML;
+                        } else {
+                            if (tablaEl) tablaEl.innerHTML = '<div style="padding: 40px; text-align: center; color: #94a3b8;"><i class="fas fa-box-open" style="font-size: 2.5rem; margin-bottom: 10px; display: block; opacity: 0.3;"></i> No hay productos afectados</div>';
+                        }
                     });
                 abrirModal('modalVerDetallesCambioIVA');
             }
@@ -1867,21 +2095,86 @@ function abrirModalProgramarAjustePrecios() {
 }
 
 function abrirModalVerAjustesProgramados() {
+    const contenedor = document.getElementById('listaAjustesProgramadosPrecios');
+    if (contenedor) {
+        contenedor.innerHTML = `
+            <div style="padding: 40px; text-align: center; color: #64748b;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                <p>Cargando ajustes...</p>
+            </div>`;
+    }
+
     fetch('api/productos.php?accion=obtener_ajustes_precios_programados')
         .then(res => res.json())
         .then(data => {
-            const contenedor = document.getElementById('listaAjustesProgramadosPrecios');
             if (!contenedor) return;
 
             if (!data.ajustes || data.ajustes.length === 0) {
-                contenedor.innerHTML = '<p style="padding: 20px; text-align: center;">No hay ajustes programados</p>';
+                contenedor.innerHTML = `
+                    <div style="padding: 60px 20px; text-align: center; color: #94a3b8;">
+                        <i class="fas fa-calendar-times" style="font-size: 3.5rem; opacity: 0.2; margin-bottom: 15px; display: block;"></i>
+                        <p style="font-size: 1.1rem; font-weight: 500;">No hay ajustes programados</p>
+                        <p style="font-size: 0.9rem; opacity: 0.7;">Los ajustes que programes aparecerán aquí.</p>
+                    </div>`;
             } else {
-                let html = '<table style="width: 100%; border-collapse: collapse;"><thead><tr><th>Fecha</th><th>%</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
+                let html = `
+                    <table class="admin-tabla" style="width: 100%; margin-bottom: 0; border: none;">
+                        <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                            <tr>
+                                <th style="padding: 15px 20px; text-align: left; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.025em; color: #64748b;">Fecha Ejecución</th>
+                                <th style="padding: 15px 20px; text-align: center; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.025em; color: #64748b;">Ajuste (%)</th>
+                                <th style="padding: 15px 20px; text-align: center; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.025em; color: #64748b;">Estado</th>
+                                <th style="padding: 15px 20px; text-align: right; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.025em; color: #64748b;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody style="background: #fff;">`;
+
                 data.ajustes.forEach(ajuste => {
-                    const fecha = new Date(ajuste.fecha_programada).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    const fecha = new Date(ajuste.fecha_programada).toLocaleString('es-ES', { 
+                        day: '2-digit', month: '2-digit', year: 'numeric', 
+                        hour: '2-digit', minute: '2-digit' 
+                    });
                     const signo = ajuste.porcentaje > 0 ? '+' : '';
-                    const acciones = ajuste.estado === 'pendiente' ? `<button onclick="verDetallesAjustePrecios(${ajuste.id})"><i class="fas fa-eye"></i></button><button onclick="editarAjusteProgramadoPrecios(${ajuste.id})"><i class="fas fa-edit"></i></button><button onclick="eliminarAjusteProgramadoPrecios(${ajuste.id})"><i class="fas fa-trash"></i></button>` : `<button onclick="verDetallesAjustePrecios(${ajuste.id})"><i class="fas fa-eye"></i></button>`;
-                    html += `<tr><td>${fecha}</td><td>${signo}${ajuste.porcentaje}%</td><td>${ajuste.estado}</td><td>${acciones}</td></tr>`;
+                    const colorPct = ajuste.porcentaje > 0 ? '#10b981' : '#ef4444';
+                    
+                    // Badge de estado
+                    let statusBadge = '';
+                    if (ajuste.estado === 'pendiente') {
+                        statusBadge = '<span style="background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;"><i class="fas fa-clock" style="margin-right: 5px;"></i>Pendiente</span>';
+                    } else if (ajuste.estado === 'ejecutado') {
+                        statusBadge = '<span style="background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;"><i class="fas fa-check-circle" style="margin-right: 5px;"></i>Ejecutado</span>';
+                    } else {
+                        statusBadge = `<span style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">${ajuste.estado}</span>`;
+                    }
+
+                    const esPendiente = ajuste.estado === 'pendiente';
+                    
+                    html += `
+                        <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;">
+                            <td style="padding: 15px 20px; font-weight: 600; color: #1e293b;">${fecha}</td>
+                            <td style="padding: 15px 20px; text-align: center;">
+                                <span style="color: ${colorPct}; font-weight: 800; font-size: 1.1rem;">${signo}${ajuste.porcentaje}%</span>
+                            </td>
+                            <td style="padding: 15px 20px; text-align: center;">${statusBadge}</td>
+                            <td style="padding: 15px 20px; text-align: right;">
+                                <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                                    <button class="btn-admin-accion btn-ver" onclick="verDetallesAjustePrecios(${ajuste.id})" title="Ver Detalles"
+                                        style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #6366f1; border: none; cursor: pointer; transition: all 0.2s;">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    ${esPendiente ? `
+                                        <button class="btn-admin-accion btn-editar" onclick="editarAjusteProgramadoPrecios(${ajuste.id})" title="Editar"
+                                            style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #f59e0b; border: none; cursor: pointer; transition: all 0.2s;">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn-admin-accion btn-eliminar" onclick="eliminarAjusteProgramadoPrecios(${ajuste.id})" title="Eliminar"
+                                            style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #fef2f2; color: #ef4444; border: none; cursor: pointer; transition: all 0.2s;">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </td>
+                        </tr>`;
                 });
                 html += '</tbody></table>';
                 contenedor.innerHTML = html;
@@ -1899,23 +2192,88 @@ function eliminarAjusteProgramadoPrecios(id) {
 }
 
 function verDetallesAjustePrecios(id) {
+    const infoEl = document.getElementById('detallesAjustePreciosInfo');
+    const tablaEl = document.getElementById('detallesAjustePreciosTabla');
+    
+    if (infoEl) infoEl.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Cargando información...</div>';
+    if (tablaEl) tablaEl.innerHTML = '';
+
     fetch('api/productos.php?accion=obtener_ajuste_precios_programado&id=' + id)
         .then(res => res.json())
         .then(data => {
             if (data.ajuste) {
                 const ajuste = data.ajuste;
-                const infoHTML = `<div style="padding:15px;"><p><strong>Fecha:</strong> ${new Date(ajuste.fecha_programada).toLocaleString('es-ES')}</p><p><strong>%:</strong> ${ajuste.porcentaje}%</p><p><strong>Estado:</strong> ${ajuste.estado}</p></div>`;
-                const infoEl = document.getElementById('detallesAjustePreciosInfo');
-                if (infoEl) infoEl.innerHTML = infoHTML;
+                const fecha = new Date(ajuste.fecha_programada).toLocaleString('es-ES', { 
+                    day: '2-digit', month: '2-digit', year: 'numeric', 
+                    hour: '2-digit', minute: '2-digit' 
+                });
+                const signo = ajuste.porcentaje > 0 ? '+' : '';
+                const colorPct = ajuste.porcentaje > 0 ? '#10b981' : '#ef4444';
+
+                let statusBadge = '';
+                if (ajuste.estado === 'pendiente') {
+                    statusBadge = '<span style="background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Pendiente</span>';
+                } else if (ajuste.estado === 'ejecutado') {
+                    statusBadge = '<span style="background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Ejecutado</span>';
+                }
+
+                if (infoEl) {
+                    infoEl.innerHTML = `
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Fecha Programada</span>
+                            <span style="font-size: 1rem; font-weight: 600; color: #1e293b;"><i class="far fa-calendar-alt" style="margin-right: 8px; color: #6366f1;"></i>${fecha}</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 5px; border-left: 1px solid #e2e8f0; padding-left: 20px;">
+                            <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Porcentaje Ajuste</span>
+                            <span style="font-size: 1.1rem; font-weight: 800; color: ${colorPct};">${signo}${ajuste.porcentaje}%</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 5px; border-left: 1px solid #e2e8f0; padding-left: 20px;">
+                            <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Estado Actual</span>
+                            <div style="margin-top: 2px;">${statusBadge}</div>
+                        </div>`;
+                }
+
                 fetch('api/productos.php?accion=obtener_productos_ajuste_precios&id=' + id)
                     .then(res => res.json())
                     .then(dataProd => {
-                        let tablaHTML = '';
                         if (dataProd.productos?.length > 0) {
-                            tablaHTML = '<table style="width:100%;font-size:13px;"><thead><tr><th>ID</th><th>Nombre</th><th>Precio Anterior</th><th>Nuevo Precio</th></tr></thead><tbody>' + dataProd.productos.map(p => `<tr><td>${p.id}</td><td>${p.nombre}</td><td>${parseFloat(p.precio_anterior).toFixed(2)}€</td><td>${parseFloat(p.precio_nuevo).toFixed(2)}€</td></tr>`).join('') + '</tbody></table>';
-                        } else { tablaHTML = '<p>Sin productos</p>'; }
-                        const tablaEl = document.getElementById('detallesAjustePreciosTabla');
-                        if (tablaEl) tablaEl.innerHTML = tablaHTML;
+                            let tablaHTML = `
+                                <table class="admin-tabla" style="width: 100%; margin-bottom: 0; border: none;">
+                                    <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                                        <tr>
+                                            <th style="padding: 12px 20px; text-align: left; font-size: 0.75rem; text-transform: uppercase; color: #64748b;">Producto</th>
+                                            <th style="padding: 12px 20px; text-align: right; font-size: 0.75rem; text-transform: uppercase; color: #64748b;">Precio Anterior</th>
+                                            <th style="padding: 12px 20px; text-align: center; font-size: 0.75rem; text-transform: uppercase; color: #64748b;"></th>
+                                            <th style="padding: 12px 20px; text-align: right; font-size: 0.75rem; text-transform: uppercase; color: #64748b;">Nuevo Precio</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>`;
+                            
+                            dataProd.productos.forEach(p => {
+                                tablaHTML += `
+                                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                                        <td style="padding: 12px 20px;">
+                                            <div style="font-weight: 600; color: #1e293b;">${p.nombre}</div>
+                                            <div style="font-size: 0.7rem; color: #94a3b8;">ID: ${p.id}</div>
+                                        </td>
+                                        <td style="padding: 12px 20px; text-align: right; color: #64748b; font-weight: 500;">
+                                            ${parseFloat(p.precio_anterior).toFixed(2)}€
+                                        </td>
+                                        <td style="padding: 12px 20px; text-align: center; color: #94a3b8;">
+                                            <i class="fas fa-long-arrow-alt-right"></i>
+                                        </td>
+                                        <td style="padding: 12px 20px; text-align: right;">
+                                            <span style="font-weight: 800; color: #1e293b; background: #f1f5f9; padding: 4px 8px; border-radius: 6px;">
+                                                ${parseFloat(p.precio_nuevo).toFixed(2)}€
+                                            </span>
+                                        </td>
+                                    </tr>`;
+                            });
+                            tablaHTML += '</tbody></table>';
+                            if (tablaEl) tablaEl.innerHTML = tablaHTML;
+                        } else {
+                            if (tablaEl) tablaEl.innerHTML = '<div style="padding: 40px; text-align: center; color: #94a3b8;"><i class="fas fa-box-open" style="font-size: 2.5rem; margin-bottom: 10px; display: block; opacity: 0.3;"></i> No hay productos afectados</div>';
+                        }
                     });
                 abrirModal('modalVerDetallesAjustePrecios');
             }
