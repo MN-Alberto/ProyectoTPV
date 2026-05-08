@@ -12,65 +12,61 @@ function mostrarPanelBackups() {
     seccionActual = 'backups';
     adminTablaHeaderHTML = '';
 
-    // Usar variables CSS del tema globales en lugar de colores hardcodeados
-    const textColor = 'var(--text-main)';
-    const subTextColor = 'var(--text-muted)';
-    const cardBg = 'var(--bg-card)';
-    const borderColor = 'var(--border-main)';
-    const progressBg = 'var(--bg-input)';
+    const configHeader = { t: 'Seguridad y Respaldo', s: 'Gestión integral de copias de seguridad y recuperación de datos', i: 'fa-shield-alt', g: 'linear-gradient(135deg, #059669, #10b981)' };
 
     contenedor.innerHTML = `
-        <div class="admin-tabla-header">
-            <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: ${textColor};">Gestión de Copias de Seguridad</h2>
-            <p style="color: ${subTextColor}; margin-top: 5px;">Administra los respaldos del sistema, base de datos y archivos críticos.</p>
-        </div>
+        <div class="backups-panel-premium animate-fade-in">
+            ${getPremiumHeaderHTML(configHeader.i, configHeader.t, configHeader.s, configHeader.g)}
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px;">
-            <div class="backup-stat-card" style="background: ${cardBg}; border: 1px solid ${borderColor}; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm);">
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
-                    <div style="background: #d1fae5; color: #065f46; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                        <i class="fas fa-check-circle"></i>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin: 25px 0;">
+                <div class="premium-card" style="display:flex; align-items:center; gap:20px; padding:25px;">
+                    <div style="background: rgba(16, 185, 129, 0.1); color: #10b981; width: 60px; height: 60px; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem;">
+                        <i class="fas fa-check-double"></i>
                     </div>
                     <div>
-                        <h4 style="margin: 0; font-size: 14px; text-transform: uppercase; color: ${subTextColor};">Último Backup</h4>
-                        <div id="ultimaCopiaFecha" style="font-size: 18px; font-weight: 600; color: ${textColor};">Cargando...</div>
+                        <h4 style="margin: 0; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px; font-weight:700;">Última Integridad</h4>
+                        <div id="ultimaCopiaFecha" style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); margin-top:2px;">Cargando...</div>
                     </div>
                 </div>
-            </div>
 
-            <div class="backup-stat-card" style="background: ${cardBg}; border: 1px solid ${borderColor}; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm);">
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-                    <div style="background: #e0e7ff; color: #3730a3; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                        <i class="fas fa-hdd"></i>
+                <div class="premium-card" style="display:flex; align-items:center; gap:20px; padding:25px;">
+                    <div style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; width: 60px; height: 60px; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem;">
+                        <i class="fas fa-database"></i>
                     </div>
                     <div>
-                        <h4 style="margin: 0; font-size: 14px; text-transform: uppercase; color: ${subTextColor};">Copias Almacenadas</h4>
-                        <div id="totalCopias" style="font-size: 18px; font-weight: 600; color: ${textColor};">Cargando...</div>
+                        <h4 style="margin: 0; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px; font-weight:700;">Almacenamiento</h4>
+                        <div id="totalCopias" style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); margin-top:2px;">Cargando...</div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div style="background: ${cardBg}; border: 1px solid ${borderColor}; border-radius: 12px; overflow: visible; box-shadow: var(--shadow-sm);">
-            <div style="padding: 20px; border-bottom: 1px solid ${borderColor}; display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: ${textColor};">Historial de Backups</h3>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button onclick="crearBackupManual()" class="btn-admin-accion btn-nuevo" style="padding: 8px 15px;">
-                        <i class="fas fa-plus-circle"></i> Backup Estándar
-                    </button>
-                    <button onclick="crearBackupTabla('clientes')" class="btn-admin-accion btn-activar" style="padding: 8px 15px;" title="Backup de tabla clientes (10.5M+ registros)">
-                        <i class="fas fa-users"></i> Backup Clientes
-                    </button>
-                    <button onclick="crearBackupTabla('usuarios')" class="btn-admin-accion btn-editar" style="padding: 8px 15px;" title="Backup de tabla usuarios (100K+ registros)">
-                        <i class="fas fa-user-shield"></i> Backup Usuarios
-                    </button>
+            <div class="premium-card" style="padding:0; overflow:hidden;">
+                <div style="padding: 25px 30px; border-bottom: 1px solid var(--border-main); display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.01);">
+                    <h3 style="margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-main); text-transform:uppercase; letter-spacing:0.5px;">
+                        <i class="fas fa-history" style="margin-right: 12px; color: var(--accent-main);"></i> Registro de Respaldos
+                    </h3>
+                    <div style="display: flex; gap: 12px; align-items:center;">
+                        <button onclick="crearBackupManual()" class="btn-premium-primary" style="padding: 10px 20px; font-size:0.85rem;">
+                            <i class="fas fa-plus-circle"></i> Nuevo Respaldo
+                        </button>
+                        <div style="width:1px; height:25px; background:var(--border-main); margin:0 5px;"></div>
+                        <div style="display: flex; background: var(--bg-panel); border-radius: 12px; padding: 4px; border: 1px solid var(--border-main);">
+                            <button onclick="crearBackupTabla('clientes')" class="btn-table-icon success" style="padding: 8px 12px; border-radius: 8px;" title="Copia de Clientes">
+                                <i class="fas fa-users"></i>
+                            </button>
+                            <button onclick="crearBackupTabla('usuarios')" class="btn-table-icon accent" style="padding: 8px 12px; border-radius: 8px;" title="Copia de Usuarios">
+                                <i class="fas fa-user-shield"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div id="tablaBackupsContainer" style="overflow-x: auto; margin-bottom: 0;">
-                <div style="padding: 10px; text-align: center;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
-            </div>
-            
-            <div id="backupPagination" style="display: flex !important; visibility: visible !important;">
+                
+                <div id="tablaBackupsContainer" style="min-height: 250px;">
+                    <div style="padding: 80px; text-align: center;"><i class="fas fa-circle-notch fa-spin fa-3x" style="color: var(--accent-main); opacity:0.5;"></i></div>
+                </div>
+                
+                <div id="backupPagination" style="padding: 20px; border-top: 1px solid var(--border-main); background: rgba(0,0,0,0.005);">
+                </div>
             </div>
         </div>
     `;
@@ -143,49 +139,55 @@ function renderBackupPage(page) {
     const totalPages = Math.ceil(backupData.length / itemsPerPage);
 
     let html = `
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead style="background: ${headerBg}; text-align: left;">
+        <table class="modern-table" style="width: 100%;">
+            <thead>
                 <tr>
-                    <th style="padding: 8px 15px; font-size: 13px; font-weight: 600; color: ${textColor}; border-bottom: 2px solid ${borderColor};">Tipo</th>
-                    <th style="padding: 8px 15px; font-size: 13px; font-weight: 600; color: ${textColor}; border-bottom: 2px solid ${borderColor};">Archivo</th>
-                    <th style="padding: 8px 15px; font-size: 13px; font-weight: 600; color: ${textColor}; border-bottom: 2px solid ${borderColor};">Fecha</th>
-                    <th style="padding: 8px 15px; font-size: 13px; font-weight: 600; color: ${textColor}; border-bottom: 2px solid ${borderColor};">Tamaño</th>
-                    <th style="padding: 8px 15px; font-size: 13px; font-weight: 600; color: ${textColor}; border-bottom: 2px solid ${borderColor}; text-align: right;">Acciones</th>
+                    <th style="padding: 15px 25px;">Tipo</th>
+                    <th>Archivo</th>
+                    <th>Fecha</th>
+                    <th>Tamaño</th>
+                    <th style="text-align: right; padding-right: 25px;">Acciones</th>
                 </tr>
             </thead>
             <tbody>`;
 
     pageItems.forEach(b => {
         const sizeMB = (b.tamano / (1024 * 1024)).toFixed(2);
-        let icon, color, tipoLabel;
+        let icon, color, tipoLabel, badgeClass;
         if (b.tipo === 'tabla') {
             icon = b.tabla === 'clientes' ? 'fa-users' : 'fa-user-shield';
-            color = b.tabla === 'clientes' ? '#059669' : '#0891b2';
+            color = b.tabla === 'clientes' ? '#10b981' : '#3b82f6';
             tipoLabel = b.tabla === 'clientes' ? 'Clientes' : 'Usuarios';
+            badgeClass = b.tabla === 'clientes' ? 'badge-success' : 'badge-accent';
         } else {
             icon = 'fa-file-archive';
-            color = '#6366f1';
-            tipoLabel = 'Completo';
+            color = '#8b5cf6';
+            tipoLabel = 'Sistema';
+            badgeClass = 'badge-primary';
         }
 
         html += `
-            <tr style="border-bottom: 1px solid ${borderColor};">
-                <td style="padding: 8px 15px; font-size: 14px; color: ${color}; font-weight: 600;">
-                    <i class="fas ${icon}" style="margin-right: 8px;"></i> ${tipoLabel}
+            <tr>
+                <td style="padding: 12px 25px;">
+                    <span class="status-badge ${badgeClass}" style="display:inline-flex; align-items:center; gap:8px; padding:6px 12px;">
+                        <i class="fas ${icon}"></i> ${tipoLabel}
+                    </span>
                 </td>
-                <td style="padding: 8px 15px; font-size: 14px; color: ${textColor};">${b.nombre}</td>
-                <td style="padding: 8px 15px; font-size: 14px; color: ${textColor};">${b.fecha}</td>
-                <td style="padding: 8px 15px; font-size: 14px; color: ${textColor};">${sizeMB} MB</td>
-                <td style="padding: 8px 15px; text-align: right; display: flex; justify-content: flex-end; gap: 8px;">
-                    <button onclick="descargarBackup('${b.nombre}')" class="btn-admin-accion btn-editar" title="Descargar" style="padding: 6px 10px; font-size: 12px;">
-                        <i class="fas fa-download"></i>
-                    </button>
-                    <button onclick="confirmarRestauracion('${b.nombre}')" class="btn-admin-accion btn-activar" title="Restaurar" style="padding: 6px 10px; font-size: 12px;">
-                        <i class="fas fa-undo"></i>
-                    </button>
-                    <button onclick="eliminarBackup('${b.nombre}')" class="btn-admin-accion btn-eliminar" title="Eliminar" style="padding: 6px 10px; font-size: 12px;">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                <td style="font-weight: 600;">${b.nombre}</td>
+                <td style="color: var(--text-muted);">${b.fecha}</td>
+                <td><span style="background: var(--bg-panel); padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 700;">${sizeMB} MB</span></td>
+                <td style="padding-right: 25px;">
+                    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                        <button onclick="descargarBackup('${b.nombre}')" class="btn-table-icon accent" title="Descargar">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button onclick="confirmarRestauracion('${b.nombre}')" class="btn-table-icon success" title="Restaurar">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                        <button onclick="eliminarBackup('${b.nombre}')" class="btn-table-icon danger" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>`;
     });

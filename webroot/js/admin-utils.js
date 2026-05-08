@@ -5,6 +5,28 @@
 
 // ── Modales ───────────────────────────────────────────────────────────────────
 
+/**
+ * Genera el HTML de una cabecera premium para los paneles de administración.
+ * @param {string} icono    Clase FontAwesome (ej: 'fa-chart-line')
+ * @param {string} titulo   Título principal
+ * @param {string} subtitulo Subtítulo descriptivo
+ * @param {string} gradient Gradiente CSS para el icono
+ * @returns {string}
+ */
+function getPremiumHeaderHTML(icono, titulo, subtitulo, gradient = 'linear-gradient(135deg, #6366f1, #4f46e5)') {
+    return `
+        <div class="premium-panel-header" style="margin-bottom: 15px; display: flex; align-items: center; gap: 15px; background: var(--bg-card); padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border-main); box-shadow: var(--shadow-sm); text-align: left; justify-content: flex-start;">
+            <div class="header-icon-box" style="width: 40px; height: 40px; background: ${gradient}; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px -2px rgba(0,0,0,0.15); flex-shrink: 0;">
+                <i class="fas ${icono}" style="color: white; font-size: 1.2rem;"></i>
+            </div>
+            <div class="header-text-box" style="text-align: left;">
+                <h1 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.01em; line-height: 1.1;">${titulo}</h1>
+                <p style="margin: 1px 0 0 0; color: var(--text-muted); font-size: 0.85rem; font-weight: 500; line-height: 1.2;">${subtitulo}</p>
+            </div>
+        </div>
+    `;
+}
+
 function cerrarModal(id) {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
@@ -176,5 +198,18 @@ function validarDecimalesRango(input, priceInputId) {
     let priceInput = document.getElementById(priceInputId);
     if (priceInput) {
         validarPrecisionDinamica(priceInput, input.id);
+    }
+}
+
+/**
+ * Limita el input a un máximo de 4 decimales.
+ * @param {HTMLInputElement} input 
+ */
+function validar4Decimales(input) {
+    let value = input.value;
+    if (!value) return;
+    let parts = value.split('.');
+    if (parts.length > 1 && parts[1].length > 4) {
+        input.value = parts[0] + '.' + parts[1].slice(0, 4);
     }
 }

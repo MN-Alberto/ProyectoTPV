@@ -48,87 +48,107 @@ function renderLogs(data) {
     const logs = data.logs || [];
 
     const tiposLog = [
-        { valor: '', texto: 'Todos los tipos' },
-        { valor: 'login', texto: 'Inicios de sesión' },
-        { valor: 'login_fallido', texto: 'Credenciales incorrectas' },
-        { valor: 'logout', texto: 'Cierres de sesión' },
-        { valor: 'venta', texto: 'Ventas' },
-        { valor: 'devolucion', texto: 'Devoluciones' },
-        { valor: 'apertura_caja', texto: 'Apertura de caja' },
-        { valor: 'cierre_caja', texto: 'Cierre de caja' },
-        { valor: 'retiro_caja', texto: 'Retiros de caja' },
-        { valor: 'creacion_usuario', texto: 'Creación de usuarios' },
-        { valor: 'modificacion_usuario', texto: 'Modificación de usuarios' },
-        { valor: 'eliminacion_usuario', texto: 'Eliminación de usuarios' },
-        { valor: 'creacion_producto', texto: 'Creación de productos' },
-        { valor: 'modificacion_producto', texto: 'Modificación de productos' },
-        { valor: 'eliminacion_producto', texto: 'Eliminación de productos' },
-        { valor: 'creacion_categoria', texto: 'Creación de categorías' },
-        { valor: 'modificacion_categoria', texto: 'Modificación de categorías' },
-        { valor: 'eliminacion_categoria', texto: 'Eliminación de categorías' },
-        { valor: 'acceso_admin', texto: 'Accesos al admin' }
+        { valor: '', texto: 'Todos los tipos', icono: 'fa-list' },
+        { valor: 'login', texto: 'Inicios de sesión', icono: 'fa-sign-in-alt' },
+        { valor: 'login_fallido', texto: 'Accesos fallidos', icono: 'fa-user-lock' },
+        { valor: 'logout', texto: 'Cierres de sesión', icono: 'fa-sign-out-alt' },
+        { valor: 'venta', texto: 'Ventas', icono: 'fa-shopping-cart' },
+        { valor: 'devolucion', texto: 'Devoluciones', icono: 'fa-undo' },
+        { valor: 'caja', texto: 'Movimientos de Caja', icono: 'fa-cash-register' },
+        { valor: 'producto', texto: 'Productos', icono: 'fa-box' },
+        { valor: 'usuario', texto: 'Usuarios', icono: 'fa-user-cog' }
     ];
 
-    window.tiposLogMap = tiposLog;
-
-    const tipoSelect = tiposLog.map(t =>
-        `<option value="${t.valor}" ${(window.filtroTipoLog || '') === t.valor ? 'selected' : ''}>${t.texto}</option>`
-    ).join('');
-
     let html = `
-        <div class="logs-container">
-            <div class="logs-filtros">
-                <div class="logs-filtro-item">
-                    <label>Tipo de evento:</label>
-                    <select id="filtroTipoLog" onchange="aplicarFiltroLogs()">${tipoSelect}</select>
+        <div class="logs-modern-view animate-fade-in">
+            ${getPremiumHeaderHTML('fa-history', 'Logs del Sistema', 'Auditoría completa de acciones y eventos de seguridad', 'linear-gradient(135deg, #1e293b, #334155)')}
+
+            <div class="premium-filters-bar" style="display: flex; flex-wrap: wrap; gap: 15px; background: white; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 25px; align-items: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                <div style="flex: 1; min-width: 250px;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; margin-left: 5px;">Filtrar por Categoría</label>
+                    <div style="position: relative;">
+                        <i class="fas fa-filter" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.9rem;"></i>
+                        <select id="filtroTipoLog" onchange="aplicarFiltroLogs()" style="width: 100%; padding: 12px 15px 12px 40px; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc; font-weight: 600; color: #1e293b; cursor: pointer; appearance: none;">
+                            ${tiposLog.map(t => `<option value="${t.valor}" ${(window.filtroTipoLog || '') === t.valor ? 'selected' : ''}>${t.texto}</option>`).join('')}
+                        </select>
+                        <i class="fas fa-chevron-down" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; font-size: 0.8rem;"></i>
+                    </div>
                 </div>
-                <div class="logs-filtro-item">
-                    <label>Fecha:</label>
-                    <div style="display:flex;align-items:center;gap:5px;">
-                        <input type="date" id="filtroFecha" value="${window.filtroFechaLog || ''}" onchange="aplicarFiltroLogs()">
-                        <button onclick="limpiarFiltroFecha()" style="padding:4px 8px;background:#6b7280;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;" title="Limpiar fecha">
+
+                <div style="width: 220px;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; margin-left: 5px;">Filtrar por Fecha</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="date" id="filtroFecha" value="${window.filtroFechaLog || ''}" onchange="aplicarFiltroLogs()" style="flex: 1; padding: 11px 15px; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc; font-weight: 600; color: #1e293b;">
+                        <button onclick="limpiarFiltroFecha()" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; border-radius: 10px; cursor: pointer; transition: all 0.2s;">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                 </div>
-                <div class="logs-filtro-item" style="margin-left:auto;">
-                    <button onclick="limpiarLogs()" style="background:#dc3545;color:white;padding:8px 16px;border:none;border-radius:5px;cursor:pointer;font-size:0.85rem;">
-                        <i class="fas fa-trash"></i> Limpiar logs
+
+                <div style="margin-left: auto; padding-top: 22px;">
+                    <button class="btn-premium-secondary" onclick="limpiarLogs()" style="background: #fef2f2; color: #dc2626 !important; border-color: #fee2e2;">
+                        <i class="fas fa-trash-alt"></i> Vaciar Historial
                     </button>
                 </div>
             </div>
-            <div class="logs-tabla-container">
-                <table class="admin-tabla logs-tabla">
+
+            <div class="premium-card" style="padding: 0; overflow: hidden; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); background: white;">
+                <table class="premium-table" style="width: 100%; border-collapse: collapse;">
                     <thead>
-                        <tr>
-                            <th>Fecha/Hora</th>
-                            <th>Tipo</th>
-                            <th>Usuario</th>
-                            <th>Descripción</th>
-                            <th>Detalles</th>
-                            <th>Acciones</th>
+                        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                            <th style="padding: 15px 20px; text-align: left; font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase; width: 180px;">Fecha y Hora</th>
+                            <th style="padding: 15px 20px; text-align: left; font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase; width: 150px;">Tipo de Evento</th>
+                            <th style="padding: 15px 20px; text-align: left; font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase; width: 150px;">Usuario</th>
+                            <th style="padding: 15px 20px; text-align: left; font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase;">Descripción de Actividad</th>
+                            <th style="padding: 15px 20px; text-align: center; font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase; width: 100px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>`;
 
     if (logs.length === 0) {
-        html += '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">No se encontraron logs</td></tr>';
+        html += `
+            <tr>
+                <td colspan="5" style="padding: 80px 20px; text-align: center;">
+                    <div style="background: #f8fafc; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; color: #cbd5e1; font-size: 1.5rem;">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <p style="margin: 0; font-weight: 600; color: #64748b;">No se encontraron registros en el historial</p>
+                    <p style="margin: 5px 0 0 0; font-size: 0.85rem; color: #94a3b8;">Pruebe ajustando los filtros de búsqueda</p>
+                </td>
+            </tr>`;
     } else {
         logs.forEach(log => {
+            const fecha = new Date(log.fecha);
+            const fechaFormat = fecha.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const horaFormat = fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            
             const tipoIcono = getTipoLogIcono(log.tipo);
             const tipoClase = getTipoLogClase(log.tipo);
-            const fecha = new Date(log.fecha).toLocaleString('es-ES');
-            const detalles = log.detalles ? JSON.stringify(log.detalles) : '-';
+            const tipoPill = `
+                <div class="log-pill ${tipoClase}" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;">
+                    <i class="${tipoIcono}"></i> ${getTipoLogTexto(log.tipo)}
+                </div>`;
 
             html += `
-                <tr>
-                    <td>${fecha}</td>
-                    <td><span class="logs-tipo ${tipoClase}"><i class="${tipoIcono}"></i> ${getTipoLogTexto(log.tipo)}</span></td>
-                    <td>${log.usuario_nombre || '-'}</td>
-                    <td>${log.descripcion || '-'}</td>
-                    <td style="font-size:0.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${detalles}">${detalles}</td>
-                    <td>
-                        <button class="btn-admin-accion btn-ver" onclick="verDetalleLog(${log.id})" title="Ver detalles">
+                <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                    <td style="padding: 15px 20px;">
+                        <div style="font-weight: 700; color: #1e293b; font-size: 0.9rem;">${fechaFormat}</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">${horaFormat}</div>
+                    </td>
+                    <td style="padding: 15px 20px;">${tipoPill}</td>
+                    <td style="padding: 15px 20px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 28px; height: 28px; border-radius: 50%; background: #e0e7ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800;">
+                                ${log.usuario_nombre ? log.usuario_nombre.charAt(0).toUpperCase() : 'S'}
+                            </div>
+                            <span style="font-weight: 600; color: #475569; font-size: 0.85rem;">${log.usuario_nombre || 'Sistema'}</span>
+                        </div>
+                    </td>
+                    <td style="padding: 15px 20px;">
+                        <div style="font-weight: 500; color: #334155; font-size: 0.9rem; line-height: 1.4;">${log.descripcion || '-'}</div>
+                    </td>
+                    <td style="padding: 15px 20px; text-align: center;">
+                        <button class="log-detail-btn" onclick="verDetalleLog(${log.id})" style="width: 36px; height: 36px; border-radius: 10px; border: 1px solid #e2e8f0; background: white; color: #6366f1; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;" onmouseover="this.style.background='#6366f1'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='#6366f1'">
                             <i class="fas fa-eye"></i>
                         </button>
                     </td>
@@ -136,7 +156,37 @@ function renderLogs(data) {
         });
     }
 
-    html += `</tbody></table></div>${getPaginacionLogsHTML(totalPaginasLogs)}</div>`;
+    html += `
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; justify-content: center;">
+                ${getPaginacionLogsHTML(totalPaginasLogs)}
+            </div>
+
+            <style>
+                .log-pill.logs-login { background: #ecfdf5; color: #059669; }
+                .log-pill.logs-error { background: #fef2f2; color: #dc2626; }
+                .log-pill.logs-logout { background: #f8fafc; color: #64748b; }
+                .log-pill.logs-venta { background: #eff6ff; color: #2563eb; }
+                .log-pill.logs-retiro { background: #fff7ed; color: #ea580c; }
+                .log-pill.logs-caja { background: #f5f3ff; color: #7c3aed; }
+                .log-pill.logs-admin { background: #1e293b; color: white; }
+                .log-pill.logs-usuario { background: #fdf2f8; color: #db2777; }
+                .log-pill.logs-producto { background: #f0fdfa; color: #0d9488; }
+                .log-pill.logs-categoria { background: #fefce8; color: #ca8a04; }
+                
+                body.dark-mode .premium-filters-bar { background: #111827 !important; border-color: #1e293b !important; }
+                body.dark-mode .premium-filters-bar select,
+                body.dark-mode .premium-filters-bar input { background: #1e293b !important; border-color: #374151 !important; color: #f1f5f9 !important; }
+                body.dark-mode .premium-card { background: #111827 !important; border-color: #1e293b !important; }
+                body.dark-mode .premium-table thead tr { background: #1f2937 !important; border-color: #374151 !important; }
+                body.dark-mode .premium-table td { border-color: #1e293b !important; }
+                body.dark-mode .log-detail-btn { background: #1e293b !important; border-color: #374151 !important; }
+            </style>
+        </div>`;
+        
     contenedor.innerHTML = html;
     ajustarTodosInputsPaginacion();
 }
@@ -296,10 +346,9 @@ function verDetalleLog(idLog) {
                 </div>
             </div>
 
-            <div style="padding: 20px 30px; background: var(--bg-panel); border-top: 1px solid var(--border-main); display: flex; justify-content: flex-end;">
-                <button class="btn-modal-cancelar" onclick="document.getElementById('modalDetalleLog').remove()" 
-                    style="margin: 0; padding: 12px 25px; border-radius: 10px; font-weight: 600; background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-main); cursor: pointer; transition: all 0.2s;">
-                    Cerrar Detalle
+            <div style="padding: 25px 30px; background: var(--bg-panel); border-top: 1px solid var(--border-main); display: flex; justify-content: flex-end;">
+                <button class="btn-premium-primary" onclick="document.getElementById('modalDetalleLog').remove()" style="padding: 10px 25px; font-size: 0.9rem;">
+                    Entendido
                 </button>
             </div>
         </div>`;

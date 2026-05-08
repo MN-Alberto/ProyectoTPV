@@ -7,7 +7,7 @@
 // ── Header HTML de la tabla (con filtros) ─────────────────────────────────────
 
 function getAdminTablaHeader(textoBusqueda = '', idCategoriaSeleccionada = '', ordenSeleccionado = '') {
-    let opcionesCategorias = '<option value="todas">Todas</option>';
+    let opcionesCategorias = '<option value="todas">Todas las categorías</option>';
     categoriasAdmin.forEach(cat => {
         const sel = cat.id == idCategoriaSeleccionada ? 'selected' : '';
         opcionesCategorias += `<option value="${cat.id}" ${sel}>${cat.nombre}</option>`;
@@ -20,49 +20,66 @@ function getAdminTablaHeader(textoBusqueda = '', idCategoriaSeleccionada = '', o
     });
 
     return `
-        <div class="admin-tabla-header">
-            <div style="display:flex;gap:10px;width:100%;align-items:center;flex-wrap:wrap;">
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <label for="inputBuscarProducto" class="admin-label">Buscar:</label>
-                    <input type="text" id="inputBuscarProducto" class="input-buscarProducto"
-                        placeholder="Escribe el nombre del producto..."
-                        oninput="buscarProductos()" autocomplete="off"
-                        value="${textoBusqueda.replace(/"/g, '&quot;')}" style="width:400px;">
+        ${getPremiumHeaderHTML('fa-box-open', 'Gestión de Productos', 'Administre su catálogo, precios y niveles de stock', 'linear-gradient(135deg, #3b82f6, #2563eb)')}
+        <div class="admin-tabla-header products-header">
+            <div class="header-filters-grid">
+                <div class="filter-main">
+                    <div class="search-wrapper">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="inputBuscarProducto" class="input-modern-search"
+                            placeholder="Buscar por nombre o código..."
+                            oninput="buscarProductos()" autocomplete="off"
+                            value="${textoBusqueda.replace(/"/g, '&quot;')}">
+                    </div>
                 </div>
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <label for="selectCategoria" class="admin-label">Categoría:</label>
-                    <select id="selectCategoria" onchange="buscarProductos()"
-                        style="padding:8px;border-radius:4px;border:1px solid #d1d5db;">
-                        ${opcionesCategorias}
-                    </select>
+                
+                <div class="filter-controls">
+                    <div class="filter-item">
+                        <label><i class="fas fa-tag"></i> Categoría</label>
+                        <select id="selectCategoria" onchange="buscarProductos()" class="select-modern">
+                            ${opcionesCategorias}
+                        </select>
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label><i class="fas fa-sort"></i> Ordenar</label>
+                        <select id="selectOrden" onchange="buscarProductos()" class="select-modern">
+                            ${opcionesOrden}
+                        </select>
+                    </div>
                 </div>
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <label for="selectOrden" class="admin-label">Ordenar:</label>
-                    <select id="selectOrden" onchange="buscarProductos()"
-                        style="padding:8px;border-radius:4px;border:1px solid #d1d5db;">
-                        ${opcionesOrden}
-                    </select>
+
+                <div class="header-actions">
+                    <button class="btn-modern ${mostrarConIva ? 'btn-iva-active' : 'btn-iva-inactive'}"
+                        onclick="toggleMostrarIva()" title="${mostrarConIva ? 'Ocultar IVA' : 'Mostrar IVA'}">
+                        <i class="fas ${mostrarConIva ? 'fa-file-invoice-dollar' : 'fa-coins'}"></i>
+                        <span>${mostrarConIva ? 'Con IVA' : 'Sin IVA'}</span>
+                    </button>
+                    
+                    <button class="btn-modern btn-stats" onclick="abrirModalEstadisticasProductos()" title="Estadísticas">
+                        <i class="fas fa-chart-line"></i>
+                    </button>
+                    
+                    <button class="btn-modern btn-primary btn-add-product" onclick="nuevoProducto()">
+                        <i class="fas fa-plus"></i>
+                        <span>Nuevo Producto</span>
+                    </button>
                 </div>
-                <button class="btn-admin-accion ${mostrarConIva ? 'btn-ver' : 'btn-editar'}"
-                    onclick="toggleMostrarIva()" style="min-width:150px;">
-                    <i class="fas ${mostrarConIva ? 'fa-file-invoice-dollar' : 'fa-coins'}"></i>
-                    ${mostrarConIva ? 'Ver Sin IVA' : 'Ver Con IVA'}
-                </button>
-                <button class="btn-admin-accion btn-ver" onclick="abrirModalEstadisticasProductos()">
-                    <i class="fas fa-chart-bar"></i> Estadísticas
-                </button>
-                <button class="btn-admin-accion btn-nuevo" onclick="nuevoProducto()">
-                    <i class="fas fa-plus"></i> Nuevo Producto
-                </button>
             </div>
         </div>
-        <div class="admin-tabla-wrapper sin-scroll">
+        <div class="admin-tabla-wrapper products-table-wrapper">
             <table class="admin-tabla">
                 <thead>
                     <tr>
-                        <th>#</th><th>Imagen</th><th>Nombre</th><th>Categoría</th>
-                        <th>Precio ${mostrarConIva ? '(PVP)' : '(Base)'}</th>
-                        <th>Stock</th><th>Estado</th><th>IVA</th><th>Acciones</th>
+                        <th style="width: 50px;">#</th>
+                        <th style="width: 60px; text-align:center;">Foto</th>
+                        <th>Nombre del Producto</th>
+                        <th style="width: 150px;">Categoría</th>
+                        <th style="width: 120px; text-align:right;">Precio</th>
+                        <th style="width: 100px; text-align:center;">Stock</th>
+                        <th style="width: 120px; text-align:center;">Estado</th>
+                        <th style="width: 150px;">IVA</th>
+                        <th style="width: 130px; text-align:center;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -80,34 +97,53 @@ function generarFilaProducto(prod) {
     const precioFmt = precioMostrado.toFixed(decimals).replace('.', ',');
     const imgSrc = prod.imagen && prod.imagen !== '' ? prod.imagen : 'webroot/img/logo.PNG';
 
-    let stockBadge = prod.stock <= 0 ? 'badge-agotado' : prod.stock <= 3 ? 'badge-bajo' : 'badge-ok';
+    let stockBadgeCls = prod.stock <= 0 ? 'badge-danger' : prod.stock <= 3 ? 'badge-warning' : 'badge-success';
     const estadoHtml = prod.activo == 1
-        ? '<span class="admin-badge badge-activo">Activo</span>'
-        : '<span class="admin-badge badge-inactivo">Inactivo</span>';
+        ? '<span class="status-pill status-active"><i class="fas fa-check-circle"></i> Activo</span>'
+        : '<span class="status-pill status-inactive"><i class="fas fa-times-circle"></i> Inactivo</span>';
 
     return `
-        <tr class="${prod.stock <= 0 ? 'fila-agotada' : ''}${prod.activo == 0 ? 'fila-inactiva' : ''}"
+        <tr class="product-row ${prod.stock <= 0 ? 'row-out-of-stock' : ''} ${prod.activo == 0 ? 'row-disabled' : ''}"
             data-precio-base="${prod.precio}" data-iva="${prod.iva}"
             data-iva-id="${prod.idIva}" data-iva-nombre="${prod.ivaNombre || ''}"
             data-decimales="${prod.decimales ?? 2}">
-            <td class="col-id">${prod.id}</td>
+            <td class="col-id" style="color: #64748b; font-size: 0.8rem;">${prod.id}</td>
             <td class="col-img">
-                <img src="${imgSrc}" alt="${prod.nombre.replace(/"/g, '&quot;')}" class="admin-tabla-img">
+                <div class="product-img-wrapper">
+                    <img src="${imgSrc}" alt="${prod.nombre.replace(/"/g, '&quot;')}" class="product-miniature">
+                </div>
             </td>
-            <td class="col-nombre">${prod.nombre}</td>
-            <td class="col-categoria">${prod.categoria ?? '—'}</td>
-            <td class="col-precio" style="text-align:right;">${precioFmt} €</td>
-            <td class="col-stock"><span class="admin-badge ${stockBadge}">${prod.stock}</span></td>
-            <td class="col-estado">${estadoHtml}</td>
-            <td class="col-iva">${prod.iva}% (${prod.ivaNombre || 'General'})</td>
+            <td class="col-nombre">
+                <div class="product-info">
+                    <span class="product-name-text">${prod.nombre}</span>
+                </div>
+            </td>
+            <td class="col-categoria">
+                <span class="category-tag">${prod.categoria ?? '—'}</span>
+            </td>
+            <td class="col-precio" style="text-align:right; font-weight: 700; color: var(--text-main);">
+                ${precioFmt} <small style="font-size: 0.7em; opacity: 0.7;">€</small>
+            </td>
+            <td class="col-stock" style="text-align:center;">
+                <span class="stock-badge ${stockBadgeCls}">${prod.stock}</span>
+            </td>
+            <td class="col-estado" style="text-align:center;">${estadoHtml}</td>
+            <td class="col-iva">
+                <div class="iva-info">
+                    <span class="iva-percent">${prod.iva}%</span>
+                    <span class="iva-label">${prod.ivaNombre || 'General'}</span>
+                </div>
+            </td>
             <td class="col-acciones">
-                <button class="btn-admin-accion btn-ver" onclick="verProducto(${prod.id})" title="Ver">
-                    <i class="fas fa-eye"></i></button>
-                <button class="btn-admin-accion btn-editar" onclick="editarProducto(${prod.id})" title="Editar">
-                    <i class="fas fa-pen"></i></button>
-                <button class="btn-admin-accion btn-eliminar"
-                    onclick="confirmarEliminarProducto(${prod.id},'${prod.nombre.replace(/'/g, "\\'")}')" title="Eliminar">
-                    <i class="fas fa-trash"></i></button>
+                <div class="actions-group">
+                    <button class="action-btn btn-view" onclick="verProducto(${prod.id})" title="Ver detalles">
+                        <i class="fas fa-eye"></i></button>
+                    <button class="action-btn btn-edit" onclick="editarProducto(${prod.id})" title="Editar">
+                        <i class="fas fa-pen"></i></button>
+                    <button class="action-btn btn-delete"
+                        onclick="confirmarEliminarProducto(${prod.id},'${prod.nombre.replace(/'/g, "\\'")}')" title="Eliminar">
+                        <i class="fas fa-trash"></i></button>
+                </div>
             </td>
         </tr>`;
 }

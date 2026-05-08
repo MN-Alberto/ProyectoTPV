@@ -72,60 +72,280 @@ function cargarConfiguracion(subseccion = 'todas') {
  */
 function renderEditorTema(subseccion = 'todas') {
     const contenedor = document.getElementById('adminContenido');
-    let html = '<div class="tema-editor">';
+    let html = '<div class="tema-editor-premium animate-fade-in">';
 
     if (subseccion === 'todas' || subseccion === 'tema') {
-        // Filtrar las secciones que no son de tamaño de productos para el grid principal
-        const seccionesPrincipales = SECCIONES_TEMA.filter(s => s.tipo !== 'tamano_productos');
+        const configHeader = { t: 'Diseño y Experiencia', s: 'Configure la identidad visual y la ergonomía del terminal de venta', i: 'fa-magic', g: 'linear-gradient(135deg, #4f46e5, #9333ea)' };
+        html += getPremiumHeaderHTML(configHeader.i, configHeader.t, configHeader.s, configHeader.g);
+
         const seccionTamanoProductos = SECCIONES_TEMA.find(s => s.tipo === 'tamano_productos');
+        const seccionIconos = SECCIONES_TEMA.find(s => s.tipo === 'iconos');
+        const seccionesVisuales = SECCIONES_TEMA.filter(s => s.bgKey);
 
         html += `
-            <div class="config-section">
-                <div class="tema-secciones-grid">
-                    ${seccionesPrincipales.map(s => generarSeccionTema(s)).join('')}
-                </div>
-                <div class="tema-botones" style="margin-top:25px;border-top:1px solid var(--border-main);padding-top:20px;">
-                    <button class="btn-modal-cancelar tema-btn-reset" onclick="restaurarTemaDefault()">
-                        <i class="fas fa-undo"></i> Restaurar Predeterminados
-                    </button>
-                    <button class="btn-exito tema-btn-guardar" onclick="guardarTema()">
-                        <i class="fas fa-save"></i> Guardar Cambios
-                    </button>
-                </div>
-            </div>`;
+            <div class="premium-layout-grid" style="display: flex; flex-wrap: wrap; gap: 30px; margin-top: 30px; align-items: flex-start;">
+                
+                <!-- COLUMNA IZQUIERDA: CONFIGURACIÓN -->
+                <div class="config-column" style="flex: 1; min-width: 400px; display: flex; flex-direction: column; gap: 25px;">
+                    
+                    <!-- GRUPO 1: IDENTIDAD VISUAL -->
+                    <div class="premium-group-card">
+                        <div class="group-header">
+                            <i class="fas fa-fingerprint"></i> Identidad y Logotipos
+                        </div>
+                        <div class="premium-config-grid" style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+                            ${generarSeccionTema(seccionIconos)}
+                        </div>
+                    </div>
 
-        // Agregar la sección de tamaño de productos como una sección separada
-        if (seccionTamanoProductos) {
-            html += `
-                <div class="config-section" style="margin-top: 20px;">
-                    ${generarSeccionTema(seccionTamanoProductos)}
-                </div>`;
-        }
+                    <!-- GRUPO 2: COLORES Y TIPOGRAFÍAS -->
+                    <div class="premium-group-card">
+                        <div class="group-header">
+                            <i class="fas fa-paint-brush"></i> Paleta y Tipografía
+                        </div>
+                        <div class="premium-config-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                            ${seccionesVisuales.map(s => generarSeccionTema(s)).join('')}
+                        </div>
+                    </div>
+
+                    <!-- GRUPO 3: INTERFAZ DE PRODUCTOS -->
+                    <div class="premium-group-card">
+                        <div class="group-header">
+                            <i class="fas fa-th"></i> Cuadrícula de Venta
+                        </div>
+                        ${generarSeccionTema(seccionTamanoProductos)}
+                    </div>
+                </div>
+
+                <!-- COLUMNA DERECHA: PREVIEW EN TIEMPO REAL -->
+                <div class="preview-column" style="flex: 0 0 380px; align-self: start;">
+                    <div class="preview-tpv-card" style="background: #ffffff; border: 4px solid #1e293b; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); overflow: hidden;">
+                        <div style="background: #0f172a; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="width:10px; height:10px; border-radius:50%; background:#ff5f56;"></div>
+                                <div style="width:10px; height:10px; border-radius:50%; background:#ffbd2e;"></div>
+                                <div style="width:10px; height:10px; border-radius:50%; background:#27c93f;"></div>
+                            </div>
+                            <span style="color: #64748b; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">Live Preview</span>
+                        </div>
+                        
+                        <div id="tpv_live_preview" style="height: 600px; background: #f8fafc; display: flex; flex-direction: column; opacity: 1 !important; visibility: visible !important;">
+                            <!-- Header Simulado -->
+                            <div id="sim_header" style="height: 60px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; background: #1a1a2e; color: white;">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <div id="sim_icon" style="width:24px; height:24px;">
+                                        <i class="fas fa-store"></i>
+                                    </div>
+                                    <span style="font-weight:700; font-size:0.85rem;">Terminal TPV [v2]</span>
+                                </div>
+                            </div>
+
+                            <!-- Body Simulado -->
+                            <div style="flex:1; padding:15px; background: #f1f5f9; overflow-y: auto;">
+                                <div id="sim_grid" style="display: grid !important; grid-template-columns: repeat(4, 1fr); gap: 8px; min-height: 50px;">
+                                    <div style="background:#fff; height:60px; border-radius:5px; border:1px solid #ddd;"></div>
+                                    <div style="background:#fff; height:60px; border-radius:5px; border:1px solid #ddd;"></div>
+                                    <div style="background:#fff; height:60px; border-radius:5px; border:1px solid #ddd;"></div>
+                                    <div style="background:#fff; height:60px; border-radius:5px; border:1px solid #ddd;"></div>
+                                </div>
+                            </div>
+
+                            <!-- Footer Simulado -->
+                            <div id="sim_footer" style="height: 40px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; background: #1a1a2e; color: #94a3b8; font-size: 0.7rem;">
+                                <span>Online</span>
+                                <span id="sim_clock">12:00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                    <div style="margin-top: 20px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 15px; padding: 15px; display: flex; gap: 15px;">
+                        <div style="color:#3b82f6; font-size:1.2rem; padding-top:2px;">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <p style="margin:0; font-size:0.8rem; color:#1e40af; line-height:1.4;">
+                            Los cambios se aplican instantáneamente en esta vista previa para que pueda ajustar los parámetros con precisión antes de guardar.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="premium-actions-bar" style="display:flex !important; visibility:visible !important; justify-content:flex-end; gap:15px; padding:25px; background:white; border-radius:20px; border:1px solid #e2e8f0; box-shadow:0 10px 25px rgba(0,0,0,0.1); margin-top: 40px; position: sticky; bottom: 20px; z-index: 1000;">
+                <button type="button" class="btn-premium-secondary" onclick="restaurarTemaDefault()">
+                    <i class="fas fa-undo"></i> Restaurar Valores
+                </button>
+                <button type="button" class="btn-premium-primary" onclick="guardarTema()">
+                    <i class="fas fa-save"></i> Publicar Cambios
+                </button>
+            </div>
+
+            <style>
+                .premium-layout-grid {
+                    display: flex !important;
+                    flex-wrap: wrap !important;
+                    gap: 30px;
+                    margin-top: 30px;
+                }
+                @media (max-width: 1200px) {
+                    .premium-layout-grid {
+                        grid-template-columns: 1fr;
+                    }
+                    .preview-column {
+                        position: relative !important;
+                        top: 0 !important;
+                    }
+                }
+                .premium-group-card {
+                    background: var(--bg-card);
+                    border: 1px solid var(--border-main);
+                    border-radius: 20px;
+                    padding: 0;
+                    overflow: hidden;
+                    box-shadow: var(--shadow-sm);
+                }
+                .group-header {
+                    padding: 15px 25px;
+                    background: rgba(0,0,0,0.02);
+                    border-bottom: 1px solid var(--border-main);
+                    font-weight: 800;
+                    font-size: 0.85rem;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    color: var(--text-muted);
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+                .group-header i {
+                    color: var(--accent-main);
+                    font-size: 1rem;
+                }
+                .preview-tpv-card {
+                    background: #fff;
+                    border: 4px solid #1e293b;
+                    border-radius: 24px;
+                    overflow: hidden;
+                    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+                    width: 100%;
+                }
+                .tema-select-font {
+                    width: 100%;
+                    padding: 12px;
+                    border-radius: 10px;
+                    border: 1px solid var(--border-main);
+                    background: var(--bg-panel);
+                    color: var(--text-main);
+                    font-weight: 600;
+                    cursor: pointer;
+                    outline: none;
+                    transition: border-color 0.2s;
+                }
+                .tema-select-font:focus {
+                    border-color: var(--accent-main);
+                }
+                .tamano-value {
+                    float: right;
+                    background: var(--accent-main);
+                    color: white;
+                    padding: 2px 8px;
+                    border-radius: 5px;
+                    font-size: 0.75rem;
+                    font-weight: 800;
+                }
+                .premium-range {
+                    width: 100%;
+                    height: 6px;
+                    background: #e2e8f0;
+                    border-radius: 5px;
+                    outline: none;
+                    -webkit-appearance: none;
+                }
+                .premium-range::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    width: 18px;
+                    height: 18px;
+                    background: var(--accent-main);
+                    border-radius: 50%;
+                    cursor: pointer;
+                    border: 3px solid #fff;
+                    box-shadow: 0 0 0 1px #cbd5e1;
+                }
+            </style>
+        `;
     }
 
     if (subseccion === 'todas' || subseccion === 'acciones') {
+        const configHeader = { t: 'Herramientas y Datos', s: 'Exportación de información y mantenimiento del sistema', i: 'fa-database', g: 'linear-gradient(135deg, #f59e0b, #d97706)' };
+        html += getPremiumHeaderHTML(configHeader.i, configHeader.t, configHeader.s, configHeader.g);
+
         const exportaciones = [
-            { tipo: 'ventas', titulo: 'Ventas de la Semana', desc: 'Exportar todas las ventas realizadas en los últimos 7 días.', icono: 'fa-file-invoice-dollar' },
-            { tipo: 'sesiones', titulo: 'Sesiones de Caja', desc: 'Exportar el historial de sesiones de caja de la semana.', icono: 'fa-cash-register' },
-            { tipo: 'retiros', titulo: 'Retiros de Caja', desc: 'Exportar todos los retiros de efectivo de la semana.', icono: 'fa-money-bill-wave' },
-            { tipo: 'devoluciones', titulo: 'Devoluciones', desc: 'Exportar el registro de devoluciones de la semana.', icono: 'fa-undo' }
+            { tipo: 'ventas', titulo: 'Ventas Semanales', desc: 'Resumen de transacciones recientes', icono: 'fa-file-invoice-dollar', color: '#3b82f6' },
+            { tipo: 'sesiones', titulo: 'Sesiones de Caja', desc: 'Aperturas y cierres de la semana', icono: 'fa-cash-register', color: '#10b981' },
+            { tipo: 'retiros', titulo: 'Retiros de Efectivo', desc: 'Movimientos de salida de caja', icono: 'fa-money-bill-wave', color: '#f59e0b' },
+            { tipo: 'devoluciones', titulo: 'Devoluciones', desc: 'Registro de tickets abonados', icono: 'fa-undo', color: '#ef4444' }
         ];
 
-        html += `<div class="config-section"><div class="export-grid">`;
-        exportaciones.forEach(exp => {
-            html += `
-                <div class="export-card">
-                    <div class="export-card-icon"><i class="fas ${exp.icono}"></i></div>
-                    <div class="export-card-info"><h4>${exp.titulo}</h4><p>${exp.desc}</p></div>
-                    <div class="export-card-actions">
-                        <button class="btn-export json" onclick="exportarSemanal('${exp.tipo}', 'json')">JSON</button>
-                        <button class="btn-export pdf" onclick="exportarSemanal('${exp.tipo}', 'pdf')">PDF</button>
-                        <button class="btn-export excel" style="background:#1e7e34;color:white;" onclick="exportarSemanal('${exp.tipo}', 'excel')">EXCEL</button>
-                        <button class="btn-export csv" style="background:#5a6268;color:white;" onclick="exportarSemanal('${exp.tipo}', 'csv')">CSV</button>
+        html += `
+            <div class="premium-config-grid animate-fade-in" style="margin-top:25px;">
+                ${exportaciones.map(exp => `
+                    <div class="premium-card export-card-premium">
+                        <div style="display:flex; align-items:center; gap:15px; margin-bottom:20px;">
+                            <div style="width:45px; height:45px; border-radius:12px; background:${exp.color}15; color:${exp.color}; display:flex; align-items:center; justify-content:center; font-size:1.3rem;">
+                                <i class="fas ${exp.icono}"></i>
+                            </div>
+                            <div>
+                                <h4 style="margin:0; font-size:1rem; font-weight:700;">${exp.titulo}</h4>
+                                <p style="margin:0; font-size:0.8rem; color:var(--text-muted);">${exp.desc}</p>
+                            </div>
+                        </div>
+                        
+                        <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px;">
+                            <button class="btn-premium-export" onclick="exportarSemanal('${exp.tipo}', 'json')">
+                                <i class="fas fa-code"></i> JSON
+                            </button>
+                            <button class="btn-premium-export" onclick="exportarSemanal('${exp.tipo}', 'pdf')">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </button>
+                            <button class="btn-premium-export" onclick="exportarSemanal('${exp.tipo}', 'excel')">
+                                <i class="fas fa-file-excel"></i> Excel
+                            </button>
+                            <button class="btn-premium-export" onclick="exportarSemanal('${exp.tipo}', 'csv')">
+                                <i class="fas fa-file-csv"></i> CSV
+                            </button>
+                        </div>
                     </div>
-                </div>`;
-        });
-        html += `</div></div>`;
+                `).join('')}
+            </div>
+            
+            <style>
+                .btn-premium-export {
+                    padding: 10px;
+                    border-radius: 10px;
+                    border: 1px solid var(--border-main);
+                    background: var(--bg-panel);
+                    color: var(--text-main);
+                    font-weight: 700;
+                    font-size: 0.8rem;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                }
+                .btn-premium-export:hover {
+                    background: var(--bg-main);
+                    border-color: var(--accent-main);
+                    color: var(--accent-main);
+                    transform: translateY(-2px);
+                }
+                .export-card-premium:hover {
+                    transform: translateY(-5px);
+                    box-shadow: var(--shadow-md);
+                    border-color: var(--accent-main);
+                }
+            </style>
+        `;
     }
 
 
@@ -133,8 +353,12 @@ function renderEditorTema(subseccion = 'todas') {
     html += '</div>';
     contenedor.innerHTML = html;
 
-    // Inicializar preview de tamaño de productos si existe
-    setTimeout(() => previsualizarTamanoProductos(), 100);
+    // Inicializar previews
+    setTimeout(() => {
+        try { previsualizarTamanoProductos(); } catch(e) { console.error('P1:', e); }
+        try { previsualizarTema(); } catch(e) { console.error('P2:', e); }
+        try { previsualizarIcono(); } catch(e) { console.error('P3:', e); }
+    }, 500);
 }
 
 // ── HELPERS DE SECCIÓN TEMA ───────────────────────────────────────────────────
@@ -150,139 +374,30 @@ function generarSeccionTema(seccion) {
     if (seccion.tipo === 'tamano_productos') {
         const widthVal = temaActual['producto_card_width'] || TEMA_DEFAULTS.producto_card_width;
         const heightVal = temaActual['producto_card_height'] || TEMA_DEFAULTS.producto_card_height;
-        const maxWidthVal = temaActual['producto_card_max_width'] || TEMA_DEFAULTS.producto_card_max_width;
-        const maxHeightVal = temaActual['producto_card_max_height'] || TEMA_DEFAULTS.producto_card_max_height;
         const columnsVal = temaActual['producto_grid_columns'] || TEMA_DEFAULTS.producto_grid_columns;
-        const gapVal = temaActual['producto_grid_gap'] || TEMA_DEFAULTS.producto_grid_gap;
         const nombreFontVal = temaActual['producto_nombre_font_size'] || TEMA_DEFAULTS.producto_nombre_font_size;
-        const precioFontVal = temaActual['producto_precio_font_size'] || TEMA_DEFAULTS.producto_precio_font_size;
-        const stockFontVal = temaActual['producto_stock_font_size'] || TEMA_DEFAULTS.producto_stock_font_size;
 
         return `
-            <div class="tema-seccion-card">
-                <div class="tema-seccion-header">
-                    <i class="fas ${seccion.icono} tema-seccion-icono"></i>
-                    <h4 class="tema-seccion-titulo">${seccion.titulo}</h4>
-                </div>
-                <div class="tema-seccion-body">
-                    <div class="tamano-productos-grid">
-                        <div class="tamano-productos-controles">
-                            <h5 style="margin:0 0 15px 0;color:var(--text-main);font-weight:600;">Tamaño de tarjetas</h5>
-                            <div class="tema-campo">
-                                <label class="tema-label">Ancho (min-width)</label>
-                                <div class="tamano-input-wrapper">
-                                    <input type="range" id="tema_producto_card_width" min="100" max="300" value="${parseInt(widthVal)}" oninput="previsualizarTamanoProductos()">
-                                    <span class="tamano-value" id="val_producto_card_width">${widthVal}</span>
-                                </div>
-                            </div>
-                            <div class="tema-campo">
-                                <label class="tema-label">Alto (height)</label>
-                                <div class="tamano-input-wrapper">
-                                    <input type="range" id="tema_producto_card_height" min="200" max="500" value="${parseInt(heightVal)}" oninput="previsualizarTamanoProductos()">
-                                    <span class="tamano-value" id="val_producto_card_height">${heightVal}</span>
-                                </div>
-                            </div>
-                            <div class="tema-campo">
-                                <label class="tema-label">Ancho máximo (max-width)</label>
-                                <div class="tamano-input-wrapper">
-                                    <input type="range" id="tema_producto_card_max_width" min="150" max="400" value="${parseInt(maxWidthVal)}" oninput="previsualizarTamanoProductos()">
-                                    <span class="tamano-value" id="val_producto_card_max_width">${maxWidthVal}</span>
-                                </div>
-                            </div>
-                            <div class="tema-campo">
-                                <label class="tema-label">Alto máximo (max-height)</label>
-                                <div class="tamano-input-wrapper">
-                                    <input type="range" id="tema_producto_card_max_height" min="250" max="600" value="${parseInt(maxHeightVal)}" oninput="previsualizarTamanoProductos()">
-                                    <span class="tamano-value" id="val_producto_card_max_height">${maxHeightVal}</span>
-                                </div>
-                            </div>
-                            
-                            <h5 style="margin:20px 0 15px 0;color:var(--text-main);font-weight:600;">Grid y espaciado</h5>
-                            <div class="tema-campo">
-                                <label class="tema-label">Cajas por fila</label>
-                                <div class="tamano-input-wrapper">
-                                    <input type="range" id="tema_producto_grid_columns" min="2" max="8" value="${parseInt(columnsVal)}" oninput="previsualizarTamanoProductos()">
-                                    <span class="tamano-value" id="val_producto_grid_columns">${columnsVal}</span>
-                                </div>
-                            </div>
-                            <div class="tema-campo">
-                                <label class="tema-label">Espacio entre cajas (gap)</label>
-                                <div class="tamano-input-wrapper">
-                                    <input type="range" id="tema_producto_grid_gap" min="5" max="30" value="${parseInt(gapVal)}" oninput="previsualizarTamanoProductos()">
-                                    <span class="tamano-value" id="val_producto_grid_gap">${gapVal}</span>
-                                </div>
-                            </div>
-                            
-                            <h5 style="margin:20px 0 15px 0;color:var(--text-main);font-weight:600;">Tamaños de fuente</h5>
-                            <div class="tema-campo">
-                                <label class="tema-label">Tamaño del nombre</label>
-                                <div class="tamano-input-wrapper">
-                                    <input type="range" id="tema_producto_nombre_font_size" min="0.7" max="2" step="0.1" value="${parseFloat(nombreFontVal)}" oninput="previsualizarTamanoProductos()">
-                                    <span class="tamano-value" id="val_producto_nombre_font_size">${nombreFontVal}</span>
-                                </div>
-                            </div>
-                            <div class="tema-campo">
-                                <label class="tema-label">Tamaño del precio</label>
-                                <div class="tamano-input-wrapper">
-                                    <input type="range" id="tema_producto_precio_font_size" min="0.7" max="2" step="0.1" value="${parseFloat(precioFontVal)}" oninput="previsualizarTamanoProductos()">
-                                    <span class="tamano-value" id="val_producto_precio_font_size">${precioFontVal}</span>
-                                </div>
-                            </div>
-                            <div class="tema-campo">
-                                <label class="tema-label">Tamaño del stock</label>
-                                <div class="tamano-input-wrapper">
-                                    <input type="range" id="tema_producto_stock_font_size" min="0.6" max="1.5" step="0.1" value="${parseFloat(stockFontVal)}" oninput="previsualizarTamanoProductos()">
-                                    <span class="tamano-value" id="val_producto_stock_font_size">${stockFontVal}</span>
-                                </div>
-                            </div>
-                            
-                            <button class="btn-restablecer-tamano" onclick="restablecerTamanoProductos()">
-                                <i class="fas fa-undo"></i> Restablecer valores predeterminados
-                            </button>
+            <div class="premium-card" style="padding: 25px;">
+                <div class="tamano-productos-controles" style="display:grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+                    <div>
+                        <div class="tema-campo">
+                            <label class="tema-label">Ancho de Tarjeta <span class="tamano-value" id="val_producto_card_width">${widthVal}</span></label>
+                            <input type="range" id="tema_producto_card_width" min="120" max="350" value="${parseInt(widthVal)}" oninput="previsualizarTamanoProductos()" class="premium-range">
                         </div>
-                        <div class="tamano-productos-preview">
-                            <h5 style="margin-bottom:10px;color:var(--text-muted);font-size:0.9rem;">Vista previa</h5>
-                            <div class="preview-grid-container" id="preview_grid_container">
-                                <div class="preview-producto-card-preview">
-                                    <div class="preview-producto-nombre">Producto 1</div>
-                                    <div class="preview-producto-imagen">
-                                        <i class="fas fa-image" style="color:#9ca3af;"></i>
-                                    </div>
-                                    <div class="preview-producto-info">
-                                        <span class="preview-producto-precio">99,99 €</span>
-                                        <select class="preview-tarifa-selector">
-                                            <option>General</option>
-                                        </select>
-                                        <span class="preview-producto-stock">Stock: 50</span>
-                                    </div>
-                                </div>
-                                <div class="preview-producto-card-preview">
-                                    <div class="preview-producto-nombre">Producto 2</div>
-                                    <div class="preview-producto-imagen">
-                                        <i class="fas fa-image" style="color:#9ca3af;"></i>
-                                    </div>
-                                    <div class="preview-producto-info">
-                                        <span class="preview-producto-precio">49,99 €</span>
-                                        <select class="preview-tarifa-selector">
-                                            <option>General</option>
-                                        </select>
-                                        <span class="preview-producto-stock">Stock: 25</span>
-                                    </div>
-                                </div>
-                                <div class="preview-producto-card-preview">
-                                    <div class="preview-producto-nombre">Producto 3</div>
-                                    <div class="preview-producto-imagen">
-                                        <i class="fas fa-image" style="color:#9ca3af;"></i>
-                                    </div>
-                                    <div class="preview-producto-info">
-                                        <span class="preview-producto-precio">149,99 €</span>
-                                        <select class="preview-tarifa-selector">
-                                            <option>General</option>
-                                        </select>
-                                        <span class="preview-producto-stock">Stock: 10</span>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="tema-campo" style="margin-top:20px;">
+                            <label class="tema-label">Alto de Tarjeta <span class="tamano-value" id="val_producto_card_height">${heightVal}</span></label>
+                            <input type="range" id="tema_producto_card_height" min="150" max="550" value="${parseInt(heightVal)}" oninput="previsualizarTamanoProductos()" class="premium-range">
+                        </div>
+                    </div>
+                    <div>
+                        <div class="tema-campo">
+                            <label class="tema-label">Columnas (Grid) <span class="tamano-value" id="val_producto_grid_columns">${columnsVal}</span></label>
+                            <input type="range" id="tema_producto_grid_columns" min="2" max="10" value="${parseInt(columnsVal)}" oninput="previsualizarTamanoProductos()" class="premium-range">
+                        </div>
+                        <div class="tema-campo" style="margin-top:20px;">
+                            <label class="tema-label">Tamaño Fuente <span class="tamano-value" id="val_producto_nombre_font_size">${nombreFontVal}</span></label>
+                            <input type="range" id="tema_producto_nombre_font_size" min="0.7" max="1.8" step="0.05" value="${parseFloat(nombreFontVal)}" oninput="previsualizarTamanoProductos()" class="premium-range">
                         </div>
                     </div>
                 </div>
@@ -293,29 +408,25 @@ function generarSeccionTema(seccion) {
         const headerIconVal = temaActual['header_icon'] || '';
         const faviconVal = temaActual['favicon'] || '';
         return `
-            <div class="tema-seccion-card">
-                <div class="tema-seccion-header">
-                    <i class="fas ${seccion.icono} tema-seccion-icono"></i>
-                    <h4 class="tema-seccion-titulo">${seccion.titulo}</h4>
-                </div>
-                <div class="tema-seccion-body">
-                    <div class="tema-campo">
-                        <label class="tema-label">Icono del Header (SVG)</label>
-                        <textarea id="tema_header_icon" class="tema-textarea-icono"
-                            placeholder="Pega el código SVG aquí..."
-                            oninput="previsualizarIcono()">${headerIconVal}</textarea>
-                        <p class="tema-ayuda">Pega el código completo de un icono SVG (incluyendo las etiquetas &lt;svg&gt;)</p>
+            <div class="premium-card" style="padding: 25px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+                    <div>
+                        <label class="tema-label">Logo SVG (Cabecera)</label>
+                        <textarea id="tema_header_icon" class="tema-textarea-icono" style="height:120px; font-family:monospace; border-radius:12px; border:1px solid var(--border-main); width:100%; padding:10px; font-size:0.75rem; background:var(--bg-panel); color:var(--text-main);"
+                            placeholder='<svg ...> ... </svg>' oninput="previsualizarIcono()">${headerIconVal}</textarea>
                     </div>
-                    <div class="tema-preview-icono" id="preview_header_icon">
-                        ${headerIconVal ? headerIconVal : '<span style="color:var(--text-muted);">Vista previa del icono</span>'}
-                    </div>
-                    <div class="tema-campo" style="margin-top:15px;">
-                        <label class="tema-label">Favicon</label>
-                        <input type="file" id="tema_favicon" accept="image/*" onchange="previsualizarFavicon(this)">
-                        <p class="tema-ayuda">Sube una imagen para el favicon (16x16, 32x32 o 48x48 píxeles)</p>
-                    </div>
-                    <div class="tema-preview-favicon" id="preview_favicon">
-                        ${faviconVal ? `<img src="${faviconVal}" alt="Favicon" style="width:32px;height:32px;">` : '<span style="color:var(--text-muted);">Vista previa del favicon</span>'}
+                    <div style="display:flex; flex-direction:column; gap:15px;">
+                        <label class="tema-label">Favicon (32x32)</label>
+                        <div style="display:flex; align-items:center; gap:15px; background:var(--bg-panel); padding:15px; border-radius:12px; border:1px dashed var(--border-main);">
+                            <div id="preview_favicon" style="width:40px; height:40px; background:white; border-radius:8px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+                                ${faviconVal ? `<img src="${faviconVal}" style="width:24px; height:24px; object-fit:contain;">` : '<i class="fas fa-image" style="color:#cbd5e1;"></i>'}
+                            </div>
+                            <button class="btn-premium-secondary" onclick="document.getElementById('tema_favicon').click()" style="flex:1; font-size:0.75rem; padding:8px 12px;">
+                                <i class="fas fa-cloud-upload-alt"></i> Cambiar Archivo
+                            </button>
+                            <input type="file" id="tema_favicon" accept="image/*" onchange="previsualizarFavicon(this)" style="display:none;">
+                        </div>
+                        <p style="margin:0; font-size:0.7rem; color:var(--text-muted);">Recomendado: Archivo .ico o .png transparente de 32x32px.</p>
                     </div>
                 </div>
             </div>`;
@@ -326,34 +437,29 @@ function generarSeccionTema(seccion) {
     const fontVal = temaActual[seccion.fontKey] || TEMA_DEFAULTS[seccion.fontKey];
 
     return `
-        <div class="tema-seccion-card">
-            <div class="tema-seccion-header">
-                <i class="fas ${seccion.icono} tema-seccion-icono"></i>
-                <h4 class="tema-seccion-titulo">${seccion.titulo}</h4>
+        <div class="premium-card" style="padding: 25px;">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:15px;">
+                <div style="width:32px; height:32px; border-radius:8px; background:rgba(99, 102, 241, 0.1); color:#6366f1; display:flex; align-items:center; justify-content:center; font-size:0.9rem;">
+                    <i class="fas ${seccion.icono}"></i>
+                </div>
+                <h5 style="margin:0; font-size:0.95rem; font-weight:700; color:var(--text-main);">${seccion.titulo}</h5>
             </div>
-            <div class="tema-seccion-body">
-                <div class="tema-campo">
-                    <label class="tema-label">Color de Fondo</label>
-                    <div class="tema-color-wrapper">
-                        <input type="color" id="tema_${seccion.bgKey}" value="${bgVal}" oninput="previsualizarTema()">
-                        <span class="tema-color-hex" id="hex_${seccion.bgKey}">${bgVal}</span>
+            
+            <div class="tema-campo" style="margin-bottom:15px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="tema-color-wrapper" style="height:45px; border-radius:10px; overflow:hidden; border:1px solid var(--border-main); display:flex; align-items:center; padding:0 10px; background:var(--bg-panel);">
+                        <input type="color" id="tema_${seccion.bgKey}" value="${bgVal}" oninput="previsualizarTema()" style="width:25px; height:25px; border:none; background:none; cursor:pointer;">
+                        <span class="tema-color-hex" id="hex_${seccion.bgKey}" style="margin-left:10px; font-family:monospace; font-size:0.8rem; font-weight:700;">${bgVal}</span>
+                    </div>
+                    <div class="tema-color-wrapper" style="height:45px; border-radius:10px; overflow:hidden; border:1px solid var(--border-main); display:flex; align-items:center; padding:0 10px; background:var(--bg-panel);">
+                        <input type="color" id="tema_${seccion.colorKey}" value="${colorVal}" oninput="previsualizarTema()" style="width:25px; height:25px; border:none; background:none; cursor:pointer;">
+                        <span class="tema-color-hex" id="hex_${seccion.colorKey}" style="margin-left:10px; font-family:monospace; font-size:0.8rem; font-weight:700;">${colorVal}</span>
                     </div>
                 </div>
-                <div class="tema-campo">
-                    <label class="tema-label">Color de Texto</label>
-                    <div class="tema-color-wrapper">
-                        <input type="color" id="tema_${seccion.colorKey}" value="${colorVal}" oninput="previsualizarTema()">
-                        <span class="tema-color-hex" id="hex_${seccion.colorKey}">${colorVal}</span>
-                    </div>
-                </div>
-                <div class="tema-campo">
-                    <label class="tema-label">Fuente</label>
-                    ${generarSelectFuente('tema_' + seccion.fontKey, fontVal)}
-                </div>
-                <div class="tema-preview" id="preview_${seccion.id}"
-                    style="background:${bgVal};color:${colorVal};font-family:'${fontVal}',sans-serif;">
-                    Vista previa del texto
-                </div>
+            </div>
+            
+            <div class="tema-campo">
+                ${generarSelectFuente('tema_' + seccion.fontKey, fontVal)}
             </div>
         </div>`;
 }
@@ -361,74 +467,75 @@ function generarSeccionTema(seccion) {
 // ── PREVISUALIZACIÓN ──────────────────────────────────────────────────────────
 
 function previsualizarTema() {
-    const root = document.documentElement;
-    SECCIONES_TEMA.forEach(seccion => {
-        if (seccion.tipo === 'iconos') return;
-        const bgInput = document.getElementById('tema_' + seccion.bgKey);
-        const colorInput = document.getElementById('tema_' + seccion.colorKey);
-        const fontSelect = document.getElementById('tema_' + seccion.fontKey);
-        const preview = document.getElementById('preview_' + seccion.id);
-        if (!bgInput || !colorInput || !fontSelect) return;
-
-        const bgVal = bgInput.value;
-        const colorVal = colorInput.value;
-        const fontVal = fontSelect.value;
-
-        const hexBg = document.getElementById('hex_' + seccion.bgKey);
-        const hexColor = document.getElementById('hex_' + seccion.colorKey);
-        if (hexBg) hexBg.textContent = bgVal;
-        if (hexColor) hexColor.textContent = colorVal;
-
-        if (preview) {
-            preview.style.background = bgVal;
-            preview.style.color = colorVal;
-            preview.style.fontFamily = `'${fontVal}', sans-serif`;
+    try {
+        const root = document.documentElement;
+        
+        // Sincronizar Header Simulado
+        const simHeader = document.getElementById('sim_header');
+        const bgH = document.getElementById('tema_header_bg');
+        const colorH = document.getElementById('tema_header_color');
+        const fontH = document.getElementById('tema_header_font');
+        
+        if (simHeader && bgH && colorH && fontH) {
+            simHeader.style.background = bgH.value;
+            simHeader.style.color = colorH.value;
+            simHeader.style.fontFamily = `'${fontH.value}', sans-serif`;
+            const hexBg = document.getElementById('hex_header_bg');
+            const hexColor = document.getElementById('hex_header_color');
+            if (hexBg) hexBg.textContent = bgH.value;
+            if (hexColor) hexColor.textContent = colorH.value;
         }
 
-        root.style.setProperty('--theme-' + seccion.bgKey.replace(/_/g, '-'), bgVal);
-        root.style.setProperty('--theme-' + seccion.colorKey.replace(/_/g, '-'), colorVal);
-    });
+        // Sincronizar Footer Simulado
+        const simFooter = document.getElementById('sim_footer');
+        const bgF = document.getElementById('tema_footer_bg');
+        const colorF = document.getElementById('tema_footer_color');
+        const fontF = document.getElementById('tema_footer_font');
+        
+        if (simFooter && bgF && colorF && fontF) {
+            simFooter.style.background = bgF.value;
+            simFooter.style.color = colorF.value;
+            simFooter.style.fontFamily = `'${fontF.value}', sans-serif`;
+            const hexBg = document.getElementById('hex_footer_bg');
+            const hexColor = document.getElementById('hex_footer_color');
+            if (hexBg) hexBg.textContent = bgF.value;
+            if (hexColor) hexColor.textContent = colorF.value;
+        }
 
-    const header = document.querySelector('header');
-    const footer = document.querySelector('footer');
-    const bgH = document.getElementById('tema_header_bg');
-    const colorH = document.getElementById('tema_header_color');
-    const fontH = document.getElementById('tema_header_font');
-    const bgF = document.getElementById('tema_footer_bg');
-    const colorF = document.getElementById('tema_footer_color');
-    const fontF = document.getElementById('tema_footer_font');
+        // Cargar Fuentes
+        const fuentesUsadas = new Set();
+        if (fontH) fuentesUsadas.add(fontH.value);
+        if (fontF) fuentesUsadas.add(fontF.value);
+        cargarGoogleFonts([...fuentesUsadas]);
+        
+        // Aplicar a la interfaz real
+        if (document.querySelector('header')) {
+            document.querySelector('header').style.background = bgH.value;
+            document.querySelector('header').style.color = colorH.value;
+        }
 
-    if (header && bgH && colorH && fontH) {
-        header.style.background = bgH.value;
-        header.style.color = colorH.value;
-        header.style.fontFamily = `'${fontH.value}', sans-serif`;
+        previsualizarTamanoProductos();
+    } catch(e) {
+        console.error('previsualizarTema error:', e);
     }
-    if (footer && bgF && colorF && fontF) {
-        footer.style.background = bgF.value;
-        footer.style.color = colorF.value;
-        footer.style.fontFamily = `'${fontF.value}', sans-serif`;
-    }
-
-    const fuentesUsadas = new Set();
-    SECCIONES_TEMA.forEach(s => {
-        const fontSel = document.getElementById('tema_' + s.fontKey);
-        if (fontSel) fuentesUsadas.add(fontSel.value);
-    });
-    cargarGoogleFonts([...fuentesUsadas]);
 }
 
 function previsualizarIcono() {
     const svgInput = document.getElementById('tema_header_icon');
-    const preview = document.getElementById('preview_header_icon');
+    const preview = document.getElementById('sim_icon');
     if (!svgInput || !preview) return;
 
     const svgCode = svgInput.value.trim();
     if (svgCode) {
         preview.innerHTML = svgCode;
         const svg = preview.querySelector('svg');
-        if (svg) { svg.style.width = '48px'; svg.style.height = '48px'; }
+        if (svg) { 
+            svg.style.width = '24px'; 
+            svg.style.height = '24px'; 
+            svg.style.fill = 'currentColor';
+        }
     } else {
-        preview.innerHTML = '<span style="color:var(--text-muted);">Vista previa del icono</span>';
+        preview.innerHTML = '<i class="fas fa-store"></i>';
     }
 }
 
@@ -436,8 +543,57 @@ function previsualizarFavicon(input) {
     const preview = document.getElementById('preview_favicon');
     if (!preview || !input.files || !input.files[0]) return;
     const reader = new FileReader();
-    reader.onload = e => { preview.innerHTML = `<img src="${e.target.result}" alt="Favicon" style="width:32px;height:32px;">`; };
+    reader.onload = e => { preview.innerHTML = `<img src="${e.target.result}" alt="Favicon" style="width:24px;height:24px;object-fit:contain;">`; };
     reader.readAsDataURL(input.files[0]);
+}
+
+function previsualizarTamanoProductos() {
+    const grid = document.getElementById('sim_grid');
+    if (!grid) return;
+    
+    try {
+        // Obtener valores de los inputs o del temaActual
+        const width = parseInt(document.getElementById('tema_producto_card_width')?.value || parseInt(temaActual.producto_card_width) || 200);
+        const height = parseInt(document.getElementById('tema_producto_card_height')?.value || parseInt(temaActual.producto_card_height) || 350);
+        const cols = parseInt(document.getElementById('tema_producto_grid_columns')?.value || parseInt(temaActual.producto_grid_columns) || 4);
+        const font = parseFloat(document.getElementById('tema_producto_nombre_font_size')?.value || parseFloat(temaActual.producto_nombre_font_size) || 1);
+
+        // Actualizar etiquetas de valor
+        const updateLabel = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        };
+        updateLabel('val_producto_card_width', width + 'px');
+        updateLabel('val_producto_card_height', height + 'px');
+        updateLabel('val_producto_grid_columns', cols);
+        updateLabel('val_producto_nombre_font_size', font + 'rem');
+
+        // Configurar grid
+        grid.style.display = 'grid';
+        grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        grid.style.gap = '8px';
+        
+        // Escalar para el preview (contenedor de 600px)
+        const scale = 0.35; 
+        let cards = '';
+        const numCards = Math.max(cols * 2, 8);
+
+        for (let i = 0; i < numCards; i++) {
+            cards += `
+                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; display:flex; flex-direction:column; height:${height * scale}px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="flex:1; background:#f8fafc; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                        <i class="fas fa-image" style="color:#cbd5e1; font-size:1.5rem;"></i>
+                    </div>
+                    <div style="padding:8px; border-top:1px solid #f1f5f9; background: #fff;">
+                        <div style="font-weight:700; font-size:${font * 0.45}rem; color:#1e293b; margin-bottom:2px; line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Producto Demo ${i+1}</div>
+                        <div style="font-weight:800; font-size:${font * 0.5}rem; color:#4f46e5;">9.99€</div>
+                    </div>
+                </div>`;
+        }
+        grid.innerHTML = cards;
+    } catch (e) {
+        grid.innerHTML = `<p style="color:red; font-size:10px;">Error: ${e.message}</p>`;
+    }
 }
 
 // ── GUARDAR TEMA ──────────────────────────────────────────────────────────────
@@ -900,6 +1056,26 @@ function verificarAjustesPreciosProgramados() {
         })
         .catch(err => console.error('Error verificando ajustes de precios programados:', err));
 }
+
+function cargarGoogleFonts(fuentes) {
+    if (!fuentes || !fuentes.length) return;
+    const linkId = 'google-fonts-preview';
+    let link = document.getElementById(linkId);
+    if (!link) {
+        link = document.createElement('link');
+        link.id = linkId;
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+    }
+    const family = fuentes.map(f => f.replace(/ /g, '+')).join('|');
+    link.href = `https://fonts.googleapis.com/css?family=${family}:400,700&display=swap`;
+}
+
+// Clock update for preview
+setInterval(() => {
+    const el = document.getElementById('sim_clock');
+    if (el) el.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}, 1000);
 
 
 

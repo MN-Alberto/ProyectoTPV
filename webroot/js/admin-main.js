@@ -26,14 +26,15 @@ document.addEventListener('DOMContentLoaded', function() {
         'config-fiscal': 'Configuración Fiscal'
     };
 
-    document.querySelectorAll('.cat-btn[data-seccion]').forEach(btn => {
+    document.querySelectorAll('.nav-item-premium[data-seccion], .submenu-item-premium[data-seccion]').forEach(btn => {
         btn.addEventListener('click', () => {
             // Actualizar botón activo
-            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('activa'));
+            document.querySelectorAll('.nav-item-premium, .submenu-item-premium').forEach(b => b.classList.remove('activa'));
             btn.classList.add('activa');
 
             const seccion = btn.dataset.seccion;
-            document.getElementById('adminTitulo').textContent = TITULOS[seccion] ?? seccion;
+            const tituloElement = document.getElementById('adminTitulo');
+            if (tituloElement) tituloElement.textContent = TITULOS[seccion] ?? seccion;
 
             // Toggle modo configuración para ganar espacio
             const dashboard = document.querySelector('.admin-dashboard');
@@ -140,68 +141,35 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Toggle submenu de Configuración
-    const btnConfig = document.getElementById('btnConfig');
-    if (btnConfig) {
-        btnConfig.addEventListener('click', function (e) {
+    // Toggle submenus premium
+    document.querySelectorAll('.nav-item-premium.has-submenu').forEach(btn => {
+        btn.addEventListener('click', function(e) {
             e.stopPropagation();
-            var submenu = document.getElementById('submenuConfig');
-            if (submenu) submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
+            const submenuId = this.id === 'btnTarifas' ? 'submenuTarifas' : 
+                            this.id === 'btnInformes' ? 'submenuInformes' : 
+                            this.id === 'btnConfig' ? 'submenuConfig' : null;
+            
+            if (submenuId) {
+                const submenu = document.getElementById(submenuId);
+                const isVisible = submenu.style.display === 'flex';
+                
+                // Cerrar otros
+                document.querySelectorAll('.nav-submenu-premium').forEach(s => s.style.display = 'none');
+                document.querySelectorAll('.nav-item-premium.has-submenu .arrow').forEach(a => a.style.transform = 'rotate(0deg)');
 
-            // Cerrar otros submenus
-            var subTarifas = document.getElementById('submenuTarifas');
-            if (subTarifas) subTarifas.style.display = 'none';
-            var subInformes = document.getElementById('submenuInformes');
-            if (subInformes) subInformes.style.display = 'none';
+                if (!isVisible) {
+                    submenu.style.display = 'flex';
+                    this.querySelector('.arrow').style.transform = 'rotate(180deg)';
+                }
+            }
         });
-    }
-
-    // Toggle submenu de Tarifas
-    const btnTarifas = document.getElementById('btnTarifas');
-    if (btnTarifas) {
-        btnTarifas.addEventListener('click', function (e) {
-            e.stopPropagation();
-            var submenu = document.getElementById('submenuTarifas');
-            if (submenu) submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
-
-            // Cerrar otros submenus
-            var subConfig = document.getElementById('submenuConfig');
-            if (subConfig) subConfig.style.display = 'none';
-            var subInformes = document.getElementById('submenuInformes');
-            if (subInformes) subInformes.style.display = 'none';
-        });
-    }
-
-    // Toggle submenu de Informes
-    const btnInformes = document.getElementById('btnInformes');
-    if (btnInformes) {
-        btnInformes.addEventListener('click', function (e) {
-            e.stopPropagation();
-            var submenu = document.getElementById('submenuInformes');
-            if (submenu) submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
-
-            // Cerrar otros submenus
-            var subConfig = document.getElementById('submenuConfig');
-            if (subConfig) subConfig.style.display = 'none';
-            var subTarifas = document.getElementById('submenuTarifas');
-            if (subTarifas) subTarifas.style.display = 'none';
-        });
-    }
+    });
 
     // Cerrar submenus al hacer click fuera
-    document.addEventListener('click', function (e) {
-        var subTarifas = document.getElementById('submenuTarifas');
-        var subConfig = document.getElementById('submenuConfig');
-        var subInformes = document.getElementById('submenuInformes');
-        
-        if (btnTarifas && subTarifas && !btnTarifas.contains(e.target) && !subTarifas.contains(e.target)) {
-            subTarifas.style.display = 'none';
-        }
-        if (btnConfig && subConfig && !btnConfig.contains(e.target) && !subConfig.contains(e.target)) {
-            subConfig.style.display = 'none';
-        }
-        if (btnInformes && subInformes && !btnInformes.contains(e.target) && !subInformes.contains(e.target)) {
-            subInformes.style.display = 'none';
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.nav-item-premium.has-submenu') && !e.target.closest('.nav-submenu-premium')) {
+            document.querySelectorAll('.nav-submenu-premium').forEach(s => s.style.display = 'none');
+            document.querySelectorAll('.nav-item-premium.has-submenu .arrow').forEach(a => a.style.transform = 'rotate(0deg)');
         }
     });
 
