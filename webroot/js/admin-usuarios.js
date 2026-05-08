@@ -1,6 +1,6 @@
 /**
  * admin.usuarios.js
- * Gestión de usuarios, clientes y proveedores en el panel de administración.
+ * Gestión de usuarios en el panel de administración.
  * Depende de: admin.state.js, admin.utils.js, admin.pagination.js
  */
 
@@ -9,28 +9,43 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function getUsuariosTablaHeader(textoBusqueda = '', totalUsuarios = 0) {
-    const contador = `${totalUsuarios.toLocaleString('es-ES')} Usuario${totalUsuarios !== 1 ? 's' : ''}`;
+    const contador = `${totalUsuarios} Usuario${totalUsuarios !== 1 ? 's' : ''}`;
     return `
-        <div class="admin-tabla-header">
-            <div style="display:flex;gap:10px;width:100%;align-items:center;flex-wrap:wrap;">
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <label for="inputBuscarUsuario" class="admin-label">Buscar:</label>
-                    <input type="text" id="inputBuscarUsuario" class="input-buscarUsuario"
-                        placeholder="Escribe el nombre del usuario..." oninput="buscarUsuarios()"
-                        autocomplete="off" value="${textoBusqueda.replace(/"/g, '&quot;')}" style="width:300px;">
+        ${getPremiumHeaderHTML('fa-users-cog', 'Gestión de Usuarios', 'Control de acceso y permisos del personal', 'linear-gradient(135deg, #8b5cf6, #7c3aed)')}
+        <div class="admin-tabla-header products-header">
+            <div class="header-filters-grid">
+                <div class="filter-main">
+                    <div class="search-wrapper">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="inputBuscarUsuario" class="input-modern-search"
+                            placeholder="Buscar por nombre, email o rol..."
+                            oninput="buscarUsuarios()" autocomplete="off"
+                            value="${textoBusqueda.replace(/"/g, '&quot;')}">
+                    </div>
                 </div>
-                <button class="btn-admin-accion btn-nuevo" onclick="prepararNuevoUsuario()">
-                    <i class="fas fa-plus"></i> Nuevo Usuario
-                </button>
-                <span id="totalUsuariosAviso" class="total-clientes-aviso">${contador}</span>
+                
+                <div class="header-status-info">
+                    <span id="totalUsuariosAviso" class="info-tag">${contador}</span>
+                </div>
+
+                <div class="header-actions">
+                    <button class="btn-modern btn-primary btn-add-user" onclick="prepararNuevoUsuario()">
+                        <i class="fas fa-plus"></i>
+                        <span>Nuevo Usuario</span>
+                    </button>
+                </div>
             </div>
         </div>
-        <div class="admin-tabla-wrapper sin-scroll">
+        <div class="admin-tabla-wrapper products-table-wrapper">
             <table class="admin-tabla">
                 <thead>
                     <tr>
-                        <th>Nombre</th><th>Email</th><th>Rol</th>
-                        <th>Fecha de Alta</th><th>Estado</th><th>Acciones</th>
+                        <th>Identidad del Usuario</th>
+                        <th>Correo Electrónico</th>
+                        <th style="width: 130px; text-align:center;">Rol</th>
+                        <th style="width: 150px;">Fecha de Alta</th>
+                        <th style="width: 130px; text-align:center;">Estado</th>
+                        <th style="width: 130px; text-align:center;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -40,32 +55,56 @@ function generarFilaUsuario(usr) {
     const fechaAlta = new Date(usr.fechaAlta).toLocaleDateString('es-ES',
         { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-    const rolBadge = usr.rol === 'admin'
-        ? '<span class="admin-badge" style="background:#dbeafe;color:#1e40af;">Admin</span>'
-        : '<span class="admin-badge" style="background:#f3f4f6;color:#374151;">Empleado</span>';
+    const rolBadgeCls = usr.rol === 'admin' ? 'role-admin' : 'role-staff';
+    const rolText = usr.rol === 'admin' ? 'Administrador' : 'Empleado';
+    const rolIcon = usr.rol === 'admin' ? 'fa-user-shield' : 'fa-user-tag';
 
     const estadoHtml = usr.activo === 1
-        ? '<span class="admin-badge badge-activo">Activo</span>'
-        : '<span class="admin-badge badge-inactivo">Inactivo</span>';
+        ? '<span class="status-pill status-active"><i class="fas fa-check-circle"></i> Activo</span>'
+        : '<span class="status-pill status-inactive"><i class="fas fa-times-circle"></i> Inactivo</span>';
 
     const btnEliminar = usr.rol !== 'admin'
-        ? `<button class="btn-admin-accion btn-eliminar"
+        ? `<button class="action-btn btn-delete"
                onclick="confirmarEliminarUsuario(${usr.id},'${usr.nombre.replace(/'/g, "\\'")}')" title="Eliminar">
                <i class="fas fa-trash"></i></button>` : '';
 
     return `
-        <tr>
-            <td class="col-nombre">${usr.nombre}</td>
-            <td class="col-email">${usr.email}</td>
-            <td class="col-rol">${rolBadge}</td>
-            <td class="col-fecha">${fechaAlta}</td>
-            <td class="col-estado">${estadoHtml}</td>
+        <tr class="user-row ${usr.activo === 0 ? 'row-disabled' : ''}">
+            <td class="col-nombre">
+                <div class="user-profile">
+                    <div class="user-avatar">${usr.nombre.charAt(0).toUpperCase()}</div>
+                    <div class="user-main-info">
+                        <span class="user-name-text">${usr.nombre}</span>
+                        <span class="user-id-sub">ID: ${usr.id}</span>
+                    </div>
+                </div>
+            </td>
+            <td class="col-email">
+                <div class="email-wrapper">
+                    <i class="far fa-envelope email-icon"></i>
+                    <span>${usr.email}</span>
+                </div>
+            </td>
+            <td class="col-rol" style="text-align:center;">
+                <span class="role-badge ${rolBadgeCls}">
+                    <i class="fas ${rolIcon}"></i> ${rolText}
+                </span>
+            </td>
+            <td class="col-fecha">
+                <div class="date-info">
+                    <i class="far fa-calendar-alt"></i>
+                    <span>${fechaAlta}</span>
+                </div>
+            </td>
+            <td class="col-estado" style="text-align:center;">${estadoHtml}</td>
             <td class="col-acciones">
-                <button class="btn-admin-accion btn-ver" onclick="verUsuario(${usr.id})" title="Ver">
-                    <i class="fas fa-eye"></i></button>
-                <button class="btn-admin-accion btn-editar" onclick="editarUsuario(${usr.id})" title="Editar">
-                    <i class="fas fa-pen"></i></button>
-                ${btnEliminar}
+                <div class="actions-group">
+                    <button class="action-btn btn-view" onclick="verUsuario(${usr.id})" title="Ver detalles">
+                        <i class="fas fa-eye"></i></button>
+                    <button class="action-btn btn-edit" onclick="editarUsuario(${usr.id})" title="Editar">
+                        <i class="fas fa-pen"></i></button>
+                    ${btnEliminar}
+                </div>
             </td>
         </tr>`;
 }
@@ -74,7 +113,7 @@ function renderizarUsuariosPagina() {
     const contenedor = document.getElementById('adminContenido');
     if (!contenedor) return;
     const tbody = contenedor.querySelector('tbody');
-    if (tbody) tbody.innerHTML = usuariosData.map(generarFilaUsuario).join('');
+    if (tbody) tbody.innerHTML = (typeof usuariosData !== 'undefined' ? usuariosData : []).map(generarFilaUsuario).join('');
     actualizarPaginacionDOM(contenedor, getPaginacionUsuariosHTML(totalPaginasUsuarios));
 }
 
@@ -291,965 +330,4 @@ function eliminarUsuario(id) {
         .catch(err => { console.error('Error:', err); alert('Error: ' + err.message); });
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// CLIENTES
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function getClientesTablaHeader(textoBusqueda = '', totalCli = 0, totalInactivos = 0) {
-    const activos = totalCli - totalInactivos;
-    const hayBusqueda = textoBusqueda && textoBusqueda.trim() !== '';
-    const contadorHTML = hayBusqueda
-        ? `${totalCli.toLocaleString('es-ES')} Resultado${totalCli !== 1 ? 's' : ''}`
-        : `${totalCli.toLocaleString('es-ES')} Total | ${activos.toLocaleString('es-ES')} Activo${activos !== 1 ? 's' : ''} | ${totalInactivos.toLocaleString('es-ES')} Inactivo${totalInactivos !== 1 ? 's' : ''}`;
-
-    return `
-        <div class="admin-tabla-header">
-            <div style="display:flex;gap:10px;width:100%;align-items:center;flex-wrap:wrap;">
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <label for="inputBuscarCliente" class="admin-label">Buscar:</label>
-                    <input type="text" id="inputBuscarCliente" class="input-buscarProducto"
-                        placeholder="Escribe el DNI del cliente..." oninput="buscarClientes()"
-                        autocomplete="off" value="${textoBusqueda.replace(/"/g, '&quot;')}" style="width:400px;">
-                </div>
-                <button class="btn-admin-accion btn-nuevo" onclick="nuevoCliente()">
-                    <i class="fas fa-plus"></i> Nuevo Cliente
-                </button>
-                <span id="totalClientesAviso" class="total-clientes-aviso">${contadorHTML}</span>
-            </div>
-        </div>
-        <div class="admin-tabla-wrapper sin-scroll">
-            <table class="admin-tabla">
-                <thead>
-                    <tr>
-                        <th>DNI</th><th>Nombre</th><th>Apellidos</th><th>Fecha Alta</th>
-                        <th>Productos</th><th>Compras</th><th>Puntos</th><th>Estado</th><th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-}
-
-function cargarClientesAdmin(textoBusqueda = '', resetPagina = true) {
-    const contenedor = document.getElementById('adminContenido');
-    const tablaExistente = contenedor.querySelector('.admin-tabla');
-    if (seccionActual !== 'clientes') { adminTablaHeaderHTML = ''; seccionActual = 'clientes'; }
-    const esPrimeraVez = !tablaExistente || !adminTablaHeaderHTML;
-    if (resetPagina) paginaActualClientes = 1;
-    busquedaClienteActual = textoBusqueda;
-
-    const params = new URLSearchParams({ pagina: paginaActualClientes, porPagina: clientesPorPagina });
-    if (textoBusqueda) params.append('dni', textoBusqueda);
-
-    if (esPrimeraVez) {
-        contenedor.innerHTML = '<div style="text-align:center;padding:60px 20px;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--color-primary);"></i></div>';
-    } else {
-        const tbody = contenedor.querySelector('tbody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="sin-productos" style="text-align:center;"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>';
-    }
-
-    return fetch('api/clientes.php?' + params)
-        .then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Error al cargar clientes'); }); return r.json(); })
-        .then(data => renderClientesAdmin(data, esPrimeraVez))
-        .catch(err => {
-            console.error('Error cargando clientes:', err);
-            contenedor.innerHTML = '<p class="sin-productos">' + err.message + '</p>';
-        });
-}
-
-function renderClientesAdmin(respuesta, esPrimeraVez = true) {
-    const contenedor = document.getElementById('adminContenido');
-    const clientes = respuesta.clientes || [];
-    totalPaginasClientes = respuesta.totalPaginas || 1;
-    totalClientes = respuesta.total || 0;
-    const totalTodos = respuesta.totalTodos || respuesta.total || 0;
-    const totalInactivos = respuesta.totalInactivos || 0;
-    paginaActualClientes = respuesta.pagina || 1;
-
-    const actualizarContador = () => {
-        const contador = document.getElementById('totalClientesAviso');
-        if (!contador) return;
-        const hayBusqueda = busquedaClienteActual && busquedaClienteActual.trim() !== '';
-        const activos = totalTodos - totalInactivos;
-        contador.innerHTML = hayBusqueda
-            ? `${totalTodos.toLocaleString('es-ES')} Resultado${totalTodos !== 1 ? 's' : ''}`
-            : `${totalTodos.toLocaleString('es-ES')} Total | ${activos.toLocaleString('es-ES')} Activo${activos !== 1 ? 's' : ''} | ${totalInactivos.toLocaleString('es-ES')} Inactivo${totalInactivos !== 1 ? 's' : ''}`;
-    };
-
-    if (!clientes.length) {
-        if (esPrimeraVez || !adminTablaHeaderHTML) {
-            adminTablaHeaderHTML = getClientesTablaHeader(busquedaClienteActual, totalTodos, totalInactivos);
-            contenedor.innerHTML = adminTablaHeaderHTML +
-                '<tr><td colspan="9" class="sin-productos">No hay clientes disponibles.</td></tr></tbody></table></div>';
-        } else {
-            const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="sin-productos">No hay clientes disponibles.</td></tr>';
-        }
-        actualizarContador();
-        const pag = contenedor.querySelector('.admin-paginacion-wrapper');
-        if (pag) pag.remove();
-        return;
-    }
-
-    if (esPrimeraVez || !adminTablaHeaderHTML) {
-        adminTablaHeaderHTML = getClientesTablaHeader(busquedaClienteActual, totalTodos, totalInactivos);
-    }
-
-    const filasHtml = clientes.map(cli => {
-        const estadoHtml = cli.activo == 1
-            ? '<span class="admin-badge badge-activo">Activo</span>'
-            : '<span class="admin-badge badge-inactivo">Inactivo</span>';
-        return `
-            <tr class="${cli.activo == 0 ? 'fila-inactiva' : ''}"
-                data-nombre="${(cli.nombre || '').replace(/"/g, '&quot;')}"
-                data-apellidos="${(cli.apellidos || '').replace(/"/g, '&quot;')}"
-                data-direccion="${(cli.direccion || '').replace(/"/g, '&quot;')}"
-                data-fecha-alta="${cli.fecha_alta || ''}"
-                data-puntos="${cli.puntos || 0}" data-activo="${cli.activo}">
-                <td class="col-nombre">${cli.dni}</td>
-                <td>${cli.nombre || '—'}</td>
-                <td>${cli.apellidos || '—'}</td>
-                <td>${cli.fecha_alta || '—'}</td>
-                <td>${cli.productos_comprados || 0}</td>
-                <td>${cli.compras_realizadas || 0}</td>
-                <td style="font-weight:bold;color:#10b981;">${(cli.puntos || 0).toLocaleString('es-ES')}</td>
-                <td>${estadoHtml}</td>
-                <td class="col-acciones">
-                    <button class="btn-admin-accion btn-ver" onclick="verCliente(${cli.id})" title="Ver"><i class="fas fa-eye"></i></button>
-                    <button class="btn-admin-accion btn-editar" onclick="editarCliente(${cli.id})" title="Editar"><i class="fas fa-pen"></i></button>
-                    <button class="btn-admin-accion btn-eliminar" onclick="eliminarCliente(${cli.id})" title="Eliminar"><i class="fas fa-trash"></i></button>
-                </td>
-            </tr>`;
-    }).join('');
-
-    if (esPrimeraVez) {
-        contenedor.innerHTML = adminTablaHeaderHTML + filasHtml + '</tbody></table></div>' +
-            getPaginacionClientesHTML(totalPaginasClientes);
-        ajustarTodosInputsPaginacion();
-    } else {
-        const tbody = contenedor.querySelector('tbody');
-        if (tbody) tbody.innerHTML = filasHtml;
-        actualizarContador();
-        actualizarPaginacionDOM(contenedor, getPaginacionClientesHTML(totalPaginasClientes));
-    }
-}
-
-function buscarClientes() {
-    clearTimeout(debounceTimerClientes);
-    debounceTimerClientes = setTimeout(() => {
-        cargarClientesAdmin(document.getElementById('inputBuscarCliente')?.value, true);
-    }, 300);
-}
-
-function nuevoCliente() {
-    ['clienteHabitualDni', 'clienteHabitualNombre', 'clienteHabitualApellidos'].forEach(id => {
-        document.getElementById(id).value = '';
-    });
-    const now = new Date();
-    document.getElementById('clienteHabitualFecha').value =
-        new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    document.getElementById('btnGuardarClienteHabitual').onclick = guardarClienteHabitualAdmin;
-    document.getElementById('modalClienteHabitual').style.display = 'flex';
-    document.getElementById('clienteHabitualDni').focus();
-}
-
-async function guardarClienteHabitualAdmin() {
-    const dni = document.getElementById('clienteHabitualDni').value.trim();
-    const nombre = document.getElementById('clienteHabitualNombre').value.trim();
-    const apellidos = document.getElementById('clienteHabitualApellidos').value.trim();
-    const direccion = document.getElementById('clienteHabitualDireccion').value.trim();
-    if (!dni || !nombre || !apellidos) { alert('Por favor, complete todos los campos obligatorios.'); return; }
-
-    const now = new Date();
-    const fecha_alta = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    const btn = document.getElementById('btnGuardarClienteHabitual');
-    btn.disabled = true; btn.textContent = 'Guardando...';
-
-    try {
-        const fd = new FormData();
-        fd.append('dni', dni); fd.append('nombre', nombre);
-        fd.append('apellidos', apellidos); fd.append('direccion', direccion); fd.append('fecha_alta', fecha_alta);
-        const r = await fetch('api/clientes.php', { method: 'POST', body: fd });
-        const data = await r.json();
-        if (data.ok) { alert('Cliente guardado correctamente'); cerrarModal('modalClienteHabitual'); cargarClientesAdmin(); }
-        else alert(data.error || 'Error al guardar el cliente');
-    } catch (e) { alert('Error al comunicar con el servidor'); }
-    finally { btn.disabled = false; btn.textContent = 'Guardar'; }
-}
-
-async function eliminarCliente(id) {
-    if (!confirm('¿Estás seguro de que quieres eliminar este cliente?')) return;
-    try {
-        const r = await fetch('api/clientes.php?eliminar=' + id, { method: 'DELETE' });
-        const data = await r.json();
-        if (data.ok) { alert('Cliente eliminado correctamente'); cargarClientesAdmin(); }
-        else alert(data.error || 'Error al eliminar el cliente');
-    } catch (e) { alert('Error al comunicar con el servidor'); }
-}
-
-function verCliente(id) {
-    const fila = document.querySelector(`tr [onclick="verCliente(${id})"]`).closest('tr');
-    const celdas = fila.querySelectorAll('td');
-    const estado = celdas[7].querySelector('.admin-badge')?.textContent.trim() || 'Activo';
-    const dni = celdas[0].textContent.trim();
-    const nombre = celdas[1].textContent.trim();
-    const apellidos = celdas[2].textContent.trim();
-    const direccion = fila.dataset.direccion || '—';
-    const fechaAlta = celdas[3].textContent.trim();
-    const productosComprados = celdas[4].textContent.trim();
-    const comprasRealizadas = celdas[5].textContent.trim();
-    const puntos = fila.dataset.puntos || '0';
-
-    const modal = document.createElement('div');
-    modal.id = 'modalVerCliente';
-    modal.className = 'modal-overlay';
-    modal.style.display = 'flex';
-
-    const estadoHtml = estado === 'Activo'
-        ? '<span class="admin-badge badge-activo">Activo</span>'
-        : '<span class="admin-badge badge-inactivo">Inactivo</span>';
-
-    modal.innerHTML = `
-        <div class="modal-content modal-premium" style="max-width: 520px; padding: 0; overflow: hidden; width: 90%;">
-            <!-- Header Premium -->
-            <div class="modal-header-premium" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); padding: 20px 25px; text-align: left; position: relative;">
-                <h3 style="margin: 0; color: #fff; font-size: 1.3rem;">Detalles del Cliente</h3>
-                <p class="modal-subtitulo" style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Información completa del cliente</p>
-                <button class="modal-close-btn" onclick="cerrarModal('modalVerCliente');document.getElementById('modalVerCliente').remove();" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <div style="padding: 25px;">
-                <!-- Datos personales -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
-                    <div class="ver-prod-item-premium">
-                        <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">DNI</label>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <i class="fas fa-id-card" style="color: #3b82f6; width: 16px;"></i>
-                            <span style="font-size: 1.05rem; font-weight: 700; color: #1f2937;">${dni}</span>
-                        </div>
-                    </div>
-                    <div class="ver-prod-item-premium">
-                        <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Nombre</label>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <i class="fas fa-user" style="color: #3b82f6; width: 16px;"></i>
-                            <span style="font-size: 1.05rem; font-weight: 700; color: #1f2937;">${nombre}</span>
-                        </div>
-                    </div>
-                    <div class="ver-prod-item-premium">
-                        <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Apellidos</label>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <i class="fas fa-user-friends" style="color: #8b5cf6; width: 16px;"></i>
-                            <span style="font-size: 1rem; color: #4b5563;">${apellidos}</span>
-                        </div>
-                    </div>
-                    <div class="ver-prod-item-premium">
-                        <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Dirección</label>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <i class="fas fa-map-marker-alt" style="color: #f59e0b; width: 16px;"></i>
-                            <span style="font-size: 1rem; color: #4b5563;">${direccion}</span>
-                        </div>
-                    </div>
-                    <div class="ver-prod-item-premium">
-                        <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Fecha de Alta</label>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <i class="fas fa-calendar-alt" style="color: #10b981; width: 16px;"></i>
-                            <span style="font-size: 1rem; color: #4b5563;">${fechaAlta}</span>
-                        </div>
-                    </div>
-                    <div class="ver-prod-item-premium">
-                        <label style="display: block; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Estado</label>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <i class="fas fa-circle" style="color: ${estado === 'Activo' ? '#10b981' : '#6b7280'}; width: 16px; font-size: 0.7rem;"></i>
-                            ${estadoHtml}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sección de Estadísticas -->
-                <div style="background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 18px 20px; margin-bottom: 25px;">
-                    <h4 style="margin: 0 0 12px 0; font-size: 0.85rem; color: #374151; display: flex; align-items: center; gap: 8px;">
-                        <i class="fas fa-chart-simple" style="color: #6366f1;"></i> Estadísticas
-                    </h4>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
-                        <div style="text-align: center; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #e5e7eb;">
-                            <span style="display: block; font-size: 0.65rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Productos</span>
-                            <span style="display: block; font-size: 1.3rem; font-weight: 800; color: #3b82f6;">${productosComprados}</span>
-                        </div>
-                        <div style="text-align: center; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #e5e7eb;">
-                            <span style="display: block; font-size: 0.65rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Compras</span>
-                            <span style="display: block; font-size: 1.3rem; font-weight: 800; color: #10b981;">${comprasRealizadas}</span>
-                        </div>
-                        <div style="text-align: center; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #e5e7eb;">
-                            <span style="display: block; font-size: 0.65rem; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Puntos</span>
-                            <span style="display: block; font-size: 1.3rem; font-weight: 800; color: #f59e0b;">${parseInt(puntos).toLocaleString('es-ES')}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Botones -->
-                <div style="display: flex; justify-content: center; gap: 15px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
-                    <button class="btn-admin-accion btn-ver"
-                        onclick="cerrarModal('modalVerCliente');document.getElementById('modalVerCliente').remove();verComprasCliente('${dni}')"
-                        style="min-width: 180px; padding: 10px 20px; border-radius: 8px;">
-                        <i class="fas fa-shopping-bag"></i> Ver Compras
-                    </button>
-                    <button class="btn-modal-cancelar"
-                        onclick="cerrarModal('modalVerCliente');document.getElementById('modalVerCliente').remove();"
-                        style="min-width: 100px; padding: 10px 20px; border-radius: 8px; font-weight: 600;">
-                        Cerrar
-                    </button>
-                </div>
-            </div>
-        </div>`;
-
-    document.getElementById('modalVerCliente')?.remove();
-    document.body.appendChild(modal);
-}
-
-function editarCliente(id) {
-    const fila = document.querySelector(`tr [onclick="editarCliente(${id})"]`).closest('tr');
-    const celdas = fila.querySelectorAll('td');
-    const form = document.getElementById('modalEditarCliente');
-    form.dataset.originalDni = celdas[0].textContent.trim();
-    form.dataset.originalNombre = celdas[1].textContent.trim();
-    form.dataset.originalApellidos = celdas[2].textContent.trim();
-    form.dataset.originalDireccion = fila.dataset.direccion || '';
-    form.dataset.originalPuntos = fila.dataset.puntos || 0;
-
-    document.getElementById('editarClienteId').value = id;
-    document.getElementById('editarClienteDni').value = celdas[0].textContent.trim();
-    document.getElementById('editarClienteNombre').value = celdas[1].textContent.trim() === '—' ? '' : celdas[1].textContent.trim();
-    document.getElementById('editarClienteApellidos').value = celdas[2].textContent.trim() === '—' ? '' : celdas[2].textContent.trim();
-    document.getElementById('editarClienteDireccion').value = fila.dataset.direccion || '';
-    document.getElementById('editarClientePuntos').value = fila.dataset.puntos || 0;
-    form.style.display = 'flex';
-}
-
-async function guardarClienteEditado() {
-    const id = document.getElementById('editarClienteId').value;
-    const fila = document.querySelector(`tr [onclick="editarCliente(${id})"]`).closest('tr');
-    const fecha_alta = fila.querySelectorAll('td')[3].textContent.trim();
-    const form = document.getElementById('modalEditarCliente');
-
-    let dni = document.getElementById('editarClienteDni').value.trim() || form.dataset.originalDni;
-    let nombre = document.getElementById('editarClienteNombre').value.trim() || form.dataset.originalNombre;
-    let apellidos = document.getElementById('editarClienteApellidos').value.trim() || form.dataset.originalApellidos;
-    let direccion = document.getElementById('editarClienteDireccion').value.trim() || form.dataset.originalDireccion;
-    let puntos = document.getElementById('editarClientePuntos').value.trim();
-    if (puntos === '') puntos = form.dataset.originalPuntos;
-
-    if (!dni) { alert('El DNI es obligatorio'); return; }
-    if (parseInt(puntos) < 0) { alert('Los puntos no pueden ser negativos'); return; }
-
-    const btn = document.getElementById('btnGuardarClienteEditado');
-    btn.disabled = true; btn.textContent = 'Guardando...';
-    try {
-        const r = await fetch('api/clientes.php?actualizar=true', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `id=${encodeURIComponent(id)}&dni=${encodeURIComponent(dni)}&nombre=${encodeURIComponent(nombre)}&apellidos=${encodeURIComponent(apellidos)}&direccion=${encodeURIComponent(direccion)}&fecha_alta=${encodeURIComponent(fecha_alta)}&puntos=${encodeURIComponent(puntos)}`
-        });
-        const data = await r.json();
-        if (data.ok) { alert('Cliente actualizado correctamente'); cerrarModal('modalEditarCliente'); cargarClientesAdmin(); }
-        else alert(data.error || 'Error al actualizar el cliente');
-    } catch (e) { alert('Error al comunicar con el servidor'); }
-    finally { btn.disabled = false; btn.textContent = 'Guardar'; }
-}
-
-// ── Carrusel de compras ───────────────────────────────────────────────────────
-
-// ── Carrusel de compras ───────────────────────────────────────────────────────
-
-// ── Variables de estado para el modal de compras ─────────────────────
-let _comprasModalDNI = '';
-let _comprasData = [];
-let _devolucionesData = [];
-let _tabActivo = 'compras'; // 'compras' | 'devoluciones'
-
-function verComprasCliente(dni) {
-    document.getElementById('modalVerCompras')?.remove();
-
-    _comprasModalDNI = dni;
-    _comprasData = [];
-    _devolucionesData = [];
-    _tabActivo = 'compras';
-
-    const overlay = document.createElement('div');
-    overlay.id = 'modalVerCompras';
-    overlay.className = 'modal-overlay compras-modal-overlay';
-    overlay.innerHTML = `
-        <div class="compras-modal-shell">
-            <div class="compras-modal-header">
-                <div class="compras-modal-header-left">
-                    <i class="fas fa-receipt"></i>
-                    <div>
-                        <span class="compras-modal-title">Historial del Cliente</span>
-                        <span class="compras-modal-dni">${dni}</span>
-                    </div>
-                </div>
-                <button class="compras-modal-close" onclick="document.getElementById('modalVerCompras').remove()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="compras-modal-tabs">
-                <button class="compras-tab-btn active" data-tab="compras" onclick="_cambiarTab('compras')">
-                    <i class="fas fa-shopping-bag"></i> Compras
-                </button>
-                <button class="compras-tab-btn" data-tab="devoluciones" onclick="_cambiarTab('devoluciones')">
-                    <i class="fas fa-undo"></i> Devoluciones
-                </button>
-            </div>
-            <div class="compras-modal-body" id="comprasModalBody">
-                <div class="compras-loading">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>Cargando compras...</span>
-                </div>
-            </div>
-        </div>`;
-    document.body.appendChild(overlay);
-
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-
-    // Cargar compras primero (pestaña activa por defecto)
-    _cargarCompras(dni);
-}
-
-function _cargarCompras(dni) {
-    const body = document.getElementById('comprasModalBody');
-    if (!body) return;
-    body.innerHTML = `
-        <div class="compras-loading">
-            <i class="fas fa-spinner fa-spin"></i>
-            <span>Cargando compras...</span>
-        </div>`;
-
-    fetch(`api/clientes.php?compras=1&dni=${encodeURIComponent(dni)}`)
-        .then(r => r.json())
-        .then(ventas => {
-            _comprasData = ventas;
-            if (_tabActivo === 'compras') _renderizarComprasOVentas('compras');
-        })
-        .catch(() => {
-            if (_tabActivo === 'compras') {
-                body.innerHTML = `
-                    <div class="compras-empty compras-error">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <p>No se pudieron cargar las compras.</p>
-                    </div>`;
-            }
-        });
-}
-
-function _cargarDevoluciones(dni) {
-    const body = document.getElementById('comprasModalBody');
-    if (!body) return;
-    body.innerHTML = `
-        <div class="compras-loading">
-            <i class="fas fa-spinner fa-spin"></i>
-            <span>Cargando devoluciones...</span>
-        </div>`;
-
-    fetch(`api/devoluciones.php?cliente_dni=${encodeURIComponent(dni)}`)
-        .then(r => r.json())
-        .then(devoluciones => {
-            _devolucionesData = Array.isArray(devoluciones) ? devoluciones : [];
-            if (_tabActivo === 'devoluciones') _renderizarComprasOVentas('devoluciones');
-        })
-        .catch(() => {
-            if (_tabActivo === 'devoluciones') {
-                body.innerHTML = `
-                    <div class="compras-empty compras-error">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <p>No se pudieron cargar las devoluciones.</p>
-                    </div>`;
-            }
-        });
-}
-
-function _cambiarTab(tab) {
-    if (tab === _tabActivo) return;
-    _tabActivo = tab;
-
-    // Actualizar clases de las pestañas
-    document.querySelectorAll('.compras-tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === tab);
-    });
-
-    const body = document.getElementById('comprasModalBody');
-    if (!body) return;
-
-    if (tab === 'compras') {
-        if (_comprasData.length > 0) {
-            _renderizarComprasOVentas('compras');
-        } else {
-            _cargarCompras(_comprasModalDNI);
-        }
-    } else {
-        if (_devolucionesData.length > 0) {
-            _renderizarComprasOVentas('devoluciones');
-        } else {
-            _cargarDevoluciones(_comprasModalDNI);
-        }
-    }
-}
-
-function _renderizarComprasOVentas(tipo) {
-    const body = document.getElementById('comprasModalBody');
-    if (!body) return;
-
-    const datos = tipo === 'compras' ? _comprasData : _devolucionesData;
-
-    if (!datos || !datos.length) {
-        const icono = tipo === 'compras' ? 'fa-shopping-bag' : 'fa-undo';
-        const texto = tipo === 'compras' ? 'compras' : 'devoluciones';
-        body.innerHTML = `
-            <div class="compras-empty">
-                <i class="fas ${icono}"></i>
-                <p>Este cliente no tiene ${texto} registradas.</p>
-            </div>`;
-        return;
-    }
-
-    const metodoIconos = {
-        efectivo: { icon: 'fa-money-bill-wave', cls: 'metodo-efectivo', label: 'Efectivo' },
-        tarjeta: { icon: 'fa-credit-card', cls: 'metodo-tarjeta', label: 'Tarjeta' },
-        bizum: { icon: 'fa-mobile-alt', cls: 'metodo-bizum', label: 'Bizum' }
-    };
-
-    const esDevolucion = tipo === 'devoluciones';
-
-    const slidesHtml = datos.map((v, i) => {
-        const fecha = new Date(v.fecha).toLocaleDateString('es-ES',
-            { day: '2-digit', month: 'short', year: 'numeric' });
-        const hora = new Date(v.fecha).toLocaleTimeString('es-ES',
-            { hour: '2-digit', minute: '2-digit' });
-
-        let ticket;
-        if (esDevolucion) {
-            const serie = v.ticket_serie || 'T';
-            const num = v.ticket_numero || v.idVenta;
-            ticket = `${serie}${String(num).padStart(5, '0')}`;
-        } else {
-            ticket = `${v.serie || 'T'}${String(v.numero || v.id).padStart(5, '0')}`;
-        }
-
-        const metodo = metodoIconos[v.metodoPago] || metodoIconos.efectivo;
-        const lineas = (v.lineas || []);
-        const totalUnidades = lineas.reduce((s, l) => s + l.cantidad, 0);
-
-        const lineasHtml = lineas.map(l => `
-            <tr>
-                <td class="compras-td-prod">${l.producto_nombre || 'Producto'}</td>
-                <td class="compras-td-num">${l.cantidad}</td>
-                <td class="compras-td-num">${parseFloat(l.precioUnitarioConIva).toFixed(2).replace('.', ',')} €</td>
-                <td class="compras-td-num compras-subtotal">${parseFloat(l.subtotalConIva).toFixed(2).replace('.', ',')} €</td>
-            </tr>`).join('');
-
-        const badgeDevolucion = esDevolucion
-            ? `<div class="compras-metodo-badge" style="background:#fef2f2;color:#991b1b;">
-                <i class="fas fa-undo"></i>
-                <span>Devolución</span>
-               </div>`
-            : '';
-
-        return `
-            <div class="compras-slide" data-index="${i}" style="display:${i === 0 ? 'flex' : 'none'}">
-                <div class="compras-ticket-header">
-                    <div class="compras-ticket-num">
-                        <span class="compras-ticket-label">${esDevolucion ? 'Ticket Original' : 'Ticket'}</span>
-                        <span class="compras-ticket-value">#${ticket}</span>
-                    </div>
-                    <div class="compras-ticket-meta">
-                        <div class="compras-fecha">
-                            <i class="fas fa-calendar-alt"></i>
-                            <span>${fecha}</span>
-                        </div>
-                        <div class="compras-hora">
-                            <i class="fas fa-clock"></i>
-                            <span>${hora}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="compras-info-row">
-                    ${badgeDevolucion}
-                    <div class="compras-metodo-badge ${metodo.cls}">
-                        <i class="fas ${metodo.icon}"></i>
-                        <span>${metodo.label}</span>
-                    </div>
-                    <div class="compras-cajero">
-                        <i class="fas fa-user-circle"></i>
-                        <span>${v.usuario_nombre || 'Cajero'}</span>
-                    </div>
-                    <div class="compras-unidades">
-                        <i class="fas fa-box"></i>
-                        <span>${totalUnidades} ud${totalUnidades !== 1 ? 's' : ''}.</span>
-                    </div>
-                </div>
-
-                <div class="compras-tabla-wrapper">
-                    <table class="compras-tabla">
-                        <thead>
-                            <tr>
-                                <th class="compras-th-prod">Producto</th>
-                                <th class="compras-th-num">Cant.</th>
-                                <th class="compras-th-num">Precio</th>
-                                <th class="compras-th-num">Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody>${lineasHtml}</tbody>
-                    </table>
-                </div>
-
-                <div class="compras-total-row" style="${esDevolucion ? 'background:#fef2f2;border-color:#fecaca;' : ''}">
-                    <span class="compras-total-label" style="${esDevolucion ? 'color:#991b1b;' : ''}">${esDevolucion ? 'Total Devuelto' : 'Total'}</span>
-                    <span class="compras-total-valor" style="${esDevolucion ? 'color:#dc2626;' : ''}">${parseFloat(v.total).toFixed(2).replace('.', ',')} €</span>
-                </div>
-            </div>`;
-    }).join('');
-
-    const MAX_DOTS = 8;
-    const dotsHtml = datos.length > 1 && datos.length <= MAX_DOTS
-        ? `<div class="compras-dots">${datos.map((_, i) =>
-            `<button class="compras-dot${i === 0 ? ' active' : ''}" onclick="goToSaleSlide(${i})" title="${tipo === 'compras' ? 'Compra' : 'Devolución'} ${i + 1}"></button>`
-        ).join('')}</div>`
-        : '';
-
-    body.innerHTML = `
-        <div class="compras-slides-container">${slidesHtml}</div>
-        <div class="compras-nav">
-            <div class="compras-nav-left">
-                <button class="compras-nav-btn" onclick="firstSaleSlide()" title="Primera"><i class="fas fa-angle-double-left"></i></button>
-                <button class="compras-nav-btn" onclick="prevSaleSlide()" title="Anterior"><i class="fas fa-chevron-left"></i></button>
-            </div>
-            <div class="compras-nav-center">
-                ${dotsHtml}
-                <span class="compras-counter" id="compraActualTitulo">1 / ${datos.length}</span>
-            </div>
-            <div class="compras-nav-right">
-                <button class="compras-nav-btn" onclick="nextSaleSlide()" title="Siguiente"><i class="fas fa-chevron-right"></i></button>
-                <button class="compras-nav-btn" onclick="lastSaleSlide()" title="Última"><i class="fas fa-angle-double-right"></i></button>
-            </div>
-        </div>`;
-
-    const modalEl = document.getElementById('modalVerCompras');
-    if (modalEl) {
-        modalEl.dataset.totalSlides = datos.length;
-    }
-    currentSaleSlide = 0;
-    _updateNavButtons();
-}
-
-function _updateNavButtons() {
-    const modal = document.getElementById('modalVerCompras');
-    if (!modal) return;
-    const total = parseInt(modal.dataset.totalSlides) || 1;
-    const dots = modal.querySelectorAll('.compras-dot');
-    dots.forEach((d, i) => d.classList.toggle('active', i === currentSaleSlide));
-    const counter = document.getElementById('compraActualTitulo');
-    if (counter) counter.textContent = `${currentSaleSlide + 1} / ${total}`;
-}
-
-function changeSaleSlide(index) {
-    const modal = document.getElementById('modalVerCompras');
-    if (!modal) return;
-    const slides = modal.querySelectorAll('.compras-slide');
-    slides.forEach(s => s.style.display = 'none');
-    if (slides[index]) slides[index].style.display = 'flex';
-    currentSaleSlide = index;
-    _updateNavButtons();
-}
-
-function goToSaleSlide(i) { changeSaleSlide(i); }
-function nextSaleSlide() { const m = document.getElementById('modalVerCompras'); if (m) changeSaleSlide((currentSaleSlide + 1) % parseInt(m.dataset.totalSlides)); }
-function prevSaleSlide() { const m = document.getElementById('modalVerCompras'); if (m) changeSaleSlide((currentSaleSlide - 1 + parseInt(m.dataset.totalSlides)) % parseInt(m.dataset.totalSlides)); }
-function firstSaleSlide() { changeSaleSlide(0); }
-function lastSaleSlide() { const m = document.getElementById('modalVerCompras'); if (m) changeSaleSlide(parseInt(m.dataset.totalSlides) - 1); }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// PROVEEDORES
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function getProveedoresTablaHeader(textoBusqueda = '') {
-    return `
-        <div class="admin-tabla-header">
-            <div style="display:flex;gap:10px;width:100%;align-items:center;flex-wrap:wrap;">
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <label for="inputBuscarProveedor" class="admin-label">Buscar:</label>
-                    <input type="text" id="inputBuscarProveedor" class="input-buscarProducto"
-                        placeholder="Escribe el nombre del proveedor..." oninput="buscarProveedores()"
-                        autocomplete="off" value="${textoBusqueda.replace(/"/g, '&quot;')}" style="width:400px;">
-                </div>
-                <button class="btn-admin-accion btn-nuevo" onclick="nuevoProveedor()">
-                    <i class="fas fa-plus"></i> Nuevo Proveedor
-                </button>
-            </div>
-        </div>
-        <div class="admin-tabla-wrapper">
-            <table class="admin-tabla">
-                <thead><tr>
-                    <th>#</th><th>Nombre</th><th>Contacto</th><th>Email</th>
-                    <th>Dirección</th><th>Estado</th><th>Acciones</th>
-                </tr></thead>
-                <tbody>`;
-}
-
-function cargarProveedoresAdmin(textoBusqueda = '') {
-    const contenedor = document.getElementById('adminContenido');
-    const tablaExistente = contenedor.querySelector('.admin-tabla');
-    if (seccionActual !== 'proveedores') { adminTablaHeaderHTML = ''; seccionActual = 'proveedores'; }
-    const esPrimeraVez = !tablaExistente || !adminTablaHeaderHTML;
-
-    const params = new URLSearchParams();
-    if (textoBusqueda) params.append('buscar', textoBusqueda);
-
-    return fetch('api/proveedores.php?' + params)
-        .then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Error'); }); return r.json(); })
-        .then(data => renderProveedoresAdmin(data, esPrimeraVez))
-        .catch(err => { console.error('Error cargando proveedores:', err); contenedor.innerHTML = '<p class="sin-productos">' + err.message + '</p>'; });
-}
-
-function renderProveedoresAdmin(proveedores, esPrimeraVez = true) {
-    const contenedor = document.getElementById('adminContenido');
-    if (!proveedores || !proveedores.length) {
-        if (esPrimeraVez || !adminTablaHeaderHTML) {
-            adminTablaHeaderHTML = getProveedoresTablaHeader();
-            contenedor.innerHTML = adminTablaHeaderHTML + '<tr><td colspan="7" class="sin-productos">No hay proveedores disponibles.</td></tr></tbody></table></div>';
-        } else {
-            const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="sin-productos">No hay proveedores disponibles.</td></tr>';
-        }
-        return;
-    }
-
-    if (esPrimeraVez || !adminTablaHeaderHTML) adminTablaHeaderHTML = getProveedoresTablaHeader();
-
-    const generarFilas = () => proveedores.map(prov => {
-        const estadoHtml = prov.activo === 1
-            ? '<span class="admin-badge badge-activo">Activo</span>'
-            : '<span class="admin-badge badge-inactivo">Inactivo</span>';
-        return `
-            <tr class="${prov.activo == 0 ? 'fila-inactiva' : ''}"
-                data-contacto="${(prov.contacto || '').replace(/"/g, '&quot;')}"
-                data-email="${(prov.email || '').replace(/"/g, '&quot;')}"
-                data-direccion="${(prov.direccion || '').replace(/"/g, '&quot;')}"
-                data-activo="${prov.activo}">
-                <td class="col-id">${prov.id}</td>
-                <td class="col-nombre">${prov.nombre}</td>
-                <td>${prov.contacto || '—'}</td>
-                <td>${prov.email || '—'}</td>
-                <td>${prov.direccion || '—'}</td>
-                <td class="col-estado">${estadoHtml}</td>
-                <td class="col-acciones">
-                    <button class="btn-admin-accion btn-ver" onclick="verProveedor(${prov.id})" title="Ver"><i class="fas fa-eye"></i></button>
-                    <button class="btn-admin-accion btn-editar" onclick="editarProveedor(${prov.id})" title="Editar"><i class="fas fa-pen"></i></button>
-                    <button class="btn-admin-accion btn-eliminar" onclick="confirmarEliminarProveedor(${prov.id},'${prov.nombre.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button>
-                </td>
-            </tr>`;
-    }).join('');
-
-    ejecutarCuandoIdle(generarFilas, (filasHtml) => {
-        const html = adminTablaHeaderHTML + filasHtml + '</tbody></table></div>';
-        if (esPrimeraVez) {
-            contenedor.innerHTML = html;
-        } else {
-            const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = filasHtml;
-            else contenedor.innerHTML = html;
-        }
-    });
-}
-
-function buscarProveedores() {
-    clearTimeout(debounceTimerProveedores);
-    debounceTimerProveedores = setTimeout(() => {
-        const texto = document.getElementById('inputBuscarProveedor')?.value || '';
-        const params = new URLSearchParams();
-        if (texto) params.append('buscar', texto);
-        fetch('api/proveedores.php?' + params)
-            .then(r => r.json())
-            .then(data => renderProveedoresAdmin(data, false))
-            .catch(err => console.error('Error buscando proveedores:', err));
-    }, 300);
-}
-
-function verProveedor(id) {
-    proveedorActualId = id;
-    const fila = document.querySelector(`tr [onclick="verProveedor(${id})"]`).closest('tr');
-    const celdas = fila.querySelectorAll('td');
-    document.getElementById('verProveedorNombre').textContent = celdas[1].textContent.trim();
-    document.getElementById('verProveedorContacto').textContent = fila.dataset.contacto || '—';
-    document.getElementById('verProveedorEmail').textContent = fila.dataset.email || '—';
-    document.getElementById('verProveedorDireccion').textContent = fila.dataset.direccion || '—';
-    const estado = celdas[5].querySelector('.admin-badge')?.textContent.trim() ?? '—';
-    document.getElementById('verProveedorEstado').innerHTML = estado === 'Activo'
-        ? '<span class="admin-badge badge-activo">Activo</span>'
-        : '<span class="admin-badge badge-inactivo">Inactivo</span>';
-    document.getElementById('modalVerProveedor').style.display = 'flex';
-    cargarProductosProveedor(id);
-}
-
-function nuevoProveedor() {
-    ['editProveedorId', 'editProveedorNombre', 'editProveedorContacto', 'editProveedorEmail', 'editProveedorDireccion'].forEach(id => {
-        document.getElementById(id).value = '';
-    });
-    document.getElementById('editProveedorEstado').value = '1';
-    document.getElementById('editProveedorTitulo').textContent = 'Nuevo Proveedor';
-    abrirModal('modalEditarProveedor');
-}
-
-function editarProveedor(id) {
-    const fila = document.querySelector(`tr [onclick="editarProveedor(${id})"]`).closest('tr');
-    const celdas = fila.querySelectorAll('td');
-    document.getElementById('editProveedorId').value = id;
-    document.getElementById('editProveedorNombre').value = celdas[1].textContent.trim();
-    document.getElementById('editProveedorContacto').value = fila.dataset.contacto || '';
-    document.getElementById('editProveedorEmail').value = fila.dataset.email || '';
-    document.getElementById('editProveedorDireccion').value = fila.dataset.direccion || '';
-    document.getElementById('editProveedorEstado').value = fila.dataset.activo;
-    document.getElementById('editProveedorTitulo').textContent = 'Editar Proveedor';
-    abrirModal('modalEditarProveedor');
-}
-
-function guardarCambiosProveedor() {
-    const id = document.getElementById('editProveedorId').value;
-    const nombre = document.getElementById('editProveedorNombre').value.trim();
-    if (!nombre) { alert('El nombre del proveedor es obligatorio.'); return; }
-
-    const fd = new FormData();
-    fd.append('id', id);
-    fd.append('nombre', nombre);
-    fd.append('contacto', document.getElementById('editProveedorContacto').value.trim());
-    fd.append('email', document.getElementById('editProveedorEmail').value.trim());
-    fd.append('direccion', document.getElementById('editProveedorDireccion').value.trim());
-    fd.append('activo', document.getElementById('editProveedorEstado').value);
-
-    fetch('api/proveedores.php', { method: 'POST', body: fd })
-        .then(r => r.json())
-        .then(data => {
-            if (data.ok) { cerrarModal('modalEditarProveedor'); cargarProveedoresAdmin(); }
-            else alert('Error al guardar: ' + (data.error ?? ''));
-        })
-        .catch(err => console.error('Error guardando proveedor:', err));
-}
-
-function confirmarEliminarProveedor(id, nombre) {
-    if (confirm(`¿Seguro que quieres eliminar "${nombre}"?`)) eliminarProveedor(id);
-}
-
-function eliminarProveedor(id) {
-    fetch(`api/proveedores.php?eliminar=${id}`, { method: 'DELETE' })
-        .then(r => r.json())
-        .then(data => { if (data.ok) cargarProveedoresAdmin(); else alert('Error al eliminar el proveedor.'); })
-        .catch(err => console.error('Error eliminando proveedor:', err));
-}
-
-// ── Productos por proveedor ───────────────────────────────────────────────────
-
-function cargarProductosProveedor(idProveedor) {
-    const tbody = document.getElementById('listaProductosProveedor');
-    const msg = document.getElementById('msgSinProductosProveedor');
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando productos...</td></tr>';
-    msg.style.display = 'none';
-
-    fetch(`api/proveedores.php?productos=${idProveedor}`)
-        .then(r => r.json())
-        .then(productos => {
-            tbody.innerHTML = '';
-            if (!productos || !productos.length) { msg.style.display = 'block'; return; }
-            msg.style.display = 'none';
-            productos.forEach(prod => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="padding:8px;min-width:150px;">${prod.nombre}</td>
-                    <td style="padding:8px;text-align:center;width:150px;">${parseFloat((prod.precio * 0.70) || 0).toFixed(2)} €</td>
-                    <td style="padding:8px;text-align:center;width:130px;">${parseFloat(prod.recargoEquivalencia).toFixed(2)}%</td>
-                    <td style="padding:8px;text-align:center;width:100px;">
-                        <span style="font-size:.75rem;color:#6b7280;">C: ${parseFloat(prod.precio * 0.70 * (1 + parseFloat(prod.recargoEquivalencia || 0) / 100)).toFixed(2)} €</span><br>
-                        <span style="font-size:.75rem;color:#22c55e;">V: ${parseFloat(prod.precio || 0).toFixed(2)} €</span>
-                    </td>
-                    <td style="padding:8px;text-align:center;width:100px;">
-                        <button class="btn-admin-accion btn-editar" style="padding:4px;font-size:.8rem;"
-                            onclick="editarRecargoProveedor(${prod.idAsociacion},${prod.idProducto},'${prod.nombre.replace(/'/g, "\\'")}',${prod.recargoEquivalencia},${prod.precioProveedor || 0})">
-                            <i class="fas fa-pen"></i></button>
-                        <button class="btn-admin-accion btn-eliminar" style="padding:4px;font-size:.8rem;"
-                            onclick="confirmarEliminarProductoProveedor(${prod.idAsociacion},'${prod.nombre.replace(/'/g, "\\'")}')">
-                            <i class="fas fa-trash"></i></button>
-                    </td>`;
-                tbody.appendChild(tr);
-            });
-        })
-        .catch(err => { tbody.innerHTML = '<tr><td colspan="5" style="color:red;">Error al cargar los productos.</td></tr>'; });
-}
-
-function agregarProductoProveedor() {
-    document.getElementById('asociarProductoTitulo').textContent = 'Añadir Producto';
-    document.getElementById('asociarProductoSubtitulo').textContent = 'Selecciona un producto disponible y fija su recargo';
-    document.getElementById('asociarProvIdAsociacion').value = '';
-    document.getElementById('asociarProvIdProveedor').value = proveedorActualId;
-    document.getElementById('asociarProvPrecio').value = '0.00';
-    document.getElementById('asociarProvRecargo').value = '0.00';
-    document.getElementById('contenedorSelectProducto').style.display = 'flex';
-    document.getElementById('contenedorTextoProducto').style.display = 'none';
-
-    fetch(`api/proveedores.php?productosDisponibles=${proveedorActualId}`)
-        .then(r => r.json())
-        .then(productos => {
-            const sel = document.getElementById('asociarProvIdProducto');
-            sel.innerHTML = '';
-            if (!productos || !productos.length) { sel.innerHTML = '<option value="">Sin productos disponibles</option>'; alert('No hay productos disponibles para asociar.'); return; }
-            productos.forEach(p => { const o = document.createElement('option'); o.value = p.id; o.textContent = p.nombre; sel.appendChild(o); });
-            cerrarModal('modalVerProveedor');
-            abrirModal('modalAsociarProducto');
-        });
-}
-
-function editarRecargoProveedor(idAsociacion, idProducto, nombreProducto, recargo, precioProv) {
-    document.getElementById('asociarProductoTitulo').textContent = 'Editar Producto de Proveedor';
-    document.getElementById('asociarProductoSubtitulo').textContent = 'Modifica el precio y recargo de equivalencia';
-    document.getElementById('asociarProvIdAsociacion').value = idAsociacion;
-    document.getElementById('asociarProvIdProveedor').value = proveedorActualId;
-    document.getElementById('asociarProvPrecio').value = precioProv;
-    document.getElementById('asociarProvRecargo').value = recargo;
-    document.getElementById('contenedorSelectProducto').style.display = 'none';
-    document.getElementById('contenedorTextoProducto').style.display = 'flex';
-    document.getElementById('asociarProvNombreProducto').value = nombreProducto;
-    cerrarModal('modalVerProveedor');
-    abrirModal('modalAsociarProducto');
-}
-
-function guardarCambiosAsociarProducto() {
-    const idAsociacion = document.getElementById('asociarProvIdAsociacion').value;
-    const idProveedor = document.getElementById('asociarProvIdProveedor').value;
-    const idProducto = document.getElementById('asociarProvIdProducto').value;
-    const precio = document.getElementById('asociarProvPrecio').value;
-    const recargo = document.getElementById('asociarProvRecargo').value;
-
-    const fd = new FormData();
-    fd.append('precioProveedor', precio);
-    fd.append('recargoEquivalencia', recargo);
-
-    if (idAsociacion) {
-        fd.append('accion', 'actualizarRecargo');
-        fd.append('idAsociacion', idAsociacion);
-    } else {
-        fd.append('accion', 'agregarProducto');
-        fd.append('idProveedor', idProveedor);
-        fd.append('idProducto', idProducto);
-    }
-
-    fetch('api/proveedores.php', { method: 'POST', body: fd })
-        .then(r => r.json())
-        .then(data => {
-            if (data.ok) { cerrarModal('modalAsociarProducto'); abrirModal('modalVerProveedor'); cargarProductosProveedor(idProveedor); }
-            else alert('Error: ' + (data.error ?? 'Error desconocido'));
-        });
-}
-
-function confirmarEliminarProductoProveedor(idAsociacion, nombreProducto) {
-    if (confirm(`¿Seguro que quieres dejar de suministrar "${nombreProducto}" a través de este proveedor?`)) {
-        fetch(`api/proveedores.php?eliminarAsociacion=${idAsociacion}`, { method: 'DELETE' })
-            .then(r => r.json())
-            .then(data => { if (data.ok) cargarProductosProveedor(proveedorActualId); else alert('Error al eliminar: ' + (data.error ?? '')); });
-    }
-}
+// ── FIN SECCIÓN USUARIOS ─────────────────────────────────────────────────────

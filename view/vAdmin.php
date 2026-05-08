@@ -4,23 +4,23 @@
     Se cargan todos los módulos necesarios para la gestión del TPV.
     admin-main.js actúa como el orquestador principal.
 -->
+<script src="webroot/js/admin-state.js"></script>
+<script src="webroot/js/admin-utils.js?v=2"></script>
 <script src="webroot/js/admin-backups.js"></script>
-<script src="webroot/js/admin-caja.js?v=4"></script>
-<script src="webroot/js/admin-clientes.js"></script>
+<script src="webroot/js/admin-caja.js?v=6"></script>
+<script src="webroot/js/admin-clientes.js?v=2"></script>
 <script src="webroot/js/admin-configuracion.js"></script>
 <script src="webroot/js/admin-informes.js"></script>
 <script src="webroot/js/admin-logs.js"></script>
 <script src="webroot/js/admin-pagination.js"></script>
 <script src="webroot/js/admin-productos.js"></script>
-<script src="webroot/js/admin-state.js"></script>
-<script src="webroot/js/admin-tarifas.js"></script>
-<script src="webroot/js/admin-usuarios.js"></script>
-<script src="webroot/js/admin-utils.js"></script>
+<script src="webroot/js/admin-tarifas.js?v=5"></script>
+<script src="webroot/js/admin-usuarios.js?v=2"></script>
 <script src="webroot/js/admin-verifactu.js?v=1"></script>
 <script src="webroot/js/lib/qrcode.min.js"></script>
 <script src="webroot/js/shared-impresion.js"></script>
 <script src="webroot/js/admin-ventas.js?v=4"></script>
-<script src="webroot/js/admin-main.js"></script>
+<script src="webroot/js/admin-main.js?v=2"></script>
 
 <!-- Librerías Externas: Gráficos (Chart.js), PDF (jsPDF), Alertas (SweetAlert2) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -49,112 +49,104 @@
 </script>
 <section id="cajero">
     <!-- Panel izquierdo: Navegación de Admin -->
-    <div class="cajero-productos admin-sidebar" style="max-width: 260px; border-right: 1px solid #e5e7eb;">
-        <div id="formBuscarProducto" class="admin-sidebar-header" style="padding: 20px;">
-            <h2 class="admin-view-title">Administración</h2>
-        </div>
-        <div class="cajero-categorias admin-nav-buttons" style="flex-direction: column; gap: 10px; padding: 20px;">
-            <button class="cat-btn activa" data-seccion="dashboard" style="width: 100%; text-align: left;">
-                <i class="fas fa-chart-line" style="margin-right: 10px;"></i> Dashboard
-            </button>
-            <button class="cat-btn" data-seccion="caja-sesiones" style="width: 100%; text-align: left;">
-                <i class="fas fa-cash-register" style="margin-right: 10px;"></i> Sesiones de Caja
-            </button>
-            <button class="cat-btn" data-seccion="productos" style="width: 100%; text-align: left;">
-                <i class="fas fa-box" style="margin-right: 10px;"></i> Productos
-            </button>
-            <button class="cat-btn" data-seccion="categorias" style="width: 100%; text-align: left;">
-                <i class="fas fa-tags" style="margin-right: 10px;"></i> Categorías
-            </button>
-            <button class="cat-btn" data-seccion="usuarios" style="width: 100%; text-align: left;">
-                <i class="fas fa-users" style="margin-right: 10px;"></i> Usuarios
-            </button>
-            <button class="cat-btn" data-seccion="ventas" style="width: 100%; text-align: left;">
-                <i class="fas fa-file-invoice-dollar" style="margin-right: 10px;"></i> Ventas
-            </button>
-            <button class="cat-btn" data-seccion="retiros" style="width: 100%; text-align: left;">
-                <i class="fas fa-money-bill-wave" style="margin-right: 10px;"></i> Retiros de Caja
-            </button>
-            <button class="cat-btn" data-seccion="devoluciones" style="width: 100%; text-align: left;">
-                <i class="fas fa-undo" style="margin-right: 10px;"></i> Devoluciones
-            </button>
-            <button class="cat-btn" data-seccion="proveedores" style="width: 100%; text-align: left;">
-                <i class="fas fa-truck" style="margin-right: 10px;"></i> Proveedores
-            </button>
-            <button class="cat-btn" data-seccion="clientes" style="width: 100%; text-align: left;">
-                <i class="fas fa-user-friends" style="margin-right: 10px;"></i> Clientes
-            </button>
-            <button class="cat-btn" id="btnTarifas" style="width: 100%; text-align: left;">
-                <i class="fas fa-tags" style="margin-right: 10px;"></i> Tarifas Generales ▾
-            </button>
-            <div id="submenuTarifas" style="display: none; padding-left: 20px;">
-                <button class="cat-btn submenu-btn" data-seccion="tarifa-iva"
-                    style="width: 100%; text-align: left; font-size: 13px;">
-                    <i class="fas fa-percent" style="margin-right: 10px;"></i> Cambiar IVA
-                </button>
-                <button class="cat-btn submenu-btn" data-seccion="tarifa-ajuste"
-                    style="width: 100%; text-align: left; font-size: 13px;">
-                    <i class="fas fa-sliders-h" style="margin-right: 10px;"></i> Ajuste de Precios
-                </button>
-                <button class="cat-btn submenu-btn" data-seccion="tarifa-prefijadas"
-                    style="width: 100%; text-align: left; font-size: 13px;">
-                    <i class="fas fa-list-ul"></i> Tarifas Prefijadas
-                </button>
+    <div class="admin-sidebar-premium">
+        <div class="admin-sidebar-header-premium">
+            <div class="admin-logo-box">
+                <i class="fas fa-shield-alt"></i>
             </div>
-            <button class="cat-btn" data-seccion="backups" style="width: 100%; text-align: left;">
-                <i class="fas fa-database" style="margin-right: 10px;"></i> Copia de Seguridad
+            <div>
+                <h2 class="admin-sidebar-title">Admin Panel</h2>
+                <p class="admin-sidebar-status">Sistema Activo</p>
+            </div>
+        </div>
+        
+        <div class="admin-nav-scroll">
+            <div class="nav-section-label">Principal</div>
+            <button class="nav-item-premium activa" data-seccion="dashboard">
+                <i class="fas fa-chart-line"></i> <span>Dashboard</span>
             </button>
-            <button class="cat-btn" id="btnInformes" style="width: 100%; text-align: left;">
-                <i class="fas fa-chart-bar" style="margin-right: 10px;"></i> Informes ▾
+            <button class="nav-item-premium" data-seccion="caja-sesiones">
+                <i class="fas fa-cash-register"></i> <span>Sesiones de Caja</span>
             </button>
-            <div id="submenuInformes" style="display: none; padding-left: 20px;">
-                <button class="cat-btn submenu-btn" data-seccion="informe-diario"
-                    style="width: 100%; text-align: left; font-size: 13px;">
-                    <i class="fas fa-calendar-day" style="margin-right: 10px;"></i> Informe Diario
+            
+            <div class="nav-section-label">Gestión</div>
+            <button class="nav-item-premium" data-seccion="productos">
+                <i class="fas fa-box"></i> <span>Productos</span>
+            </button>
+            <button class="nav-item-premium" data-seccion="categorias">
+                <i class="fas fa-tags"></i> <span>Categorías</span>
+            </button>
+            <button class="nav-item-premium" data-seccion="usuarios">
+                <i class="fas fa-users"></i> <span>Usuarios</span>
+            </button>
+            <button class="nav-item-premium" data-seccion="clientes">
+                <i class="fas fa-user-friends"></i> <span>Clientes</span>
+            </button>
+            <button class="nav-item-premium" data-seccion="proveedores">
+                <i class="fas fa-truck"></i> <span>Proveedores</span>
+            </button>
+
+            <div class="nav-section-label">Operaciones</div>
+            <button class="nav-item-premium" data-seccion="ventas">
+                <i class="fas fa-file-invoice-dollar"></i> <span>Ventas</span>
+            </button>
+            <button class="nav-item-premium" data-seccion="retiros">
+                <i class="fas fa-money-bill-wave"></i> <span>Retiros</span>
+            </button>
+            <button class="nav-item-premium" data-seccion="devoluciones">
+                <i class="fas fa-undo"></i> <span>Devoluciones</span>
+            </button>
+
+            <div class="nav-section-label">Configuración</div>
+            <button class="nav-item-premium has-submenu" id="btnTarifas">
+                <i class="fas fa-percent"></i> <span>Tarifas / IVA</span> <i class="fas fa-chevron-down arrow"></i>
+            </button>
+            <div id="submenuTarifas" class="nav-submenu-premium">
+                <button class="submenu-item-premium" data-seccion="tarifa-iva">
+                    <i class="fas fa-receipt"></i> Cambiar IVA
                 </button>
-                <button class="cat-btn submenu-btn" data-seccion="informe-semanal"
-                    style="width: 100%; text-align: left; font-size: 13px;">
-                    <i class="fas fa-calendar-week" style="margin-right: 10px;"></i> Informe Semanal
+                <button class="submenu-item-premium" data-seccion="tarifa-ajuste">
+                    <i class="fas fa-sliders-h"></i> Ajuste Precios
                 </button>
-                <button class="cat-btn submenu-btn" data-seccion="informe-mensual"
-                    style="width: 100%; text-align: left; font-size: 13px;">
-                    <i class="fas fa-calendar-alt" style="margin-right: 10px;"></i> Informe Mensual
-                </button>
-                <button class="cat-btn submenu-btn" data-seccion="informe-anual"
-                    style="width: 100%; text-align: left; font-size: 13px;">
-                    <i class="fas fa-calendar" style="margin-right: 10px;"></i> Informe Anual
+                <button class="submenu-item-premium" data-seccion="tarifa-prefijadas">
+                    <i class="fas fa-list-ul"></i> Prefijadas
                 </button>
             </div>
 
-            <button class="cat-btn" data-seccion="logs" style="width: 100%; text-align: left;">
-                <i class="fas fa-history" style="margin-right: 10px;"></i> Logs
+            <button class="nav-item-premium has-submenu" id="btnInformes">
+                <i class="fas fa-chart-bar"></i> <span>Informes</span> <i class="fas fa-chevron-down arrow"></i>
             </button>
-            <button class="cat-btn" data-seccion="historial-precios" style="width: 100%; text-align: left;">
-                <i class="fas fa-chart-area" style="margin-right: 10px;"></i> Historial de Precios
-            </button>
-            <button class="cat-btn" data-seccion="envios-aeat"
-                style="width: 100%; text-align: left; position: relative;">
-                <i class="fas fa-satellite-dish" style="margin-right: 10px;"></i> Envíos AEAT
-                <span id="badgePendientesAeat"
-                    style="display:none; position:absolute; right:10px; top:50%; transform:translateY(-50%); background:#dc2626; color:#fff; font-size:11px; font-weight:700; padding:2px 7px; border-radius:10px; min-width:18px; text-align:center;">0</span>
-            </button>
-            <button class="cat-btn" id="btnConfig" style="width: 100%; text-align: left;">
-                <i class="fas fa-cog" style="margin-right: 10px;"></i> Configuración ▾
-            </button>
-            <div id="submenuConfig" style="display: none; padding-left: 20px;">
-                <button class="cat-btn submenu-btn" data-seccion="config-tema"
-                    style="width: 100%; text-align: left; font-size: 13px;">
-                    <i class="fas fa-palette" style="margin-right: 10px;"></i> Tema
-                </button>
-                <button class="cat-btn submenu-btn" data-seccion="config-acciones"
-                    style="width: 100%; text-align: left; font-size: 13px;">
-                    <i class="fas fa-cogs" style="margin-right: 10px;"></i> Acciones
-                </button>
-                <button class="cat-btn submenu-btn" data-seccion="config-fiscal"
-                    style="width: 100%; text-align: left; font-size: 13px;">
-                    <i class="fas fa-file-invoice" style="margin-right: 10px;"></i> Fiscal / Verifactu
-                </button>
+            <div id="submenuInformes" class="nav-submenu-premium">
+                <button class="submenu-item-premium" data-seccion="informe-diario">Diario</button>
+                <button class="submenu-item-premium" data-seccion="informe-semanal">Semanal</button>
+                <button class="submenu-item-premium" data-seccion="informe-mensual">Mensual</button>
+                <button class="submenu-item-premium" data-seccion="informe-anual">Anual</button>
             </div>
+
+            <button class="nav-item-premium" data-seccion="envios-aeat">
+                <i class="fas fa-satellite-dish"></i> <span>Envíos AEAT</span>
+                <span id="badgePendientesAeat" class="nav-badge">0</span>
+            </button>
+
+            <button class="nav-item-premium has-submenu" id="btnConfig">
+                <i class="fas fa-cog"></i> <span>Sistema</span> <i class="fas fa-chevron-down arrow"></i>
+            </button>
+            <div id="submenuConfig" class="nav-submenu-premium">
+                <button class="submenu-item-premium" data-seccion="config-tema">Tema</button>
+                <button class="submenu-item-premium" data-seccion="config-acciones">Acciones</button>
+                <button class="submenu-item-premium" data-seccion="config-fiscal">Fiscal</button>
+                <button class="submenu-item-premium" data-seccion="backups">Backups</button>
+            </div>
+            
+            <button class="nav-item-premium" data-seccion="logs">
+                <i class="fas fa-history"></i> <span>Logs</span>
+            </button>
+
+            <div class="nav-section-label">Sistema</div>
+            <button class="nav-item-premium" onclick="abrirCentroTareas()">
+                <i class="fas fa-tasks"></i> <span>Centro de Tareas</span>
+                <span id="badgeTareasSide" class="nav-badge" style="display:none; background:#3b82f6">0</span>
+            </button>
         </div>
     </div>
 
@@ -176,16 +168,15 @@
                     <span id="taskCountText">1 tarea activa</span>
                 </div>
             </div>
-            <div class="indicador-efectivo" id="adminIndicadorCaja"
-                style="<?php echo !$sesionCaja ? 'background: #fee2e2; border-color: #fecaca;' : ''; ?>">
-                <span class="label">Estado del Sistema:</span>
-                <span class="amount" id="adminEstadoSistema"
-                    style="color: <?php echo $sesionCaja ? '#059669' : '#dc2626'; ?>;">
-                    <?php echo $sesionCaja ? 'Online' : 'Offline (Caja Cerrada)'; ?>
+            <div class="indicador-efectivo <?php echo !$sesionCaja ? 'caja-cerrada' : ''; ?>" id="adminIndicadorCaja">
+                <span class="label">Sistema:</span>
+                <span class="amount status-text" id="adminEstadoSistema">
+                    <?php echo $sesionCaja ? 'Online' : 'Offline'; ?>
                 </span>
                 <div class="separador"></div>
-                <span class="label"
-                    id="adminEfectivoLabel"><?php echo $sesionCaja ? 'Efectivo en Caja:' : 'Fondo Siguiente Turno:'; ?></span>
+                <span class="label" id="adminEfectivoLabel">
+                    <?php echo $sesionCaja ? 'Efectivo:' : 'Fondo:'; ?>
+                </span>
                 <span class="amount" id="adminEfectivoValor">
                     <?php echo number_format($stats['efectivoCaja'], 2, ',', '.'); ?> €
                 </span>
@@ -193,47 +184,58 @@
         </div>
 
         <div class="admin-stats-grid">
-            <div class="admin-stat-card">
-                <span class="admin-stat-label"><?php echo $tituloVentas; ?></span>
-                <span class="admin-stat-value"><?php echo number_format($stats['gananciasHoy'], 2, ',', '.'); ?>
-                    €</span>
+            <div class="admin-stat-card card-sales">
+                <div class="card-icon"><i class="fas fa-euro-sign"></i></div>
+                <div class="card-info">
+                    <span class="admin-stat-label"><?php echo $tituloVentas; ?></span>
+                    <span class="admin-stat-value"><?php echo number_format($stats['gananciasHoy'], 2, ',', '.'); ?> €</span>
+                </div>
             </div>
-            <div class="admin-stat-card">
-                <span class="admin-stat-label"><?php echo $tituloPedidos; ?></span>
-                <span class="admin-stat-value"><?php echo $stats['pedidosHoy']; ?></span>
+            <div class="admin-stat-card card-orders">
+                <div class="card-icon"><i class="fas fa-shopping-basket"></i></div>
+                <div class="card-info">
+                    <span class="admin-stat-label"><?php echo $tituloPedidos; ?></span>
+                    <span class="admin-stat-value"><?php echo $stats['pedidosHoy']; ?></span>
+                </div>
             </div>
-            <div class="admin-stat-card">
-                <span class="admin-stat-label">Total Productos Activos</span>
-                <span class="admin-stat-value"><?php echo $stats['productos']; ?></span>
+            <div class="admin-stat-card card-products">
+                <div class="card-icon"><i class="fas fa-box-open"></i></div>
+                <div class="card-info">
+                    <span class="admin-stat-label">Productos Activos</span>
+                    <span class="admin-stat-value"><?php echo $stats['productos']; ?></span>
+                </div>
             </div>
-            <div class="admin-stat-card">
-                <span class="admin-stat-label">Alertas Stock</span>
-                <span class="admin-stat-value" style="color: #dc2626;"><?php echo $stats['alertasStock']; ?></span>
+            <div class="admin-stat-card card-alerts">
+                <div class="card-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                <div class="card-info">
+                    <span class="admin-stat-label">Alertas Stock</span>
+                    <span class="admin-stat-value"><?php echo $stats['alertasStock']; ?></span>
+                </div>
             </div>
-            <div class="admin-stat-card">
-                <span class="admin-stat-label"><?php echo $tituloRetiros; ?></span>
-                <span class="admin-stat-value"
-                    style="color: #ea580c;">-<?php echo number_format($stats['retirosHoy'] ?? 0, 2, ',', '.'); ?>
-                    €</span>
+            <div class="admin-stat-card card-withdrawals">
+                <div class="card-icon"><i class="fas fa-money-bill-wave"></i></div>
+                <div class="card-info">
+                    <span class="admin-stat-label"><?php echo $tituloRetiros; ?></span>
+                    <span class="admin-stat-value">-<?php echo number_format($stats['retirosHoy'] ?? 0, 2, ',', '.'); ?> €</span>
+                </div>
             </div>
-            <div class="admin-stat-card">
-                <span class="admin-stat-label"><?php echo $tituloDevoluciones; ?></span>
-                <span class="admin-stat-value"
-                    style="color: #dc2626;">-<?php echo number_format($stats['devolucionesHoy'] ?? 0, 2, ',', '.'); ?>
-                    €</span>
+            <div class="admin-stat-card card-returns">
+                <div class="card-icon"><i class="fas fa-undo"></i></div>
+                <div class="card-info">
+                    <span class="admin-stat-label"><?php echo $tituloDevoluciones; ?></span>
+                    <span class="admin-stat-value">-<?php echo number_format($stats['devolucionesHoy'] ?? 0, 2, ',', '.'); ?> €</span>
+                </div>
             </div>
-            <div class="admin-stat-card">
-                <span class="admin-stat-label">Horas trabajadas (Semana)</span>
-                <span class="admin-stat-value"
-                    style="color: #059669;"><?php echo number_format($stats['horasTrabajadasSemana'] ?? 0, 1, ',', '.'); ?>
-                    h</span>
+            <div class="admin-stat-card card-hours">
+                <div class="card-icon"><i class="fas fa-clock"></i></div>
+                <div class="card-info">
+                    <span class="admin-stat-label">Horas (Semana)</span>
+                    <span class="admin-stat-value"><?php echo number_format($stats['horasTrabajadasSemana'] ?? 0, 1, ',', '.'); ?> h</span>
+                </div>
             </div>
         </div>
 
         <div class="admin-content-panel">
-            <h3 id="adminTitulo" class="admin-view-subtitle">
-                Resumen de Actividad
-            </h3>
             <div id="adminContenido" class="contenido-admin">
                 <i class="fas fa-info-circle" style="font-size: 2rem; margin-bottom: 15px; display: block;"></i>
                 <p>Aquí se mostrarán los datos detallados de la gestión...</p>
@@ -1735,31 +1737,47 @@
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-
-
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
 <!-- ##-----------------------------------MODAL CENTRO DE TAREAS-----------------------------------## -->
-<!-- Muestra el progreso de tareas pesadas (Backups, Actualizaciones de IVA, etc.) -->
 <div class="modal-overlay" id="modalCentroTareas" style="display:none;">
-    <div class="modal-content" style="max-width: 600px; width: 90%;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
-            <h3 style="margin:0"><i class="fas fa-tasks"></i> Centro de Tareas</h3>
-            <button class="btn-tpv" onclick="cerrarModal('modalCentroTareas')"
-                style="background:none;color:var(--text-main);font-size:1.2rem;padding:5px;border:none"><i
-                    class="fas fa-times"></i></button>
+    <div class="modal-content modal-premium" style="max-width: 650px; padding: 0; overflow: hidden; width: 95%;">
+        <!-- Header Premium -->
+        <div class="modal-header-premium" style="background: linear-gradient(135deg, #1e293b, #0f172a); padding: 25px 30px; text-align: left; position: relative;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="background: rgba(255,255,255,0.1); width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-tasks" style="color: #fff; font-size: 1.5rem;"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; color: #fff; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px;">Centro de Tareas</h3>
+                    <p class="modal-subtitulo" style="margin: 3px 0 0 0; color: rgba(255,255,255,0.7); font-size: 0.95rem;">Estado de procesos en segundo plano</p>
+                </div>
+            </div>
+            <button class="modal-close-btn" onclick="cerrarModal('modalCentroTareas')" 
+                style="position: absolute; top: 25px; right: 25px; background: rgba(255,255,255,0.1); border: none; color: white; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
-        <p class="modal-subtitulo">Estado de los procesos en segundo plano</p>
 
-        <div id="listaTareasAdmin" style="margin-top:20px;max-height:400px;overflow-y:auto">
-            <div class="reports-loading"><i class="fas fa-spinner fa-spin"></i> Cargando tareas...</div>
+        <!-- Body -->
+        <div style="padding: 25px 30px; background: var(--bg-panel);">
+            <div id="listaTareasAdmin" style="max-height: 450px; overflow-y: auto; border-radius: 12px; background: var(--bg-main); border: 1px solid var(--border-main); box-shadow: var(--shadow-sm);">
+                <!-- Las tareas se cargan dinámicamente -->
+                <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                    <p>Cargando historial de tareas...</p>
+                </div>
+            </div>
         </div>
 
-        <div
-            style="display: flex; justify-content: center; margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--border-main);">
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalCentroTareas')" style="min-width: 120px;">
+        <!-- Footer -->
+        <div style="padding: 20px 30px; background: var(--bg-panel); border-top: 1px solid var(--border-main); display: flex; justify-content: space-between; align-items: center;">
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">
+                <i class="fas fa-sync-alt fa-spin" style="margin-right: 5px;"></i> Auto-actualizado cada 10s
+            </p>
+            <button class="btn-modal-cancelar" onclick="cerrarModal('modalCentroTareas')" 
+                style="margin: 0; padding: 10px 25px; border-radius: 10px; font-weight: 600; background: var(--bg-secondary); color: var(--text-main); border: 1px solid var(--border-main);">
                 Cerrar
             </button>
         </div>
     </div>
 </div>
+</content>

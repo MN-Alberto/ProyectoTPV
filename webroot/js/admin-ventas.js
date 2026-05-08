@@ -12,93 +12,163 @@ let devolucionesListData = [];
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function getVentasTablaHeader(filtroFecha = 'todos', metodoPago = 'todos', tipoDocumento = 'todos', orden = 'fecha_desc', busqueda = '', totalVentas = 0) {
-    const contador = `${totalVentas.toLocaleString('es-ES')} Venta${totalVentas !== 1 ? 's' : ''}`;
+    const contador = `${totalVentas} Venta${totalVentas !== 1 ? 's' : ''}`;
     const opt = (val, actual, label) => `<option value="${val}" ${actual === val ? 'selected' : ''}>${label}</option>`;
     return `
-        <div class="admin-tabla-header ventas-header">
-            <div class="ventas-filtros">
-                <div class="filtro-group" style="display:flex;align-items:center;gap:10px;">
-                    <input type="text" id="busquedaVentaId" class="filtro-input"
-                        placeholder="Buscar # venta..." value="${busqueda || ''}"
-                        oninput="buscarVentasPorId()" onblur="buscarVentasPorId()"
-                        autocomplete="off"
-                        style="padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem;width:140px;">
+        ${getPremiumHeaderHTML('fa-receipt', 'Historial de Ventas', 'Registro detallado de transacciones y tickets emitidos', 'linear-gradient(135deg, #3b82f6, #1d4ed8)')}
+        <div class="admin-tabla-header products-header">
+            <div class="header-filters-grid sales-optimized-grid">
+                <div class="filter-main">
+                    <div class="search-wrapper">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="busquedaVentaId" class="input-modern-search"
+                            placeholder="ID o Ticket..."
+                            oninput="buscarVentasPorId()" autocomplete="off"
+                            value="${busqueda.replace(/"/g, '&quot;')}">
+                    </div>
                 </div>
-                <div class="filtro-group">
-                    <label for="ventasFiltroFecha">Período:</label>
-                    <select id="ventasFiltroFecha" class="filtro-select" onchange="aplicarFiltrosVentas()">
-                        ${opt('todos', filtroFecha, 'Todas')}${opt('hoy', filtroFecha, 'Hoy')}
-                        ${opt('7dias', filtroFecha, 'Últimos 7 días')}${opt('30dias', filtroFecha, 'Último mes')}
-                    </select>
+
+                <div class="filter-secondary">
+                    <div class="select-modern-wrapper">
+                        <select id="ventasFiltroFecha" class="select-modern" onchange="aplicarFiltrosVentas()">
+                            ${opt('todos', filtroFecha, 'Fecha: Todas')}${opt('hoy', filtroFecha, 'Hoy')}
+                            ${opt('7dias', filtroFecha, 'Últimos 7 días')}${opt('30dias', filtroFecha, 'Último mes')}
+                        </select>
+                    </div>
+
+                    <div class="select-modern-wrapper">
+                        <select id="ventasFiltroMetodo" class="select-modern" onchange="aplicarFiltrosVentas()">
+                            ${opt('todos', metodoPago, 'Pago: Todos')}${opt('efectivo', metodoPago, 'Efectivo')}
+                            ${opt('tarjeta', metodoPago, 'Tarjeta')}${opt('bizum', metodoPago, 'Bizum')}
+                            ${opt('mixto', metodoPago, 'Mixto')}
+                        </select>
+                    </div>
+
+                    <div class="select-modern-wrapper">
+                        <select id="ventasFiltroDocumento" class="select-modern" onchange="aplicarFiltrosVentas()">
+                            ${opt('todos', tipoDocumento, 'Doc: Todos')}${opt('ticket', tipoDocumento, 'Tickets')}
+                            ${opt('factura', tipoDocumento, 'Facturas')}
+                        </select>
+                    </div>
+
+                    <div class="select-modern-wrapper">
+                        <select id="ventasOrdenar" class="select-modern" onchange="aplicarFiltrosVentas()">
+                            ${opt('fecha_desc', orden, 'Más recientes')}${opt('fecha_asc', orden, 'Más antiguos')}
+                            ${opt('importe_desc', orden, 'Mayor importe')}${opt('importe_asc', orden, 'Menor importe')}
+                        </select>
+                    </div>
                 </div>
-                <div class="filtro-group">
-                    <label for="ventasFiltroMetodo">Método de pago:</label>
-                    <select id="ventasFiltroMetodo" class="filtro-select" onchange="aplicarFiltrosVentas()">
-                        ${opt('todos', metodoPago, 'Todos')}${opt('efectivo', metodoPago, 'Efectivo')}
-                        ${opt('tarjeta', metodoPago, 'Tarjeta')}${opt('bizum', metodoPago, 'Bizum')}
-                        ${opt('mixto', metodoPago, 'Mixto')}
-                    </select>
+
+                <div class="header-status-info">
+                    <span id="totalVentasAviso" class="info-tag">${contador}</span>
                 </div>
-                <div class="filtro-group">
-                    <label for="ventasFiltroDocumento">Documento:</label>
-                    <select id="ventasFiltroDocumento" class="filtro-select" onchange="aplicarFiltrosVentas()">
-                        ${opt('todos', tipoDocumento, 'Todos')}${opt('ticket', tipoDocumento, 'Ticket')}
-                        ${opt('factura', tipoDocumento, 'Factura')}
-                    </select>
+
+                <div class="header-actions">
+                    <button class="btn-modern btn-danger btn-clear-all" onclick="limpiarTodasVentas()" title="Eliminar historial">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
                 </div>
-                <div class="filtro-group">
-                    <label for="ventasOrdenar">Ordenar por:</label>
-                    <select id="ventasOrdenar" class="filtro-select" onchange="aplicarFiltrosVentas()">
-                        ${opt('fecha_desc', orden, 'Más recientes')}${opt('fecha_asc', orden, 'Más antiguos')}
-                        ${opt('importe_desc', orden, 'Mayor importe')}${opt('importe_asc', orden, 'Menor importe')}
-                        ${opt('cantidad_desc', orden, 'Más productos')}${opt('cantidad_asc', orden, 'Menos productos')}
-                        ${opt('id_desc', orden, 'ID mayor')}${opt('id_asc', orden, 'ID menor')}
-                    </select>
-                </div>
-                <button class="btn-limpiar-ventas" onclick="limpiarTodasVentas()">🗑️ Limpiar ventas</button>
-                <span id="totalVentasAviso" class="total-clientes-aviso">${contador}</span>
             </div>
         </div>
-        <div class="admin-tabla-wrapper sin-scroll">
+        <div class="admin-tabla-wrapper products-table-wrapper">
             <table class="admin-tabla">
                 <thead><tr>
-                    <th>#</th><th>Fecha</th><th>Usuario</th><th>Productos</th>
-                    <th>Tarifa</th><th>Documento</th><th>Forma de Pago</th><th>Total</th><th>Acciones</th>
+                    <th style="width: 85px;"># ID</th>
+                    <th style="width: 150px;">Fecha / Hora</th>
+                    <th>Vendedor</th>
+                    <th style="width: 60px; text-align:center;">Art.</th>
+                    <th style="width: 100px;">Tarifa</th>
+                    <th style="width: 100px;">Documento</th>
+                    <th style="width: 120px;">Pago</th>
+                    <th style="width: 110px; text-align:right;">Total</th>
+                    <th style="width: 120px; text-align:center;">Acciones</th>
                 </tr></thead>
                 <tbody>`;
 }
 
 function generarFilaVenta(venta) {
-    const fecha = new Date(venta.fecha).toLocaleString('es-ES',
-        { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    const total = parseFloat(venta.total).toFixed(2).replace('.', ',');
-    const pago = { efectivo: '💵 Efectivo', tarjeta: '💳 Tarjeta', bizum: '📱 Bizum', mixto: '🔄 Mixto' }[venta.forma_pago] || (venta.forma_pago || '—');
-    const doc = { ticket: '🧾 Ticket', factura: '📄 Factura' }[venta.tipoDocumento] || (venta.tipoDocumento || 'ticket');
+    const d = new Date(venta.fecha);
+    const fecha = d.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    
+    const totalVal = parseFloat(venta.total);
+    const totalStr = totalVal.toFixed(2).replace('.', ',');
+    
+    const pagoIcons = { efectivo: 'fa-money-bill-wave', tarjeta: 'fa-credit-card', bizum: 'fa-mobile-alt', mixto: 'fa-sync-alt' };
+    const pagoLabels = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', bizum: 'Bizum', mixto: 'Mixto' };
+    const pagoIcon = pagoIcons[venta.forma_pago] || 'fa-receipt';
+    const pagoLabel = pagoLabels[venta.forma_pago] || (venta.forma_pago || '—');
+    
+    const docIcons = { ticket: 'fa-receipt', factura: 'fa-file-invoice' };
+    const docLabels = { ticket: 'Ticket', factura: 'Factura' };
+    const docIcon = docIcons[venta.tipoDocumento] || 'fa-receipt';
+    const docLabel = docLabels[venta.tipoDocumento] || (venta.tipoDocumento || 'Ticket');
+
     const esAnulada = venta.estado === 'anulada';
     const esRect = venta.es_rectificativa == 1;
-    let estadoBadge = '';
-    if (esAnulada) estadoBadge = '<span style="background:#ef4444;color:#fff;padding:2px 6px;border-radius:4px;font-size:0.7rem;margin-left:4px;">ANULADO</span>';
-    else if (esRect) estadoBadge = '<span style="background:#8b5cf6;color:#fff;padding:2px 6px;border-radius:4px;font-size:0.7rem;margin-left:4px;">' + (venta.tipo_factura_verifactu || 'RECT') + '</span>';
+    
+    let statusPill = '';
+    if (esAnulada) statusPill = '<span class="status-pill status-inactive" style="margin-top:4px;"><i class="fas fa-ban"></i> ANULADA</span>';
+    else if (esRect) statusPill = `<span class="status-pill status-rect" style="margin-top:4px; background: rgba(139, 92, 246, 0.1); color: #8b5cf6;"><i class="fas fa-undo"></i> ${venta.tipo_factura_verifactu || 'RECT'}</span>`;
+
     return `
-        <tr style="${esAnulada ? 'opacity:0.6;' : ''}">
-            <td class="col-id">${venta.serie || 'T'}${String(venta.numero || venta.id).padStart(5, '0').slice(-5)}${estadoBadge}</td>
-            <td class="col-fecha">${fecha}</td>
-            <td class="col-usuario">${venta.usuario_nombre || '—'}</td>
-            <td class="col-productos">${venta.cantidad_productos || 0}</td>
-            <td class="col-tarifa">${venta.tarifa_nombre || 'Cliente'}</td>
-            <td class="col-documento">${doc}</td>
-            <td class="col-pago">${pago}</td>
-            <td class="col-total" style="text-align:right;font-weight:700;color:${parseFloat(venta.total) < 0 ? '#ef4444' : '#059669'};">${total} €</td>
+        <tr class="sale-row ${esAnulada ? 'row-disabled' : ''}">
+            <td class="col-id">
+                <div class="sale-id-group">
+                    <span class="sale-serie">${venta.serie || 'T'}</span>
+                    <span class="sale-num">${String(venta.numero || venta.id).padStart(5, '0').slice(-5)}</span>
+                    ${statusPill}
+                </div>
+            </td>
+            <td class="col-fecha">
+                <div class="date-info">
+                    <i class="far fa-clock"></i>
+                    <span>${fecha}</span>
+                </div>
+            </td>
+            <td class="col-usuario">
+                <div class="user-profile-small" style="display: flex; align-items: center; gap: 8px;">
+                    <div class="user-avatar-xs" style="width:24px; height:24px; background:#f1f5f9; color:#64748b; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:800;">
+                        ${(venta.usuario_nombre || 'U').charAt(0).toUpperCase()}
+                    </div>
+                    <span style="font-size: 0.85rem; color: #475569; font-weight: 600;">${venta.usuario_nombre || '—'}</span>
+                </div>
+            </td>
+            <td class="col-productos" style="text-align:center;">
+                <span class="count-tag" style="background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:6px; font-weight:700; font-size:0.75rem;">
+                    ${venta.cantidad_productos || 0}
+                </span>
+            </td>
+            <td class="col-tarifa">
+                <span class="tarifa-tag" style="font-size:0.75rem; font-weight:600; color:#6366f1; background:rgba(99, 102, 241, 0.08); padding:2px 8px; border-radius:6px;">
+                    ${venta.tarifa_nombre || 'Cliente'}
+                </span>
+            </td>
+            <td class="col-documento">
+                <div class="doc-wrapper" style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#64748b;">
+                    <i class="fas ${docIcon}" style="font-size:0.8rem; opacity:0.7;"></i>
+                    <span>${docLabel}</span>
+                </div>
+            </td>
+            <td class="col-pago">
+                <div class="pago-wrapper" style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#64748b;">
+                    <i class="fas ${pagoIcon}" style="font-size:0.8rem; opacity:0.7;"></i>
+                    <span>${pagoLabel}</span>
+                </div>
+            </td>
+            <td class="col-total" style="text-align:right;">
+                <span class="total-amount ${totalVal < 0 ? 'negative' : 'positive'}" style="font-weight:800; font-size:1rem; color: ${totalVal < 0 ? '#ef4444' : '#10b981'};">
+                    ${totalStr} €
+                </span>
+            </td>
             <td class="col-acciones">
-                <button class="btn-admin-accion btn-ver" onclick="event.stopPropagation(); verDetalleVenta(${venta.id})" title="Ver Detalles">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button class="btn-admin-accion btn-editar" onclick="event.stopPropagation(); imprimirVentaDesdeHistorial(${venta.id})" title="Reimprimir Ticket">
-                    <i class="fas fa-print"></i>
-                </button>
-                ${!esAnulada && !esRect ? `<button class="btn-admin-accion btn-eliminar" onclick="event.stopPropagation(); anularVentaAdmin('${venta.serie || 'T'}', ${venta.numero || venta.id})" title="Anular Documento">
-                    <i class="fas fa-ban"></i>
-                </button>` : ''}
+                <div class="actions-group">
+                    <button class="action-btn btn-view" onclick="event.stopPropagation(); verDetalleVenta(${venta.id})" title="Ver detalles">
+                        <i class="fas fa-eye"></i></button>
+                    <button class="action-btn btn-print" onclick="event.stopPropagation(); imprimirVentaDesdeHistorial(${venta.id})" title="Reimprimir">
+                        <i class="fas fa-print"></i></button>
+                    ${!esAnulada && !esRect ? `<button class="action-btn btn-delete" onclick="event.stopPropagation(); anularVentaAdmin('${venta.serie || 'T'}', ${venta.numero || venta.id})" title="Anular">
+                        <i class="fas fa-ban"></i></button>` : ''}
+                </div>
             </td>
         </tr>`;
 }
@@ -419,132 +489,7 @@ function verDetalleVenta(idVenta) {
 }
 
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// DEVOLUCIONES
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function getDevolucionesTablaHeader(orden = 'fecha_desc', busquedaTicket = '', total = 0) {
-    const contador = `${total.toLocaleString('es-ES')} Devolución${total !== 1 ? 'es' : ''}`;
-    const opt = (v, a, l) => `<option value="${v}" ${a === v ? 'selected' : ''}>${l}</option>`;
-    return `
-        <div class="admin-tabla-header devoluciones-header">
-            <div class="ventas-filtros">
-                <div class="filtro-group" style="display:flex;align-items:center;gap:10px;">
-                    <input type="text" id="busquedaTicketDevolucion" class="filtro-input"
-                        placeholder="Buscar por ticket..." value="${busquedaTicket || ''}"
-                        oninput="buscarDevolucionesPorTicket()" autocomplete="off"
-                        style="padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem;width:180px;">
-                </div>
-                <div class="filtro-group">
-                    <label for="devolucionesOrdenar">Ordenar por:</label>
-                    <select id="devolucionesOrdenar" class="filtro-select"
-                        onchange="cargarDevolucionesAdmin(this.value,document.getElementById('busquedaTicketDevolucion').value)">
-                        ${opt('fecha_desc', orden, 'Más recientes')}${opt('fecha_asc', orden, 'Más antiguos')}
-                        ${opt('importe_desc', orden, 'Mayor importe')}${opt('importe_asc', orden, 'Menor importe')}
-                    </select>
-                </div>
-                <span id="totalDevolucionesAviso" class="total-clientes-aviso">${contador}</span>
-            </div>
-        </div>
-        <div class="admin-tabla-wrapper">
-            <table class="admin-tabla">
-                <thead><tr>
-                    <th>Ticket</th><th>Fecha</th><th>Empleado</th>
-                    <th>Producto</th><th>Cant.</th><th>Importe</th><th>Método</th><th>Acciones</th>
-                </tr></thead>
-                <tbody>`;
-}
-
-function cargarDevolucionesAdmin(orden = 'fecha_desc', busquedaTicket = '', resetPagina = true) {
-    if (seccionActual !== 'devoluciones') { adminTablaHeaderHTML = ''; seccionActual = 'devoluciones'; }
-    if (resetPagina) paginaActualDevoluciones = 1;
-
-    const contenedor = document.getElementById('adminContenido');
-    const esPrimeraVez = !contenedor.querySelector('.admin-tabla') || !adminTablaHeaderHTML;
-
-    let url = `api/devoluciones.php?todas=1&pagina=${paginaActualDevoluciones}&porPagina=${devolucionesPorPagina}`;
-    if (orden !== 'fecha_desc') url += '&orden=' + orden;
-    if (busquedaTicket.trim()) url += '&busqueda=' + encodeURIComponent(busquedaTicket.trim());
-
-    fetch(url)
-        .then(r => r.json())
-        .then(data => {
-            totalPaginasDevoluciones = data.totalPaginas || 1;
-            renderDevolucionesAdmin(data.devoluciones, esPrimeraVez, orden, busquedaTicket, data.total);
-        })
-        .catch(err => { contenedor.innerHTML = '<p class="sin-productos">Error: ' + err.message + '</p>'; });
-}
-
-function renderDevolucionesAdmin(devoluciones, esPrimeraVez = true, orden = 'fecha_desc', busquedaTicket = '', total = 0) {
-    const contenedor = document.getElementById('adminContenido');
-    const totalDev = total || (devoluciones ? devoluciones.length : 0);
-    devolucionesListData = devoluciones || [];
-
-    if (!devoluciones || !devoluciones.length) {
-        if (esPrimeraVez || !adminTablaHeaderHTML) {
-            adminTablaHeaderHTML = getDevolucionesTablaHeader(orden, busquedaTicket, totalDev);
-            contenedor.innerHTML = adminTablaHeaderHTML +
-                '<tr><td colspan="9" class="sin-productos">No hay devoluciones registradas.</td></tr></tbody></table></div>';
-        } else {
-            const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="sin-productos">No hay devoluciones registradas.</td></tr>';
-            const c = document.getElementById('totalDevolucionesAviso');
-            if (c) c.textContent = '0 Devoluciones';
-        }
-        const pag = contenedor.querySelector('.admin-paginacion-wrapper');
-        if (pag) pag.remove();
-        return;
-    }
-
-    if (esPrimeraVez || !adminTablaHeaderHTML || busquedaTicket !== '')
-        adminTablaHeaderHTML = getDevolucionesTablaHeader(orden, busquedaTicket, totalDev);
-
-    ejecutarCuandoIdle(() => devoluciones.map(dev => {
-        const fecha = new Date(dev.fecha).toLocaleString('es-ES',
-            { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        return `
-            <tr>
-                <td class="col-ticket" style="font-weight:600;color:#1e40af;">${dev.orig_serie || 'T'}${String(dev.orig_numero || dev.idVenta || '—').padStart(5, '0').slice(-5)}</td>
-                <td class="col-fecha">${fecha}</td>
-                <td class="col-usuario">${dev.usuario_nombre || '—'}</td>
-                <td class="col-producto">${dev.producto_nombre || '—'}</td>
-                <td class="col-cantidad">${dev.cantidad}</td>
-                <td class="col-total" style="text-align:right;font-weight:700;color:#dc2626;">-${parseFloat(dev.importeTotal).toFixed(2).replace('.', ',')} €</td>
-                <td class="col-pago">${dev.metodoPago}</td>
-                <td class="col-acciones">
-                    <button class="btn-admin-accion btn-ver" onclick="verDetalleDevolucion(${dev.id})" title="Ver Detalles">
-                        <i class="fas fa-eye"></i></button>
-                </td>
-            </tr>`;
-    }).join(''), filasHtml => {
-        const html = adminTablaHeaderHTML + filasHtml + '</tbody></table></div>' +
-            getPaginacionDevolucionesHTML(totalPaginasDevoluciones);
-
-        if (esPrimeraVez || busquedaTicket !== '') {
-            contenedor.innerHTML = html;
-        } else {
-            const tbody = contenedor.querySelector('tbody');
-            if (tbody) {
-                tbody.innerHTML = filasHtml;
-                actualizarPaginacionDOM(contenedor, getPaginacionDevolucionesHTML(totalPaginasDevoluciones));
-            } else {
-                contenedor.innerHTML = html;
-            }
-        }
-        ajustarTodosInputsPaginacion();
-    });
-
-    const c = document.getElementById('totalDevolucionesAviso');
-    if (c) c.textContent = `${totalDev.toLocaleString('es-ES')} Devolución${totalDev !== 1 ? 'es' : ''}`;
-}
-
-function buscarDevolucionesPorTicket() {
-    clearTimeout(debounceTimerDevoluciones);
-    debounceTimerDevoluciones = setTimeout(() => {
-        const b = document.getElementById('busquedaTicketDevolucion')?.value || '';
-        cargarDevolucionesAdmin('fecha_desc', b);
-    }, 300);
-}
+// ── FIN SECCIÓN ──────────────────────────────────────────────────────────────
 
 function verDetalleDevolucion(id) {
     const container = document.getElementById('ticketDevolucionContainer');
@@ -619,244 +564,7 @@ function verDetalleDevolucion(id) {
 }
 
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// RETIROS DE CAJA
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function getRetirosTablaHeader(orden = 'fecha_desc', total = 0) {
-    const contador = `${total.toLocaleString('es-ES')} Retiro${total !== 1 ? 's' : ''}`;
-    return `
-        <div class="admin-tabla-header retiros-header">
-            <div class="ventas-filtros">
-                <div class="filtro-group">
-                    <label for="retirosOrdenar">Ordenar por:</label>
-                    <select id="retirosOrdenar" class="filtro-select" onchange="cargarRetirosAdmin(this.value)">
-                        <option value="fecha_desc" ${orden === 'fecha_desc' ? 'selected' : ''}>Más recientes</option>
-                        <option value="fecha_asc"  ${orden === 'fecha_asc' ? 'selected' : ''}>Más antiguos</option>
-                        <option value="importe_desc" ${orden === 'importe_desc' ? 'selected' : ''}>Mayor importe</option>
-                        <option value="importe_asc"  ${orden === 'importe_asc' ? 'selected' : ''}>Menor importe</option>
-                    </select>
-                </div>
-                <span id="totalRetirosAviso" class="total-clientes-aviso">${contador}</span>
-            </div>
-        </div>
-        <div class="admin-tabla-wrapper sin-scroll">
-            <table class="admin-tabla">
-                <thead><tr>
-                    <th>#</th><th>Fecha</th><th>Usuario</th><th>Importe</th><th>Motivo</th><th>Sesión Caja</th>
-                </tr></thead>
-                <tbody>`;
-}
-
-function generarFilaRetiro(retiro, index) {
-    const fecha = new Date(retiro.fecha).toLocaleString('es-ES',
-        { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    const usuario = retiro.usuario_nombre
-        ? retiro.usuario_nombre + ' ' + (retiro.usuario_apellidos || '')
-        : 'Usuario #' + retiro.idUsuario;
-    const cajaSesion = retiro.caja_fecha_apertura
-        ? new Date(retiro.caja_fecha_apertura).toLocaleDateString('es-ES')
-        : '#' + retiro.idCajaSesion;
-    return `
-        <tr>
-            <td>${index + 1}</td>
-            <td>${fecha}</td>
-            <td>${usuario}</td>
-            <td style="text-align:right;color:#dc2626;font-weight:bold;">-${parseFloat(retiro.importe).toFixed(2)} €</td>
-            <td>${retiro.motivo || 'Sin motivo'}</td>
-            <td>${cajaSesion}</td>
-        </tr>`;
-}
-
-function renderizarRetirosPagina() {
-    const contenedor = document.getElementById('adminContenido');
-    if (!contenedor) return;
-    const inicio = (paginaActualRetiros - 1) * retirosPorPagina;
-    const pag = retirosData.slice(inicio, inicio + retirosPorPagina);
-    const totalPaginas = Math.ceil(retirosData.length / retirosPorPagina);
-    const tbody = contenedor.querySelector('tbody');
-    if (tbody) tbody.innerHTML = pag.map((r, i) => generarFilaRetiro(r, inicio + i)).join('');
-    actualizarPaginacionDOM(contenedor, getPaginacionRetirosHTML(totalPaginas));
-}
-
-function cargarRetirosAdmin(orden = 'fecha_desc') {
-    if (seccionActual !== 'retiros') { adminTablaHeaderHTML = ''; seccionActual = 'retiros'; }
-    const contenedor = document.getElementById('adminContenido');
-    const esPrimeraVez = !contenedor.querySelector('.admin-tabla') || !adminTablaHeaderHTML;
-
-    let url = 'api/retiros.php';
-    if (orden !== 'fecha_desc') url += '?orden=' + orden;
-
-    fetch(url)
-        .then(r => r.json())
-        .then(data => renderRetirosAdmin(data, esPrimeraVez, orden))
-        .catch(err => { contenedor.innerHTML = '<p class="sin-productos">Error: ' + (err.message || 'Error desconocido') + '</p>'; });
-}
-
-function renderRetirosAdmin(retiros, esPrimeraVez = true, orden = 'fecha_desc') {
-    const contenedor = document.getElementById('adminContenido');
-    const total = retiros ? retiros.length : 0;
-    retirosData = retiros || [];
-    paginaActualRetiros = 1;
-
-    if (!total) {
-        if (esPrimeraVez || !adminTablaHeaderHTML) {
-            adminTablaHeaderHTML = getRetirosTablaHeader(orden, 0);
-            contenedor.innerHTML = adminTablaHeaderHTML +
-                '<tr><td colspan="6" class="sin-productos">No hay retiros de caja registrados.</td></tr></tbody></table></div>';
-        } else {
-            const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="sin-productos">No hay retiros de caja registrados.</td></tr>';
-            const c = document.getElementById('totalRetirosAviso');
-            if (c) c.textContent = '0 Retiros';
-        }
-        return;
-    }
-
-    const totalPaginas = Math.ceil(retirosData.length / retirosPorPagina);
-    const pag = retirosData.slice(0, retirosPorPagina);
-
-    if (esPrimeraVez || !adminTablaHeaderHTML) adminTablaHeaderHTML = getRetirosTablaHeader(orden, total);
-
-    const filasHtml = pag.map((r, i) => generarFilaRetiro(r, i)).join('');
-
-    if (esPrimeraVez) {
-        contenedor.innerHTML = adminTablaHeaderHTML + filasHtml +
-            '</tbody></table></div>' + getPaginacionRetirosHTML(totalPaginas);
-    } else {
-        const tbody = contenedor.querySelector('tbody');
-        if (tbody) {
-            tbody.innerHTML = filasHtml;
-            actualizarPaginacionDOM(contenedor, getPaginacionRetirosHTML(totalPaginas));
-        }
-    }
-
-    const c = document.getElementById('totalRetirosAviso');
-    if (c) c.textContent = `${total.toLocaleString('es-ES')} Retiro${total !== 1 ? 's' : ''}`;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// SESIONES DE CAJA
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function getCajaSesionesTablaHeader(orden = 'fecha_desc') {
-    return `
-        <div class="admin-tabla-header caja-sesiones-header">
-            <div class="ventas-filtros">
-                <div class="filtro-group">
-                    <label for="cajaSesionesOrdenar">Ordenar por:</label>
-                    <select id="cajaSesionesOrdenar" class="filtro-select" onchange="cargarCajaSesionesAdmin(this.value)">
-                        <option value="fecha_desc" ${orden === 'fecha_desc' ? 'selected' : ''}>Más recientes</option>
-                        <option value="fecha_asc"  ${orden === 'fecha_asc' ? 'selected' : ''}>Más antiguos</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        <div class="admin-tabla-wrapper sin-scroll">
-            <table class="admin-tabla">
-                <thead><tr>
-                    <th style="width:9%;">U. Apertura</th>
-                    <th style="width:9%;">U. Cierre</th>
-                    <th style="width:10%;text-align:center;">Apertura</th>
-                    <th style="width:12%;text-align:center;">Cierre</th>
-                    <th style="width:7%;text-align:center;">Importe Ini</th>
-                    <th style="width:7%;text-align:center;">Efectivo</th>
-                    <th style="width:7%;text-align:center;">Cambio</th>
-                    <th style="width:8%;text-align:center;">Retiros</th>
-                    <th style="width:10%;text-align:center;">Devoluciones</th>
-                    <th style="width:10%;text-align:center;">Arqueo</th>
-                </tr></thead>
-                <tbody>`;
-}
-
-function generarFilaSesion(sesion, index) {
-    const fmt = d => d ? new Date(d).toLocaleString('es-ES',
-        { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
-    const retiros = parseFloat(sesion.total_retiros || 0);
-    const devoluciones = parseFloat(sesion.total_devoluciones || 0);
-    const efectivoContado = sesion.efectivoContado;
-    const importeActual = parseFloat(sesion.importeActual);
-    const diff = efectivoContado !== null ? parseFloat(efectivoContado) - importeActual : null;
-    const diffColor = diff !== null ? (diff > 0.01 ? '#059669' : (diff < -0.01 ? '#dc2626' : 'inherit')) : 'inherit';
-    const diffLabel = diff !== null ? (diff > 0.01 ? '(Sobrante)' : (diff < -0.01 ? '(Faltante)' : '')) : '';
-
-    return `
-        <tr>
-            <td style="width:120px; font-size: 0.9em;">${sesion.usuario_nombre || 'Usuario #' + sesion.idUsuario}</td>
-            <td style="width:120px; font-size: 0.9em;">${sesion.usuario_cierre_nombre || '—'}</td>
-            <td style="text-align:center;">${fmt(sesion.fechaApertura)}</td>
-            <td style="text-align:center;">${fmt(sesion.fechaCierre)}</td>
-            <td style="text-align:right;">${parseFloat(sesion.importeInicial).toFixed(2)} €</td>
-            <td style="text-align:right;">${importeActual.toFixed(2)} €</td>
-            <td style="text-align:right;color:#0284c7;font-weight:bold;">${parseFloat(sesion.cambio || 0).toFixed(2)} €</td>
-            <td style="text-align:right;color:#ea580c;font-weight:bold;">-${retiros.toFixed(2)} €</td>
-            <td style="text-align:right;color:#dc2626;font-weight:bold;">-${devoluciones.toFixed(2)} €</td>
-            <td style="text-align:right;font-weight:bold;color:${diffColor};">
-                ${diff !== null ? `${diff.toFixed(2).replace('.', ',')} € <small>${diffLabel}</small>` : '—'}
-            </td>
-        </tr>`;
-}
-
-function renderizarSesionesPagina() {
-    const contenedor = document.getElementById('adminContenido');
-    if (!contenedor) return;
-    const inicio = (paginaActualSesiones - 1) * sesionesPorPagina;
-    const pag = sesionesData.slice(inicio, inicio + sesionesPorPagina);
-    const totalPaginas = Math.ceil(sesionesData.length / sesionesPorPagina);
-    const tbody = contenedor.querySelector('tbody');
-    if (tbody) tbody.innerHTML = pag.map((s, i) => generarFilaSesion(s, i)).join('');
-    actualizarPaginacionDOM(contenedor, getPaginacionSesionesHTML(totalPaginas));
-}
-
-function cargarCajaSesionesAdmin(orden = 'fecha_desc') {
-    if (seccionActual !== 'caja-sesiones') { adminTablaHeaderHTML = ''; seccionActual = 'caja-sesiones'; }
-    const contenedor = document.getElementById('adminContenido');
-    const esPrimeraVez = !contenedor.querySelector('.admin-tabla') || !adminTablaHeaderHTML;
-
-    let url = 'api/caja-sesiones.php';
-    if (orden !== 'fecha_desc') url += '?orden=' + orden;
-
-    fetch(url)
-        .then(r => r.json())
-        .then(data => renderCajaSesionesAdmin(data, esPrimeraVez, orden))
-        .catch(err => { contenedor.innerHTML = '<p class="sin-productos">Error: ' + (err.message || 'Error desconocido') + '</p>'; });
-}
-
-function renderCajaSesionesAdmin(sesiones, esPrimeraVez = true, orden = 'fecha_desc') {
-    const contenedor = document.getElementById('adminContenido');
-    sesionesData = sesiones || [];
-    if (esPrimeraVez) paginaActualSesiones = 1;
-
-    if (!sesiones || !sesiones.length) {
-        if (esPrimeraVez || !adminTablaHeaderHTML) {
-            adminTablaHeaderHTML = getCajaSesionesTablaHeader(orden);
-            contenedor.innerHTML = adminTablaHeaderHTML +
-                '<tr><td colspan="12" class="sin-productos">No hay sesiones de caja registradas.</td></tr></tbody></table></div>';
-        } else {
-            const tbody = contenedor.querySelector('tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="12" class="sin-productos">No hay sesiones de caja registradas.</td></tr>';
-        }
-        return;
-    }
-
-    const totalPaginas = Math.ceil(sesiones.length / sesionesPorPagina);
-    const pag = sesiones.slice(0, sesionesPorPagina);
-
-    if (esPrimeraVez || !adminTablaHeaderHTML) adminTablaHeaderHTML = getCajaSesionesTablaHeader(orden);
-
-    const filasHtml = pag.map((s, i) => generarFilaSesion(s, i)).join('');
-
-    if (esPrimeraVez) {
-        contenedor.innerHTML = adminTablaHeaderHTML + filasHtml +
-            '</tbody></table></div>' + getPaginacionSesionesHTML(totalPaginas);
-    } else {
-        const tbody = contenedor.querySelector('tbody');
-        if (tbody) {
-            tbody.innerHTML = filasHtml;
-            actualizarPaginacionDOM(contenedor, getPaginacionSesionesHTML(totalPaginas));
-        }
-    }
-}
+// ── FIN ──────────────────────────────────────────────────────────────────────
 
 /**
  * imprimirVentaDesdeHistorial(idVenta)

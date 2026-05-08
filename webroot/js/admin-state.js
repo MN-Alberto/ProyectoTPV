@@ -42,7 +42,7 @@ const productosPorPagina = 5;
 // ── Paginación: Categorías ───────────────────────────────────────────────────
 let categoriasData = [];
 let paginaActualCategorias = 1;
-const categoriasPorPagina = 6;
+const categoriasPorPagina = 5;
 
 // ── Paginación: Usuarios ─────────────────────────────────────────────────────
 let usuariosData = [];
@@ -50,9 +50,10 @@ let totalUsuariosData = 0;
 let paginaActualUsuarios = 1;
 let totalPaginasUsuarios = 1;
 let busquedaUsuarioActual = '';
-const usuariosPorPagina = 6;
+const usuariosPorPagina = 5;
 
 // ── Paginación: Clientes ─────────────────────────────────────────────────────
+let clientesData = [];
 let paginaActualClientes = 1;
 let totalPaginasClientes = 1;
 let totalClientes = 0;
@@ -76,19 +77,19 @@ const sesionesPorPagina = 6;
 
 // ── Paginación: Tarifas ──────────────────────────────────────────────────────
 let paginaActualTarifas = 1;
-const productosPorPaginaTarifas = 6;
+const productosPorPaginaTarifas = 4;
 let todosLosProductosTarifas = [];
 let productosOriginalesTarifas = [];
 
 // ── Paginación: Devoluciones ─────────────────────────────────────────────────
 let paginaActualDevoluciones = 1;
-const devolucionesPorPagina = 6;
+const devolucionesPorPagina = 5;
 let totalPaginasDevoluciones = 1;
 
 // ── Paginación: Logs ─────────────────────────────────────────────────────────
 let paginaActualLogs = 1;
 let totalPaginasLogs = 1;
-const logsPorPagina = 6;
+const logsPorPagina = 4;
 if (window.filtroTipoLog === undefined) window.filtroTipoLog = '';
 if (window.filtroFechaLog === undefined) window.filtroFechaLog = '';
 
@@ -103,6 +104,10 @@ let indexProductoActual = 0;
 
 // ── Carrusel de compras de cliente ───────────────────────────────────────────
 let currentSaleSlide = 0;
+let _comprasModalDNI = '';
+let _comprasData = [];
+let _devolucionesData = [];
+let _tabActivo = 'compras';
 
 // ── Proveedores ──────────────────────────────────────────────────────────────
 let proveedorActualId = null;

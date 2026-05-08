@@ -23,141 +23,95 @@ function cargarConfiguracionFiscal() {
 
 function renderEditorFiscal(config) {
     const contenedor = document.getElementById('adminContenido');
+    const configHeader = { t: 'Identidad Fiscal AEAT', s: 'Cumplimiento normativo y conectividad con el sistema Verifactu', i: 'fa-landmark', g: 'linear-gradient(135deg, #1e40af, #3b82f6)' };
 
     let html = `
-    <div class="tema-editor">
-        <div class="config-section">
-            <div class="tema-seccion-card">
-                <div style="
-                    background: var(--bg-panel);
-                    border: 1px solid var(--border-main);
-                    border-radius: 10px;
-                    padding: 16px 18px;
-                    margin-bottom: 18px;
-                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
-                    position: relative;
-                    overflow: hidden;
-                ">
-                    <!-- Efecto de brillo superior -->
-                    <div style="
-                        position: absolute;
-                        top: 0;
-                        left: 0;
-                        right: 0;
-                        height: 1px;
-                        background: linear-gradient(90deg, transparent, var(--accent-main), transparent);
-                        opacity: 0.6;
-                    "></div>
+    <div class="fiscal-editor-premium animate-fade-in">
+        ${getPremiumHeaderHTML(configHeader.i, configHeader.t, configHeader.s, configHeader.g)}
 
-                    <div style="
-                        display: flex;
-                        align-items: center;
-                        gap: 12px;
-                        margin-bottom: 14px;
-                        padding-bottom: 12px;
-                        border-bottom: 1px solid rgba(59, 130, 246, 0.1);
-                    ">
-                        <div style="
-                            width: 36px;
-                            height: 36px;
-                            border-radius: 8px;
-                            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            box-shadow: 0 3px 8px rgba(59, 130, 246, 0.3);
-                            flex-shrink: 0;
-                        ">
-                            <i class="fas fa-landmark" style="color: white; font-size: 1.1rem;"></i>
-                        </div>
-                        
-                        <div>
-                            <h3 style="
-                                margin: 0;
-                                font-size: 1.05rem;
-                                font-weight: 700;
-                                color: var(--text-main);
-                                letter-spacing: 0.2px;
-                            ">
-                                Datos Fiscales del Obligado Emisor
-                            </h3>
-                            <p style="
-                                margin: 2px 0 0 0;
-                                font-size: 0.8rem;
-                                color: var(--text-muted);
-                            ">
-                                Datos oficiales requeridos por AEAT
-                            </p>
-                        </div>
+        <div class="premium-config-grid" style="margin-top: 25px;">
+            
+            <!-- TARJETA 1: EMISOR -->
+            <div class="premium-card">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid rgba(0,0,0,0.05);">
+                    <div style="width:40px; height:40px; border-radius:10px; background:rgba(59, 130, 246, 0.1); color:#3b82f6; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">
+                        <i class="fas fa-id-card"></i>
                     </div>
-                <div class="tema-seccion-body" style="max-width: 800px; margin: 0 auto;">
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                        <div class="tema-campo">
-                            <label class="tema-label">NIF / CIF</label>
-                            <input type="text" id="fiscal_tpv_nif" value="${config.tpv_nif || ''}" 
-                                   class="tema-input" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-main); background: var(--bg-input); color: var(--text-main);">
-                        </div>
-                        
-                        <div class="tema-campo">
-                            <label class="tema-label">Razón Social</label>
-                            <input type="text" id="fiscal_tpv_razon_social" value="${config.tpv_razon_social || ''}" 
-                                   class="tema-input" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-main); background: var(--bg-input); color: var(--text-main);">
-                        </div>
+                    <h4 style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-main);">Datos del Titular</h4>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 15px;">
+                    <div class="tema-campo">
+                        <label class="tema-label">NIF / CIF</label>
+                        <input type="text" id="fiscal_tpv_nif" value="${config.tpv_nif || ''}" class="tema-input" placeholder="Ej: B12345678">
                     </div>
-
-                    <div class="tema-campo" style="margin-top: 20px;">
-                        <label class="tema-label">Dirección Fiscal / Local comercial</label>
-                        <input type="text" id="fiscal_tpv_direccion" value="${config.tpv_direccion || ''}" 
-                               class="tema-input" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-main); background: var(--bg-input); color: var(--text-main);"
-                               placeholder="Ej: C/ Falsa 123, Madrid">
+                    <div class="tema-campo">
+                        <label class="tema-label">Razón Social</label>
+                        <input type="text" id="fiscal_tpv_razon_social" value="${config.tpv_razon_social || ''}" class="tema-input" placeholder="Nombre Fiscal">
                     </div>
+                </div>
 
-                    <div class="tema-campo" style="margin-top: 20px;">
-                        <label class="tema-label">URL Endpoint AEAT (Entorno)</label>
-                        <select id="fiscal_aeat_url" class="tema-input" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-main); background: var(--bg-input); color: var(--text-main);">
-                            <option value="https://prewww1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP" ${(config.aeat_url_verifactu && config.aeat_url_verifactu.indexOf('prewww1') !== -1) ? 'selected' : ''}>PRE-PRODUCCIÓN (Pruebas Reales)</option>
-                            <option value="https://www1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP" ${(!config.aeat_url_verifactu || (config.aeat_url_verifactu.indexOf('prewww1') === -1 && config.aeat_url_verifactu.indexOf('servidor-falso') === -1)) ? 'selected' : ''}>PRODUCCIÓN (Envío Real)</option>
-                            <option value="https://servidor-falso.aeat.es/VerifactuSOAP" ${config.aeat_url_verifactu && config.aeat_url_verifactu.indexOf('servidor-falso') !== -1 ? 'selected' : ''}>⚠️ SIMULAR ERROR (URL inexistente)</option>
-                        </select>
-                        <p class="tema-ayuda" style="margin-top: 5px; font-size: 0.8rem; color: #6b7280;">Use el entorno de pruebas para validar la conexión antes de pasar a producción.</p>
+                <div class="tema-campo" style="margin-top: 10px;">
+                    <label class="tema-label">Dirección Administrativa</label>
+                    <input type="text" id="fiscal_tpv_direccion" value="${config.tpv_direccion || ''}" class="tema-input" placeholder="Dirección completa">
+                </div>
+            </div>
+
+            <!-- TARJETA 2: ENTORNO -->
+            <div class="premium-card">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid rgba(0,0,0,0.05);">
+                    <div style="width:40px; height:40px; border-radius:10px; background:rgba(245, 158, 11, 0.1); color:#f59e0b; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">
+                        <i class="fas fa-server"></i>
                     </div>
+                    <h4 style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-main);">Canal de Comunicación</h4>
+                </div>
 
-                    <div class="tema-campo" style="margin-top: 20px;">
-                        <label class="tema-label">Intervalo de Reintento (minutos)</label>
-                        <input type="number" id="fiscal_verifactu_intervalo_reintento" value="${config.verifactu_intervalo_reintento || 15}" 
-                               class="tema-input" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-main); background: var(--bg-input); color: var(--text-main);"
-                               min="1" max="1440">
-                        <p class="tema-ayuda" style="margin-top: 5px; font-size: 0.8rem; color: #6b7280;">Tiempo de espera antes de reintentar envíos fallidos automáticamente.</p>
-                    </div>
+                <div class="tema-campo">
+                    <label class="tema-label">URL del Servicio AEAT</label>
+                    <select id="fiscal_aeat_url" class="tema-select-font">
+                        <option value="https://prewww1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP" ${(config.aeat_url_verifactu && config.aeat_url_verifactu.indexOf('prewww1') !== -1) ? 'selected' : ''}>🧪 Entorno de Pruebas (PRE)</option>
+                        <option value="https://www1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP" ${(!config.aeat_url_verifactu || (config.aeat_url_verifactu.indexOf('prewww1') === -1 && config.aeat_url_verifactu.indexOf('servidor-falso') === -1)) ? 'selected' : ''}>🚀 Entorno Real (PRODUCCIÓN)</option>
+                        <option value="https://servidor-falso.aeat.es/VerifactuSOAP" ${config.aeat_url_verifactu && config.aeat_url_verifactu.indexOf('servidor-falso') !== -1 ? 'selected' : ''}>⚠️ Modo Simulación</option>
+                    </select>
+                </div>
 
-                    <div style="margin-top: 30px; border-top: 1px solid var(--border-main); padding-top: 20px;">
-                        <h4 style="margin-bottom: 15px; color: var(--text-main);">Certificado Digital (.pfx)</h4>
-                        
-                        <div class="tema-campo">
-                            <label class="tema-label">Ruta absoluta del archivo</label>
-                            <input type="text" id="fiscal_cert_path" value="${config.cert_path || ''}" 
-                                   class="tema-input" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-main); background: var(--bg-input); color: var(--text-main);"
-                                   placeholder="Ej: C:/Proyectos/TPV/certs/mi_cert.pfx">
-                        </div>
-
-                        <div class="tema-campo" style="margin-top: 15px;">
-                            <label class="tema-label">Contraseña del certificado</label>
-                            <div style="position: relative;">
-                                <input type="password" id="fiscal_cert_pass" value="${config.cert_pass || ''}" 
-                                       class="tema-input" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-main); background: var(--bg-input); color: var(--text-main);">
-                                <i class="fas fa-eye" onclick="togglePassword('fiscal_cert_pass')" style="position: absolute; right: 10px; top: 12px; cursor: pointer; color: var(--text-muted);"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="tema-botones" style="margin-top:35px;border-top:1px solid var(--border-main);padding-top:20px;display: flex; gap: 10px; justify-content: flex-end;">
-                        <button class="btn-exito tema-btn-guardar" onclick="guardarConfiguracionFiscal()">
-                            <i class="fas fa-save"></i> Guardar Configuración Fiscal
-                        </button>
+                <div class="tema-campo" style="margin-top: 15px;">
+                    <label class="tema-label">Reintento Automático (minutos)</label>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <input type="number" id="fiscal_verifactu_intervalo_reintento" value="${config.verifactu_intervalo_reintento || 15}" class="tema-input" style="width:80px;" min="1" max="1440">
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">Frecuencia de reenvío tras error.</span>
                     </div>
                 </div>
             </div>
+
+            <!-- TARJETA 3: SEGURIDAD -->
+            <div class="premium-card">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid rgba(0,0,0,0.05);">
+                    <div style="width:40px; height:40px; border-radius:10px; background:rgba(16, 185, 129, 0.1); color:#10b981; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <h4 style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-main);">Certificado de Firma</h4>
+                </div>
+
+                <div class="tema-campo">
+                    <label class="tema-label">Ruta absoluta del archivo (.pfx)</label>
+                    <input type="text" id="fiscal_cert_path" value="${config.cert_path || ''}" class="tema-input" placeholder="C:/certs/firma.pfx">
+                </div>
+
+                <div class="tema-campo" style="margin-top: 10px;">
+                    <label class="tema-label">Contraseña de acceso</label>
+                    <div style="position: relative;">
+                        <input type="password" id="fiscal_cert_pass" value="${config.cert_pass || ''}" class="tema-input" style="padding-right:45px;">
+                        <i class="fas fa-eye" onclick="togglePassword('fiscal_cert_pass')" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted);"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:15px; margin-top: 30px;">
+            <button class="btn-premium-primary" onclick="guardarConfiguracionFiscal()" style="padding: 12px 30px;">
+                <i class="fas fa-check-circle" style="margin-right:8px;"></i> Aplicar Configuración Fiscal
+            </button>
         </div>
     </div>`;
 
@@ -295,66 +249,97 @@ function cargarEnviosAeat() {
 
 function renderEnviosAeatLayout() {
     const contenedor = document.getElementById('adminContenido');
+    const config = { t: 'Monitor Verifactu AEAT', s: 'Cumplimiento fiscal y estado de envíos en tiempo real', i: 'fa-satellite-dish', g: 'linear-gradient(135deg, #ef4444, #b91c1c)' };
+
     contenedor.innerHTML = `
-    <div class="verifactu-dashboard">
-        <div class="verifactu-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-bottom:20px;">
-            <h2><i class="fas fa-satellite-dish" style="color:var(--accent-main)"></i> Monitor Verifactu AEAT</h2>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button id="btnLimpiarColaHeader" onclick="limpiarColaEnvios()" style="display:none; padding: 8px 15px; border-radius: 6px; border: none; background: #ef4444; color: white; cursor: pointer; font-weight: 500;">
+    <div class="verifactu-modern-view animate-fade-in">
+        ${getPremiumHeaderHTML(config.i, config.t, config.s, config.g)}
+
+        <div id="aeatCooldownBanner" style="display:none; align-items:center; gap:12px; padding:15px 20px; margin-bottom:20px; background:linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color:#78350f; border-radius:15px; font-weight:700; font-size:1rem; box-shadow:0 10px 15px -3px rgba(245, 158, 11, 0.2)">
+            <i class="fas fa-hourglass-half fa-spin"></i>
+            <span>Esperando ventana de envío AEAT...</span>
+        </div>
+
+        <div class="verifactu-controls-bar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; background:var(--bg-card); padding:10px 15px; border-radius:15px; border:1px solid var(--border-main); box-shadow:var(--shadow-sm)">
+            <div class="verifactu-tabs-modern" style="display:flex; gap:5px;">
+                <button class="v-tab-btn-modern ${verifactuTabActual === 'cola' ? 'active' : ''}" onclick="cargarTabEnvios('cola')">
+                    <i class="fas fa-list-ul"></i> Cola de Envíos
+                </button>
+                <button class="v-tab-btn-modern ${verifactuTabActual === 'eventos' ? 'active' : ''}" onclick="cargarTabEnvios('eventos')">
+                    <i class="fas fa-history"></i> Libro de Eventos
+                </button>
+                <button class="v-tab-btn-modern ${verifactuTabActual === 'stats' ? 'active' : ''}" onclick="cargarTabEnvios('stats')">
+                    <i class="fas fa-chart-line"></i> Estadísticas
+                </button>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button id="btnLimpiarColaHeader" onclick="limpiarColaEnvios()" style="display:none; padding:10px 20px; border-radius:10px; border:none; background:#fee2e2; color:#991b1b; cursor:pointer; font-weight:700; font-size:0.85rem; transition:all 0.2s ease;">
                     <i class="fas fa-trash-alt"></i> Limpiar Cola
                 </button>
-                <button id="btnProcesarColaHeader" onclick="procesarColaManual()" style="display:none; padding: 8px 15px; border-radius: 6px; border: none; background: #3b82f6; color: white; cursor: pointer; font-weight: 500;">
-                    <i class="fas fa-sync-alt"></i> Procesar Pendientes
+                <button id="btnProcesarColaHeader" onclick="procesarColaManual()" style="display:none; padding:10px 20px; border-radius:10px; border:none; background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; cursor:pointer; font-weight:700; font-size:0.85rem; box-shadow:0 4px 10px rgba(37, 99, 235, 0.2); transition:all 0.2s ease;">
+                    <i class="fas fa-paper-plane"></i> Procesar Pendientes
                 </button>
-                <button id="btnLimpiarLibroHeader" onclick="limpiarLibroEventos()" style="display:none; padding: 8px 15px; border-radius: 6px; border: none; background: #ef4444; color: white; cursor: pointer; font-weight: 500;">
-                    <i class="fas fa-trash-alt"></i> Limpiar Libro
+                <button id="btnLimpiarLibroHeader" onclick="limpiarLibroEventos()" style="display:none; padding:10px 20px; border-radius:10px; border:none; background:#fee2e2; color:#991b1b; cursor:pointer; font-weight:700; font-size:0.85rem; transition:all 0.2s ease;">
+                    <i class="fas fa-broom"></i> Limpiar Libro
                 </button>
             </div>
         </div>
 
-        <div id="aeatCooldownBanner" style="display:none; align-items:center; gap:10px; padding:10px 18px; margin-bottom:15px; background:linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color:#78350f; border-radius:8px; font-weight:600; font-size:0.95rem;">
-            <i class="fas fa-hourglass-half"></i>
-            <span>Esperando AEAT...</span>
-        </div>
-
-        <div class="verifactu-tabs" style="display:flex; gap:10px; margin-bottom:20px; border-bottom: 1px solid var(--border-main); padding-bottom: 10px;">
-            <button class="v-tab-btn ${verifactuTabActual === 'cola' ? 'active' : ''}" onclick="cargarTabEnvios('cola')" style="padding: 8px 15px; border: none; background: transparent; cursor: pointer; font-weight: 600; color: ${verifactuTabActual === 'cola' ? 'var(--accent-main)' : 'var(--text-muted)'}; border-bottom: ${verifactuTabActual === 'cola' ? '2px solid var(--accent-main)' : 'none'};">
-                <i class="fas fa-list"></i> Cola de Envíos
-            </button>
-            <button class="v-tab-btn ${verifactuTabActual === 'eventos' ? 'active' : ''}" onclick="cargarTabEnvios('eventos')" style="padding: 8px 15px; border: none; background: transparent; cursor: pointer; font-weight: 600; color: ${verifactuTabActual === 'eventos' ? 'var(--accent-main)' : 'var(--text-muted)'}; border-bottom: ${verifactuTabActual === 'eventos' ? '2px solid var(--accent-main)' : 'none'};">
-                <i class="fas fa-book"></i> Libro de Eventos
-            </button>
-            <button class="v-tab-btn ${verifactuTabActual === 'stats' ? 'active' : ''}" onclick="cargarTabEnvios('stats')" style="padding: 8px 15px; border: none; background: transparent; cursor: pointer; font-weight: 600; color: ${verifactuTabActual === 'stats' ? 'var(--accent-main)' : 'var(--text-muted)'}; border-bottom: ${verifactuTabActual === 'stats' ? '2px solid var(--accent-main)' : 'none'};">
-                <i class="fas fa-chart-pie"></i> Estadísticas
-            </button>
-        </div>
-
-        <div id="verifactuContenidoTab" style="background: var(--bg-secondary); border: 1px solid var(--border-main); border-radius: 8px; padding: 20px;">
-            <div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
+        <div id="verifactuContenidoTab" class="verifactu-content-card" style="background: var(--bg-card); border: 1px solid var(--border-main); border-radius: 20px; padding: 15px 25px; box-shadow: var(--shadow-sm); min-height: 350px;">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:250px; color:var(--text-muted)">
+                <i class="fas fa-circle-notch fa-spin fa-3x" style="margin-bottom:15px; color:var(--accent-main)"></i>
+                <p style="font-weight:600">Sincronizando con AEAT...</p>
+            </div>
         </div>
     </div>
+    <style>
+        .v-tab-btn-modern {
+            padding: 10px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .v-tab-btn-modern:hover {
+            background: rgba(0,0,0,0.03);
+            color: var(--text-main);
+        }
+        .v-tab-btn-modern.active {
+            background: var(--bg-main);
+            color: var(--accent-main);
+            box-shadow: var(--shadow-sm);
+        }
+    </style>
     `;
 }
-
 function cargarTabEnvios(tab, pagina = 1) {
     verifactuTabActual = tab;
     verifactuPaginaActual = pagina;
 
-    // Actualizar UI tabs
-    document.querySelectorAll('.v-tab-btn').forEach(btn => {
-        btn.style.color = 'var(--text-muted)';
-        btn.style.borderBottom = 'none';
+    // Actualizar UI tabs (clases modernas)
+    document.querySelectorAll('.v-tab-btn-modern').forEach(btn => {
+        btn.classList.remove('active');
     });
-    const activeBtn = document.querySelector(`.v-tab-btn[onclick="cargarTabEnvios('${tab}')"]`);
-    if (activeBtn) {
-        activeBtn.style.color = 'var(--accent-main)';
-        activeBtn.style.borderBottom = '2px solid var(--accent-main)';
-    }
+    // Buscar por texto o por una mejor forma si fuera posible, pero basándonos en el onclick es seguro
+    const activeBtn = document.querySelector(`.v-tab-btn-modern[onclick*="'${tab}'"]`);
+    if (activeBtn) activeBtn.classList.add('active');
 
     // Mostrar/ocultar botones de la cabecera
-    document.getElementById('btnLimpiarColaHeader').style.display = (tab === 'cola') ? 'block' : 'none';
-    document.getElementById('btnProcesarColaHeader').style.display = (tab === 'cola') ? 'block' : 'none';
-    document.getElementById('btnLimpiarLibroHeader').style.display = (tab === 'eventos') ? 'block' : 'none';
+    const btnLimpiarCola = document.getElementById('btnLimpiarColaHeader');
+    const btnProcesarCola = document.getElementById('btnProcesarColaHeader');
+    const btnLimpiarLibro = document.getElementById('btnLimpiarLibroHeader');
+
+    if (btnLimpiarCola) btnLimpiarCola.style.display = (tab === 'cola') ? 'block' : 'none';
+    if (btnProcesarCola) btnProcesarCola.style.display = (tab === 'cola') ? 'block' : 'none';
+    if (btnLimpiarLibro) btnLimpiarLibro.style.display = (tab === 'eventos') ? 'block' : 'none';
 
     const contenedor = document.getElementById('verifactuContenidoTab');
     contenedor.innerHTML = '<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
@@ -397,158 +382,145 @@ function renderColaEnvios(data) {
     }
 
     let html = `
-        <table class="tema-tabla" style="width:100%; border-collapse: collapse;">
-            <thead style="position: sticky; top: 0; z-index: 10; background: #374151; color: white;">
-                <tr>
-                    <th style="padding: 12px; text-align: left;">ID Doc</th>
-                    <th style="padding: 12px; text-align: left;">Origen</th>
-                    <th style="padding: 12px; text-align: left;">Estado</th>
-                    <th style="padding: 12px; text-align: center;">Intentos</th>
-                    <th style="padding: 12px; text-align: left;">Próx. Reintento</th>
-                    <th style="padding: 12px; text-align: left;">Último Error</th>
-                    <th style="padding: 12px; text-align: right;">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
+        <div class="modern-table-container" style="max-height: 450px; overflow-y:auto;">
+            <table class="modern-table" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>Documento</th>
+                        <th>Origen</th>
+                        <th>Estado Cola</th>
+                        <th style="text-align:center">Intentos</th>
+                        <th>Próx. Reintento</th>
+                        <th>Último Mensaje AEAT</th>
+                        <th style="text-align:right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
     `;
 
     envios.forEach(e => {
-        let badgeColor = '#6b7280';
+        let badgeClass = 'badge-gray';
         let estadoTexto = (e.estado || 'ERROR').replace('_', ' ').toUpperCase();
-        let aeatEstadoStr = '';
         let aeatBadge = '';
 
-        if (e.estado === 'pendiente') badgeColor = '#f59e0b';
-        if (e.estado === 'subsanado') badgeColor = '#6366f1';
-        if (e.estado === 'enviando') badgeColor = '#3b82f6';
-        if (e.estado === 'error_temporal') badgeColor = '#ef4444';
-        if (e.estado === 'error_permanente') badgeColor = '#991b1b';
-        if (e.estado === 'enviado') badgeColor = '#10b981';
+        if (e.estado === 'pendiente') badgeClass = 'badge-warning';
+        if (e.estado === 'subsanado') badgeClass = 'badge-info';
+        if (e.estado === 'enviando') badgeClass = 'badge-accent';
+        if (e.estado === 'error_temporal') badgeClass = 'badge-danger';
+        if (e.estado === 'error_permanente') badgeClass = 'badge-danger';
+        if (e.estado === 'enviado') badgeClass = 'badge-success';
 
-        // Extraer estado REAL de respuesta AEAT con logica correcta
         if (e.respuesta_xml) {
-            // NO declarar variable de nuevo, usar la que esta definida fuera
-            aeatEstadoStr = '';
-            let aeatColor = '#6b7280';
-
-            // DEBUG: Sacar en consola para ver que recibimos
-            console.log('✅ DEBUG AEAT RESPONSE id=' + e.id, e.respuesta_xml.substring(0, 500));
-
-            // PROBAR TODAS LAS VARIANTES DE CAMPOS QUE USA LA AEAT
-            let m;
-            const camposAEAT = [
-                /<EstadoEnvio[^>]*>([^<]+)<\//,
-                /<EstadoRegistro[^>]*>([^<]+)<\//,
-                /<ResultadoRegistro[^>]*>([^<]+)<\//,
-                /EstadoRespuesta[^>]*>([^<]+)<\//,
-                /<CodigoEstado[^>]*>([^<]+)<\//
-            ];
-
+            let aeatEstadoStr = '';
+            let aeatColor = '#64748b';
+            const camposAEAT = [/<EstadoEnvio[^>]*>([^<]+)<\//, /<EstadoRegistro[^>]*>([^<]+)<\//, /<ResultadoRegistro[^>]*>([^<]+)<\//, /EstadoRespuesta[^>]*>([^<]+)<\//, /<CodigoEstado[^>]*>([^<]+)<\//];
             for (let regex of camposAEAT) {
-                m = e.respuesta_xml.match(regex);
-                if (m && m[1]) {
-                    aeatEstadoStr = m[1].trim();
-                    console.log('✅ ENCONTRADO CAMPO AEAT:', regex, aeatEstadoStr);
-                    break;
-                }
+                let m = e.respuesta_xml.match(regex);
+                if (m && m[1]) { aeatEstadoStr = m[1].trim(); break; }
             }
-
-            // Buscar errores o avisos existentes
             let hayErrores = e.respuesta_xml.includes('<CodigoError>') || e.respuesta_xml.includes('<Error>');
             let hayAvisos = e.respuesta_xml.includes('<Aviso>') || e.respuesta_xml.includes('"Avisos":');
             let esRechazado = e.respuesta_xml.includes('Rechazado') || e.respuesta_xml.includes('"Rechazado"') || e.respuesta_xml.includes('Rechazada');
             let esAceptadoErrores = e.respuesta_xml.includes('AceptadoConErrores') || e.respuesta_xml.includes('"AceptadoConErrores"') || e.respuesta_xml.includes('Aceptado con errores');
 
-            // Determinar estado FINAL real
-            if (esRechazado) {
-                aeatEstadoStr = 'Rechazado';
-                aeatColor = '#ef4444';
-            } else if (esAceptadoErrores || (aeatEstadoStr === 'Correcto' && hayErrores)) {
-                aeatEstadoStr = 'Aceptado c/Errores';
-                aeatColor = '#f59e0b';
-            } else if (hayAvisos) {
-                aeatEstadoStr = 'Correcto (Avisos)';
-                aeatColor = '#6366f1';
-            } else if (aeatEstadoStr === 'Correcto' || aeatEstadoStr === 'Aceptado') {
-                aeatEstadoStr = 'Correcto';
-                aeatColor = '#10b981';
-            } else if (aeatEstadoStr) {
-                aeatColor = '#6b7280';
-            }
+            if (esRechazado) { aeatEstadoStr = 'Rechazado'; aeatColor = '#ef4444'; }
+            else if (esAceptadoErrores || (aeatEstadoStr === 'Correcto' && hayErrores)) { aeatEstadoStr = 'Aceptado c/Errores'; aeatColor = '#f59e0b'; }
+            else if (hayAvisos) { aeatEstadoStr = 'Correcto (Avisos)'; aeatColor = '#3b82f6'; }
+            else if (aeatEstadoStr === 'Correcto' || aeatEstadoStr === 'Aceptado') { aeatEstadoStr = 'Correcto'; aeatColor = '#10b981'; }
 
-            // Crear badge solo si tenemos estado valido
             if (aeatEstadoStr) {
-                aeatBadge = `<span style="background: ${aeatColor}; color: white; padding: 2px 6px; border-radius: 8px; font-size: 0.65rem; font-weight: bold; margin-left: 8px; display: inline-block;" title="Respuesta oficial AEAT">
-                    ${aeatEstadoStr}
-                </span>`;
+                aeatBadge = `<span class="badge-aeat-mini" style="background:${aeatColor}" title="Respuesta oficial AEAT">${aeatEstadoStr}</span>`;
             }
         }
 
-        const esErrorAEAT = e.codigo_error_aeat ? true : false;
         const mostrarErrorConexion = e.es_error_conexion == 1 && e.estado !== 'enviado';
 
         html += `
-            <tr style="border-bottom: 1px solid var(--border-main); background: ${mostrarErrorConexion ? 'rgba(245, 158, 11, 0.05)' : 'transparent'};">
-                <td style="padding: 12px; font-weight: bold;">${e.display_num || e.num_documento || '#' + e.id_documento}</td>
-                <td style="padding: 12px; text-transform: capitalize;">${e.tabla_origen}</td>
-                <td style="padding: 12px;">
-                    <span style="background: ${badgeColor}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">
-                        ${e.estado === 'pendiente' ? 'PENDIENTE POR COOLDOWN' : (e.estado === 'subsanado' ? 'SUBSANADO (MANUAL)' : estadoTexto)}
-                    </span>
-                    ${aeatBadge}
-                    ${mostrarErrorConexion ? '<br><i class="fas fa-wifi" style="color:#ef4444; margin-top:4px;" title="Error de Conexión"></i>' : ''}
+            <tr class="${mostrarErrorConexion ? 'row-warning-soft' : ''}">
+                <td style="font-weight:700; color:var(--text-main)">${e.display_num || e.num_documento || '#' + e.id_documento}</td>
+                <td><span class="text-capitalize">${e.tabla_origen}</span></td>
+                <td>
+                    <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">
+                        <span class="badge-premium ${badgeClass}" style="font-size:0.7rem">
+                            ${e.estado === 'pendiente' ? 'REINTENTO AUTOMÁTICO' : (e.estado === 'subsanado' ? 'SUBSANADO MANUAL' : estadoTexto)}
+                        </span>
+                        ${aeatBadge}
+                    </div>
                 </td>
-                <td style="padding: 12px; text-align: center;">${e.intentos}/${e.max_intentos}</td>
-                <td style="padding: 12px; font-size: 0.85rem;">${e.proximo_reintento || '-'}</td>
-                <td style="padding: 12px; font-size: 0.85rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${e.ultimo_error || ''}">
-                    ${e.codigo_error_aeat ? `<b>[${e.codigo_error_aeat}]</b> ` : ''}${e.ultimo_error || '-'}
+                <td style="text-align:center">
+                    <div class="progress-mini-container" title="${e.intentos} de ${e.max_intentos} intentos">
+                        <div class="progress-mini-bar" style="width:${(e.intentos / e.max_intentos) * 100}%"></div>
+                        <span class="progress-mini-text">${e.intentos}/${e.max_intentos}</span>
+                    </div>
                 </td>
-                <td style="padding: 12px; text-align: right;">
-                    <button onclick="verDetallesEnvioManual(${e.id})" title="Ver Detalles AEAT" style="background:transparent; border:none; color:#6366f1; cursor:pointer; margin-right:8px;"><i class="fas fa-eye"></i></button>
-                    ${(e.estado !== 'enviado' && e.estado !== 'enviando') ? `
-                        <button onclick="reenviarEnvioManual(${e.id})" title="Forzar Reintento" style="background:transparent; border:none; color:#3b82f6; cursor:pointer; margin-right:8px;"><i class="fas fa-redo"></i></button>
-                        ${(e.estado === 'error_permanente' || e.estado === 'error_temporal') ? `
-                        <button class="btn-admin-accion btn-editar" onclick="abrirEditorDocumentoAeat(${e.id_documento}, '${e.tabla_origen}', '${e.display_num || e.num_documento}')" title="Editar datos del documento" style="background:transparent; border:none; color:#6b7280; cursor:pointer; margin-right:8px;">
-                            <i class="fas fa-pencil-alt"></i>
-                        </button>
+                <td style="font-size:0.8rem; color:var(--text-muted)">${e.proximo_reintento || '<span style="opacity:0.3">—</span>'}</td>
+                <td>
+                    <div class="error-cell-premium" title="${e.ultimo_error || ''}">
+                        ${e.codigo_error_aeat ? `<span class="error-code-aeat">${e.codigo_error_aeat}</span>` : ''}
+                        <span class="error-text-aeat">${e.ultimo_error || 'Sin errores registrados'}</span>
+                    </div>
+                </td>
+                <td style="text-align:right">
+                    <div style="display:flex; justify-content:flex-end; gap:5px;">
+                        <button class="btn-table-icon" onclick="verDetallesEnvioManual(${e.id})" title="Ver Detalles AEAT"><i class="fas fa-eye"></i></button>
+                        ${(e.estado !== 'enviado' && e.estado !== 'enviando') ? `
+                            <button class="btn-table-icon accent" onclick="reenviarEnvioManual(${e.id})" title="Forzar Reintento"><i class="fas fa-sync-alt"></i></button>
+                            <button class="btn-table-icon" onclick="abrirEditorDocumentoAeat(${e.id_documento}, '${e.tabla_origen}', '${e.display_num || e.num_documento}')" title="Editar datos"><i class="fas fa-edit"></i></button>
+                        ` : (e.estado === 'enviado' ? `<i class="fas fa-check-circle" style="color:#10b981; font-size:1.2rem; padding:5px" title="Enviado OK"></i>` : '<i class="fas fa-spinner fa-spin" style="padding:5px"></i>')}
+                        
+                        ${(e.estado === 'error_permanente' || (e.codigo_error_aeat)) && (e.estado !== 'enviado' && e.estado !== 'pendiente' && e.estado !== 'enviando') ? `
+                            <button class="btn-table-icon success" onclick="subsanarDocumentoManual(${e.id_documento}, '${e.tabla_origen}')" title="Subsanar"><i class="fas fa-check-double"></i></button>
+                            <button class="btn-table-icon danger" onclick="descartarEnvioManual(${e.id})" title="Descartar"><i class="fas fa-times"></i></button>
                         ` : ''}
-                    ` : (e.estado === 'enviado' ? `
-                        <i class="fas fa-check" style="color:#10b981; margin-right: 8px;" title="Documento enviado"></i>
-                    ` : '')}
-                    ${(e.estado === 'error_permanente' || esErrorAEAT) && (e.estado !== 'enviado' && e.estado !== 'pendiente' && e.estado !== 'enviando') ? `
-                        <button onclick="subsanarDocumentoManual(${e.id_documento}, '${e.tabla_origen}')" title="Subsanar" style="background:transparent; border:none; color:#10b981; cursor:pointer; margin-right:8px;"><i class="fas fa-tools"></i></button>
-                        <button onclick="descartarEnvioManual(${e.id})" title="Descartar (Ignorar)" style="background:transparent; border:none; color:#ef4444; cursor:pointer;"><i class="fas fa-trash"></i></button>
-                    ` : ''}
+                    </div>
                 </td>
             </tr>
         `;
     });
 
-    html += `</tbody></table>`;
+    html += `</tbody></table></div>`;
 
-    // Añadir controles de paginación
+    // Añadir controles de paginación modernos
     html += `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; padding-top:15px; border-top:1px solid var(--border-main);">
-            <div style="color:var(--text-muted); font-size:0.9rem;">
-                Página <b>${verifactuPaginaActual}</b> de <b>${totalPages}</b>
+        <div class="modern-pagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:25px; padding:15px; background:var(--bg-panel); border-radius:15px; border:1px solid var(--border-main)">
+            <div style="color:var(--text-muted); font-size:0.85rem; font-weight:600">
+                Página <span style="color:var(--text-main)">${verifactuPaginaActual}</span> de <span style="color:var(--text-main)">${totalPages}</span>
             </div>
-            <div style="display:flex; gap:8px;">
-                <button onclick="cargarTabEnvios('cola', ${verifactuPaginaActual - 1})" 
-                        ${verifactuPaginaActual <= 1 ? 'disabled' : ''} 
-                        style="padding:6px 12px; border-radius:6px; border:1px solid var(--border-main); background:var(--bg-panel); color:var(--text-main); cursor:${verifactuPaginaActual <= 1 ? 'not-allowed' : 'pointer'}; opacity:${verifactuPaginaActual <= 1 ? '0.5' : '1'}; transition:all 0.2s ease;"
-                        onmouseover="if(!this.disabled) this.style.background='var(--bg-input)';"
-                        onmouseout="this.style.background='var(--bg-panel)';">
+            <div style="display:flex; gap:10px;">
+                <button class="btn-pagination-modern" onclick="cargarTabEnvios('cola', ${verifactuPaginaActual - 1})" ${verifactuPaginaActual <= 1 ? 'disabled' : ''}>
                     <i class="fas fa-chevron-left"></i> Anterior
                 </button>
-                <button onclick="cargarTabEnvios('cola', ${verifactuPaginaActual + 1})" 
-                        ${verifactuPaginaActual >= totalPages ? 'disabled' : ''} 
-                        style="padding:6px 12px; border-radius:6px; border:1px solid var(--border-main); background:var(--bg-panel); color:var(--text-main); cursor:${verifactuPaginaActual >= totalPages ? 'not-allowed' : 'pointer'}; opacity:${verifactuPaginaActual >= totalPages ? '0.5' : '1'}; transition:all 0.2s ease;"
-                        onmouseover="if(!this.disabled) this.style.background='var(--bg-input)';"
-                        onmouseout="this.style.background='var(--bg-panel)';">
+                <button class="btn-pagination-modern" onclick="cargarTabEnvios('cola', ${verifactuPaginaActual + 1})" ${verifactuPaginaActual >= totalPages ? 'disabled' : ''}>
                     Siguiente <i class="fas fa-chevron-right"></i>
                 </button>
             </div>
         </div>
+        <style>
+            .btn-pagination-modern {
+                padding: 8px 18px;
+                border-radius: 10px;
+                border: 1px solid var(--border-main);
+                background: var(--bg-card);
+                color: var(--text-main);
+                font-weight: 700;
+                font-size: 0.85rem;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .btn-pagination-modern:hover:not(:disabled) {
+                background: var(--bg-main);
+                border-color: var(--accent-main);
+                color: var(--accent-main);
+                transform: translateY(-1px);
+            }
+            .btn-pagination-modern:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+        </style>
     `;
 
     contenedor.innerHTML = html;
@@ -557,14 +529,14 @@ function renderColaEnvios(data) {
 function renderLibroEventos(eventos) {
     const contenedor = document.getElementById('verifactuContenidoTab');
     let html = `
-        <div style="background:var(--bg-panel); border-radius:6px; max-height: 250px; overflow-y:auto;">
-            <table class="tema-tabla" style="width:100%; border-collapse: collapse; font-size: 0.9rem;">
-                <thead style="position: sticky; top: 0; z-index: 10; background: #374151; color: white;">
+        <div class="modern-table-container animate-fade-in" style="max-height: 300px; overflow-y:auto;">
+            <table class="modern-table">
+                <thead>
                     <tr>
-                        <th style="padding: 10px; text-align: left;">Fecha</th>
-                        <th style="padding: 10px; text-align: left;">Tipo</th>
-                        <th style="padding: 10px; text-align: left;">Doc ID</th>
-                        <th style="padding: 10px; text-align: left;">Descripción</th>
+                        <th>Fecha y Hora</th>
+                        <th>Tipo de Evento</th>
+                        <th>Documento</th>
+                        <th>Descripción Técnica</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -572,30 +544,33 @@ function renderLibroEventos(eventos) {
 
     if (!eventos || eventos.length === 0) {
         html += `
-            <tr style="border-bottom: 1px solid var(--border-main);">
-                <td colspan="4" style="padding: 40px; text-align: center; color: var(--text-muted);">No hay eventos registrados.</td>
+            <tr>
+                <td colspan="4" style="padding: 60px; text-align: center; color: var(--text-muted);">
+                    <i class="fas fa-stream fa-3x" style="opacity:0.2; margin-bottom:15px;"></i>
+                    <p>No hay eventos registrados en el libro fiscal.</p>
+                </td>
             </tr>
         `;
     } else {
         eventos.forEach(e => {
             let icon = 'fa-info-circle';
-            let color = 'var(--text-main)';
+            let badgeClass = 'badge-gray';
 
-            if (e.tipo.includes('error') || e.tipo.includes('fallida')) { icon = 'fa-times-circle'; color = '#ef4444'; }
-            if (e.tipo.includes('ok') || e.tipo.includes('recuperada')) { icon = 'fa-check-circle'; color = '#10b981'; }
-            if (e.tipo.includes('perdida')) { icon = 'fa-wifi'; color = '#f59e0b'; }
-            if (e.tipo === 'subsanacion') { icon = 'fa-tools'; color = '#3b82f6'; }
+            if (e.tipo.includes('error') || e.tipo.includes('fallida')) { icon = 'fa-exclamation-triangle'; badgeClass = 'badge-danger'; }
+            if (e.tipo.includes('ok') || e.tipo.includes('recuperada')) { icon = 'fa-check-circle'; badgeClass = 'badge-success'; }
+            if (e.tipo.includes('perdida')) { icon = 'fa-wifi-slash'; badgeClass = 'badge-warning'; }
+            if (e.tipo === 'subsanacion') { icon = 'fa-tools'; badgeClass = 'badge-info'; }
 
             html += `
-                <tr style="border-bottom: 1px solid var(--border-main);">
-                    <td style="padding: 10px; white-space: nowrap; color: var(--text-muted);">${e.fecha}</td>
-                    <td style="padding: 10px;">
-                        <span style="color: ${color}; font-weight: 500;">
-                            <i class="fas ${icon}" style="margin-right:5px;"></i> ${e.tipo.replace('_', ' ').toUpperCase()}
+                <tr>
+                    <td style="color:var(--text-muted); font-size:0.85rem; font-weight:600">${e.fecha}</td>
+                    <td>
+                        <span class="badge-premium ${badgeClass}" style="gap:6px;">
+                            <i class="fas ${icon}"></i> ${e.tipo.replace('_', ' ').toUpperCase()}
                         </span>
                     </td>
-                    <td style="padding: 10px; font-weight:bold; color:var(--accent-main);">${e.display_num || (e.id_documento ? '#' + e.id_documento : '-')}</td>
-                    <td style="padding: 10px;">${e.descripcion}</td>
+                    <td style="font-weight:700; color:var(--accent-main)">${e.display_num || (e.id_documento ? '#' + e.id_documento : '<span style="opacity:0.3">—</span>')}</td>
+                    <td style="font-size:0.85rem; line-height:1.4">${e.descripcion}</td>
                 </tr>
             `;
         });
@@ -609,27 +584,88 @@ function renderStatsEnvios(stats) {
     const contenedor = document.getElementById('verifactuContenidoTab');
 
     contenedor.innerHTML = `
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-            <div style="background: var(--bg-panel); border: 1px solid var(--border-main); padding: 20px; border-radius: 8px; text-align: center;">
-                <h3 style="color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 10px;">Pendientes</h3>
-                <div style="font-size: 2.5rem; font-weight: bold; color: #f59e0b;">${stats.pendientes || 0}</div>
+        <div class="verifactu-stats-grid animate-fade-in" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;">
+            <div class="stat-card-premium warning">
+                <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                <div class="stat-info">
+                    <span class="stat-label">Pendientes</span>
+                    <span class="stat-value">${stats.pendientes || 0}</span>
+                </div>
             </div>
             
-            <div style="background: var(--bg-panel); border: 1px solid var(--border-main); padding: 20px; border-radius: 8px; text-align: center;">
-                <h3 style="color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 10px;">Enviados Hoy</h3>
-                <div style="font-size: 2.5rem; font-weight: bold; color: #10b981;">${stats.enviados_hoy || 0}</div>
+            <div class="stat-card-premium success">
+                <div class="stat-icon"><i class="fas fa-check-double"></i></div>
+                <div class="stat-info">
+                    <span class="stat-label">Enviados Hoy</span>
+                    <span class="stat-value">${stats.enviados_hoy || 0}</span>
+                </div>
             </div>
 
-            <div style="background: var(--bg-panel); border: 1px solid var(--border-main); padding: 20px; border-radius: 8px; text-align: center;">
-                <h3 style="color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 10px;">Errores de Red</h3>
-                <div style="font-size: 2.5rem; font-weight: bold; color: #ef4444;">${stats.sin_conexion || 0}</div>
+            <div class="stat-card-premium danger">
+                <div class="stat-icon"><i class="fas fa-exclamation-circle"></i></div>
+                <div class="stat-info">
+                    <span class="stat-label">Errores de Red</span>
+                    <span class="stat-value">${stats.sin_conexion || 0}</span>
+                </div>
             </div>
 
-            <div style="background: var(--bg-panel); border: 1px solid var(--border-main); padding: 20px; border-radius: 8px; text-align: center;">
-                <h3 style="color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 10px;">Err. Permanentes</h3>
-                <div style="font-size: 2.5rem; font-weight: bold; color: #991b1b;">${stats.errores_permanentes || 0}</div>
+            <div class="stat-card-premium critical">
+                <div class="stat-icon"><i class="fas fa-ban"></i></div>
+                <div class="stat-info">
+                    <span class="stat-label">Err. Permanentes</span>
+                    <span class="stat-value">${stats.errores_permanentes || 0}</span>
+                </div>
             </div>
         </div>
+        <style>
+            .stat-card-premium {
+                background: var(--bg-card);
+                border: 1px solid var(--border-main);
+                padding: 25px;
+                border-radius: 20px;
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                box-shadow: var(--shadow-sm);
+                transition: all 0.3s ease;
+            }
+            .stat-card-premium:hover {
+                transform: translateY(-5px);
+                box-shadow: var(--shadow-md);
+                border-color: var(--accent-main);
+            }
+            .stat-icon {
+                width: 55px;
+                height: 55px;
+                border-radius: 15px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.5rem;
+                flex-shrink: 0;
+            }
+            .stat-info {
+                display: flex;
+                flex-direction: column;
+            }
+            .stat-label {
+                font-size: 0.85rem;
+                font-weight: 700;
+                color: var(--text-muted);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .stat-value {
+                font-size: 2rem;
+                font-weight: 800;
+                color: var(--text-main);
+            }
+            
+            .stat-card-premium.warning .stat-icon { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+            .stat-card-premium.success .stat-icon { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+            .stat-card-premium.danger .stat-icon { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+            .stat-card-premium.critical .stat-icon { background: rgba(153, 27, 27, 0.1); color: #991b1b; }
+        </style>
     `;
 }
 
@@ -1037,10 +1073,10 @@ function verDetallesEnvioManual(idCola) {
     }
 
     let info = `
-        <div style="text-align: left; font-family: 'Inter', system-ui, sans-serif; max-height: 75vh; overflow-y: auto; overflow-x: hidden; padding: 10px; padding-right: 15px; color: var(--text-main);">
+        <div style="text-align: left; font-family: 'Inter', system-ui, sans-serif; max-height: 80vh; overflow-y: auto; overflow-x: hidden; color: var(--text-main);">
+            ${getPremiumHeaderHTML('fa-file-medical-alt', `Detalle de Envío Fiscal`, `Información técnica y respuesta de la AEAT`, 'linear-gradient(135deg, #4f46e5, #3b82f6)')}
             
-            <!-- TARJETA DE RESUMEN -->
-            <div style="background: var(--bg-panel); border: 1px solid var(--border-main); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px;">
+            <div style="padding: 20px;">
                 
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 1px dashed var(--border-main); padding-bottom: 15px;">
                     <div>
@@ -1146,14 +1182,24 @@ function verDetallesEnvioManual(idCola) {
 
             </div>
         </div>
+        <div style="margin-top: 30px; display: flex; justify-content: flex-end;">
+                    <button class="tema-btn-guardar" onclick="Swal.close()" style="background: var(--accent-main); color: white; padding: 10px 25px; border-radius: 12px; font-weight: 700; border: none; cursor: pointer;">
+                        Cerrar Detalles
+                    </button>
+                </div>
+            </div>
+        </div>
     `;
 
     Swal.fire({
-        title: '<i class="fas fa-info-circle"></i> Información Técnica AEAT',
         html: info,
-        width: '1200px', // Ampliado para soportar las dos columnas de forma cómoda
-        confirmButtonText: 'Entendido',
-        confirmButtonColor: '#3b82f6'
+        width: '1000px',
+        showConfirmButton: false,
+        padding: '0',
+        background: 'var(--bg-card)',
+        color: 'var(--text-main)',
+        borderRadius: '20px',
+        showCloseButton: true
     });
 }
 

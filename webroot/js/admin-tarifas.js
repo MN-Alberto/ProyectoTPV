@@ -10,23 +10,32 @@
 
 function generarFilaCategoria(cat) {
     const fecha = cat.fecha_creacion ? new Date(cat.fecha_creacion).toLocaleDateString('es-ES') : '—';
-    return `<tr>
-        <td>${cat.nombre}</td>
-        <td style="text-align:center;">
-            <span class="admin-badge" style="background:#e0e7ff;color:#3730a3;">${cat.num_productos}</span>
-        </td>
-        <td>${fecha}</td>
-        <td class="col-acciones">
-            <button class="btn-admin-accion btn-ver" onclick="verCategoria(${cat.id})" title="Ver">
-                <i class="fas fa-eye"></i></button>
-            <button class="btn-admin-accion btn-editar"
-                onclick="abrirModalEditarCategoria(${cat.id},'${cat.nombre}','${cat.descripcion || ''}')" title="Editar">
-                <i class="fas fa-pen"></i></button>
-            <button class="btn-admin-accion btn-eliminar"
-                onclick="confirmarEliminarCategoria(${cat.id},'${cat.nombre}')" title="Eliminar">
-                <i class="fas fa-trash"></i></button>
-        </td>
-    </tr>`;
+    return `
+        <tr class="category-row">
+            <td class="col-nombre">
+                <div class="category-info">
+                    <span class="category-name-text">${cat.nombre}</span>
+                </div>
+            </td>
+            <td class="col-productos" style="text-align:center;">
+                <span class="count-badge">${cat.num_productos} <small>productos</small></span>
+            </td>
+            <td class="col-fecha" style="color: #64748b; font-size: 0.85rem;">
+                <i class="far fa-calendar-alt" style="margin-right: 6px; opacity: 0.5;"></i> ${fecha}
+            </td>
+            <td class="col-acciones">
+                <div class="actions-group">
+                    <button class="action-btn btn-view" onclick="verCategoria(${cat.id})" title="Ver detalles">
+                        <i class="fas fa-eye"></i></button>
+                    <button class="action-btn btn-edit"
+                        onclick="abrirModalEditarCategoria(${cat.id},'${cat.nombre}','${cat.descripcion || ''}')" title="Editar">
+                        <i class="fas fa-pen"></i></button>
+                    <button class="action-btn btn-delete"
+                        onclick="confirmarEliminarCategoria(${cat.id},'${cat.nombre}')" title="Eliminar">
+                        <i class="fas fa-trash"></i></button>
+                </div>
+            </td>
+        </tr>`;
 }
 
 function renderizarCategoriasPagina() {
@@ -52,20 +61,29 @@ function mostrarPanelCategorias(textoBusqueda = '') {
 
     if (!adminTablaHeaderHTML) {
         adminTablaHeaderHTML = `
-            <div class="admin-tabla-header">
-                <div style="display:flex;gap:10px;width:100%;align-items:center;flex-wrap:wrap;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <label style="margin:0;font-weight:600;">Buscar:</label>
-                        <input type="text" id="busquedaCategorias"
-                            placeholder="Escribe el nombre de la categoría..."
-                            value="${textoBusqueda}"
-                            style="padding:8px 15px;border:1px solid #e5e7eb;border-radius:10px;width:250px;height:40px;"
-                            oninput="buscarCategorias()">
+            ${getPremiumHeaderHTML('fa-tags', 'Gestión de Categorías', 'Organice su catálogo de productos por grupos lógicos', 'linear-gradient(135deg, #10b981, #059669)')}
+            <div class="admin-tabla-header products-header">
+                <div class="header-filters-grid">
+                    <div class="filter-main">
+                        <div class="search-wrapper">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" id="busquedaCategorias" class="input-modern-search"
+                                placeholder="Buscar categorías..."
+                                oninput="buscarCategorias()" autocomplete="off"
+                                value="${textoBusqueda.replace(/"/g, '&quot;')}">
+                        </div>
                     </div>
-                    <button class="btn-admin-accion btn-nuevo" onclick="abrirModalNuevaCategoria()">
-                        <i class="fas fa-plus"></i> Nueva Categoría
-                    </button>
-                    <span id="totalCategoriasAviso" class="total-clientes-aviso">0 Categoría(s)</span>
+                    
+                    <div class="header-status-info">
+                        <span id="totalCategoriasAviso" class="info-tag">0 Categorías</span>
+                    </div>
+
+                    <div class="header-actions">
+                        <button class="btn-modern btn-primary btn-add-category" onclick="abrirModalNuevaCategoria()">
+                            <i class="fas fa-plus"></i>
+                            <span>Nueva Categoría</span>
+                        </button>
+                    </div>
                 </div>
             </div>`;
     }
@@ -84,16 +102,19 @@ function mostrarPanelCategorias(textoBusqueda = '') {
             categoriasData = filtrado;
             paginaActualCategorias = 1;
 
-            if (!filtrado.length) { contenedor.innerHTML = adminTablaHeaderHTML + '<p class="sin-productos">No hay categorías.</p>'; return; }
+            if (!filtrado.length) { contenedor.innerHTML = adminTablaHeaderHTML + '<p class="sin-productos">No hay categorías que coincidan con la búsqueda.</p>'; return; }
 
             const totalPaginas = Math.ceil(filtrado.length / categoriasPorPagina);
             const pag = filtrado.slice(0, categoriasPorPagina);
 
             let html = adminTablaHeaderHTML + `
-                <div class="admin-tabla-wrapper sin-scroll">
+                <div class="admin-tabla-wrapper products-table-wrapper">
                     <table class="admin-tabla">
                         <thead><tr>
-                            <th>Nombre</th><th>Productos</th><th>Fecha Creación</th><th>Acciones</th>
+                            <th>Nombre de la Categoría</th>
+                            <th style="width: 150px; text-align:center;">Nº Productos</th>
+                            <th style="width: 180px;">Fecha Creación</th>
+                            <th style="width: 150px; text-align:center;">Acciones</th>
                         </tr></thead>
                         <tbody id="tablaCategoriasBody">
                             ${pag.map(generarFilaCategoria).join('')}
@@ -107,11 +128,14 @@ function mostrarPanelCategorias(textoBusqueda = '') {
             if (contador) {
                 const hayBusqueda = textoBusqueda && textoBusqueda.trim() !== '';
                 contador.textContent = hayBusqueda
-                    ? `${filtrado.length.toLocaleString('es-ES')} Resultado${filtrado.length !== 1 ? 's' : ''}`
-                    : `${data.length.toLocaleString('es-ES')} Categoría${data.length !== 1 ? 's' : ''}`;
+                    ? `${filtrado.length} Encontrada${filtrado.length !== 1 ? 's' : ''}`
+                    : `${data.length} Categoría${data.length !== 1 ? 's' : ''}`;
             }
         })
-        .catch(err => { contenedor.innerHTML = adminTablaHeaderHTML + '<p style="color:red;">Error al cargar las categorías.</p>'; });
+        .catch(err => { 
+            console.error(err);
+            contenedor.innerHTML = adminTablaHeaderHTML + '<p class="sin-productos">Error al cargar las categorías.</p>'; 
+        });
 }
 
 function buscarCategorias() {
@@ -445,22 +469,37 @@ function switchIvaSubSeccion(sub) {
 
     if (sub === 'tipos') {
         btnTipos.classList.add('active');
-        btnTipos.style.background = '#6366f1';
-        btnTipos.style.color = 'white';
         btnMasivo.classList.remove('active');
-        btnMasivo.style.background = 'transparent';
-        btnMasivo.style.color = 'var(--text-muted)';
         secTipos.style.display = 'block';
         secMasivo.style.display = 'none';
     } else {
         btnMasivo.classList.add('active');
-        btnMasivo.style.background = '#6366f1';
-        btnMasivo.style.color = 'white';
         btnTipos.classList.remove('active');
-        btnTipos.style.background = 'transparent';
-        btnTipos.style.color = 'var(--text-muted)';
         secTipos.style.display = 'none';
-        secMasivo.style.display = 'flex';
+        secMasivo.style.display = 'block';
+    }
+}
+
+function switchAjusteSubSeccion(seccion) {
+    const tabDirecto = document.getElementById('tabAjusteDirecto');
+    const tabProgramados = document.getElementById('tabAjusteProgramados');
+    const divDirecto = document.getElementById('ajusteSeccionDirecto');
+    const divProgramados = document.getElementById('ajusteSeccionProgramados');
+    if (!tabDirecto || !tabProgramados || !divDirecto || !divProgramados) return;
+
+    if (seccion === 'directo') {
+        tabDirecto.classList.add('active');
+        tabProgramados.classList.remove('active');
+        divDirecto.style.display = 'block';
+        divProgramados.style.display = 'none';
+    } else {
+        tabDirecto.classList.remove('active');
+        tabProgramados.classList.add('active');
+        divDirecto.style.display = 'none';
+        divProgramados.style.display = 'block';
+        if (typeof cargarAjustesPreciosProgramadosTabla === 'function') {
+            cargarAjustesPreciosProgramadosTabla();
+        }
     }
 }
 
@@ -470,105 +509,201 @@ function mostrarPanelCambiarIVA() {
     seccionActual = 'tarifa-iva';
     adminTablaHeaderHTML = '';
 
-    let opcionesIva = '<option value="">Selecciona un tipo de IVA</option>' +
+    const opcionesIva = '<option value="">Selecciona un tipo de IVA</option>' +
         tiposIva.map(t => `<option value="${t.id}">${t.porcentaje}% (${t.nombre})</option>`).join('');
-    let filasTablaIva = tiposIva.map(t => `
-        <tr>
-            <td style="text-align:center;width:60px;">${t.id}</td>
-            <td>${t.nombre}</td>
-            <td style="text-align:center;font-weight:600;width:120px;">${t.porcentaje}%</td>
-            <td style="text-align:center;width:150px;">
-                <button class="btn-admin-accion" onclick="editarIva(${t.id},'${t.nombre}',${t.porcentaje})"><i class="fas fa-pen"></i></button>
-                <button class="btn-admin-accion btn-eliminar" onclick="eliminarIva(${t.id})"><i class="fas fa-trash"></i></button>
+
+    const filasTablaIva = tiposIva.map(t => `
+        <tr class="iva-row">
+            <td style="text-align:center; font-weight: 700; color: #6366f1;">#${t.id}</td>
+            <td>
+                <div style="font-weight: 600; color: #374151;">${t.nombre}</div>
+            </td>
+            <td style="text-align:center;">
+                <span class="iva-pct-badge">${t.porcentaje}%</span>
+            </td>
+            <td style="text-align:center;">
+                <div class="actions-group" style="justify-content: center;">
+                    <button class="action-btn btn-edit" onclick="editarIva(${t.id},'${t.nombre}',${t.porcentaje})" title="Editar">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                    <button class="action-btn btn-delete" onclick="eliminarIva(${t.id})" title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </td>
         </tr>`).join('');
 
     contenedor.innerHTML = `
-        <div class="iva-panel-container">
-            <div class="iva-panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                <div>
-                    <h2><i class="fas fa-percentage"></i> Cambiar IVA General</h2>
-                    <p class="iva-panel-subtitle">Gestión de tipos de IVA y actualización masiva de productos</p>
+        <div class="premium-panel animate-fade-in">
+            <div class="premium-panel-header">
+                <div class="header-left">
+                    <div class="header-icon-box">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                    <div>
+                        <h2 class="premium-title">Cambiar IVA General</h2>
+                        <p class="premium-subtitle">Gestión centralizada de tipos impositivos y actualización masiva</p>
+                    </div>
                 </div>
-                <div class="iva-tabs" style="display: flex; background: var(--bg-input); padding: 5px; border-radius: 12px; border: 1px solid var(--border-main);">
-                    <button id="tabIvaTipos" onclick="switchIvaSubSeccion('tipos')" class="active" style="padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s; background: #6366f1; color: white;">
-                        <i class="fas fa-tags"></i> Tipos de IVA
-                    </button>
-                    <button id="tabIvaMasivo" onclick="switchIvaSubSeccion('masivo')" style="padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s; background: transparent; color: var(--text-muted);">
-                        <i class="fas fa-magic"></i> Actualización Masiva
-                    </button>
+                <div class="header-right">
+                    <div class="premium-tabs-modern">
+                        <button id="tabIvaTipos" onclick="switchIvaSubSeccion('tipos')" class="tab-modern active">
+                            <i class="fas fa-tags"></i> <span>Tipos de IVA</span>
+                        </button>
+                        <button id="tabIvaMasivo" onclick="switchIvaSubSeccion('masivo')" class="tab-modern">
+                            <i class="fas fa-magic"></i> <span>Actualización Masiva</span>
+                        </button>
+                    </div>
                 </div>
             </div>
             
-            <div class="iva-panel-content">
-                
+            <div class="premium-panel-body">
                 <!-- SECCIÓN 1: TABLA DE TIPOS DE IVA -->
-                <div id="ivaSeccionTipos" class="iva-panel-section-1">
-                    <div class="iva-panel-card">
-                        <div class="iva-tipos-header">
-                            <h3 style="font-size: 16px; margin-bottom: 15px;"><i class="fas fa-tags"></i> Tipos de IVA Registrados</h3>
-                            <button onclick="abrirModalNuevoIva()" class="btn-admin-accion btn-nuevo" style="padding: 8px 15px;">
-                                <i class="fas fa-plus"></i> Nuevo Tipo de IVA
-                            </button>
+                <div id="ivaSeccionTipos" class="iva-content-section active">
+                    <div class="iva-grid-container">
+                        <div class="iva-info-card">
+                            <div class="card-header-flex">
+                                <h3><i class="fas fa-list-check"></i> Listado de Tipos</h3>
+                                <button onclick="abrirModalNuevoIva()" class="btn-modern btn-primary btn-sm">
+                                    <i class="fas fa-plus"></i> Nuevo IVA
+                                </button>
+                            </div>
+                            <div class="modern-table-wrapper" style="margin-top: 15px; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden;">
+                                <table class="admin-tabla">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 80px; text-align: center;">ID</th>
+                                            <th>Nombre Descriptivo</th>
+                                            <th style="text-align: center; width: 140px;">Porcentaje</th>
+                                            <th style="text-align: center; width: 140px;">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${filasTablaIva || '<tr><td colspan="4" class="sin-productos">No hay tipos de IVA definidos</td></tr>'}</tbody>
+                                </table>
+                            </div>
                         </div>
-                        <div class="iva-tipos-table-wrapper" style="max-height: 500px; border: 1px solid var(--border-main); border-radius: 8px; overflow: hidden;">
-                            <table class="iva-tipos-tabla">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 60px; text-align: center;">ID</th>
-                                        <th>Nombre Informativo</th>
-                                        <th style="text-align: center; width: 120px;">Porcentaje (%)</th>
-                                        <th style="text-align: center; width: 150px;">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>${filasTablaIva}</tbody>
-                            </table>
+                        
+                        <div class="iva-help-card">
+                            <h4><i class="fas fa-info-circle"></i> Ayuda sobre IVA</h4>
+                            <p>Los tipos de IVA aquí definidos aparecerán como opciones al crear o editar productos.</p>
+                            <div class="help-item">
+                                <i class="fas fa-lightbulb"></i>
+                                <span>El <b>IVA General</b> (21%) es el estándar para la mayoría de productos.</span>
+                            </div>
+                            <div class="help-item">
+                                <i class="fas fa-lightbulb"></i>
+                                <span>El <b>IVA Reducido</b> (10%) se aplica a alimentos y hostelería.</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- SECCIÓN 2: PANEL DE CAMBIO Y PREVIEW -->
-                <div id="ivaSeccionMasivo" class="iva-panel-section-2" style="display: none; gap: 20px; align-items: flex-start;">
-                    
-                    <!-- Columna Izquierda: Configuración -->
-                    <div class="iva-panel-card" style="width: 380px; flex-shrink: 0; position: sticky; top: 10px;">
-                        <h3 style="font-size: 16px; margin-bottom: 20px;"><i class="fas fa-magic"></i> Actualización Masiva</h3>
-                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">
-                            Selecciona un nuevo tipo de IVA para aplicarlo a todos los productos (puedes excluir productos específicos en la tabla de la derecha).
-                        </p>
-                        
-                        <div class="iva-form-group" style="margin-bottom: 25px;">
-                            <label for="nuevoIVA" style="font-weight: 700; display: block; margin-bottom: 10px;">Nuevo tipo de IVA a aplicar:</label>
-                            <select id="nuevoIVA" class="iva-select" onchange="actualizarPrevisualizacionIVAAuto()" style="padding: 12px; font-size: 14px; border-width: 2px;">
-                                ${opcionesIva}
-                            </select>
+                <div id="ivaSeccionMasivo" class="iva-content-section" style="display: none;">
+                    <div class="iva-massive-layout">
+                        <!-- Sidebar de configuración -->
+                        <div class="massive-config-sidebar">
+                            <div class="config-card-premium">
+                                <h3><i class="fas fa-sliders-h"></i> Configuración</h3>
+                                <p class="config-desc">Selecciona el nuevo IVA para previsualizar el impacto en los precios finales de tus productos.</p>
+                                
+                                <div class="premium-field-group">
+                                    <label>Nuevo IVA a aplicar</label>
+                                    <div class="select-wrapper-modern">
+                                        <select id="nuevoIVA" class="input-modern" onchange="actualizarPrevisualizacionIVAAuto()">
+                                            ${opcionesIva}
+                                        </select>
+                                        <i class="fas fa-chevron-down select-icon"></i>
+                                    </div>
+                                </div>
+                                
+                                <div class="massive-actions-stack">
+                                    <button onclick="aplicarCambioIVA()" class="btn-modern btn-success btn-lg btn-full">
+                                        <i class="fas fa-check-double"></i> Aplicar Cambio Ahora
+                                    </button>
+                                    <div class="action-row-split">
+                                        <button onclick="abrirModalProgramarIVA()" class="btn-modern btn-outline btn-full">
+                                            <i class="fas fa-calendar-plus"></i> Programar
+                                        </button>
+                                        <button onclick="abrirModalVerCambiosProgramados()" class="btn-modern btn-outline btn-full">
+                                            <i class="fas fa-tasks"></i> Tareas
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        
-                        <div class="iva-actions" style="display: flex; flex-direction: column; gap: 12px;">
-                            <button onclick="aplicarCambioIVA()" class="iva-btn-aplicar" style="padding: 14px; font-size: 14px; width: 100%;">
-                                <i class="fas fa-check-circle"></i> Aplicar a Productos Seleccionados
-                            </button>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                <button onclick="abrirModalProgramarIVA()" class="iva-btn-secondary" style="padding: 10px;">
-                                    <i class="fas fa-clock"></i> Programar
-                                </button>
-                                <button onclick="abrirModalVerCambiosProgramados()" class="iva-btn-secondary" style="padding: 10px;">
-                                    <i class="fas fa-list-ul"></i> Ver Tareas
-                                </button>
+
+                        <!-- Panel de Previsualización -->
+                        <div class="massive-preview-area">
+                            <div id="previsualizacionCambios" class="preview-placeholder">
+                                <div class="placeholder-content">
+                                    <div class="placeholder-icon">
+                                        <i class="fas fa-eye"></i>
+                                    </div>
+                                    <h3>Esperando Selección</h3>
+                                    <p>Elige un tipo de IVA en el panel lateral para ver cómo afectará a tu catálogo de productos.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Columna Derecha: Previsualización -->
-                    <div id="previsualizacionCambios" style="flex: 1; min-height: 400px; background: var(--bg-main); border-radius: 12px; border: 1px dashed var(--border-main); display: flex; align-items: center; justify-content: center; position: relative;">
-                         <div style="text-align: center; color: var(--text-muted); padding: 40px;">
-                            <i class="fas fa-eye" style="font-size: 3rem; opacity: 0.2; margin-bottom: 15px; display: block;"></i>
-                            <p>Selecciona un IVA para ver la previsualización de los cambios</p>
-                         </div>
-                    </div>
                 </div>
             </div>
-        </div>`;
+        </div>
+
+        <style>
+            .premium-panel { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #e5e7eb; overflow: hidden; margin-bottom: 20px; }
+            .premium-panel-header { padding: 25px 30px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; background: #fafafa; }
+            .header-left { display: flex; align-items: center; gap: 18px; }
+            .header-icon-box { width: 48px; height: 48px; background: #6366f1; color: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2); }
+            .premium-title { margin: 0; font-size: 1.4rem; font-weight: 800; color: #111827; letter-spacing: -0.5px; }
+            .premium-subtitle { margin: 3px 0 0 0; font-size: 0.9rem; color: #6b7280; font-weight: 500; }
+            
+            .premium-tabs-modern { display: flex; background: #f1f5f9; padding: 4px; border-radius: 10px; border: 1px solid #e2e8f0; }
+            .tab-modern { padding: 8px 16px; border-radius: 7px; border: none; cursor: pointer; font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; transition: all 0.2s; background: transparent; color: #64748b; }
+            .tab-modern.active { background: #fff; color: #6366f1; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+            .tab-modern:hover:not(.active) { color: #334155; background: rgba(255,255,255,0.5); }
+            
+            .premium-panel-body { padding: 30px; }
+            .iva-grid-container { display: grid; grid-template-columns: 1fr 300px; gap: 25px; }
+            .iva-info-card { background: #fff; }
+            .card-header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+            .card-header-flex h3 { margin: 0; font-size: 1.1rem; color: #1f2937; display: flex; align-items: center; gap: 10px; }
+            
+            .iva-pct-badge { background: #eef2ff; color: #4f46e5; padding: 4px 12px; border-radius: 20px; font-weight: 800; font-size: 0.9rem; border: 1px solid #e0e7ff; }
+            
+            .iva-help-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 25px; }
+            .iva-help-card h4 { margin: 0 0 15px 0; font-size: 1rem; color: #334155; display: flex; align-items: center; gap: 10px; }
+            .iva-help-card p { font-size: 0.85rem; color: #64748b; line-height: 1.5; margin-bottom: 20px; }
+            .help-item { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; font-size: 0.85rem; color: #475569; }
+            .help-item i { color: #f59e0b; margin-top: 3px; }
+            
+            .iva-massive-layout { display: grid; grid-template-columns: 350px 1fr; gap: 30px; align-items: flex-start; }
+            .config-card-premium { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 25px; position: sticky; top: 20px; }
+            .config-card-premium h3 { margin: 0 0 10px 0; font-size: 1.1rem; color: #111827; display: flex; align-items: center; gap: 10px; }
+            .config-desc { font-size: 0.85rem; color: #6b7280; margin-bottom: 25px; line-height: 1.5; }
+            
+            .premium-field-group { margin-bottom: 25px; }
+            .premium-field-group label { display: block; font-size: 0.85rem; font-weight: 700; color: #374151; margin-bottom: 8px; }
+            
+            .select-wrapper-modern { position: relative; }
+            .input-modern { width: 100%; padding: 12px 15px; border-radius: 10px; border: 2px solid #e5e7eb; font-size: 0.95rem; font-weight: 600; color: #111827; outline: none; appearance: none; transition: all 0.2s; background: #fff; }
+            .input-modern:focus { border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); }
+            .select-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; font-size: 0.8rem; }
+            
+            .massive-actions-stack { display: flex; flex-direction: column; gap: 12px; }
+            .btn-full { width: 100%; justify-content: center; }
+            .action-row-split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+            
+            .preview-placeholder { height: 400px; background: #f9fafb; border: 2px dashed #e5e7eb; border-radius: 20px; display: flex; align-items: center; justify-content: center; text-align: center; }
+            .placeholder-icon { width: 80px; height: 80px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: #d1d5db; font-size: 2.5rem; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+            .placeholder-content h3 { margin: 0 0 8px 0; font-size: 1.1rem; color: #4b5563; }
+            .placeholder-content p { margin: 0; font-size: 0.9rem; color: #9ca3af; max-width: 250px; line-height: 1.4; }
+            
+            .btn-modern.btn-lg { padding: 15px 25px; font-size: 1rem; }
+            .btn-outline { background: #fff; border: 2px solid #e5e7eb; color: #4b5563; }
+            .btn-outline:hover { background: #f8fafc; border-color: #d1d5db; color: #1f2937; }
+        </style>
+    `;
 }
 
 function actualizarPrevisualizacionIVAAuto() {
@@ -594,47 +729,74 @@ function previsualizarCambioIVA() {
 
 function mostrarTablaPrevisualizacionIVA(productos, nuevoIVA) {
     const contenedor = document.getElementById('previsualizacionCambios');
+    
     let html = `
-        <div class="previsualizacion-tabla-container" style="width: 100%; display: flex; flex-direction: column;">
-            <div class="previsualizacion-tabla-header" style="width: 100%; box-sizing: border-box;">
-                <h3>Previsualización del cambio de IVA (${nuevoIVA}%)</h3>
-                <div class="previsualizacion-botones">
-                    <span class="previsualizacion-hint">💡 Clic en fila para excluir</span>
-                    <button class="btn-excluir-todos" onclick="excluirTodosProductos('iva')">Excluir todos</button>
-                    <button class="btn-incluir-todos" onclick="incluirTodosProductos('iva')">Incluir todos</button>
+        <div class="massive-preview-card animate-slide-up">
+            <div class="preview-header-sticky">
+                <div class="preview-title-info">
+                    <h3><i class="fas fa-microscope"></i> Análisis de Impacto (${nuevoIVA}%)</h3>
+                    <p>Haga clic en un producto para excluirlo de la actualización masiva.</p>
+                </div>
+                <div class="preview-header-actions">
+                    <button class="btn-modern btn-outline btn-sm" onclick="excluirTodosProductos('iva')">
+                        <i class="fas fa-times-circle"></i> Excluir Todos
+                    </button>
+                    <button class="btn-modern btn-outline btn-sm" onclick="incluirTodosProductos('iva')">
+                        <i class="fas fa-check-circle"></i> Incluir Todos
+                    </button>
                 </div>
             </div>
-            <div class="previsualizacion-tabla-wrapper" style="width: 100%; overflow-x: auto; flex: 1;">
-                <table class="previsualizacion-tabla" style="width: 100%; border-collapse: collapse;">
-                    <thead><tr>
-                        <th style="width:30px;">#</th><th>ID</th><th>Producto</th>
-                        <th style="text-align:right;">Precio</th>
-                        <th style="text-align:center;">IVA Actual</th>
-                        <th style="text-align:center;">IVA Nuevo</th>
-                        <th style="text-align:right;">Precio c/IVA</th>
-                    </tr></thead>
+            
+            <div class="preview-table-viewport">
+                <table class="premium-table-preview">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px; text-align: center;">ID</th>
+                            <th>Producto</th>
+                            <th style="text-align: right; width: 100px;">Base</th>
+                            <th style="text-align: center; width: 100px;">IVA Ant.</th>
+                            <th style="text-align: center; width: 100px;">IVA Sig.</th>
+                            <th style="text-align: right; width: 120px;">Total Final</th>
+                        </tr>
+                    </thead>
                     <tbody>`;
 
     productos.forEach((p, i) => {
         const excluido = productosExcluidos.includes(p.id);
-        const precioConIVA = parseFloat(p.precio) * (1 + (excluido ? p.iva_actual : nuevoIVA) / 100);
-        const clase = excluido ? 'fila-excluida' : (p.iva_actual !== nuevoIVA ? 'fila-destacada' : '');
+        const ivaFinal = excluido ? p.iva_actual : nuevoIVA;
+        const precioConIVA = parseFloat(p.precio) * (1 + ivaFinal / 100);
+        
+        const rowClass = excluido ? 'row-excluded' : (p.iva_actual !== nuevoIVA ? 'row-changed' : 'row-equal');
         const prec = parseInt(p.decimales ?? 2);
+
         html += `
-            <tr class="${clase}" onclick="toggleExcluirProducto(${p.id},'iva')">
-                <td style="text-align:center;">${excluido ? '❌' : i + 1}</td>
-                <td>${p.id}</td>
-                <td>${p.nombre}</td>
-                <td style="text-align:right;">${parseFloat(p.precio).toFixed(prec)} €</td>
-                <td style="text-align:center;">${p.iva_actual}%</td>
-                <td style="text-align:center;" class="precio-iva-nuevo">${excluido ? p.iva_actual + '%' : nuevoIVA + '%'}</td>
-                <td style="text-align:right;" class="precio-destacado">${precioConIVA.toFixed(prec)} €</td>
+            <tr class="${rowClass}" onclick="toggleExcluirProducto(${p.id},'iva')">
+                <td style="text-align:center; font-weight: 600; opacity: 0.6;">${p.id}</td>
+                <td>
+                    <div class="prod-name-flex">
+                        <span class="prod-name-main">${p.nombre}</span>
+                        ${excluido ? '<span class="excluded-pill">Excluido</span>' : ''}
+                    </div>
+                </td>
+                <td style="text-align:right; font-family: 'JetBrains Mono', monospace;">${parseFloat(p.precio).toFixed(prec)} €</td>
+                <td style="text-align:center; color: #6b7280;">${p.iva_actual}%</td>
+                <td style="text-align:center;">
+                    <span class="iva-next-pill ${excluido ? 'neutral' : 'active'}">${ivaFinal}%</span>
+                </td>
+                <td style="text-align:right; font-weight: 800; color: #111827;">
+                    ${precioConIVA.toFixed(prec)} €
+                </td>
             </tr>`;
     });
 
-    html += '</tbody></table></div></div>';
+    html += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
     contenedor.innerHTML = html;
-    const wrapper = contenedor.querySelector('.previsualizacion-tabla-wrapper');
+    const wrapper = contenedor.querySelector('.preview-table-viewport');
     if (wrapper && scrollPrevisualizacion > 0) wrapper.scrollTop = scrollPrevisualizacion;
 }
 
@@ -667,45 +829,108 @@ function aplicarCambioIVA() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function mostrarPanelAjustePrecios() {
+    productosExcluidos = [];
     const contenedor = document.getElementById('adminContenido');
     seccionActual = 'tarifa-ajuste';
     adminTablaHeaderHTML = '';
+
     contenedor.innerHTML = `
-        <div class="admin-tabla-header">
-            <h2 style="margin:0;font-size:24px;font-weight:600;">Ajuste de Precios</h2>
-        </div>
-        <div style="display:flex;gap:20px;align-items:flex-start;">
-            <div class="tarifa-panel-inputs">
-                <p class="tarifa-panel-desc">Aplica un porcentaje de subida o bajada a todos los productos.</p>
-                <div class="tarifa-input-group">
-                    <label>Porcentaje de ajuste (%):</label>
-                    <input type="number" id="porcentajeAjuste" step="0.0001" placeholder="Ej: 10 o -10" oninput="validar4Decimales(this); actualizarPrevisualizacionPreciosAuto()"
-                        class="tarifa-input">
-                    <small class="tarifa-hint">Positivo = subir | Negativo = bajar</small>
+        <div class="premium-panel animate-fade-in">
+            <div class="premium-panel-header">
+                <div class="header-left">
+                    <div class="header-icon-box" style="background: linear-gradient(135deg, #10b981, #059669);">
+                        <i class="fas fa-sliders-h"></i>
+                    </div>
+                    <div>
+                        <h2 class="premium-title">Ajuste de Precios</h2>
+                        <p class="premium-subtitle">Actualización porcentual masiva de precios base</p>
+                    </div>
                 </div>
-                <button onclick="aplicarAjustePrecios()" class="tarifa-btn-aplicar tarifa-btn-precios">
-                    <i class="fas fa-save"></i> Aplicar Ajuste de Precios
-                </button>
-                <button onclick="abrirModalProgramarAjustePrecios()" class="tarifa-btn-programar" style="margin-top:10px;">
-                    <i class="fas fa-clock"></i> Programar Ajuste
-                </button>
-                <button onclick="abrirModalVerAjustesProgramados()" class="tarifa-btn-programar" style="margin-top:10px;">
-                    <i class="fas fa-list"></i> Ver Ajustes Programados
-                </button>
             </div>
-            <div id="previsualizacionCambios" style="flex:1;"></div>
-        </div>`;
+            
+            <div class="premium-panel-body">
+                <!-- SECCIÓN: AJUSTE DIRECTO -->
+                <div id="ajusteSeccionDirecto" class="iva-content-section active">
+                    <div class="iva-massive-layout">
+                        <!-- Sidebar de configuración -->
+                        <div class="massive-config-sidebar">
+                            <div class="config-card-premium">
+                                <h3 style="margin-bottom: 5px;"><i class="fas fa-percentage"></i> Configuración</h3>
+                                <p class="config-desc" style="margin-bottom: 20px;">Aplica un porcentaje de ajuste a la base imponible de tus productos.</p>
+                                
+                                <div class="premium-field-group">
+                                    <label>Porcentaje de ajuste (%)</label>
+                                    <div class="input-with-hint">
+                                        <input type="number" id="porcentajeAjuste" step="0.0001" 
+                                            placeholder="Ej: 10 o -10" 
+                                            oninput="validar4Decimales(this); actualizarPrevisualizacionPreciosAuto()"
+                                            class="input-modern">
+                                        <small class="field-hint">Positivo: subir | Negativo: bajar</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="massive-actions-stack">
+                                    <button onclick="aplicarAjustePrecios()" class="btn-modern btn-success btn-lg btn-full">
+                                        <i class="fas fa-save"></i> Aplicar Ajuste Ahora
+                                    </button>
+                                    <div class="action-row-split">
+                                        <button onclick="abrirModalProgramarAjustePrecios()" class="btn-modern btn-outline btn-full">
+                                            <i class="fas fa-calendar-plus"></i> Programar
+                                        </button>
+                                        <button onclick="abrirModalVerAjustesProgramados()" class="btn-modern btn-outline btn-full">
+                                            <i class="fas fa-list-ul"></i> Ver Lista
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel de Previsualización -->
+                        <div class="massive-preview-area">
+                            <div id="previsualizacionCambios" class="preview-placeholder">
+                                <div class="placeholder-content">
+                                    <div class="placeholder-icon">
+                                        <i class="fas fa-search-dollar"></i>
+                                    </div>
+                                    <h3>Esperando Porcentaje</h3>
+                                    <p>Introduce un valor en el panel lateral para ver la previsualización del ajuste de precios.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #f3f4f6;">
+                    <div class="config-card-premium">
+                        <div class="card-header-flex">
+                            <h3><i class="fas fa-clock-rotate-left"></i> Historial de Tareas Programadas</h3>
+                            <div class="header-actions">
+                                <span class="info-tag"><i class="fas fa-info-circle"></i> Gestiona las actualizaciones automáticas aquí</span>
+                            </div>
+                        </div>
+                        <div id="listaAjustesProgramadosTabla" class="modern-table-wrapper" style="margin-top: 15px; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden;">
+                            <div class="reports-loading"><i class="fas fa-spinner fa-spin"></i> Cargando tareas...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    cargarAjustesPreciosProgramadosTabla();
 }
 
 function actualizarPrevisualizacionPreciosAuto() {
     const input = document.getElementById('porcentajeAjuste');
-    if (!input.value) { document.getElementById('previsualizacionCambios').innerHTML = ''; return; }
+    const contenedor = document.getElementById('previsualizacionCambios');
+    if (!input || !input.value) { if (contenedor) contenedor.innerHTML = ''; return; }
     clearTimeout(debounceTimerPrecios);
     debounceTimerPrecios = setTimeout(() => previsualizarAjustePrecios(), 500);
 }
 
 function previsualizarAjustePrecios() {
-    const porcentaje = parseFloat(document.getElementById('porcentajeAjuste').value);
+    const input = document.getElementById('porcentajeAjuste');
+    if (!input) return;
+    const porcentaje = parseFloat(input.value);
     if (isNaN(porcentaje)) { alert('Por favor, introduce un porcentaje válido'); return; }
     fetch('api/productos.php?previsualizarAjuste=' + porcentaje)
         .then(r => r.json())
@@ -715,53 +940,78 @@ function previsualizarAjustePrecios() {
             mostrarTablaPrevisualizacionPrecios(data.productos, porcentaje);
         });
 }
-
 function mostrarTablaPrevisualizacionPrecios(productos, porcentaje) {
     const contenedor = document.getElementById('previsualizacionCambios');
-    const esSubida = porcentaje > 0;
-    const claseDif = esSubida ? 'diferencia-subida' : 'diferencia-bajada';
-
+    
     let html = `
-        <div class="previsualizacion-tabla-container" style="width: 100%; display: flex; flex-direction: column;">
-            <div class="previsualizacion-tabla-header" style="width: 100%; box-sizing: border-box;">
-                <h3>Previsualización del ajuste (${porcentaje}%)</h3>
-                <div class="previsualizacion-botones">
-                    <span class="previsualizacion-hint">💡 Clic en fila para excluir</span>
-                    <button class="btn-excluir-todos" onclick="excluirTodosProductos('precios')">Excluir todos</button>
-                    <button class="btn-incluir-todos" onclick="incluirTodosProductos('precios')">Incluir todos</button>
+        <div class="massive-preview-card animate-slide-up">
+            <div class="preview-header-sticky">
+                <div class="preview-title-info">
+                    <h3><i class="fas fa-search-dollar"></i> Análisis de Ajuste (${porcentaje}%)</h3>
+                    <p>Haz clic en un producto para excluirlo de la actualización masiva.</p>
+                </div>
+                <div class="preview-header-actions">
+                    <button class="btn-modern btn-outline btn-sm" onclick="excluirTodosProductos('precios')">
+                        <i class="fas fa-times-circle"></i> Excluir Todos
+                    </button>
+                    <button class="btn-modern btn-outline btn-sm" onclick="incluirTodosProductos('precios')">
+                        <i class="fas fa-check-circle"></i> Incluir Todos
+                    </button>
                 </div>
             </div>
-            <div class="previsualizacion-tabla-wrapper" style="width: 100%; overflow-x: auto; flex: 1;">
-                <table class="previsualizacion-tabla" style="width: 100%; border-collapse: collapse;">
-                    <thead><tr>
-                        <th style="width:30px;">#</th><th>ID</th><th>Producto</th>
-                        <th style="text-align:right;">Precio Actual</th>
-                        <th style="text-align:right;">Precio Nuevo</th>
-                        <th style="text-align:right;">Diferencia</th>
-                    </tr></thead>
+            
+            <div class="preview-table-viewport">
+                <table class="premium-table-preview">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px; text-align: center;">ID</th>
+                            <th>Producto</th>
+                            <th style="text-align: right; width: 100px;">Base Act.</th>
+                            <th style="text-align: center; width: 100px;">Ajuste</th>
+                            <th style="text-align: center; width: 100px;">Variación</th>
+                            <th style="text-align: right; width: 120px;">Precio Sig.</th>
+                        </tr>
+                    </thead>
                     <tbody>`;
 
-    productos.forEach((p, i) => {
+    productos.forEach((p) => {
         const excluido = productosExcluidos.includes(p.id);
         const precioNuevo = excluido ? p.precio_actual : p.precio_nuevo;
         const diferencia = excluido ? 0 : p.diferencia;
-        const clase = excluido ? 'fila-excluida' : (p.diferencia !== 0 ? 'fila-destacada' : '');
-        const signo = esSubida && !excluido ? '+' : '';
+        const rowClass = excluido ? 'row-excluded' : (p.diferencia !== 0 ? 'row-changed' : 'row-equal');
         const prec = parseInt(p.decimales ?? 2);
+        const signo = p.diferencia > 0 ? '+' : '';
+
         html += `
-            <tr class="${clase}" onclick="toggleExcluirProducto(${p.id},'precios')">
-                <td style="text-align:center;">${excluido ? '❌' : i + 1}</td>
-                <td>${p.id}</td>
-                <td>${p.nombre}</td>
-                <td style="text-align:right;">${parseFloat(p.precio_actual).toFixed(prec)} €</td>
-                <td style="text-align:right;font-weight:bold;">${parseFloat(precioNuevo).toFixed(prec)} €</td>
-                <td style="text-align:right;" class="${excluido ? '' : claseDif}">${signo}${diferencia.toFixed(prec)} €</td>
+            <tr class="${rowClass}" onclick="toggleExcluirProducto(${p.id},'precios')">
+                <td style="text-align:center; font-weight: 600; opacity: 0.6;">${p.id}</td>
+                <td>
+                    <div class="prod-name-flex">
+                        <span class="prod-name-main">${p.nombre}</span>
+                        ${excluido ? '<span class="excluded-pill">Excluido</span>' : ''}
+                    </div>
+                </td>
+                <td style="text-align:right; font-family: 'JetBrains Mono', monospace;">${parseFloat(p.precio_actual).toFixed(prec)} €</td>
+                <td style="text-align:center; color: #6b7280;">${excluido ? '0' : porcentaje}%</td>
+                <td style="text-align:center;">
+                    <span class="iva-next-pill ${excluido ? 'neutral' : 'active'}">
+                        ${excluido ? '=' : signo + diferencia.toFixed(prec)} €
+                    </span>
+                </td>
+                <td style="text-align:right; font-weight: 800; color: #111827;">
+                    ${parseFloat(precioNuevo).toFixed(prec)} €
+                </td>
             </tr>`;
     });
 
-    html += '</tbody></table></div></div>';
+    html += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
     contenedor.innerHTML = html;
-    const wrapper = contenedor.querySelector('.previsualizacion-tabla-wrapper');
+    const wrapper = contenedor.querySelector('.preview-table-viewport');
     if (wrapper && scrollPrevisualizacion > 0) wrapper.scrollTop = scrollPrevisualizacion;
 }
 
@@ -829,32 +1079,33 @@ function filtrarTablaTarifas() {
 }
 
 function actualizarTablaTarifas() {
-    const isDark = document.body.classList.contains('dark-mode');
-    const textColor = isDark ? '#e5e7eb' : '#374151';
-    const tableRowBorder = isDark ? '#374151' : '#e5d7eb';
     const tarifas = window.tarifasData || [];
-
     const inicio = (paginaActualTarifas - 1) * productosPorPaginaTarifas;
     const productosPagina = todosLosProductosTarifas.slice(inicio, inicio + productosPorPaginaTarifas);
     const totalPaginas = Math.ceil(todosLosProductosTarifas.length / productosPorPaginaTarifas);
 
-    let filasHtml = '';
+    let html = '';
     productosPagina.forEach(prod => {
         const ivaProd = parseFloat(prod.iva) || 21;
         let precioBase = parseFloat(prod.precio);
         if (tarifasMostrarConIva) precioBase *= (1 + ivaProd / 100);
 
-        // Formateador dinámico: mínimo 2 decimales, máximo 4, basado en el precio original (sin inflar por IVA)
         const getPrec = (v, d) => {
             const s = v.toString();
             const decPart = s.split('.')[1] || '';
             return Math.min(4, Math.max(2, d || 2, decPart.length));
         };
         const prec = getPrec(parseFloat(prod.precio), prod.decimales);
-        let fila = `
-            <tr style="border-bottom:1px solid ${tableRowBorder};">
-                <td style="padding:8px 6px;font-weight:500;color:${textColor};">${prod.nombre}</td>
-                <td style="padding:8px 6px;font-weight:600;text-align:right;">${precioBase.toFixed(prec)} €</td>`;
+
+        html += `
+            <tr style="border-bottom: 1px solid #f3f4f6; transition: background 0.15s;">
+                <td style="padding: 12px 20px;">
+                    <div style="font-weight: 600; color: #1e293b;">${prod.nombre}</div>
+                    <div style="font-size: 11px; color: #94a3b8;">Ref: ${prod.id} | IVA: ${ivaProd}%</div>
+                </td>
+                <td style="padding: 12px 20px; text-align: right; font-weight: 700; color: #64748b; font-size: 0.95rem;">
+                    ${precioBase.toFixed(prec)} €
+                </td>`;
 
         tarifas.forEach(tarifa => {
             const dataTarifa = prod.preciosTarifas && prod.preciosTarifas[tarifa.id];
@@ -869,41 +1120,62 @@ function actualizarTablaTarifas() {
                 precioFinal = precioBase * (1 - (parseFloat(tarifa.descuento_porcentaje) || 0) / 100);
             }
 
-            const style = esManual
-                ? 'border:1px solid #10b981;background:#ecfdf5;color:#065f46;'
-                : (isDark ? 'border:1px solid #374151;background:#111827;color:#10b981;' : 'border:1px solid #d1d5db;background:white;color:#10b981;');
-            const disabledAttr = (tarifasMostrarConIva && !modoProgramacionTarifas) ? 'disabled' : '';
-            const disabledStyle = (tarifasMostrarConIva && !modoProgramacionTarifas) ? 'opacity:.5;cursor:not-allowed;' : '';
-
             const key = `${prod.id}-${tarifa.id}`;
             let valueToShow = precioFinal;
             let customClass = '';
+            let badgeHtml = '';
+            let indicatorDot = '';
+            
             if (loteCambiosTarifas[key] !== undefined) {
-                valueToShow = parseFloat(typeof loteCambiosTarifas[key] === 'object' ? loteCambiosTarifas[key].nuevo : loteCambiosTarifas[key]);
+                const val = loteCambiosTarifas[key];
+                const nuevoVal = parseFloat(typeof val === 'object' ? val.nuevo : val);
+                const anteriorVal = parseFloat(typeof val === 'object' ? val.anterior : precioFinal);
+                
+                valueToShow = nuevoVal;
                 if (tarifasMostrarConIva) valueToShow *= (1 + ivaProd / 100);
                 customClass = 'input-precio-programado';
+
+                const diff = nuevoVal - anteriorVal;
+                if (Math.abs(diff) > 0.0001) {
+                    const diffClass = diff > 0 ? 'plus' : 'minus';
+                    const diffSign = diff > 0 ? '+' : '';
+                    badgeHtml = `<span class="price-diff-badge ${diffClass}">${diffSign}${diff.toFixed(2)}€</span>`;
+                    indicatorDot = '<div class="change-indicator-dot"></div>';
+                }
             }
 
-            fila += `
-                <td style="padding:8px 6px;">
-                    <div style="display:flex;align-items:center;gap:4px;">
-                        <input type="number" step="0.0001" value="${valueToShow.toFixed(prec)}"
+            const inputStyle = esManual 
+                ? 'border-color: #10b981; background: #ecfdf5; color: #065f46;' 
+                : 'border-color: #e5e7eb; background: #fff; color: #1e293b;';
+
+            const disabledAttr = (tarifasMostrarConIva && !modoProgramacionTarifas) ? 'disabled' : '';
+            const disabledStyle = (tarifasMostrarConIva && !modoProgramacionTarifas) ? 'opacity: 0.5; cursor: not-allowed; background: #f8fafc;' : '';
+
+            html += `
+                <td style="padding: 12px 20px; text-align: right;">
+                    <div style="display: inline-flex; align-items: center; gap: 4px; position: relative;">
+                        <input type="number" step="0.0001" 
+                            value="${valueToShow.toFixed(prec)}"
                             data-precio-anterior="${precioFinal.toFixed(4)}"
-                            onchange="actualizarPrecioTarifaIndividual(${prod.id},${tarifa.id},this,${ivaProd})"
-                            ${disabledAttr} class="${customClass}"
-                            style="width:70px;padding:4px 6px;border-radius:4px;font-weight:600;text-align:right;${style}${disabledStyle}">
-                        <span style="font-size:14px;font-weight:600;color:#10b981;">€</span>
-                        ${esManual ? '<i class="fas fa-hand-paper" title="Precio manual" style="color:#10b981;font-size:12px;"></i>' : ''}
+                            onchange="actualizarPrecioTarifaIndividual(${prod.id}, ${tarifa.id}, this, ${ivaProd})"
+                            ${disabledAttr}
+                            class="${customClass}"
+                            style="width: 85px; padding: 6px 10px; border: 1.5px solid; border-radius: 8px; font-weight: 700; text-align: right; outline: none; transition: all 0.2s; ${inputStyle} ${disabledStyle}">
+                        <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                            <span style="font-size: 13px; font-weight: 700; color: #94a3b8;">€</span>
+                            ${badgeHtml}
+                        </div>
+                        ${indicatorDot}
+                        ${esManual && !indicatorDot ? '<i class="fas fa-hand-paper" title="Precio establecido manualmente" style="color: #10b981; font-size: 11px; position: absolute; top: -8px; right: -8px; background: white; border-radius: 50%; padding: 2px;"></i>' : ''}
                     </div>
                 </td>`;
         });
 
-        fila += '</tr>';
-        filasHtml += fila;
+        html += `</tr>`;
     });
 
     const tbody = document.getElementById('tablaPreciosProductos');
-    if (tbody) tbody.innerHTML = filasHtml;
+    if (tbody) tbody.innerHTML = html;
 
     const pagCont = document.getElementById('paginacionTarifas');
     if (pagCont) pagCont.innerHTML = getPaginacionTarifasHTML(totalPaginas);
@@ -968,13 +1240,115 @@ function alternarModoProgramacionTarifas() {
 }
 
 function abrirModalProgramarCambiosTarifas() {
-    const count = Object.keys(loteCambiosTarifas).length;
-    if (!count) { alert('No hay cambios en el lote para programar.'); return; }
-    document.getElementById('countCambiosProgramar').textContent = count;
+    const keys = Object.keys(loteCambiosTarifas);
+    if (!keys.length) { alert('No hay cambios en el lote para programar.'); return; }
+
+    const modalesDiv = document.getElementById('modalesTarifas');
+    if (!modalesDiv) return;
+
+    const isDark = document.body.classList.contains('dark-mode');
     const now = new Date();
     now.setDate(now.getDate() + 1);
-    document.getElementById('fechaProgramadaTarifas').value = now.toISOString().slice(0, 16);
-    document.getElementById('modalProgramarCambiosTarifas').style.display = 'flex';
+    const defaultDate = now.toISOString().slice(0, 16);
+
+    const modalBg = isDark ? '#1f2937' : 'white';
+    const bodyBg = isDark ? '#111827' : '#f8fafc';
+    const cardBg = isDark ? '#1e293b' : 'white';
+    const borderColor = isDark ? '#374151' : '#e2e8f0';
+    const textColor = isDark ? '#f1f5f9' : '#1e293b';
+    const subTextColor = isDark ? '#94a3b8' : '#64748b';
+
+    let listaCambiosHtml = '';
+    keys.forEach(key => {
+        const [idP, idT] = key.split('-');
+        const prod = todosLosProductosTarifas.find(p => p.id == idP);
+        const tarifa = window.tarifasData.find(t => t.id == idT);
+        const cambio = loteCambiosTarifas[key];
+        
+        if (prod && tarifa) {
+            const anterior = parseFloat(cambio.anterior || 0);
+            const nuevo = parseFloat(cambio.nuevo);
+            const diff = nuevo - anterior;
+            const diffClass = diff >= 0 ? 'text-success' : 'text-danger';
+            const diffIcon = diff >= 0 ? 'fa-caret-up' : 'fa-caret-down';
+
+            listaCambiosHtml += `
+                <div style="display: grid; grid-template-columns: 2fr 1.5fr 2fr; align-items: center; padding: 12px 15px; border-bottom: 1px solid ${borderColor}; font-size: 0.9rem;">
+                    <div>
+                        <div style="font-weight: 700; color: ${textColor};">${prod.nombre}</div>
+                        <div style="font-size: 11px; color: ${subTextColor}; font-weight: 600; text-transform: uppercase;">${tarifa.nombre}</div>
+                    </div>
+                    <div style="text-align: center; font-weight: 600; color: ${subTextColor};">
+                        ${anterior.toFixed(2)}€ <i class="fas fa-long-arrow-alt-right" style="margin: 0 8px; font-size: 0.8rem;"></i>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-weight: 800; color: ${textColor}; font-size: 1rem;">${nuevo.toFixed(2)}€</span>
+                        <div style="font-size: 11px; font-weight: 700;" class="${diffClass}">
+                            <i class="fas ${diffIcon}"></i> ${diff.toFixed(2)}€
+                        </div>
+                    </div>
+                </div>`;
+        }
+    });
+
+    modalesDiv.innerHTML = `
+    <div id="modalProgramarCambiosTarifas" class="modal-overlay" style="display: flex; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div class="modal-content animate-scale-up" style="background: ${modalBg}; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); max-width: 600px; width: 95%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; border: 1px solid ${borderColor};">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 25px 30px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="background: rgba(255,255,255,0.2); width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-clock" style="font-size: 1.5rem;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px;">Programar Lote</h3>
+                        <p style="margin: 2px 0 0; font-size: 0.9rem; opacity: 0.9; font-weight: 500;">Confirmar y planificar cambios de precios</p>
+                    </div>
+                </div>
+                <button onclick="cerrarModal('modalProgramarCambiosTarifas')" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 10px; cursor: pointer;">&times;</button>
+            </div>
+
+            <!-- Body -->
+            <div style="padding: 25px 30px; overflow-y: auto; flex: 1; background: ${bodyBg};">
+                <div class="alert-modern warning" style="margin-bottom: 20px;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div>
+                        <div style="font-weight: 700;">Revisión de Cambios</div>
+                        <div>Se han detectado <strong>${keys.length}</strong> modificaciones de precio en este lote.</div>
+                    </div>
+                </div>
+
+                <div style="background: ${cardBg}; border-radius: 16px; border: 1px solid ${borderColor}; overflow: hidden; margin-bottom: 25px;">
+                    <div style="padding: 12px 15px; background: ${isDark ? '#374151' : '#f1f5f9'}; border-bottom: 1px solid ${borderColor}; font-size: 0.75rem; font-weight: 800; color: ${subTextColor}; text-transform: uppercase; display: grid; grid-template-columns: 2fr 1.5fr 2fr;">
+                        <span>Producto / Tarifa</span>
+                        <span style="text-align: center;">Transición</span>
+                        <span style="text-align: right;">Nuevo Precio</span>
+                    </div>
+                    <div style="max-height: 250px; overflow-y: auto;">
+                        ${listaCambiosHtml}
+                    </div>
+                </div>
+
+                <div class="ver-prod-item-premium">
+                    <label style="display: block; font-size: 0.75rem; color: ${subTextColor}; font-weight: 700; text-transform: uppercase; margin-bottom: 10px;">Fecha y Hora de Aplicación</label>
+                    <div style="display: flex; align-items: center; gap: 15px; background: ${cardBg}; padding: 15px; border-radius: 12px; border: 2px solid ${borderColor}; transition: border-color 0.2s;">
+                        <i class="fas fa-calendar-alt" style="color: #f59e0b; font-size: 1.2rem;"></i>
+                        <input type="datetime-local" id="fechaProgramadaTarifas" value="${defaultDate}" 
+                            style="flex: 1; border: none; outline: none; font-size: 1rem; font-weight: 700; color: ${textColor}; background: transparent;">
+                    </div>
+                    <p style="margin: 8px 0 0; font-size: 0.8rem; color: ${subTextColor}; font-weight: 500;">Los precios se actualizarán automáticamente en el sistema al llegar esta fecha.</p>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="padding: 20px 30px; background: ${modalBg}; border-top: 1px solid ${borderColor}; display: flex; justify-content: flex-end; gap: 15px;">
+                <button class="btn-modern btn-outline" onclick="cerrarModal('modalProgramarCambiosTarifas')" style="padding: 12px 25px;">Cancelar</button>
+                <button class="btn-modern btn-warning" onclick="ejecutarGuardarProgramacionTarifas()" style="padding: 12px 30px; background: #f59e0b; color: white;">
+                    <i class="fas fa-save"></i> <span>Confirmar Programación</span>
+                </button>
+            </div>
+        </div>
+    </div>`;
 }
 
 function ejecutarGuardarProgramacionTarifas() {
@@ -1018,350 +1392,278 @@ function ejecutarGuardarProgramacionTarifas() {
 /**
  * Muestra el panel de tarifas prefijadas
  */
-function mostrarPanelTarifasPrefijadas(abrirModal = false) {
+function mostrarPanelTarifasPrefijadas() {
     const contenedor = document.getElementById('adminContenido');
-    seccionActual = 'tarifas-prefijadas';
+    seccionActual = 'tarifa-prefijadas';
     adminTablaHeaderHTML = '';
-
-    // Detectar tema actual
-    const isDark = document.body.classList.contains('dark-mode');
-    const bgColor = isDark ? '#1f2937' : 'white';
-    const textColor = isDark ? '#e5e7eb' : '#374151';
-    const subTextColor = isDark ? '#9ca3af' : '#6b7280';
-    const borderColor = isDark ? '#374151' : '#e5e7eb';
-    const tableHeaderBg = isDark ? '#111827' : '#f9fafb';
-    const tableRowBorder = isDark ? '#374151' : '#e5e7eb';
-    const cardBg = isDark ? '#1f2937' : 'white';
-    const modalContentBg = isDark ? '#1f2937' : 'white';
 
     return Promise.all([
         fetch('api/tarifas.php').then(res => res.json()),
         fetch('api/productos.php').then(res => res.json())
     ])
-        .then(([tarifas, productos]) => {
-            // Guardar todos los productos para paginación
-            window.tarifasData = tarifas;
-            todosLosProductosTarifas = productos;
-            productosOriginalesTarifas = [...productos];
-            paginaActualTarifas = 1;
+    .then(([tarifas, productos]) => {
+        window.tarifasData = tarifas;
+        todosLosProductosTarifas = productos;
+        productosOriginalesTarifas = [...productos];
+        paginaActualTarifas = 1;
 
-            // Calcular índices de la página actual
-            const inicio = (paginaActualTarifas - 1) * productosPorPaginaTarifas;
-            const fin = inicio + productosPorPaginaTarifas;
-            const productosPagina = productos.slice(inicio, fin);
+        const inicio = (paginaActualTarifas - 1) * productosPorPaginaTarifas;
+        const productosPagina = productos.slice(inicio, inicio + productosPorPaginaTarifas);
 
-            // Generar filas de la tabla de precios
-            let filasTablaProductos = '';
-            productosPagina.forEach(prod => {
-                let precioBaseOriginal = parseFloat(prod.precio);
-                const iva = parseFloat(prod.iva) || 21;
+        // Ocultar el título de la vista admin para ganar espacio
+        const adminTitulo = document.getElementById('adminTitulo');
+        if (adminTitulo) adminTitulo.style.display = 'none';
 
-                let precioBaseAMostrar = precioBaseOriginal;
-                if (tarifasMostrarConIva) {
-                    precioBaseAMostrar = precioBaseOriginal * (1 + iva / 100);
-                }
-
-                const getPrec = (v, d) => {
-                    const s = v.toString();
-                    const decPart = s.split('.')[1] || '';
-                    return Math.min(4, Math.max(2, d || 2, decPart.length));
-                };
-                const prec = getPrec(precioBaseOriginal, prod.decimales);
-                let fila = `
-                <tr style="border-bottom: 1px solid ${tableRowBorder};">
-                    <td style="padding: 8px 6px; font-weight: 500; color: ${textColor};">${prod.nombre}</td>
-                    <td style="padding: 8px 6px; color: ${isDark ? '#f3f4f6' : '#1f2937'}; font-weight: 600; text-align: right;">${precioBaseAMostrar.toFixed(prec)} €</td>`;
-
-                tarifas.forEach(tarifa => {
-                    const idTarifa = tarifa.id;
-                    const dataTarifa = prod.preciosTarifas && prod.preciosTarifas[idTarifa];
-
-                    let precioFinal = 0;
-                    let esManual = false;
-
-                    if (dataTarifa) {
-                        precioFinal = parseFloat(dataTarifa.precio);
-                        esManual = dataTarifa.es_manual == 1;
-                        if (tarifasMostrarConIva) {
-                            precioFinal = precioFinal * (1 + iva / 100);
-                        }
-                    } else {
-                        const descuento = parseFloat(tarifa.descuento_porcentaje) || 0;
-                        precioFinal = precioBaseAMostrar * (1 - descuento / 100);
-                    }
-
-                    const manualStyle = esManual
-                        ? 'border: 1px solid #10b981; background: #ecfdf5; color: #065f46;'
-                        : (isDark
-                            ? 'border: 1px solid #374151; background: #111827; color: #10b981;'
-                            : 'border: 1px solid #d1d5db; background: white; color: #10b981;');
-                    const disabledAttr = (tarifasMostrarConIva && !modoProgramacionTarifas) ? 'disabled' : '';
-                    const disabledStyle = (tarifasMostrarConIva && !modoProgramacionTarifas) ? 'opacity: 0.5; cursor: not-allowed;' : '';
-
-                    // Comprobar si hay un cambio programado en el lote local
-                    const key = `${prod.id}-${idTarifa}`;
-                    let valueToShow = precioFinal;
-                    let customClass = '';
-                    if (loteCambiosTarifas[key] !== undefined) {
-                        valueToShow = parseFloat(loteCambiosTarifas[key]);
-                        if (tarifasMostrarConIva) {
-                            valueToShow = valueToShow * (1 + iva / 100);
-                        }
-                        customClass = 'input-precio-programado';
-                    }
-
-                    fila += `
-                    <td style="padding: 8px 6px;">
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <input type="number" step="0.0001"
-                                value="${valueToShow.toFixed(prec)}"
-                                data-precio-anterior="${precioFinal.toFixed(4)}"
-                                onchange="actualizarPrecioTarifaIndividual(${prod.id}, ${idTarifa}, this, ${iva})"
-                                ${disabledAttr}
-                                class="${customClass}"
-                                style="width: 70px; padding: 4px 6px; border-radius: 4px; font-weight: 600; text-align: right; ${manualStyle} ${disabledStyle}">
-                            <span style="font-size: 14px; font-weight: 600; color: #10b981;">€</span>
-                            ${esManual ? '<i class="fas fa-hand-paper" title="Precio manual" style="color: #10b981; font-size: 12px;"></i>' : ''}
+        contenedor.innerHTML = `
+            <div class="premium-panel animate-fade-in">
+                <div class="premium-panel-header">
+                    <div class="header-left">
+                        <div class="header-icon-box" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                            <i class="fas fa-list-ul"></i>
                         </div>
-                    </td>`;
-                });
-
-                fila += `</tr>`;
-                filasTablaProductos += fila;
-            });
-
-            let filasTablaTarifas = '';
-            tarifas.forEach(tarifa => {
-                const requiereCliente = tarifa.requiere_cliente ? 'Sí' : 'No';
-                const descuentoBadge = `<span style="background: ${isDark ? '#1e3a8a' : '#dbeafe'}; color: ${isDark ? '#bfdbfe' : '#1e40af'}; padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 13px;">${tarifa.descuento_porcentaje}%</span>`;
-                filasTablaTarifas += `
-                <tr style="border-bottom: 1px solid ${tableRowBorder};">
-                    <td style="padding: 12px; font-weight: 600; color: ${textColor};">${tarifa.nombre}</td>
-                    <td style="padding: 12px; color: ${subTextColor};">${tarifa.descripcion || '-'}</td>
-                    <td style="padding: 12px;">${descuentoBadge}</td>
-                    <td style="padding: 12px; color: ${tarifa.requiere_cliente ? '#10b981' : subTextColor};">${requiereCliente}</td>
-                    <td style="padding: 12px;">
-                        <button onclick="abrirModalEditarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}', '${(tarifa.descripcion || '').replace(/'/g, "\\'")}', ${tarifa.descuento_porcentaje}, ${tarifa.requiere_cliente ? 1 : 0})" style="padding: 6px 12px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 5px;"><i class="fas fa-pen"></i> Editar</button>
-                        <button onclick="eliminarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}')" style="padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;"><i class="fas fa-trash"></i> Eliminar</button>
-                    </td>
-                </tr>`;
-            });
-
-            // Generar encabezados dinámicos con sticky y outline
-            let cabecerasPrecios = `
-                <th style="padding: 12px 8px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor}; position: -webkit-sticky; position: sticky; top: -1px; z-index: 10; background: ${tableHeaderBg}; outline: 1px solid ${borderColor}; outline-offset: -1px; border: none;">Producto</th>
-                <th style="padding: 12px 8px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor}; position: -webkit-sticky; position: sticky; top: -1px; z-index: 10; background: ${tableHeaderBg}; outline: 1px solid ${borderColor}; outline-offset: -1px; border: none;">Precio</th>`;
-
-            let detalleDescuentos = [];
-            tarifas.forEach(tarifa => {
-                cabecerasPrecios += `<th style="padding: 12px 8px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; color: ${textColor}; position: -webkit-sticky; position: sticky; top: -1px; z-index: 10; background: ${tableHeaderBg}; outline: 1px solid ${borderColor}; outline-offset: -1px; border: none;">${tarifa.nombre}</th>`;
-                detalleDescuentos.push(`${tarifa.nombre} (${tarifa.descuento_porcentaje}%)`);
-            });
-            let descripcionDescuentos = 'Vista de precios según las tarifas aplicadas. Descuentos: ' + (detalleDescuentos.length > 0 ? detalleDescuentos.join(', ') : 'Ninguno');
-
-            contenedor.innerHTML = `
-            <div class="admin-tabla-header">
-                <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: ${textColor};">Tarifas Prefijadas ${modoProgramacionTarifas ? '<span style="color: #f59e0b; font-size: 14px; margin-left: 10px;">(MODO PROGRAMACIÓN ACTIVO)</span>' : ''}</h2>
-                <p style="color: ${subTextColor}; margin-top: 5px;">${modoProgramacionTarifas ? 'Planifica los cambios de precios para una fecha futura. Estos no se aplicarán inmediatamente.' : 'Vista de precios según las tarifas aplicadas.'}</p>
-            </div>
-            <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
-                <input type="text"
-                    id="buscarProductoTarifa"
-                    placeholder="Buscar producto..."
-                    value="${tarifaBusquedaProducto}"
-                    oninput="tarifaBusquedaProducto = this.value; filtrarTablaTarifas();"
-                    style="padding: 10px 15px; border: 1px solid ${borderColor}; border-radius: 8px; font-size: 14px; background: ${isDark ? '#374151' : 'white'}; color: ${textColor}; outline: none; transition: border-color 0.2s; min-width: 250px;"
-                    onfocus="this.style.borderColor = '#6366f1';"
-                    onblur="this.style.borderColor = '${borderColor}';">
-
-                ${!modoProgramacionTarifas ? `
-                    <button onclick="abrirModalTarifas()" class="admin-top-btn" style="background: #6366f1; color: white;">
-                        <i class="fas fa-tags"></i> Ver/Editar Tarifas
-                    </button>
-                    <button onclick="toggleTarifasIva()" class="admin-top-btn" style="background: ${tarifasMostrarConIva ? '#10b981' : (isDark ? '#4b5563' : '#4b5563')}; color: white;">
-                        <i class="fas ${tarifasMostrarConIva ? 'fa-file-invoice-dollar' : 'fa-coins'}"></i>
-                        ${tarifasMostrarConIva ? 'Ver Sin IVA' : 'Ver Con IVA'}
-                    </button>
-                    <button onclick="alternarModoProgramacionTarifas()" class="admin-top-btn" style="background: #f59e0b; color: white;">
-                        <i class="fas fa-clock"></i> Programar Cambios
-                    </button>
-                    <button onclick="abrirModalVerCambiosTarifasProgramados()" class="admin-top-btn" style="background: #3b82f6; color: white;">
-                        <i class="fas fa-history"></i> Ver Programaciones
-                    </button>
-                ` : `
-                    <button onclick="abrirModalProgramarCambiosTarifas()" class="admin-top-btn" style="background: #10b981; color: white;">
-                        <i class="fas fa-check"></i> Finalizar y Programar (${Object.keys(loteCambiosTarifas).length})
-                    </button>
-                    <button onclick="alternarModoProgramacionTarifas()" class="admin-top-btn" style="background: #ef4444; color: white;">
-                        <i class="fas fa-times"></i> Cancelar Modo Programación
-                    </button>
-                `}
-            </div>
-
-            <div style="margin-top: 25px; border-top: 2px solid ${borderColor}; padding-top: 20px;">
-                <div class="admin-tabla-header">
-                    <h2 style="margin: 0; font-size: 24px; font-weight: 600; color: ${textColor};">Precios por Producto</h2>
-                    <p style="color: ${subTextColor}; margin-top: 5px;">${descripcionDescuentos} ${tarifasMostrarConIva ? '(Precios con IVA incluido)' : '(Precios base sin IVA)'}</p>
+                        <div>
+                            <h2 class="premium-title">Tarifas Prefijadas</h2>
+                            <p class="premium-subtitle">Gestiona precios específicos por producto para cada tipo de cliente</p>
+                        </div>
+                    </div>
+                    <div class="header-right">
+                        <div class="premium-tabs-modern">
+                            <button onclick="abrirModalTarifas()" class="tab-modern">
+                                <i class="fas fa-cog"></i> <span>Configurar Tarifas</span>
+                            </button>
+                            <button onclick="abrirModalVerCambiosTarifasProgramados()" class="tab-modern">
+                                <i class="fas fa-history"></i> <span>Ver Programaciones</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div style="border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
-                    <table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 8px; background: ${cardBg};" class="tabla-precios-producto">
-                        <thead class="tabla-precios-head">
-                            <tr>
-                                ${cabecerasPrecios}
-                            </tr>
-                        </thead>
-                        <tbody id="tablaPreciosProductos">${filasTablaProductos}</tbody>
-                    </table>
-                </div>
-                <div id="paginacionTarifas">
-                    ${getPaginacionTarifasHTML(Math.ceil(productos.length / productosPorPaginaTarifas))}
+
+                <div class="premium-panel-body">
+                    <!-- Toolbar de Acciones -->
+                    <div class="admin-tabla-header" style="padding: 0; margin-bottom: 25px; background: transparent; border: none;">
+                        <div class="header-filters-grid">
+                            <div class="filter-main">
+                                <div class="search-wrapper">
+                                    <i class="fas fa-search search-icon"></i>
+                                    <input type="text" id="buscarProductoTarifa" class="input-modern-search" 
+                                        placeholder="Buscar por nombre de producto..." 
+                                        value="${tarifaBusquedaProducto}"
+                                        oninput="tarifaBusquedaProducto = this.value; filtrarTablaTarifas();">
+                                </div>
+                            </div>
+                            
+                            <div class="header-status-info">
+                                <button onclick="toggleTarifasIva()" class="btn-modern btn-outline" style="min-width: 150px; justify-content: center;">
+                                    <i class="fas ${tarifasMostrarConIva ? 'fa-file-invoice-dollar' : 'fa-coins'}"></i>
+                                    <span>${tarifasMostrarConIva ? 'Ver Sin IVA' : 'Ver Con IVA'}</span>
+                                </button>
+                            </div>
+
+                            <div class="header-actions">
+                                ${!modoProgramacionTarifas ? `
+                                    <button onclick="alternarModoProgramacionTarifas()" class="btn-modern btn-warning" style="background: #f59e0b; color: white;">
+                                        <i class="fas fa-clock"></i> <span>Modo Programación</span>
+                                    </button>
+                                ` : `
+                                    <div style="display: flex; gap: 10px;">
+                                        <button onclick="abrirModalProgramarCambiosTarifas()" class="btn-modern btn-success">
+                                            <i class="fas fa-check"></i> <span>Guardar Lote (${Object.keys(loteCambiosTarifas).length})</span>
+                                        </button>
+                                        <button onclick="alternarModoProgramacionTarifas()" class="btn-modern btn-danger" style="background: #ef4444; color: white;">
+                                            <i class="fas fa-times"></i> <span>Cancelar</span>
+                                        </button>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+
+                    ${modoProgramacionTarifas ? `
+                        <div id="alertModoProgramacion" class="alert-modern info animate-slide-up" style="margin-bottom: 15px; display: flex; align-items: center; gap: 12px; padding: 10px 15px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; color: #92400e; width: fit-content; max-width: 100%; transition: opacity 0.5s ease;">
+                            <i class="fas fa-info-circle" style="font-size: 1rem;"></i>
+                            <p style="margin: 0; font-size: 0.85rem; font-weight: 500;">
+                                <strong style="font-weight: 700;">Modo Programación:</strong> Los cambios se guardarán en un lote para ser programados.
+                            </p>
+                        </div>
+                    ` : ''}
+
+                    <!-- Grid de Precios -->
+                    <div class="modern-table-wrapper" style="border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; background: #fff;">
+                        <table class="premium-table-preview" style="width: 100%; border-collapse: collapse;">
+                            <thead id="cabeceraTarifasGrid">
+                                <!-- Se genera dinámicamente -->
+                            </thead>
+                            <tbody id="tablaPreciosProductos">
+                                <!-- Se genera dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="paginacionTarifas" style="margin-top: 20px; min-height: 50px;">
+                        ${getPaginacionTarifasHTML(Math.ceil(productosOriginalesTarifas.length / productosPorPaginaTarifas))}
+                    </div>
                 </div>
             </div>
             <div id="modalesTarifas"></div>
+        `;
+        
+        actualizarCabeceraTarifas();
+        actualizarTablaTarifas();
 
-            <style>
-                .admin-top-btn {
-                    padding: 10px 15px;
-                    border: none;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-weight: 500;
-                    transition: all 0.2s;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 14px;
+        if (modoProgramacionTarifas) {
+            setTimeout(() => {
+                const alert = document.getElementById('alertModoProgramacion');
+                if (alert) {
+                    alert.style.opacity = '0';
+                    setTimeout(() => alert.style.display = 'none', 500);
                 }
-                .admin-top-btn:hover {
-                    filter: brightness(0.9);
-                    transform: translateY(-1px);
-                }
-                .input-precio-programado {
-                    border: 2px solid #f59e0b !important;
-                    background: #fffbeb !important;
-                    color: #92400e !important;
-                }
-                .dark-mode .input-precio-programado {
-                    background: #451a03 !important;
-                    color: #fbbf24 !important;
-                }
-            </style>
+            }, 4000);
+        }
+    });
+}
 
-            <!-- Modal de Tarifas (Redesigned Premium) -->
-            <div id="modalTarifas" class="modal-overlay" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px);">
-                <div class="modal-content" style="background: ${modalContentBg}; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4); max-width: 900px; width: 95%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; border: 1px solid ${borderColor};">
+function actualizarCabeceraTarifas() {
+    const tarifas = window.tarifasData || [];
+    let html = `
+        <tr>
+            <th style="padding: 15px 20px; text-align: left; background: #f9fafb; color: #6b7280; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; border-bottom: 2px solid #f3f4f6;">Producto</th>
+            <th style="padding: 15px 20px; text-align: right; background: #f9fafb; color: #6b7280; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; border-bottom: 2px solid #f3f4f6; width: 120px;">Precio Base</th>`;
+    
+    tarifas.forEach(tarifa => {
+        html += `<th style="padding: 15px 20px; text-align: right; background: #f9fafb; color: #6366f1; font-size: 0.75rem; text-transform: uppercase; font-weight: 800; border-bottom: 2px solid #f3f4f6; width: 130px;">
+            <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                <span>${tarifa.nombre}</span>
+                <small style="opacity: 0.7; font-size: 10px;">Dto: ${tarifa.descuento_porcentaje}%</small>
+            </div>
+        </th>`;
+    });
+    
+    html += `</tr>`;
+    const thead = document.getElementById('cabeceraTarifasGrid');
+    if (thead) thead.innerHTML = html;
+}
+
+
+/**
+ * Abre el modal de tarifas con diseño premium
+ */
+function abrirModalTarifas() {
+    const modalesDiv = document.getElementById('modalesTarifas');
+    if (!modalesDiv) return;
+
+    fetch('api/tarifas.php')
+        .then(res => res.json())
+        .then(tarifas => {
+            const isDark = document.body.classList.contains('dark-mode');
+            const textColor = isDark ? '#e5e7eb' : '#374151';
+            const subTextColor = isDark ? '#9ca3af' : '#6b7280';
+            const borderColor = isDark ? '#374151' : '#e5e7eb';
+            const modalContentBg = isDark ? '#1f2937' : 'white';
+
+            modalesDiv.innerHTML = `
+            <div id="modalTarifas" class="modal-overlay" style="display: flex; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+                <div class="modal-content animate-scale-up" style="background: ${modalContentBg}; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); max-width: 950px; width: 95%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; border: 1px solid ${borderColor};">
                     <!-- Header Premium -->
-                    <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%); color: white; padding: 24px 28px; display: flex; justify-content: space-between; align-items: center; position: relative; overflow: hidden;">
-                        <div style="position: absolute; top: -20px; right: -20px; width: 120px; height: 120px; background: rgba(255,255,255,0.08); border-radius: 50%;"></div>
-                        <div style="position: absolute; bottom: -30px; left: 40%; width: 80px; height: 80px; background: rgba(255,255,255,0.05); border-radius: 50%;"></div>
+                    <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%); color: white; padding: 25px 35px; display: flex; justify-content: space-between; align-items: center; position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: -20px; right: -20px; width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
                         <div style="position: relative; z-index: 1;">
-                            <div style="display: flex; align-items: center; gap: 12px;">
-                                <div style="background: rgba(255,255,255,0.15); border-radius: 12px; padding: 10px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-tags" style="font-size: 20px;"></i>
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div style="background: rgba(255,255,255,0.2); border-radius: 14px; padding: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                                    <i class="fas fa-tags" style="font-size: 22px;"></i>
                                 </div>
                                 <div>
-                                    <h3 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.3px;">Gestión de Tarifas</h3>
-                                    <p style="margin: 3px 0 0; font-size: 13px; opacity: 0.85;">Administra las tarifas y descuentos del sistema</p>
+                                    <h3 style="margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">Gestión de Tarifas</h3>
+                                    <p style="margin: 4px 0 0; font-size: 14px; opacity: 0.9; font-weight: 500;">Configura los niveles de precios y descuentos globales</p>
                                 </div>
                             </div>
                         </div>
-                        <button onclick="cerrarModal('modalTarifas')" style="background: rgba(255,255,255,0.15); border: none; color: white; width: 36px; height: 36px; border-radius: 10px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; position: relative; z-index: 1;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">&times;</button>
+                        <button onclick="cerrarModal('modalTarifas')" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 40px; height: 40px; border-radius: 12px; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; position: relative; z-index: 1;" onmouseover="this.style.background='rgba(255,255,255,0.3)';this.style.transform='rotate(90deg)'" onmouseout="this.style.background='rgba(255,255,255,0.2)';this.style.transform='rotate(0deg)'">&times;</button>
                     </div>
 
                     <!-- Body -->
-                    <div style="padding: 24px 28px; overflow-y: auto; flex: 1;">
-                        <!-- Stats Cards Row -->
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 22px;">
-                            <div style="background: ${isDark ? '#1e1b4b' : '#eef2ff'}; border: 1px solid ${isDark ? '#312e81' : '#c7d2fe'}; border-radius: 12px; padding: 16px; text-align: center;">
-                                <div style="font-size: 24px; font-weight: 700; color: #6366f1;">${tarifas.length}</div>
-                                <div style="font-size: 12px; font-weight: 600; color: ${isDark ? '#a5b4fc' : '#6366f1'}; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;">Tarifas Activas</div>
+                    <div style="padding: 30px; overflow-y: auto; flex: 1; background: ${isDark ? 'rgba(15, 23, 42, 0.2)' : '#f8fafc'};">
+                        <!-- Stats Summary -->
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 25px;">
+                            <div style="background: ${isDark ? '#1e1b4b' : '#ffffff'}; border: 1px solid ${isDark ? '#312e81' : '#e2e8f0'}; border-radius: 16px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 15px;">
+                                <div style="width: 48px; height: 48px; border-radius: 12px; background: #eef2ff; color: #6366f1; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;"><i class="fas fa-layer-group"></i></div>
+                                <div>
+                                    <div style="font-size: 1.5rem; font-weight: 800; color: #6366f1; line-height: 1;">${tarifas.length}</div>
+                                    <div style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 4px;">Tarifas Totales</div>
+                                </div>
                             </div>
-                            <div style="background: ${isDark ? '#052e16' : '#ecfdf5'}; border: 1px solid ${isDark ? '#166534' : '#a7f3d0'}; border-radius: 12px; padding: 16px; text-align: center;">
-                                <div style="font-size: 24px; font-weight: 700; color: #10b981;">${tarifas.filter(t => parseFloat(t.descuento_porcentaje) > 0).length}</div>
-                                <div style="font-size: 12px; font-weight: 600; color: ${isDark ? '#6ee7b7' : '#059669'}; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;">Con Descuento</div>
+                            <div style="background: ${isDark ? '#052e16' : '#ffffff'}; border: 1px solid ${isDark ? '#166534' : '#e2e8f0'}; border-radius: 16px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 15px;">
+                                <div style="width: 48px; height: 48px; border-radius: 12px; background: #ecfdf5; color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;"><i class="fas fa-percentage"></i></div>
+                                <div>
+                                    <div style="font-size: 1.5rem; font-weight: 800; color: #10b981; line-height: 1;">${tarifas.filter(t => parseFloat(t.descuento_porcentaje) > 0).length}</div>
+                                    <div style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 4px;">Con Descuento</div>
+                                </div>
                             </div>
-                            <div style="background: ${isDark ? '#1e293b' : '#f0f9ff'}; border: 1px solid ${isDark ? '#334155' : '#bae6fd'}; border-radius: 12px; padding: 16px; text-align: center;">
-                                <div style="font-size: 24px; font-weight: 700; color: #3b82f6;">${tarifas.filter(t => t.requiere_cliente).length}</div>
-                                <div style="font-size: 12px; font-weight: 600; color: ${isDark ? '#93c5fd' : '#2563eb'}; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;">Requieren Cliente</div>
+                            <div style="background: ${isDark ? '#1e293b' : '#ffffff'}; border: 1px solid ${isDark ? '#334155' : '#e2e8f0'}; border-radius: 16px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 15px;">
+                                <div style="width: 48px; height: 48px; border-radius: 12px; background: #f0f9ff; color: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;"><i class="fas fa-user-tag"></i></div>
+                                <div>
+                                    <div style="font-size: 1.5rem; font-weight: 800; color: #3b82f6; line-height: 1;">${tarifas.filter(t => t.requiere_cliente).length}</div>
+                                    <div style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 4px;">Exclusivas Cliente</div>
+                                </div>
                             </div>
                         </div>
 
                         <!-- Action Bar -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                            <p style="color: ${subTextColor}; margin: 0; font-size: 13px;"><i class="fas fa-info-circle" style="margin-right: 5px; color: #6366f1;"></i>Gestiona las tarifas disponibles en el selector de tickets del cajero.</p>
-                            <button onclick="abrirModalNuevaTarifa()" style="padding: 10px 20px; background: linear-gradient(135deg, #059669, #10b981); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 2px 8px rgba(16,185,129,0.3);" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(16,185,129,0.4)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 8px rgba(16,185,129,0.3)'">
-                                <i class="fas fa-plus"></i> Nueva Tarifa
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: ${isDark ? '#1e293b' : '#ffffff'}; padding: 15px 20px; border-radius: 16px; border: 1px solid ${borderColor};">
+                            <p style="color: ${subTextColor}; margin: 0; font-size: 14px; font-weight: 500;"><i class="fas fa-info-circle" style="margin-right: 8px; color: #6366f1;"></i> Estas tarifas se aplican automáticamente según el perfil del cliente seleccionado en el cajero.</p>
+                            <button onclick="abrirModalNuevaTarifa()" class="btn-modern btn-success" style="padding: 10px 25px; border-radius: 12px; font-weight: 700; box-shadow: 0 4px 12px rgba(16,185,129,0.2);">
+                                <i class="fas fa-plus-circle"></i> Nueva Tarifa
                             </button>
                         </div>
 
                         <!-- Table -->
-                        <div style="border: 1px solid ${borderColor}; border-radius: 12px; overflow: hidden;">
-                            <table style="width: 100%; border-collapse: collapse; background: ${isDark ? '#111827' : 'white'};" class="tabla-tarifas">
-                                <thead class="tabla-tarifas-head" style="background: ${isDark ? '#1f2937' : '#f8fafc'}; border-bottom: 2px solid ${isDark ? '#374151' : '#e2e8f0'};">
+                        <div class="modern-table-wrapper" style="border: 1px solid ${borderColor}; border-radius: 18px; overflow: hidden; background: ${isDark ? '#111827' : 'white'}; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead style="background: ${isDark ? '#1f2937' : '#f1f5f9'}; border-bottom: 2px solid ${borderColor};">
                                     <tr>
-                                        <th style="padding: 14px 16px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: ${isDark ? '#94a3b8' : '#64748b'};">Nombre</th>
-                                        <th style="padding: 14px 16px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: ${isDark ? '#94a3b8' : '#64748b'};">Descripción</th>
-                                        <th style="padding: 14px 16px; text-align: center; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: ${isDark ? '#94a3b8' : '#64748b'};">Descuento</th>
-                                        <th style="padding: 14px 16px; text-align: center; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: ${isDark ? '#94a3b8' : '#64748b'};">Cliente</th>
-                                        <th style="padding: 14px 16px; text-align: right; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: ${isDark ? '#94a3b8' : '#64748b'};">Acciones</th>
+                                        <th style="padding: 18px 24px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em;">Tarifa</th>
+                                        <th style="padding: 18px 24px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em;">Descripción</th>
+                                        <th style="padding: 18px 24px; text-align: center; font-weight: 700; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em;">Descuento</th>
+                                        <th style="padding: 18px 24px; text-align: center; font-weight: 700; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em;">Acceso</th>
+                                        <th style="padding: 18px 24px; text-align: right; font-weight: 700; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em;">Acciones</th>
                                     </tr>
                                 </thead>
-                                <tbody id="tablaTarifas">${tarifas.map((tarifa, idx) => {
-                                    const rowBg = idx % 2 === 0
-                                        ? (isDark ? '#111827' : '#ffffff')
-                                        : (isDark ? '#1a2234' : '#f8fafc');
-                                    const descPct = parseFloat(tarifa.descuento_porcentaje);
-                                    const descBadgeBg = descPct === 0
-                                        ? (isDark ? '#1f2937' : '#f1f5f9')
-                                        : (isDark ? '#1e3a5f' : '#dbeafe');
-                                    const descBadgeColor = descPct === 0
-                                        ? (isDark ? '#94a3b8' : '#64748b')
-                                        : (isDark ? '#93c5fd' : '#1d4ed8');
-                                    const clienteIcon = tarifa.requiere_cliente
-                                        ? '<i class="fas fa-user-check" style="color: #10b981; font-size: 16px;" title="Sí"></i>'
-                                        : '<i class="fas fa-user-times" style="color: ' + (isDark ? '#4b5563' : '#cbd5e1') + '; font-size: 16px;" title="No"></i>';
-                                    return `
-                                    <tr style="border-bottom: 1px solid ${isDark ? '#1f2937' : '#f1f5f9'}; background: ${rowBg}; transition: background 0.15s;">
-                                        <td style="padding: 14px 16px;">
-                                            <div style="display: flex; align-items: center; gap: 10px;">
-                                                <div style="width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #6366f1, #a855f7); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px; flex-shrink: 0;">${tarifa.nombre.charAt(0).toUpperCase()}</div>
-                                                <span style="font-weight: 600; color: ${textColor}; font-size: 14px;">${tarifa.nombre}</span>
-                                            </div>
-                                        </td>
-                                        <td style="padding: 14px 16px; color: ${subTextColor}; font-size: 13px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${tarifa.descripcion || '<span style="opacity: 0.4; font-style: italic;">Sin descripción</span>'}</td>
-                                        <td style="padding: 14px 16px; text-align: center;">
-                                            <span style="background: ${descBadgeBg}; color: ${descBadgeColor}; padding: 5px 14px; border-radius: 20px; font-weight: 700; font-size: 13px; display: inline-block; min-width: 50px;">${descPct}%</span>
-                                        </td>
-                                        <td style="padding: 14px 16px; text-align: center;">${clienteIcon}</td>
-                                        <td style="padding: 14px 16px; text-align: right;">
-                                            <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                                                <button onclick="abrirModalEditarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}', '${(tarifa.descripcion || '').replace(/'/g, "\\'")}', ${tarifa.descuento_porcentaje}, ${tarifa.requiere_cliente ? 1 : 0})" style="padding: 8px 14px; background: ${isDark ? '#312e81' : '#eef2ff'}; color: #6366f1; border: 1px solid ${isDark ? '#4338ca' : '#c7d2fe'}; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;" onmouseover="this.style.background='#6366f1';this.style.color='white'" onmouseout="this.style.background='${isDark ? '#312e81' : '#eef2ff'}';this.style.color='#6366f1'"><i class="fas fa-pen" style="font-size: 11px;"></i> Editar</button>
-                                                <button onclick="eliminarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}')" style="padding: 8px 14px; background: ${isDark ? '#450a0a' : '#fef2f2'}; color: #ef4444; border: 1px solid ${isDark ? '#7f1d1d' : '#fecaca'}; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;" onmouseover="this.style.background='#ef4444';this.style.color='white'" onmouseout="this.style.background='${isDark ? '#450a0a' : '#fef2f2'}';this.style.color='#ef4444'"><i class="fas fa-trash" style="font-size: 11px;"></i> Eliminar</button>
-                                            </div>
-                                        </td>
-                                    </tr>`;
-                                }).join('')}</tbody>
+                                <tbody>
+                                    ${tarifas.map((tarifa, idx) => {
+                                        const isEven = idx % 2 === 0;
+                                        const rowBg = isEven ? 'transparent' : (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)');
+                                        return `
+                                        <tr style="background: ${rowBg}; border-bottom: 1px solid ${borderColor}; transition: all 0.2s;">
+                                            <td style="padding: 16px 24px;">
+                                                <div style="display: flex; align-items: center; gap: 12px;">
+                                                    <div style="width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #6366f1, #a855f7); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 14px; box-shadow: 0 4px 8px rgba(99,102,241,0.2);">${tarifa.nombre.charAt(0).toUpperCase()}</div>
+                                                    <span style="font-weight: 700; color: ${textColor}; font-size: 15px;">${tarifa.nombre}</span>
+                                                </div>
+                                            </td>
+                                            <td style="padding: 16px 24px; color: ${subTextColor}; font-size: 14px; font-weight: 500;">${tarifa.descripcion || '<span style="opacity: 0.3; font-style: italic;">Sin descripción</span>'}</td>
+                                            <td style="padding: 16px 24px; text-align: center;">
+                                                <span style="background: ${parseFloat(tarifa.descuento_porcentaje) > 0 ? (isDark ? '#1e3a5f' : '#dbeafe') : (isDark ? '#1f2937' : '#f1f5f9')}; color: ${parseFloat(tarifa.descuento_porcentaje) > 0 ? (isDark ? '#93c5fd' : '#1d4ed8') : (isDark ? '#94a3b8' : '#64748b')}; padding: 6px 16px; border-radius: 10px; font-weight: 800; font-size: 14px;">${tarifa.descuento_porcentaje}%</span>
+                                            </td>
+                                            <td style="padding: 16px 24px; text-align: center;">
+                                                <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 10px; background: ${tarifa.requiere_cliente ? '#ecfdf5' : '#fff7ed'}; color: ${tarifa.requiere_cliente ? '#059669' : '#d97706'}; font-weight: 700; font-size: 12px;">
+                                                    <i class="fas ${tarifa.requiere_cliente ? 'fa-user-check' : 'fa-users'}"></i>
+                                                    ${tarifa.requiere_cliente ? 'CLIENTE' : 'GENERAL'}
+                                                </div>
+                                            </td>
+                                            <td style="padding: 16px 24px; text-align: right;">
+                                                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                                                    <button onclick="abrirModalEditarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}', '${(tarifa.descripcion || '').replace(/'/g, "\\'")}', ${tarifa.descuento_porcentaje}, ${tarifa.requiere_cliente ? 1 : 0})" class="btn-admin-accion" style="background: #eef2ff; color: #6366f1; border: 1px solid #c7d2fe;" title="Editar"><i class="fas fa-edit"></i></button>
+                                                    <button onclick="eliminarTarifa(${tarifa.id}, '${tarifa.nombre.replace(/'/g, "\\'")}')" class="btn-admin-accion" style="background: #fef2f2; color: #ef4444; border: 1px solid #fecaca;" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
+                                                </div>
+                                            </td>
+                                        </tr>`;
+                                    }).join('')}
+                                </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
             </div>`;
-
-            if (abrirModal) {
-                abrirModalTarifas();
-            }
-        })
-        .catch(err => {
-            console.error('Error:', err);
-            contenedor.innerHTML = '<p style="color: red;">Error al cargar las tarifas o productos</p>';
         });
-}
-
-/**
- * Abre el modal de tarifas
- */
-function abrirModalTarifas() {
-    document.getElementById('modalTarifas').style.display = 'flex';
 }
 
 /**
@@ -2302,3 +2604,86 @@ function editarAjusteProgramadoPrecios(id) {
             }
         });
 }
+
+function cargarAjustesPreciosProgramadosTabla() {
+    const contenedor = document.getElementById('listaAjustesProgramadosTabla');
+    if (!contenedor) return;
+
+    fetch('api/productos.php?accion=obtener_ajustes_precios_programados')
+        .then(res => res.json())
+        .then(data => {
+            if (!data.ajustes || data.ajustes.length === 0) {
+                contenedor.innerHTML = `
+                    <div style="padding: 60px 20px; text-align: center; color: #94a3b8;">
+                        <i class="fas fa-calendar-times" style="font-size: 3.5rem; opacity: 0.2; margin-bottom: 15px; display: block;"></i>
+                        <p style="font-size: 1.1rem; font-weight: 500;">No hay ajustes programados</p>
+                    </div>`;
+                return;
+            }
+
+            let html = `
+                <table class="admin-tabla">
+                    <thead>
+                        <tr>
+                            <th style="padding-left: 20px;">Fecha Programada</th>
+                            <th style="text-align: center;">Porcentaje</th>
+                            <th style="text-align: center;">Estado</th>
+                            <th style="text-align: right; padding-right: 20px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+            data.ajustes.forEach(ajuste => {
+                const fecha = new Date(ajuste.fecha_programada).toLocaleString('es-ES', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+
+                const esSubida = ajuste.porcentaje > 0;
+                const pctColor = esSubida ? '#10b981' : '#ef4444';
+                const pctBg = esSubida ? '#ecfdf5' : '#fef2f2';
+                const signo = esSubida ? '+' : '';
+
+                let statusBadge = '';
+                if (ajuste.estado === 'aplicado') {
+                    statusBadge = '<span style="background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;"><i class="fas fa-check-circle" style="margin-right: 5px;"></i>Aplicado</span>';
+                } else if (ajuste.estado === 'pendiente') {
+                    statusBadge = '<span style="background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;"><i class="fas fa-clock" style="margin-right: 5px;"></i>Pendiente</span>';
+                } else {
+                    statusBadge = `<span style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">${ajuste.estado}</span>`;
+                }
+
+                const esPendiente = ajuste.estado === 'pendiente';
+
+                html += `
+                    <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;">
+                        <td style="padding: 15px 20px; font-weight: 600; color: #1e293b;">${fecha}</td>
+                        <td style="padding: 15px 20px; text-align: center;">
+                            <span style="background: ${pctBg}; color: ${pctColor}; padding: 4px 12px; border-radius: 8px; font-weight: 800; font-size: 1rem;">${signo}${ajuste.porcentaje}%</span>
+                        </td>
+                        <td style="padding: 15px 20px; text-align: center;">${statusBadge}</td>
+                        <td style="padding: 15px 20px; text-align: right;">
+                            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                                <button class="action-btn btn-view" onclick="verDetallesAjustePrecios(${ajuste.id})" title="Ver Detalles"
+                                    style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #6366f1; border: none; cursor: pointer;">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                ${esPendiente ? `
+                                    <button class="action-btn btn-edit" onclick="editarAjusteProgramadoPrecios(${ajuste.id})" title="Editar"
+                                        style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #f59e0b; border: none; cursor: pointer;">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="action-btn btn-delete" onclick="eliminarAjusteProgramadoPrecios(${ajuste.id})" title="Eliminar"
+                                        style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #fef2f2; color: #ef4444; border: none; cursor: pointer;">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>`;
+            });
+
+            html += '</tbody></table>';
+            contenedor.innerHTML = html;
+        });
+}

@@ -40,7 +40,8 @@ header {
     backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
     color: #1e293b;
-    padding: 10px 40px;
+    padding: 0 40px;
+    height: 75px;
     display: flex;
     justify-content: space-between;
     align-items: center;

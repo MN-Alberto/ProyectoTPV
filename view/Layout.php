@@ -35,7 +35,7 @@
      * se reutilizan en algunas partes del cajero.
      */
     if (isset($_SESSION['paginaEnCurso']) && ($_SESSION['paginaEnCurso'] === 'admin' || $_SESSION['paginaEnCurso'] === 'cajero')): ?>
-        <link href="webroot/css/admin.css" rel="stylesheet" type="text/css">
+        <link href="webroot/css/admin.css?v=5" rel="stylesheet" type="text/css">
     <?php endif; ?>
     
     <link rel="icon" href="webroot/img/logoCPU.PNG" type="image/png" id="favicon-link">
