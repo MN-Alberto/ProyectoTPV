@@ -392,7 +392,7 @@ function generarSeccionTema(seccion) {
                     </div>
                     <div>
                         <div class="tema-campo">
-                            <label class="tema-label">Columnas (Grid) <span class="tamano-value" id="val_producto_grid_columns">${columnsVal}</span></label>
+                            <label class="tema-label">Tarjetas por línea <span class="tamano-value" id="val_producto_grid_columns">${columnsVal}</span></label>
                             <input type="range" id="tema_producto_grid_columns" min="2" max="10" value="${parseInt(columnsVal)}" oninput="previsualizarTamanoProductos()" class="premium-range">
                         </div>
                         <div class="tema-campo" style="margin-top:20px;">
@@ -570,7 +570,7 @@ function previsualizarTamanoProductos() {
 
         // Configurar grid
         grid.style.display = 'grid';
-        grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        grid.style.setProperty('grid-template-columns', `repeat(${cols}, 1fr)`, 'important');
         grid.style.gap = '8px';
         
         // Escalar para el preview (contenedor de 600px)
@@ -580,7 +580,7 @@ function previsualizarTamanoProductos() {
 
         for (let i = 0; i < numCards; i++) {
             cards += `
-                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; display:flex; flex-direction:column; height:${height * scale}px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="width: ${width * scale}px; height:${height * scale}px; max-width: 100%; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; display:flex; flex-direction:column; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin: 0 auto;">
                     <div style="flex:1; background:#f8fafc; display:flex; align-items:center; justify-content:center; overflow:hidden;">
                         <i class="fas fa-image" style="color:#cbd5e1; font-size:1.5rem;"></i>
                     </div>

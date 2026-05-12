@@ -1773,10 +1773,16 @@
             <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">
                 <i class="fas fa-sync-alt fa-spin" style="margin-right: 5px;"></i> Auto-actualizado cada 10s
             </p>
-            <button class="btn-modal-cancelar" onclick="cerrarModal('modalCentroTareas')" 
-                style="margin: 0; padding: 10px 25px; border-radius: 10px; font-weight: 600; background: var(--bg-secondary); color: var(--text-main); border: 1px solid var(--border-main);">
-                Cerrar
-            </button>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-tpv" onclick="limpiarCentroTareas()" 
+                    style="margin: 0; padding: 10px 20px; border-radius: 10px; font-weight: 600; background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-trash-alt"></i> Limpiar Historial
+                </button>
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalCentroTareas')" 
+                    style="margin: 0; padding: 10px 25px; border-radius: 10px; font-weight: 600; background: var(--bg-secondary); color: var(--text-main); border: 1px solid var(--border-main);">
+                    Cerrar
+                </button>
+            </div>
         </div>
     </div>
 </div>

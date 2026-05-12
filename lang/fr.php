@@ -37,6 +37,7 @@ return [
         'go_cashier' => 'Aller à la vue Caissier',
         'go_admin' => 'Retour à l&#39;administration',
         'language' => 'Langue',
+        'lock_session' => 'Verrouiller la session',
     ],
 
     // ======================== LOGIN ========================
@@ -94,6 +95,11 @@ return [
         'change_prices' => 'Modifier prix',
         'see_prev_options' => 'Voir options précédentes',
         'see_more_options' => 'Voir plus d&#39;options',
+        'alert_insufficient_cash' => 'Pas assez d&#39;argent en caisse',
+        'session_locked' => 'Session verrouillée',
+        'password' => 'Mot de passe',
+        'unlock' => 'Déverrouiller',
+        'unlock_prompt' => 'Entrez votre mot de passe pour déverrouiller la session de',
     ],
 
     // ======================== TICKET / PANIER ========================
@@ -125,6 +131,7 @@ return [
         'mixed_error_cash_limit' => '⚠️ Impossible d\'attribuer plus de 1.000€ en espèces',
         'alert_no_stock_available' => '❌ Stock insuffisant pour ce produit',
     ],
+
 
     // ======================== MODAL: CHANGEMENT ESPÈCES ========================
     'cash_modal' => [
@@ -456,6 +463,7 @@ return [
         'cancel' => 'Annuler',
         'accumulate' => 'Accumuler points',
         'apply_discount' => 'Appliquer remise',
+        'redeem_and_apply' => 'Échanger et appliquer la remise',
     ],
 
     // ======================== ADMIN ========================
@@ -722,6 +730,10 @@ return [
         'postponed_success1' => 'Vente reportée avec succès avec',
         'postponed_success2' => 'produits. Vous pouvez la récupérer à tout moment.',
         'postponed_sales_title' => 'Ventes reportées',
+        'product_label' => 'Produit',
+        'products_label' => 'Produits',
+        'pending_sale' => 'vente en attente',
+        'pending_sales' => 'ventes en attente',
         'product_s' => 'Produits',
         'no_customer' => 'Sans client',
         'no_customer_assigned' => 'Aucun client attribué',

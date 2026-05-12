@@ -607,7 +607,10 @@ function actualizarListaTareas() {
                     'error': { label: 'Fallido', icon: 'fa-exclamation-triangle', class: 'status-badge-error' }
                 };
                 const cfg = config[t.estado] || { label: t.estado, icon: 'fa-info-circle', class: '' };
-                const nombreTarea = t.tipo === 'informe' ? `Generación de Informe ${t.parametros?.periodo || ''}` : t.tipo;
+                const params = typeof t.parametros === 'string' ? JSON.parse(t.parametros) : (t.parametros || {});
+                const periodosMap = { 'diario': 'Diario', 'semanal': 'Semanal', 'mensual': 'Mensual', 'anual': 'Anual' };
+                const periodoNombre = periodosMap[params.periodo] || params.periodo || '';
+                const nombreTarea = t.tipo === 'informe' ? `Informe ${periodoNombre}` : t.tipo;
 
                 return `
                     <div class="task-item-premium">
@@ -643,6 +646,41 @@ function actualizarListaTareas() {
             }
         })
         .catch(err => console.error('Error actualizando tareas:', err));
+}
+
+function limpiarCentroTareas() {
+    Swal.fire({
+        title: '¿Limpiar historial?',
+        text: "Se eliminará el registro de todas las tareas finalizadas. Las tareas en proceso no se verán afectadas.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Sí, limpiar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('api/informes.php?clear_tasks=1')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        actualizarListaTareas();
+                        Swal.fire({
+                            title: '¡Limpiado!',
+                            text: 'El historial de tareas ha sido eliminado.',
+                            icon: 'success',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
+                    } else {
+                        Swal.fire('Error', data.error || 'No se pudo limpiar el historial', 'error');
+                    }
+                })
+                .catch(err => console.error('Error limpiando tareas:', err));
+        }
+    });
 }
 
 // Iniciar polling global cada 10 segundos para el indicador de tareas

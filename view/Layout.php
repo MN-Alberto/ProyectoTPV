@@ -136,6 +136,15 @@
                 </button>
             </div>
 
+            <!-- Bloque: Bloquear Sesión (Solo Cajero) -->
+            <?php if (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'cajero'): ?>
+            <div class="theme-toggle">
+                <button class="theme-btn" onclick="bloquearSesion()" title="<?php echo t('header.lock_session') ?? 'Bloquear sesión'; ?>">
+                    <i class="fas fa-lock"></i>
+                </button>
+            </div>
+            <?php endif; ?>
+
             <!-- Bloque: Información de Usuario y Navegación de Rol -->
             <?php if (isset($_SESSION['idUsuario'])): ?>
                 <?php 

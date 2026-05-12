@@ -517,7 +517,6 @@
         <input type="hidden" name="puntosCanjeadosCantidad" id="inputPuntosCanjeadosCantidad">
         <input type="hidden" name="puntosGanados" id="inputPuntosGanados">
         <input type="hidden" name="puntosBalance" id="inputPuntosBalance">
-        <input type="hidden" name="clienteIdentificadoPuntos" id="inputClienteIdentificadoPuntos">
         <input type="hidden" name="clienteIdentificadoPuntos" id="inputClienteIdentificadoPuntos" value="false">
         <input type="hidden" name="mensajePersonalizado" id="inputMensajePersonalizado">
         <!-- Desglose de pago mixto (JSON) -->
@@ -529,248 +528,259 @@
 <!-- ##=========================== MODAL: CALCULAR CAMBIO (EFECTIVO) ===========================## -->
 <!-- Modal que aparece cuando el método de pago es "efectivo" -->
 <!-- Permite al cajero introducir la cantidad entregada por el cliente y calcula el cambio -->
-<div class="modal-overlay" id="modalCambio" style="display:none;">
+<div class="modal-overlay" id="modalCambio" style="display:none; backdrop-filter: blur(16px); background: rgba(0,0,0,0.6); z-index: 10000;">
     <div class="modal-content"
-        style="max-width: 440px; padding: 40px; border-radius: 24px; background: var(--bg-card); border: 1px solid var(--border-main); text-align: left; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
-
-        <!-- Cabecera Minimalista -->
-        <div style="margin-bottom: 32px;">
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+        style="max-width: 480px; padding: 40px; border-radius: 32px; background: var(--bg-card); border: 1px solid var(--border-main); text-align: left; box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.5); overflow: hidden; position: relative;">
+        
+        <!-- Cabecera -->
+        <div style="margin-bottom: 35px; position: relative;">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
                 <div
-                    style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: var(--bg-main); border-radius: 10px; color: var(--text-muted);">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="2" y="6" width="20" height="12" rx="2"></rect>
-                        <circle cx="12" cy="12" r="2"></circle>
-                    </svg>
+                    style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: var(--bg-main); border-radius: 14px; color: var(--accent); box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                    <i class="fas fa-money-bill-wave" style="font-size: 1.2rem;"></i>
                 </div>
-                <h3
-                    style="margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.01em;">
-                    <?php echo t('cash_modal.title'); ?>
-                </h3>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em;">
+                        <?php echo t('cash_modal.title'); ?>
+                    </h3>
+                </div>
             </div>
-            <p style="margin: 0; color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">
+            <p style="margin: 0; color: var(--text-muted); font-size: 1rem; line-height: 1.5; opacity: 0.8;">
                 <?php echo t('cash_modal.subtitle'); ?>
             </p>
         </div>
 
-        <div style="display: grid; gap: 28px;">
-            <!-- Display de Total -->
-            <div style="padding-bottom: 12px; border-bottom: 1px solid var(--border-main);">
-                <span
-                    style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;"><?php echo t('cash_modal.total_to_charge'); ?></span>
-                <span id="cambioTotalPagar"
-                    style="font-size: 3rem; font-weight: 950; color: var(--text-main); letter-spacing: -0.04em; line-height: 1;">0,00
-                    €</span>
+        <div style="display: grid; gap: 30px;">
+            <!-- Display de Total a Cobrar -->
+            <div style="padding: 24px; border-radius: 20px; background: var(--bg-main); border: 1px solid var(--border-main); position: relative; overflow: hidden;">
+                <span style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">
+                    <?php echo t('cash_modal.total_to_charge'); ?>
+                </span>
+                <div style="display: flex; align-items: baseline; gap: 8px;">
+                    <span id="cambioTotalPagar" style="font-size: 3.2rem; font-weight: 950; color: var(--text-main); letter-spacing: -0.04em; line-height: 1;">0,00</span>
+                    <span style="font-size: 1.5rem; font-weight: 800; color: var(--text-muted);">€</span>
+                </div>
             </div>
 
-            <!-- Fila de Entrada -->
+            <!-- Entrada de Dinero Recibido -->
             <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <label for="inputDineroEntregado"
-                        style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;"><?php echo t('cash_modal.money_received'); ?></label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 4px;">
+                    <label for="inputDineroEntregado" style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em;">
+                        <?php echo t('cash_modal.money_received'); ?>
+                    </label>
                     <button type="button" onclick="fijarImporteExacto()"
-                        style="background: none; border: none; color: var(--accent); font-size: 0.8rem; font-weight: 700; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 4px; transition: color 0.2s;"
-                        onmouseover="this.style.color='var(--accent-hover)'"
-                        onmouseout="this.style.color='var(--accent)'">
+                        style="background: var(--bg-accent-success); border: none; color: var(--accent-success); font-size: 0.75rem; font-weight: 800; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 0.05em;">
                         <?php echo t('cash_modal.exact_amount'); ?>
                     </button>
                 </div>
                 <div style="position: relative; display: flex; align-items: center;">
-                    <input type="number" id="inputDineroEntregado" step="0.0001"
+                    <input type="number" id="inputDineroEntregado" step="0.01"
                         oninput="validarPrecisionDinamica(this); calcularCambio()" min="0" placeholder="0.00"
-                        style="width: 100%; padding: 14px 45px 14px 20px; font-size: 1.8rem; font-weight: 700; border: 2px solid var(--border-main); border-radius: 14px; background: var(--bg-input); color: var(--text-main); outline: none; transition: border-color 0.2s, box-shadow 0.2s;"
-                        oninput="calcularCambio()" onkeypress="if(event.key === 'Enter') confirmarCambio()"
-                        onfocus="this.style.borderColor='var(--accent)'; this.style.boxShadow='0 0 0 4px rgba(37, 99, 235, 0.1)'"
-                        onblur="this.style.borderColor='var(--border-main)'; this.style.boxShadow='none'">
-                    <span
-                        style="position: absolute; right: 20px; font-size: 1.5rem; font-weight: 700; color: var(--text-muted); pointer-events: none;">€</span>
+                        style="width: 100%; padding: 20px 60px 20px 24px; font-size: 2.2rem; font-weight: 800; border: 2.5px solid var(--border-main); border-radius: 20px; background: var(--bg-input); color: var(--text-main); outline: none; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);"
+                        onkeypress="if(event.key === 'Enter') confirmarCambio()"
+                        onfocus="this.style.borderColor='var(--accent)'; this.style.boxShadow='0 0 0 6px rgba(37, 99, 235, 0.15)'; this.style.transform='translateY(-2px)';"
+                        onblur="this.style.borderColor='var(--border-main)'; this.style.boxShadow='none'; this.style.transform='translateY(0)';"
+                        autofocus>
+                    <span style="position: absolute; right: 24px; font-size: 1.8rem; font-weight: 800; color: var(--text-muted); opacity: 0.5;">€</span>
                 </div>
-                <p id="cambioError"
-                    style="color: var(--accent-danger); font-size: 0.85rem; margin-top: 10px; font-weight: 700; display: none; align-items: center; gap: 5px;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
+                <p id="cambioError" style="color: var(--accent-danger); font-size: 0.9rem; margin-top: 12px; font-weight: 700; display: none; align-items: center; gap: 8px; padding-left: 4px;">
+                    <i class="fas fa-exclamation-circle"></i>
                     <?php echo t('cash_modal.insufficient'); ?>
                 </p>
             </div>
 
-            <!-- Resultado de Cambio -->
-            <div
-                style="margin-top: 4px; padding: 24px; border-radius: 18px; background: var(--bg-accent-success); border: 2px solid transparent; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease;">
+            <!-- Widget de Cambio a Devolver -->
+            <div id="cambioResultContainer"
+                style="padding: 28px; border-radius: 24px; background: var(--bg-accent-success); border: 2px solid transparent; display: flex; justify-content: space-between; align-items: center; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); transform: scale(1);">
                 <div>
-                    <span
-                        style="display: block; font-size: 0.85rem; font-weight: 800; color: var(--accent-success); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;"><?php echo t('cash_modal.change'); ?></span>
-                    <span
-                        style="font-size: 0.8rem; color: var(--accent-success); opacity: 0.7;"><?php echo t('cash_modal.for_client'); ?></span>
+                    <span style="display: block; font-size: 0.85rem; font-weight: 800; color: var(--accent-success); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">
+                        <?php echo t('cash_modal.change'); ?>
+                    </span>
+                    <span style="font-size: 0.9rem; color: var(--accent-success); opacity: 0.8; font-weight: 600;">
+                        <?php echo t('cash_modal.for_client'); ?>
+                    </span>
                 </div>
-                <span id="cambioDevolver"
-                    style="font-size: 2.2rem; font-weight: 900; color: var(--accent-success); letter-spacing: -0.02em;">0,00
-                    €</span>
+                <div style="text-align: right;">
+                    <span id="cambioDevolver" style="font-size: 2.8rem; font-weight: 950; color: var(--accent-success); letter-spacing: -0.04em; line-height: 1;">0,00</span>
+                    <span style="font-size: 1.2rem; font-weight: 800; color: var(--accent-success); margin-left: 4px;">€</span>
+                </div>
             </div>
         </div>
 
-        <div style="display: flex; gap: 12px; margin-top: 40px;">
+        <!-- Acciones -->
+        <div style="display: flex; gap: 15px; margin-top: 45px;">
             <button class="btn-modal-cancelar" onclick="cerrarModal('modalCambio')"
-                style="flex: 1; padding: 16px; border-radius: 14px; font-weight: 700; font-size: 0.95rem; border: 1px solid var(--border-main); background: var(--bg-card); color: var(--text-muted); cursor: pointer; transition: all 0.15s;"
-                onmouseover="this.style.background='var(--bg-main)'; this.style.color='var(--text-main)'"
-                onmouseout="this.style.background='var(--bg-card)'; this.style.color='var(--text-muted)'"><?php echo t('cash_modal.close'); ?></button>
-            <button class="btn-exito" onclick="confirmarCambio()"
-                style="flex: 2; padding: 16px; border-radius: 14px; font-weight: 800; font-size: 1.05rem; margin: 0; cursor: pointer; transition: transform 0.1s, opacity 0.2s;"
-                onmousedown="this.style.transform='scale(0.98)'"
-                onmouseup="this.style.transform='scale(1)'"><?php echo t('cash_modal.confirm_payment'); ?></button>
+                style="flex: 1; padding: 18px; border-radius: 16px; font-weight: 700; font-size: 1rem; border: 1px solid var(--border-main); background: var(--bg-card); color: var(--text-muted); cursor: pointer; transition: all 0.2s ease;">
+                <?php echo t('cash_modal.close'); ?>
+            </button>
+            <button class="btn-exito" id="btnConfirmarCobroEfectivo" onclick="confirmarCambio()"
+                style="flex: 2; padding: 18px; border-radius: 16px; font-weight: 800; font-size: 1.1rem; margin: 0; cursor: pointer; background: var(--accent-success); color: white; border: none; box-shadow: 0 10px 20px -5px rgba(22, 163, 74, 0.3); transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <span><?php echo t('cash_modal.confirm_payment'); ?></span>
+                <i class="fas fa-check-circle"></i>
+            </button>
         </div>
     </div>
+</div>
 </div>
 
 <!-- ##=========================== MODAL: PAGO MIXTO ===========================## -->
 <!-- Modal que aparece cuando el método de pago es "mixto" -->
 <!-- Permite distribuir el total de la compra entre varios métodos de pago -->
-<div class="modal-overlay" id="modalPagoMixto" style="display:none;">
+<div class="modal-overlay" id="modalPagoMixto" style="display:none; backdrop-filter: blur(16px); background: rgba(0,0,0,0.6); z-index: 10000;">
     <div class="modal-content"
-        style="max-width: 520px; padding: 40px; border-radius: 24px; background: var(--bg-card); border: 1px solid var(--border-main); text-align: left; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
-
+        style="max-width: 540px; padding: 40px; border-radius: 32px; background: var(--bg-card); border: 1px solid var(--border-main); text-align: left; box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.5); overflow: hidden; position: relative;">
+        
         <!-- Cabecera -->
-        <div style="margin-bottom: 28px;">
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+        <div style="margin-bottom: 30px; position: relative;">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
                 <div
-                    style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: linear-gradient(135deg, #8b5cf6, #6366f1); border-radius: 10px; color: white;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="8" y1="12" x2="16" y2="12"></line>
-                        <line x1="12" y1="8" x2="12" y2="16"></line>
-                    </svg>
+                    style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: linear-gradient(135deg, #8b5cf6, #6366f1); border-radius: 14px; color: white; box-shadow: 0 8px 16px -4px rgba(99, 102, 241, 0.3);">
+                    <i class="fas fa-layer-group" style="font-size: 1.1rem;"></i>
                 </div>
-                <h3
-                    style="margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.01em;">
+                <h3 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em;">
                     <?php echo t('mixed_modal.title'); ?>
                 </h3>
             </div>
-            <p style="margin: 0; color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">
+            <p style="margin: 0; color: var(--text-muted); font-size: 1rem; line-height: 1.5; opacity: 0.8;">
                 <?php echo t('mixed_modal.subtitle'); ?>
             </p>
         </div>
 
         <!-- Total a distribuir -->
-        <div
-            style="padding: 16px; border-radius: 14px; background: var(--bg-main); border: 1px solid var(--border-main); margin-bottom: 24px;">
-            <span
-                style="display: block; font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;"><?php echo t('mixed_modal.total_to_distribute'); ?></span>
-            <span id="mixtoTotalDistribuir"
-                style="font-size: 2.4rem; font-weight: 950; color: var(--text-main); letter-spacing: -0.04em; line-height: 1;">0,00
-                €</span>
+        <div style="padding: 24px; border-radius: 20px; background: var(--bg-main); border: 1px solid var(--border-main); margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <span style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">
+                    <?php echo t('mixed_modal.total_to_distribute'); ?>
+                </span>
+                <div style="display: flex; align-items: baseline; gap: 6px;">
+                    <span id="mixtoTotalDistribuir" style="font-size: 2.6rem; font-weight: 950; color: var(--text-main); letter-spacing: -0.04em; line-height: 1;">0,00</span>
+                    <span style="font-size: 1.2rem; font-weight: 800; color: var(--text-muted);">€</span>
+                </div>
+            </div>
+            <div style="text-align: right; opacity: 0.5;">
+                <i class="fas fa-calculator" style="font-size: 2rem; color: var(--text-muted);"></i>
+            </div>
         </div>
 
         <!-- Campos de distribución -->
-        <div style="display: grid; gap: 16px; margin-bottom: 20px;">
+        <div style="display: grid; gap: 20px; margin-bottom: 25px;">
             <!-- Efectivo -->
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <div
-                    style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: #ecfdf5; border-radius: 10px; flex-shrink: 0;">
-                    <span style="font-size: 1.2rem;">💵</span>
-                </div>
+            <div style="display: flex; align-items: flex-end; gap: 15px;">
                 <div style="flex: 1;">
-                    <label
-                        style="display: block; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;"><?php echo t('ticket.cash'); ?></label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-money-bill-wave" style="color: #10b981; font-size: 0.9rem;"></i>
+                            <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">
+                                <?php echo t('ticket.cash'); ?>
+                            </label>
+                        </div>
+                        <button type="button" id="btnFillMixtoEfectivo" onclick="fijarRestanteMixto('mixtoEfectivo')"
+                            style="display: none; background: var(--bg-accent-success); border: 1px solid rgba(22, 163, 74, 0.2); color: var(--accent-success); font-size: 0.65rem; font-weight: 800; cursor: pointer; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s ease;">
+                            + 0,00 €
+                        </button>
+                    </div>
                     <div style="position: relative;">
                         <input type="number" id="mixtoEfectivo" step="0.01" min="0" placeholder="0.00"
                             oninput="calcularRestanteMixto()"
                             onkeypress="if(event.key === 'Enter') confirmarPagoMixto()"
-                            style="width: 100%; padding: 10px 35px 10px 14px; font-size: 1.2rem; font-weight: 700; border: 2px solid var(--border-main); border-radius: 10px; background: var(--bg-input); color: var(--text-main); outline: none; transition: border-color 0.2s;"
-                            onfocus="this.style.borderColor='#10b981'"
-                            onblur="this.style.borderColor='var(--border-main)'">
-                        <span
-                            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 1rem; font-weight: 700; color: var(--text-muted); pointer-events: none;">€</span>
+                            style="width: 100%; padding: 14px 45px 14px 20px; font-size: 1.4rem; font-weight: 700; border: 2.5px solid var(--border-main); border-radius: 16px; background: var(--bg-input); color: var(--text-main); outline: none; transition: all 0.2s ease;">
+                        <span style="position: absolute; right: 18px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; font-weight: 700; color: var(--text-muted); opacity: 0.6;">€</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Tarjeta -->
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <div
-                    style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: #eff6ff; border-radius: 10px; flex-shrink: 0;">
-                    <span style="font-size: 1.2rem;">💳</span>
-                </div>
-                <div style="flex: 1;">
-                    <label
-                        style="display: block; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;"><?php echo t('ticket.card'); ?></label>
+            <!-- Tarjeta y Bizum en fila -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-credit-card" style="color: #3b82f6; font-size: 0.9rem;"></i>
+                            <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">
+                                <?php echo t('ticket.card'); ?>
+                            </label>
+                        </div>
+                        <button type="button" id="btnFillMixtoTarjeta" onclick="fijarRestanteMixto('mixtoTarjeta')"
+                            style="display: none; background: var(--bg-accent-success); border: 1px solid rgba(22, 163, 74, 0.2); color: var(--accent-success); font-size: 0.65rem; font-weight: 800; cursor: pointer; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s ease;">
+                            + 0,00 €
+                        </button>
+                    </div>
                     <div style="position: relative;">
                         <input type="number" id="mixtoTarjeta" step="0.01" min="0" placeholder="0.00"
                             oninput="calcularRestanteMixto()"
                             onkeypress="if(event.key === 'Enter') confirmarPagoMixto()"
-                            style="width: 100%; padding: 10px 35px 10px 14px; font-size: 1.2rem; font-weight: 700; border: 2px solid var(--border-main); border-radius: 10px; background: var(--bg-input); color: var(--text-main); outline: none; transition: border-color 0.2s;"
-                            onfocus="this.style.borderColor='#3b82f6'"
-                            onblur="this.style.borderColor='var(--border-main)'">
-                        <span
-                            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 1rem; font-weight: 700; color: var(--text-muted); pointer-events: none;">€</span>
+                            style="width: 100%; padding: 14px 40px 14px 18px; font-size: 1.4rem; font-weight: 700; border: 2.5px solid var(--border-main); border-radius: 16px; background: var(--bg-input); color: var(--text-main); outline: none; transition: all 0.2s ease;">
+                        <span style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-size: 1rem; font-weight: 700; color: var(--text-muted); opacity: 0.6;">€</span>
                     </div>
                 </div>
-            </div>
-
-            <!-- Bizum -->
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <div
-                    style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: #fef3c7; border-radius: 10px; flex-shrink: 0;">
-                    <span style="font-size: 1.2rem;">📱</span>
-                </div>
-                <div style="flex: 1;">
-                    <label
-                        style="display: block; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;"><?php echo t('ticket.bizum'); ?></label>
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-mobile-alt" style="color: #f59e0b; font-size: 0.9rem;"></i>
+                            <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">
+                                <?php echo t('ticket.bizum'); ?>
+                            </label>
+                        </div>
+                        <button type="button" id="btnFillMixtoBizum" onclick="fijarRestanteMixto('mixtoBizum')"
+                            style="display: none; background: var(--bg-accent-success); border: 1px solid rgba(22, 163, 74, 0.2); color: var(--accent-success); font-size: 0.65rem; font-weight: 800; cursor: pointer; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s ease;">
+                            + 0,00 €
+                        </button>
+                    </div>
                     <div style="position: relative;">
                         <input type="number" id="mixtoBizum" step="0.01" min="0" placeholder="0.00"
                             oninput="calcularRestanteMixto()"
                             onkeypress="if(event.key === 'Enter') confirmarPagoMixto()"
-                            style="width: 100%; padding: 10px 35px 10px 14px; font-size: 1.2rem; font-weight: 700; border: 2px solid var(--border-main); border-radius: 10px; background: var(--bg-input); color: var(--text-main); outline: none; transition: border-color 0.2s;"
-                            onfocus="this.style.borderColor='#f59e0b'"
-                            onblur="this.style.borderColor='var(--border-main)'">
-                        <span
-                            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 1rem; font-weight: 700; color: var(--text-muted); pointer-events: none;">€</span>
+                            style="width: 100%; padding: 14px 40px 14px 18px; font-size: 1.4rem; font-weight: 700; border: 2.5px solid var(--border-main); border-radius: 16px; background: var(--bg-input); color: var(--text-main); outline: none; transition: all 0.2s ease;">
+                        <span style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-size: 1rem; font-weight: 700; color: var(--text-muted); opacity: 0.6;">€</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Indicador de Restante -->
+        <!-- Widget de Restante -->
         <div id="mixtoRestanteContainer"
-            style="padding: 16px; border-radius: 14px; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease; background: var(--bg-accent-danger); border: 2px solid transparent;">
+            style="padding: 24px; border-radius: 24px; display: flex; justify-content: space-between; align-items: center; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); background: var(--bg-accent-danger); border: 2px solid transparent;">
             <div>
                 <span id="mixtoRestanteLabel"
-                    style="display: block; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; color: var(--accent-danger);"><?php echo t('mixed_modal.remaining'); ?></span>
+                    style="display: block; font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; color: var(--accent-danger);">
+                    <?php echo t('mixed_modal.remaining'); ?>
+                </span>
                 <span id="mixtoRestanteSub"
-                    style="font-size: 0.75rem; color: var(--accent-danger); opacity: 0.7;"><?php echo t('mixed_modal.distribute_total'); ?></span>
+                    style="font-size: 0.85rem; color: var(--accent-danger); opacity: 0.8; font-weight: 600;">
+                    <?php echo t('mixed_modal.distribute_total'); ?>
+                </span>
             </div>
-            <span id="mixtoRestanteValor"
-                style="font-size: 1.8rem; font-weight: 900; letter-spacing: -0.02em; color: var(--accent-danger);">0,00
-                €</span>
+            <div style="text-align: right;">
+                <span id="mixtoRestanteValor" style="font-size: 2.2rem; font-weight: 950; letter-spacing: -0.04em; color: var(--accent-danger); line-height: 1;">0,00</span>
+                <span style="font-size: 1.1rem; font-weight: 800; color: var(--accent-danger); margin-left: 4px;">€</span>
+            </div>
         </div>
 
-        <!-- Aviso límite efectivo -->
-        <p id="mixtoAvisoEfectivo"
-            style="display: none; color: #dc2626; font-size: 0.8rem; margin-top: 10px; font-weight: 700; align-items: center; gap: 5px;">
-            <?php echo t('mixed_modal.cash_limit'); ?>
-        </p>
-
-        <!-- Error de validación -->
-        <p id="mixtoError"
-            style="display: none; color: var(--accent-danger); font-size: 0.85rem; margin-top: 10px; font-weight: 700;">
-        </p>
+        <!-- Avisos y Errores -->
+        <div style="min-height: 20px; margin-top: 10px;">
+            <p id="mixtoAvisoEfectivo" style="display: none; color: var(--accent-danger); font-size: 0.85rem; font-weight: 700; align-items: center; gap: 8px;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <?php echo t('mixed_modal.cash_limit'); ?>
+            </p>
+            <p id="mixtoError" style="display: none; color: var(--accent-danger); font-size: 0.85rem; font-weight: 700; align-items: center; gap: 8px;">
+                <i class="fas fa-times-circle"></i>
+                <span id="mixtoErrorSpan"></span>
+            </p>
+        </div>
 
         <!-- Botones -->
-        <div style="display: flex; gap: 12px; margin-top: 28px;">
+        <div style="display: flex; gap: 15px; margin-top: 30px;">
             <button class="btn-modal-cancelar" onclick="cerrarModal('modalPagoMixto')"
-                style="flex: 1; padding: 16px; border-radius: 14px; font-weight: 700; font-size: 0.95rem; border: 1px solid var(--border-main); background: var(--bg-card); color: var(--text-muted); cursor: pointer; transition: all 0.15s;"
-                onmouseover="this.style.background='var(--bg-main)'; this.style.color='var(--text-main)'"
-                onmouseout="this.style.background='var(--bg-card)'; this.style.color='var(--text-muted)'"><?php echo t('mixed_modal.close'); ?></button>
-            <button class="btn-exito" onclick="confirmarPagoMixto()"
-                style="flex: 2; padding: 16px; border-radius: 14px; font-weight: 800; font-size: 1.05rem; margin: 0; cursor: pointer; transition: transform 0.1s, opacity 0.2s;"
-                onmousedown="this.style.transform='scale(0.98)'"
-                onmouseup="this.style.transform='scale(1)'"><?php echo t('mixed_modal.confirm_distribution'); ?></button>
+                style="flex: 1; padding: 18px; border-radius: 16px; font-weight: 700; font-size: 1rem; border: 1px solid var(--border-main); background: var(--bg-card); color: var(--text-muted); cursor: pointer; transition: all 0.2s ease;">
+                <?php echo t('mixed_modal.close'); ?>
+            </button>
+            <button class="btn-exito" id="btnConfirmarPagoMixto" onclick="confirmarPagoMixto()"
+                style="flex: 2; padding: 18px; border-radius: 16px; font-weight: 800; font-size: 1.1rem; margin: 0; cursor: pointer; background: var(--accent-success); color: white; border: none; box-shadow: 0 10px 20px -5px rgba(22, 163, 74, 0.3); transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <span><?php echo t('mixed_modal.confirm_distribution'); ?></span>
+                <i class="fas fa-check-double"></i>
+            </button>
         </div>
     </div>
+</div>
 </div>
 
 <!-- ##=========================== MODAL: TIPO DE DOCUMENTO ===========================## -->
@@ -911,13 +921,22 @@
                     <div class="control-section-title"><?php echo t('checkout.receiver_data'); ?></div>
                     <div id="clientDataSummaryCheckout"
                         style="background: var(--bg-card); border: 2px solid var(--border-main); border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; transition: border-color 0.2s;">
-                        <div id="clientDataTextCheckout" style="font-size: 0.85rem; color: var(--text-muted);">
+                        <div id="clientDataTextCheckout" style="font-size: 0.85rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 10px;">
                             <?php echo t('checkout.no_client_data'); ?>
                         </div>
-                        <button class="btn-descuento" onclick="abrirDatosClienteDesdeCheckout()"
-                            style="padding: 7px 14px; font-size: 0.75rem; white-space: nowrap;">
-                            <?php echo t('checkout.edit'); ?>
-                        </button>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="btnRemoveClientCheckout" onclick="quitarClienteFinalizar()" 
+                                style="background: var(--bg-main); border: 1px solid var(--border-main); color: #ef4444; cursor: pointer; padding: 7px 10px; border-radius: 8px; transition: all 0.2s; display: none;"
+                                onmouseover="this.style.background='rgba(239, 68, 68, 0.1)'"
+                                onmouseout="this.style.background='var(--bg-main)'"
+                                title="Quitar cliente">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                            <button class="btn-descuento" onclick="abrirDatosClienteDesdeCheckout()"
+                                style="padding: 7px 14px; font-size: 0.75rem; white-space: nowrap;">
+                                <?php echo t('checkout.edit'); ?>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1082,82 +1101,116 @@
 
 <!-- ##=========================== MODAL: DATOS DEL CLIENTE ===========================## -->
 <!-- Modal para introducir los datos del cliente antes de finalizar la venta -->
-<!-- En modo Ticket: los campos son opcionales -->
-<!-- En modo Factura: NIF, Nombre y Dirección son obligatorios (marcados con *) -->
-<div class="modal-overlay" id="modalDatosCliente" style="display:none;">
-    <div class="modal-content" style="max-width: 500px; text-align: left;">
-        <!-- Título dinámico que cambia según sea Ticket o Factura -->
-        <h3 id="tituloDatosCliente" style="margin-bottom: 5px;"><?php echo t('client_data.title'); ?></h3>
-        <p id="subtituloDatosCliente" class="modal-subtitulo-cliente"><?php echo t('client_data.subtitle'); ?></p>
+<div class="modal-overlay" id="modalDatosCliente" style="display:none; backdrop-filter: blur(16px); background: rgba(0,0,0,0.6); z-index: 10000;">
+    <div class="modal-content"
+        style="max-width: 500px; padding: 0; border-radius: 32px; background: var(--bg-card); border: none; text-align: left; box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.5); overflow: hidden; position: relative;">
+        
+        <!-- Cabecera con gradiente azul -->
+        <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 40px 30px; text-align: center; position: relative; overflow: hidden;">
+            <!-- Botón Cerrar Flotante -->
+            <button onclick="cerrarModalDatosClienteAtras()" 
+                style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(4px);">
+                <i class="fas fa-arrow-left"></i>
+            </button>
 
-        <!-- Buscador por DNI -->
-        <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e5e7eb;">
-            <label for="buscarDniCliente"
-                style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('client_data.search_dni'); ?></label>
-            <div style="display: flex; gap: 10px;">
-                <input type="text" id="buscarDniCliente"
-                    style="flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="12345678A" onkeypress="if(event.key === 'Enter') buscarDatosCliente()">
-                <button type="button" class="btn-exito" style="margin: 0; padding: 10px 15px;"
-                    onclick="buscarDatosCliente()"><?php echo t('client_data.search_btn'); ?></button>
+            <div
+                style="display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.3); color: white; margin: 0 auto 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+                <i class="fas fa-id-card" style="font-size: 1.8rem;"></i>
             </div>
-            <p id="mensajeBusquedaClienteDatos" style="font-size: 0.85rem; margin-top: 5px; display: none;"></p>
+            <h3 id="tituloDatosCliente" style="margin: 0; font-size: 1.5rem; font-weight: 800; color: white; letter-spacing: -0.02em;">
+                <?php echo t('client_data.title'); ?>
+            </h3>
+            <p id="subtituloDatosCliente" style="margin: 8px 0 0; color: white; opacity: 0.9; font-size: 0.95rem; font-weight: 500;">
+                <?php echo t('client_data.subtitle'); ?>
+            </p>
         </div>
 
-        <div style="display: grid; gap: 15px;">
-            <!-- Campo NIF/CIF del cliente -->
-            <!-- El asterisco rojo (*) se muestra solo en modo Factura -->
-            <div>
-                <label for="clienteNif"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('client_data.nif_cif'); ?>
-                    <span id="reqNif" style="color: #ef4444; display: none;">*</span></label>
-                <input type="text" id="clienteNif"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="B12345678">
-                <input type="hidden" id="clientePuntos" value="0">
+        <div style="padding: 30px;">
+            <!-- Buscador por DNI -->
+            <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid var(--border-main);">
+                <label for="buscarDniCliente"
+                    style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px;">
+                    <?php echo t('client_data.search_dni'); ?>
+                </label>
+                <div style="display: flex; gap: 10px;">
+                    <div style="position: relative; flex: 1;">
+                        <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem;"></i>
+                        <input type="text" id="buscarDniCliente"
+                            style="width: 100%; padding: 12px 12px 12px 35px; border-radius: 12px; border: 2px solid var(--border-main); background: var(--bg-input); color: var(--text-main); font-weight: 600; outline: none; transition: all 0.2s;"
+                            placeholder="12345678A" onkeypress="if(event.key === 'Enter') buscarDatosCliente()">
+                    </div>
+                    <button type="button" class="btn-exito" style="margin: 0; padding: 0 20px; height: 48px; border-radius: 12px; font-weight: 700; background: #3b82f6;"
+                        onclick="buscarDatosCliente()"><?php echo t('client_data.search_btn'); ?></button>
+                </div>
+                <p id="mensajeBusquedaClienteDatos" style="font-size: 0.85rem; margin-top: 8px; display: none; font-weight: 500;"></p>
             </div>
 
-            <!-- Campo Razón Social / Nombre del cliente -->
-            <div>
-                <label for="clienteNombre"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('client_data.name_company'); ?>
-                    <span id="reqNombre" style="color: #ef4444; display: none;">*</span></label>
-                <input type="text" id="clienteNombre"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="<?php echo t('client_data.name_placeholder'); ?>">
+            <div style="display: grid; gap: 20px;">
+                <!-- Campo NIF/CIF del cliente -->
+                <div>
+                    <label for="clienteNif"
+                        style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+                        <?php echo t('client_data.nif_cif'); ?>
+                        <span id="reqNif" style="color: #ef4444; display: none;">*</span>
+                    </label>
+                    <input type="text" id="clienteNif"
+                        style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 2px solid var(--border-main); background: var(--bg-input); color: var(--text-main); font-weight: 600; outline: none;"
+                        placeholder="B12345678">
+                    <input type="hidden" id="clientePuntos" value="0">
+                </div>
+
+                <!-- Campo Razón Social / Nombre del cliente -->
+                <div>
+                    <label for="clienteNombre"
+                        style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+                        <?php echo t('client_data.name_company'); ?>
+                        <span id="reqNombre" style="color: #ef4444; display: none;">*</span>
+                    </label>
+                    <input type="text" id="clienteNombre"
+                        style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 2px solid var(--border-main); background: var(--bg-input); color: var(--text-main); font-weight: 600; outline: none;"
+                        placeholder="<?php echo t('client_data.name_placeholder'); ?>">
+                </div>
+
+                <!-- Campo Domicilio Fiscal -->
+                <div id="divDireccionCliente" style="display: none;">
+                    <label for="clienteDireccion"
+                        style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+                        <?php echo t('client_data.fiscal_address'); ?>
+                        <span id="reqDir" style="color: #ef4444; display: none;">*</span>
+                    </label>
+                    <input type="text" id="clienteDireccion"
+                        style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 2px solid var(--border-main); background: var(--bg-input); color: var(--text-main); font-weight: 600; outline: none;"
+                        placeholder="<?php echo t('client_data.address_placeholder'); ?>">
+                </div>
+
+                <!-- Campo Observaciones -->
+                <div id="divObservacionesCliente" style="display: none;">
+                    <label for="clienteObservaciones"
+                        style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+                        <?php echo t('client_data.observations'); ?>
+                    </label>
+                    <input type="text" id="clienteObservaciones"
+                        style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 2px solid var(--border-main); background: var(--bg-input); color: var(--text-main); font-weight: 600; outline: none;"
+                        placeholder="<?php echo t('client_data.observations_placeholder'); ?>">
+                </div>
             </div>
 
-            <!-- Campo Domicilio Fiscal (solo visible en modo Factura) -->
-            <div id="divDireccionCliente" style="display: none;">
-                <label for="clienteDireccion"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('client_data.fiscal_address'); ?>
-                    <span id="reqDir" style="color: #ef4444; display: none;">*</span></label>
-                <input type="text" id="clienteDireccion"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="<?php echo t('client_data.address_placeholder'); ?>">
+            <!-- Mensaje de error -->
+            <p id="errorDatosCliente" style="color: #ef4444; font-size: 0.85rem; margin-top: 15px; display: none; font-weight: 600; text-align: center;">
+                <i class="fas fa-exclamation-circle" style="margin-right: 5px;"></i> <?php echo t('client_data.error_required'); ?>
+            </p>
+
+            <!-- Botones -->
+            <div style="display: flex; gap: 12px; margin-top: 30px;">
+                <button class="btn-modal-cancelar" onclick="cerrarModalDatosClienteAtras()"
+                    style="flex: 1; padding: 14px; border-radius: 12px; font-weight: 700; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-main); cursor: pointer; transition: all 0.2s;">
+                    <?php echo t('client_data.back'); ?>
+                </button>
+                <button class="btn-exito" id="btnConfirmarDatos" onclick="validarYConfirmarVenta()"
+                    style="flex: 1.5; padding: 14px; border-radius: 12px; font-weight: 800; background: #10b981; color: white; border: none; cursor: pointer; box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.3); transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    <i class="fas fa-check"></i> <?php echo t('client_data.accept'); ?>
+                </button>
             </div>
-
-            <!-- Campo Observaciones (solo visible en modo Factura, siempre opcional) -->
-            <div id="divObservacionesCliente" style="display: none;">
-                <label for="clienteObservaciones"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('client_data.observations'); ?></label>
-                <input type="text" id="clienteObservaciones"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="<?php echo t('client_data.observations_placeholder'); ?>">
-            </div>
-        </div>
-
-        <!-- Mensaje de error: se muestra si faltan campos obligatorios en modo Factura -->
-        <p id="errorDatosCliente" style="color: #ef4444; font-size: 0.9rem; margin-top: 15px; display: none;">
-            <?php echo t('client_data.error_required'); ?>
-        </p>
-
-        <!-- Botones: Atrás (vuelve al modal anterior) y Finalizar Venta (valida y envía) -->
-        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
-            <button class="btn-modal-cancelar"
-                onclick="cerrarModalDatosClienteAtras()"><?php echo t('client_data.back'); ?></button>
-            <button class="btn-exito" id="btnConfirmarDatos" onclick="validarYConfirmarVenta()"
-                style="margin: 0;"><?php echo t('client_data.accept'); ?></button>
         </div>
     </div>
 </div>
@@ -1265,71 +1318,114 @@
 </div>
 
 <!-- ##=========================== MODAL: PUNTOS CLIENTE (consultar/canjear) ===========================## -->
-<!-- Modal para consultar los puntos de un cliente y canjearlos por descuento -->
-<div class="modal-overlay" id="modalPuntosCliente" style="display:none;">
-    <div class="modal-content" style="max-width: 450px; text-align: left;">
-        <h3 style="margin-bottom: 5px;"><?php echo t('points_client.title'); ?></h3>
-        <p class="modal-subtitulo" style="margin-bottom: 20px;"><?php echo t('points_client.subtitle'); ?></p>
-
-        <!-- Buscar cliente por DNI -->
-        <div id="puntosClienteBusqueda">
-            <div>
-                <label for="dniPuntosCliente"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('points_client.dni'); ?>
-                    <span style="color: #ef4444;">*</span></label>
-                <input type="text" id="dniPuntosCliente"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;"
-                    placeholder="12345678A" maxlength="20" onkeypress="if(event.key==='Enter') buscarPuntosCliente()">
+<div class="modal-overlay" id="modalPuntosCliente" style="display:none; backdrop-filter: blur(16px); background: rgba(0,0,0,0.6); z-index: 10000;">
+    <div class="modal-content"
+        style="max-width: 480px; padding: 0; border-radius: 32px; background: var(--bg-card); border: none; text-align: left; box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.5); overflow: hidden; position: relative;">
+        
+        <!-- Cabecera con gradiente ámbar -->
+        <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 40px 30px; text-align: center; position: relative; overflow: hidden;">
+            <div
+                style="display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.3); color: white; margin: 0 auto 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+                <i class="fas fa-award" style="font-size: 1.8rem;"></i>
             </div>
-            <div id="mensajePuntosCliente" style="margin-top: 15px; padding: 10px; border-radius: 6px; display: none;">
-            </div>
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn-modal-cancelar" onclick="cerrarModal('modalPuntosCliente')" style="flex: 1;">
-                    <?php echo t('points_client.close'); ?>
-                </button>
-                <button class="btn-exito" onclick="buscarPuntosCliente()" style="flex: 1;">
-                    <?php echo t('points_client.search'); ?>
-                </button>
-            </div>
+            <h3 style="margin: 0; font-size: 1.6rem; font-weight: 800; color: white; letter-spacing: -0.02em;">
+                <?php echo t('points_client.title'); ?>
+            </h3>
+            <p style="margin: 8px 0 0; color: white; opacity: 0.9; font-size: 1rem;">
+                <?php echo t('points_client.subtitle'); ?>
+            </p>
         </div>
 
-        <!-- Mostrar puntos del cliente (se muestra después de buscar) -->
-        <div id="puntosClienteInfo" style="display: none;">
-            <div
-                style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 20px; margin-bottom: 20px; text-align: center;">
-                <p style="color: #6b7280; margin-bottom: 5px;"><?php echo t('points_client.available_points'); ?></p>
-                <span id="puntosDisponiblesCliente"
-                    style="font-size: 2.5rem; font-weight: bold; color: #15803d;">0</span>
-                <p style="color: #6b7280; margin-top: 5px;"><?php echo t('points_client.conversion_rule'); ?></p>
+        <div style="padding: 35px;">
+            <!-- Buscar cliente por DNI -->
+            <div id="puntosClienteBusqueda">
+                <div style="margin-bottom: 25px;">
+                    <label for="dniPuntosCliente" style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;">
+                        <?php echo t('points_client.dni'); ?> <span style="color: #ef4444;">*</span>
+                    </label>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <div style="position: absolute; left: 18px; color: var(--text-muted); opacity: 0.5;">
+                            <i class="fas fa-id-card"></i>
+                        </div>
+                        <input type="text" id="dniPuntosCliente" placeholder="12345678A" maxlength="20"
+                            onkeypress="if(event.key==='Enter') buscarPuntosCliente()"
+                            style="width: 100%; padding: 16px 20px 16px 45px; font-size: 1.1rem; font-weight: 600; border: 2.5px solid var(--border-main); border-radius: 16px; background: var(--bg-input); color: var(--text-main); outline: none; transition: all 0.25s ease;">
+                    </div>
+                </div>
+
+                <div id="mensajePuntosCliente" style="margin-top: 15px; padding: 15px; border-radius: 12px; font-weight: 600; font-size: 0.9rem; display: none; text-align: center;">
+                </div>
+
+                <div style="display: flex; gap: 15px; margin-top: 30px;">
+                    <button class="btn-modal-cancelar" onclick="cerrarModal('modalPuntosCliente')"
+                        style="flex: 1; padding: 16px; border-radius: 16px; font-weight: 700; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-main); cursor: pointer;">
+                        <?php echo t('points_client.close'); ?>
+                    </button>
+                    <button onclick="buscarPuntosCliente()"
+                        style="flex: 1; padding: 16px; border-radius: 16px; font-weight: 800; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none; cursor: pointer; box-shadow: 0 10px 20px -5px rgba(217, 119, 6, 0.3);">
+                        <?php echo t('points_client.search'); ?>
+                    </button>
+                </div>
             </div>
 
-            <!-- Información de puntos que se pueden usar y ganar -->
-            <div id="infoPointsPanel"
-                style="background: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 15px; margin-bottom: 15px; font-size: 0.9rem;">
-                <p id="puntosQueSePuedenUsar" style="color: #1e40af; margin-bottom: 5px;"></p>
-                <p id="puntosQueSeGanaran" style="color: #059669; margin-bottom: 0;"></p>
-            </div>
+            <!-- Mostrar puntos del cliente (se muestra después de buscar) -->
+            <div id="puntosClienteInfo" style="display: none;">
+                <!-- Card de Puntos Disponibles -->
+                <div style="background: var(--bg-main); border: 2px solid var(--accent-success); border-radius: 24px; padding: 25px; margin-bottom: 25px; text-align: center; position: relative; overflow: hidden;">
+                    <div style="position: absolute; top: -10px; right: -10px; opacity: 0.05; transform: rotate(15deg);">
+                        <i class="fas fa-coins" style="font-size: 5rem;"></i>
+                    </div>
+                    <p style="color: var(--text-muted); font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; margin-bottom: 10px;">
+                        <?php echo t('points_client.available_points'); ?>
+                    </p>
+                    <span id="puntosDisponiblesCliente" style="font-size: 3.5rem; font-weight: 900; color: var(--accent-success); line-height: 1;">0</span>
+                    <p style="color: var(--text-muted); margin-top: 15px; font-size: 0.85rem; font-weight: 500;">
+                        <?php echo t('points_client.conversion_rule'); ?>
+                    </p>
+                </div>
 
-            <div>
-                <label for="puntosACanjeer"
-                    style="display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem;"><?php echo t('points_client.points_to_redeem'); ?></label>
-                <input type="number" id="puntosACanjeer"
-                    style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;" placeholder="0"
-                    min="0" step="1000" oninput="calcularDescuentoPuntos()">
-                <p id="descuentoPuntosPreview" style="color: #10b981; font-weight: 600; margin-top: 10px;"></p>
-            </div>
+                <!-- Panel Info Ganar/Usar -->
+                <div id="infoPointsPanel" style="background: rgba(59, 130, 246, 0.05); border: 1px dashed #3b82f6; border-radius: 16px; padding: 15px; margin-bottom: 25px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <i class="fas fa-info-circle" style="color: #3b82f6;"></i>
+                        <p id="puntosQueSePuedenUsar" style="color: #1e40af; font-weight: 600; font-size: 0.85rem; margin: 0;"></p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-plus-circle" style="color: #10b981;"></i>
+                        <p id="puntosQueSeGanaran" style="color: #059669; font-weight: 600; font-size: 0.85rem; margin: 0;"></p>
+                    </div>
+                </div>
 
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn-modal-cancelar" onclick="cerrarYLimpiarClientePuntos()" style="flex: 1;">
-                    <?php echo t('points_client.cancel'); ?>
-                </button>
-                <button class="btn-exito" onclick="acumularPuntosSolamente()" style="flex: 1; background: #3b82f6;">
-                    <?php echo t('points_client.accumulate'); ?>
-                </button>
-                <button class="btn-exito" id="btnAplicarDescuentoPuntos" onclick="aplicarDescuentoPuntos()"
-                    style="flex: 1;">
-                    <?php echo t('points_client.apply_discount'); ?>
-                </button>
+                <!-- Input de canje -->
+                <div style="margin-bottom: 25px;">
+                    <label for="puntosACanjeer" style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;">
+                        <?php echo t('points_client.points_to_redeem'); ?>
+                    </label>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <div style="position: absolute; left: 18px; color: var(--accent-success);">
+                            <i class="fas fa-minus-circle"></i>
+                        </div>
+                        <input type="number" id="puntosACanjeer" placeholder="0" min="0" step="100" 
+                            oninput="calcularDescuentoPuntos()"
+                            style="width: 100%; padding: 16px 20px 16px 45px; font-size: 1.3rem; font-weight: 800; border: 2.5px solid var(--border-main); border-radius: 16px; background: var(--bg-input); color: var(--text-main); outline: none; transition: all 0.25s ease;">
+                    </div>
+                    <p id="descuentoPuntosPreview" style="color: var(--accent-success); font-weight: 800; margin-top: 12px; text-align: center; font-size: 1.1rem;"></p>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
+                    <div style="display: flex; gap: 12px;">
+                        <button class="btn-modal-cancelar" onclick="cerrarYLimpiarClientePuntos()" style="flex: 1; padding: 15px; border-radius: 16px; font-weight: 700; cursor: pointer;">
+                            <?php echo t('points_client.cancel'); ?>
+                        </button>
+                        <button onclick="acumularPuntosSolamente()" style="flex: 1.5; padding: 15px; border-radius: 16px; font-weight: 800; background: #3b82f6; color: white; border: none; cursor: pointer; transition: opacity 0.2s;">
+                            <?php echo t('points_client.accumulate'); ?>
+                        </button>
+                    </div>
+                    <button id="btnAplicarDescuentoPuntos" onclick="aplicarDescuentoPuntos()"
+                        style="width: 100%; padding: 18px; border-radius: 16px; font-weight: 900; font-size: 1.1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; cursor: pointer; box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4);">
+                        <?php echo t('points_client.redeem_and_apply'); ?>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1635,16 +1731,17 @@ endif; ?>
     <div class="modal-content modal-premium"
         style="max-width: 700px; display: flex; flex-direction: column; max-height: 90vh;">
         <!-- Cabecera con gradiente rojo -->
-        <div class="modal-header-premium modal-header-red" style="flex-shrink: 0;">
-            <div class="icon-container-discount">
-                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
-                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M1 4v6h6"></path>
-                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-                </svg>
+        <div style="background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); padding: 40px 30px; text-align: center; position: relative; overflow: hidden; flex-shrink: 0;">
+            <div
+                style="display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.3); color: white; margin: 0 auto 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+                <i class="fas fa-undo-alt" style="font-size: 1.8rem;"></i>
             </div>
-            <h3 style="margin-bottom: 5px;"><?php echo t('return.title'); ?></h3>
-            <p id="devolucionSubtitulo" style="opacity: 0.9;"><?php echo t('return.subtitle'); ?></p>
+            <h3 style="margin: 0; font-size: 1.6rem; font-weight: 800; color: white; letter-spacing: -0.02em;">
+                <?php echo t('return.title'); ?>
+            </h3>
+            <p id="devolucionSubtitulo" style="margin: 8px 0 0; color: white; opacity: 0.9; font-size: 1rem;">
+                <?php echo t('return.subtitle'); ?>
+            </p>
         </div>
 
         <div class="modal-body-premium" style="flex: 1; overflow-y: auto; padding: 25px;">
@@ -1950,53 +2047,78 @@ endif; ?>
 <!-- ##=========================== MODAL: RETIRAR DINERO ===========================## -->
 <!-- Modal para retirar efectivo de la caja (ej: pago a proveedor, ingreso en banco) -->
 <!-- Se envía por POST con la acción "retirarDinero" al controlador -->
-<div class="modal-overlay" id="modalRetiro" style="display:none;">
-    <div class="modal-content modal-premium" style="max-width: 450px;">
-        <!-- Cabecera con gradiente naranja y icono de billete -->
-        <div class="modal-header-premium modal-header-orange">
-            <div class="icon-container-discount">
-                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
-                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect width="20" height="12" x="2" y="6" rx="2"></rect>
-                    <circle cx="12" cy="12" r="2"></circle>
-                    <path d="M6 12h.01M18 12h.01"></path>
-                </svg>
+<div class="modal-overlay" id="modalRetiro" style="display:none; backdrop-filter: blur(16px); background: rgba(0,0,0,0.6); z-index: 10000;">
+    <div class="modal-content"
+        style="max-width: 480px; padding: 0; border-radius: 32px; background: var(--bg-card); border: none; text-align: left; box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.5); overflow: hidden; position: relative;">
+        
+        <!-- Cabecera con gradiente naranja -->
+        <div style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 40px 30px; text-align: center; position: relative; overflow: hidden;">
+            <div
+                style="display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.3); color: white; margin: 0 auto 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+                <i class="fas fa-hand-holding-usd" style="font-size: 1.8rem;"></i>
             </div>
-            <h3><?php echo t('withdraw.title'); ?></h3>
-            <p><?php echo t('withdraw.subtitle'); ?></p>
+            <h3 style="margin: 0; font-size: 1.6rem; font-weight: 800; color: white; letter-spacing: -0.02em;">
+                <?php echo t('withdraw.title'); ?>
+            </h3>
+            <p style="margin: 8px 0 0; color: white; opacity: 0.9; font-size: 1rem;">
+                <?php echo t('withdraw.subtitle'); ?>
+            </p>
         </div>
 
-        <div class="modal-body-premium">
-            <!-- Formulario de retiro de dinero -->
+        <div style="padding: 35px;">
             <form id="formRetiro" method="POST" action="index.php" onsubmit="return validarRetiro()">
                 <input type="hidden" name="accion" value="retirarDinero">
 
-                <!-- Campo: cantidad a retirar en euros -->
-                <div class="form-group-premium">
-                    <label for="importeRetiro"><?php echo t('withdraw.amount'); ?></label>
-                    <input type="number" name="importeRetiro" id="importeRetiro" step="0.0001" min="0.0001"
-                        oninput="validarPrecisionDinamica(this)" onblur="validarPrecisionDinamica(this)"
-                        placeholder="0.00" required>
-                    <small style="color: var(--text-muted); display: block; margin-top: 5px;">
-                        <?php echo t('withdraw.available'); ?>: <span
-                            id="efectivoDisponible"><?php echo number_format($sesionCaja ? $sesionCaja->getImporteActual() : 0, 2, ',', '.'); ?></span>
-                        €
-                    </small>
+                <div style="display: grid; gap: 25px;">
+                    <!-- Campo: Importe -->
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <label for="importeRetiro" style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em;">
+                                <?php echo t('withdraw.amount'); ?>
+                            </label>
+                            <span style="background: var(--bg-main); padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); border: 1px solid var(--border-main);">
+                                <i class="fas fa-wallet" style="margin-right: 5px;"></i>
+                                <?php echo t('withdraw.available'); ?>: <span id="efectivoDisponible" style="color: var(--text-main);"><?php echo number_format($sesionCaja ? $sesionCaja->getImporteActual() : 0, 2, ',', '.'); ?></span> €
+                            </span>
+                        </div>
+                        <div style="position: relative;">
+                            <input type="number" name="importeRetiro" id="importeRetiro" step="0.01" min="0.01"
+                                oninput="validarPrecisionDinamica(this)"
+                                placeholder="0.00" required
+                                style="width: 100%; padding: 18px 50px 18px 24px; font-size: 2rem; font-weight: 800; border: 2.5px solid var(--border-main); border-radius: 20px; background: var(--bg-input); color: var(--text-main); outline: none; transition: all 0.25s ease;">
+                            <span style="position: absolute; right: 24px; top: 50%; transform: translateY(-50%); font-size: 1.5rem; font-weight: 800; color: var(--text-muted); opacity: 0.5;">€</span>
+                        </div>
+                    </div>
+
+                    <!-- Campo: Motivo -->
+                    <div>
+                        <label for="motivoRetiro" style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;">
+                            <?php echo t('withdraw.reason_optional'); ?>
+                        </label>
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <div style="position: absolute; left: 18px; color: var(--text-muted); opacity: 0.5;">
+                                <i class="fas fa-tag"></i>
+                            </div>
+                            <input type="text" name="motivoRetiro" id="motivoRetiro"
+                                placeholder="<?php echo t('withdraw.reason_placeholder'); ?>"
+                                style="width: 100%; padding: 16px 20px 16px 45px; font-size: 1rem; font-weight: 500; border: 2.5px solid var(--border-main); border-radius: 16px; background: var(--bg-input); color: var(--text-main); outline: none; transition: all 0.25s ease;"
+                                onfocus="this.style.borderColor='var(--accent)'; this.style.background='var(--bg-card)';"
+                                onblur="this.style.borderColor='var(--border-main)'; this.style.background='var(--bg-input)';">
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Campo: motivo del retiro (opcional) -->
-                <div class="form-group-premium" style="margin-top: 15px;">
-                    <label for="motivoRetiro"><?php echo t('withdraw.reason_optional'); ?></label>
-                    <input type="text" name="motivoRetiro" id="motivoRetiro"
-                        placeholder="<?php echo t('withdraw.reason_placeholder'); ?>">
-                </div>
-
-                <!-- Botones: Cancelar y Confirmar Retiro -->
-                <div style="display: flex; gap: 15px; margin-top: 25px;">
+                <!-- Botones -->
+                <div style="display: flex; gap: 15px; margin-top: 40px;">
                     <button type="button" class="btn-modal-cancelar" onclick="cerrarModal('modalRetiro')"
-                        style="flex: 1;"><?php echo t('withdraw.cancel'); ?></button>
-                    <button type="submit" class="btn-apply-premium"
-                        style="flex: 1; background: #ea580c; color: white;"><?php echo t('withdraw.confirm'); ?></button>
+                        style="flex: 1; padding: 18px; border-radius: 16px; font-weight: 700; font-size: 1rem; border: 1px solid var(--border-main); background: var(--bg-card); color: var(--text-muted); cursor: pointer; transition: all 0.2s ease;">
+                        <?php echo t('withdraw.cancel'); ?>
+                    </button>
+                    <button type="submit"
+                        style="flex: 1; padding: 18px; border-radius: 16px; font-weight: 800; font-size: 1.1rem; border: none; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: white; cursor: pointer; box-shadow: 0 10px 20px -5px rgba(234, 88, 12, 0.4); transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <span><?php echo t('withdraw.confirm'); ?></span>
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
                 </div>
             </form>
         </div>
@@ -2666,17 +2788,18 @@ endif; ?>
 <!-- ##=========================== MODAL: HISTORIAL DE DEVOLUCIONES ===========================## -->
 <div class="modal-overlay" id="modalHistorialDevoluciones" style="display:none;">
     <div class="modal-content modal-premium" style="max-width: 650px;">
-        <!-- Cabecera con gradiente rojo y icono de devoluciones -->
-        <div class="modal-header-premium modal-header-red">
-            <div class="icon-container-discount">
-                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
-                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M1 4v6h6"></path>
-                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-                </svg>
+        <!-- Cabecera con gradiente rojo -->
+        <div style="background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); padding: 40px 30px; text-align: center; position: relative; overflow: hidden;">
+            <div
+                style="display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.3); color: white; margin: 0 auto 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+                <i class="fas fa-history" style="font-size: 1.8rem;"></i>
             </div>
-            <h3><?php echo t('history.returns_title'); ?></h3>
-            <p id="historialDevolucionesFecha"><?php echo t('history.returns_subtitle'); ?></p>
+            <h3 style="margin: 0; font-size: 1.6rem; font-weight: 800; color: white; letter-spacing: -0.02em;">
+                <?php echo t('history.returns_title'); ?>
+            </h3>
+            <p id="historialDevolucionesFecha" style="margin: 8px 0 0; color: white; opacity: 0.9; font-size: 1rem;">
+                <?php echo t('history.returns_subtitle'); ?>
+            </p>
         </div>
 
         <div class="modal-body-premium">
@@ -2696,16 +2819,17 @@ endif; ?>
 <!-- ##=========================== MODAL: DETALLE DE DEVOLUCION ===========================## -->
 <div class="modal-overlay" id="modalDetalleDevolucion" style="display:none;">
     <div class="modal-content modal-premium" style="max-width: 700px;">
-        <div class="modal-header-premium modal-header-red">
-            <div class="icon-container-discount">
-                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
-                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M1 4v6h6"></path>
-                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-                </svg>
+        <div style="background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); padding: 40px 30px; text-align: center; position: relative; overflow: hidden;">
+            <div
+                style="display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.3); color: white; margin: 0 auto 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+                <i class="fas fa-file-invoice-dollar" style="font-size: 1.8rem;"></i>
             </div>
-            <h3><?php echo t('return_details.title'); ?></h3>
-            <p id="detalleDevolucionId"><?php echo t('return_details.subtitle'); ?></p>
+            <h3 style="margin: 0; font-size: 1.6rem; font-weight: 800; color: white; letter-spacing: -0.02em;">
+                <?php echo t('return_details.title'); ?>
+            </h3>
+            <p id="detalleDevolucionId" style="margin: 8px 0 0; color: white; opacity: 0.9; font-size: 1rem;">
+                <?php echo t('return_details.subtitle'); ?>
+            </p>
         </div>
 
         <div class="modal-body-premium">
@@ -2752,236 +2876,331 @@ endif; ?>
 
 <!-- Modal para crear nuevo producto (permiso: crear_productos) -->
 <div class="modal-overlay" id="modalNuevoProducto" style="display:none;">
-    <div class="modal-content modal-editarProducto">
-        <h3 id="editProductoTitulo"><?php echo t('products.new_product_title'); ?></h3>
-        <p id="editProductoSubtitulo" class="modal-subtitulo"><?php echo t('products.enter_data_subtitle'); ?></p>
+    <div class="modal-content modal-premium" style="max-width: 600px; padding: 0; overflow: hidden;">
+        <!-- Header Premium -->
+        <div class="modal-header-premium"
+            style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px 25px; text-align: left; position: relative;">
+            <h3 id="editProductoTitulo" style="margin: 0; color: #fff; font-size: 1.3rem;"><?php echo t('products.new_product_title'); ?></h3>
+            <p id="editProductoSubtitulo" class="modal-subtitulo"
+                style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;"><?php echo t('products.enter_data_subtitle'); ?></p>
+            <button class="modal-close-btn" onclick="cerrarModal('modalNuevoProducto')"
+                style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
 
         <input type="hidden" id="editProductoId">
 
-        <div class="editar-prod-layout">
-            <!-- Imagen -->
-            <div class="editar-prod-imagen-wrapper">
-                <img id="editProductoImagen" src="webroot/img/logoCPU.PNG" alt="" style="cursor: zoom-in;"
-                    onclick="abrirImagenGrande(this.src, this.alt)">
-                <label class="btn-cambiar-imagen" title="<?php echo t('products.title_change_image'); ?>">
-                    <i class="fas fa-camera"></i> <?php echo t('products.btn_change_image'); ?>
-                    <input type="file" id="editProductoImagenInput" accept="image/*" style="display:none;"
-                        onchange="previsualizarImagen(event)">
-                </label>
+        <div style="padding: 25px;">
+            <div class="editar-prod-layout-premium" style="display: flex; gap: 25px; align-items: flex-start;">
+
+                <!-- Columna Izquierda: Imagen -->
+                <div class="editar-prod-imagen-wrapper"
+                    style="flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; width: 140px;">
+                    <div
+                        style="position: relative; width: 140px; height: 140px; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; box-shadow: 0 4px 12px rgba(0,0,0,0.05); background: #f9fafb;">
+                        <img id="editProductoImagen" src="webroot/img/logoCPU.PNG" alt=""
+                            style="width: 100%; height: 100%; object-fit: cover; cursor: zoom-in;"
+                            onclick="abrirImagenGrande(this.src, this.alt)">
+                    </div>
+                    <label class="btn-cambiar-imagen" title="<?php echo t('products.title_change_image'); ?>"
+                        style="display: flex; align-items: center; justify-content: center; gap: 8px; background: #f3f4f6; border: 1px solid #d1d5db; padding: 8px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #4b5563; transition: all 0.2s;">
+                        <i class="fas fa-camera"></i> <?php echo t('products.btn_change_image'); ?>
+                        <input type="file" id="editProductoImagenInput" accept="image/*" style="display:none;"
+                            onchange="previsualizarImagen(event)">
+                    </label>
+                </div>
+
+                <!-- Columna Derecha: Formulario -->
+                <div class="editar-prod-campos"
+                    style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="editar-prod-fila-premium" style="grid-column: span 2;">
+                        <label
+                            style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;"><?php echo t('products.label_name'); ?>
+                            <span style="color:#ef4444">*</span></label>
+                        <input type="text" id="nuevoProductoNombre"
+                            style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;"
+                            placeholder="Ej: Café con Leche">
+                    </div>
+
+                    <div class="editar-prod-fila-premium" style="grid-column: span 2;">
+                        <label
+                            style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;"><?php echo t('products.label_category'); ?>
+                            <span style="color:#ef4444">*</span></label>
+                        <select id="nuevoProductoCategoria"
+                            style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s; background-color: #fff;">
+                        </select>
+                    </div>
+
+                    <div class="editar-prod-fila-premium">
+                        <label
+                            style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;"><?php echo t('products.label_price'); ?> (€) <span style="color:#ef4444">*</span></label>
+                        <input type="number" id="nuevoProductoPrecio" step="0.0001" min="0"
+                            oninput="validarPrecisionDinamica(this, 'nuevoProductoDecimales')"
+                            onblur="validarPrecisionDinamica(this, 'nuevoProductoDecimales')"
+                            style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                    </div>
+
+                    <div class="editar-prod-fila-premium">
+                        <label
+                            style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;"><?php echo t('products.label_stock'); ?>
+                            <span style="color:#ef4444">*</span></label>
+                        <input type="number" id="nuevoProductoStock" min="0" value="0"
+                            style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                    </div>
+
+                    <div class="editar-prod-fila-premium">
+                        <label
+                            style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;"><?php echo t('products.label_iva_type'); ?></label>
+                        <select id="nuevoProductoIva"
+                            style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s; background-color: #fff;">
+                            <option value="21">21% (<?php echo t('products.iva_general'); ?>)</option>
+                            <option value="10">10% (<?php echo t('products.iva_reduced'); ?>)</option>
+                            <option value="4">4% (<?php echo t('products.iva_super_reduced'); ?>)</option>
+                            <option value="0">0% (<?php echo t('products.iva_exempt'); ?>)</option>
+                        </select>
+                    </div>
+
+                    <div class="editar-prod-fila-premium">
+                        <label
+                            style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;"><?php echo t('products.label_status'); ?></label>
+                        <select id="nuevoProductoEstado"
+                            style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s; background-color: #fff;">
+                            <option value="1"><?php echo t('products.status_active'); ?></option>
+                            <option value="0"><?php echo t('products.status_inactive'); ?></option>
+                        </select>
+                    </div>
+
+                    <div class="editar-prod-fila-premium" style="grid-column: span 2;">
+                        <label
+                            style="display: block; font-size: 0.8rem; color: #4b5563; font-weight: 600; margin-bottom: 5px;">Decimales
+                            permitidos (máx 4)</label>
+                        <input type="number" id="nuevoProductoDecimales" min="0" max="4" step="1" value="2"
+                            oninput="validarDecimalesRango(this, 'nuevoProductoPrecio')"
+                            style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; transition: border-color 0.2s;">
+                    </div>
+                </div>
             </div>
 
-            <!-- Campos -->
-            <div class="editar-prod-campos">
-                <div class="editar-prod-fila">
-                    <label><?php echo t('products.label_name'); ?></label>
-                    <input type="text" id="nuevoProductoNombre">
-                </div>
-                <div class="editar-prod-fila">
-                    <label><?php echo t('products.label_category'); ?></label>
-                    <select id="nuevoProductoCategoria"
-                        style="padding: 8px; border-radius: 4px; border: 1px solid #d1d5db;">
-                    </select>
-                </div>
-                <div class="editar-prod-fila">
-                    <label><?php echo t('products.label_price'); ?> (€) <span style="color:red">*</span></label>
-                    <input type="number" id="nuevoProductoPrecio" step="0.0001" min="0"
-                        oninput="validarPrecisionDinamica(this, 'nuevoProductoDecimales')"
-                        onblur="validarPrecisionDinamica(this, 'nuevoProductoDecimales')">
-                </div>
-                <div class="editar-prod-fila">
-                    <label><?php echo t('products.label_stock'); ?></label>
-                    <input type="number" id="nuevoProductoStock" min="0" value="0">
-                </div>
-                <div class="editar-prod-fila">
-                    <label><?php echo t('products.label_iva_type'); ?> (%)</label>
-                    <select id="nuevoProductoIva" style="padding: 8px; border-radius: 4px; border: 1px solid #d1d5db;">
-                        <option value="21">21% (<?php echo t('products.iva_general'); ?>)</option>
-                        <option value="10">10% (<?php echo t('products.iva_reduced'); ?>)</option>
-                        <option value="4">4% (<?php echo t('products.iva_super_reduced'); ?>)</option>
-                        <option value="0">0% (<?php echo t('products.iva_exempt'); ?>)</option>
-                    </select>
-                </div>
-                <div class="editar-prod-fila">
-                    <label><?php echo t('products.label_status'); ?></label>
-                    <select id="nuevoProductoEstado">
-                        <option value="1"><?php echo t('products.status_active'); ?></option>
-                        <option value="0"><?php echo t('products.status_inactive'); ?></option>
-                    </select>
-                </div>
+            <div
+                style="margin-top: 30px; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                <button class="btn-modal-cancelar" onclick="cerrarModal('modalNuevoProducto')"
+                    style="margin: 0; padding: 10px 20px; border-radius: 8px; font-weight: 600;">
+                    <?php echo t('common.cancel'); ?>
+                </button>
+                <button class="btn-exito" onclick="guardarNuevoProducto()"
+                    style="margin: 0; padding: 10px 25px; border-radius: 8px; font-weight: 600; background: #10b981; border: none; color: white; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.2s;">
+                    <i class="fas fa-save"></i> <?php echo t('common.save'); ?>
+                </button>
             </div>
-        </div>
-
-        <div class="editar-prod-botones">
-            <button class="btn-modal-cancelar"
-                onclick="cerrarModal('modalNuevoProducto')"><?php echo t('common.cancel'); ?></button>
-            <button class="btn-exito" onclick="guardarNuevoProducto()">
-                <i class="fas fa-save"></i> <?php echo t('common.save'); ?>
-            </button>
         </div>
     </div>
 </div>
 
 <!-- ##=========================== MODAL: CAMBIAR PRECIOS ===========================## -->
 <!-- Modal para cambiar precios base y tarifas desde el cajero -->
-<div class="modal-overlay" id="modalCambiarPrecios" style="display:none;">
-    <div class="modal-content"
-        style="max-width: 900px; width: 95%; max-height: 85vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; background: var(--bg-modal); color: var(--text-main);">
-        <!-- Cabecera del modal -->
-        <div
-            style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white; padding: 20px 25px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; position: relative;">
-            <div style="text-align: center;">
-                <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700;">
-                    <?php echo t('products.change_prices_title'); ?>
-                </h3>
-                <p style="margin: 4px 0 0 0; font-size: 0.85rem; opacity: 0.9;">
-                    <?php echo t('products.change_prices_subtitle'); ?>
-                </p>
+<div class="modal-overlay" id="modalCambiarPrecios" style="display:none; backdrop-filter: blur(16px); background: rgba(0,0,0,0.6); z-index: 10000;">
+    <div class="modal-content modal-premium"
+        style="max-width: 1000px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; border-radius: 32px; background: var(--bg-card); border: none; box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.5);">
+        
+        <!-- Cabecera Premium -->
+        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 35px 40px; text-align: left; position: relative; overflow: hidden; flex-shrink: 0;">
+            <!-- Decoración de fondo -->
+            <div style="position: absolute; right: -20px; top: -20px; opacity: 0.1; transform: rotate(15deg);">
+                <i class="fas fa-tags" style="font-size: 150px; color: white;"></i>
             </div>
-            <button onclick="cerrarModal('modalCambiarPrecios')"
-                style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1; opacity: 0.8; transition: opacity 0.2s; position: absolute; right: 20px;"
-                onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">&times;</button>
-        </div>
+            
+            <div style="display: flex; align-items: center; gap: 20px; position: relative; z-index: 1;">
+                <div style="background: rgba(255,255,255,0.2); width: 60px; height: 60px; border-radius: 18px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3); color: white;">
+                    <i class="fas fa-coins" style="font-size: 1.8rem;"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.6rem; font-weight: 800; color: white; letter-spacing: -0.5px;">
+                        <?php echo t('products.change_prices_title'); ?>
+                    </h3>
+                    <p style="margin: 5px 0 0; color: white; opacity: 0.9; font-size: 1rem; font-weight: 500;">
+                        <?php echo t('products.change_prices_subtitle'); ?>
+                    </p>
+                </div>
+            </div>
 
-        <!-- Barra de búsqueda y botón IVA -->
-        <div
-            style="padding: 15px 25px; border-bottom: 1px solid var(--border-main); flex-shrink: 0; display: flex; gap: 10px; align-items: center;">
-            <input type="text" id="buscarProductoCambiarPrecio"
-                placeholder="<?php echo t('products.search_placeholder'); ?>..."
-                oninput="buscarProductosCambiarPrecio()"
-                style="flex: 1; padding: 10px 15px; border: 1px solid var(--border-main); border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; box-sizing: border-box; background: var(--bg-input); color: var(--text-main);"
-                onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='var(--border-main)'">
-            <button type="button" id="btnToggleIvaCambiarPrecios" onclick="toggleIvaCambiarPrecios()"
-                style="padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 13px; transition: all 0.2s; display: flex; align-items: center; gap: 6px; white-space: nowrap; background: var(--accent); color: white;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="16"></line>
-                    <line x1="8" y1="12" x2="16" y2="12"></line>
-                </svg>
-                <?php echo t('products.btn_view_with_iva'); ?>
-            </button>
-            <button type="button" id="btnAplicarCambiosPrecios" onclick="aplicarCambiosPreciosCajero()" disabled
-                style="padding: 10px 15px; border: none; border-radius: 8px; cursor: not-allowed; font-weight: 500; font-size: 13px; transition: all 0.2s; display: flex; align-items: center; gap: 6px; white-space: nowrap; background: #10b981; color: white; opacity: 0.5;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                    <polyline points="7 3 7 8 15 8"></polyline>
-                </svg>
-                <?php echo t('products.btn_apply_changes'); ?>
+            <button onclick="cerrarModal('modalCambiarPrecios')" 
+                style="position: absolute; top: 25px; right: 25px; background: rgba(255,255,255,0.2); border: none; width: 36px; height: 36px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(4px);">
+                <i class="fas fa-times"></i>
             </button>
         </div>
 
-        <!-- Tabla de productos y tarifas -->
-        <div style="flex: 1; overflow-y: auto; padding: 0 25px 15px 25px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-main);"
-                id="tablaCambiarPrecios">
-                <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-panel);">
-                    <tr id="cabeceraCambiarPrecios">
-                        <!-- Se genera dinámicamente -->
-                    </tr>
-                </thead>
-                <tbody id="bodyTablaCambiarPrecios">
-                    <tr>
-                        <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-muted);">
-                            <?php echo t('products.loading_products'); ?>...
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+        <!-- Toolbar -->
+        <div style="padding: 20px 30px; background: var(--bg-panel); border-bottom: 1px solid var(--border-main); display: flex; gap: 15px; align-items: center; flex-shrink: 0;">
+            <div style="position: relative; flex: 1;">
+                <i class="fas fa-search" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                <input type="text" id="buscarProductoCambiarPrecio"
+                    placeholder="<?php echo t('products.search_placeholder'); ?>..."
+                    oninput="buscarProductosCambiarPrecio()"
+                    style="width: 100%; padding: 12px 15px 12px 45px; border-radius: 14px; border: 2px solid var(--border-main); background: var(--bg-input); color: var(--text-main); font-weight: 600; outline: none; transition: all 0.2s;">
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="button" id="btnToggleIvaCambiarPrecios" onclick="toggleIvaCambiarPrecios()"
+                    style="padding: 12px 20px; border-radius: 14px; border: none; background: #6366f1; color: white; font-weight: 700; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);">
+                    <i class="fas fa-percent"></i>
+                    <?php echo t('products.btn_view_with_iva'); ?>
+                </button>
+                <button type="button" id="btnAplicarCambiosPrecios" onclick="aplicarCambiosPreciosCajero()" disabled
+                    style="padding: 12px 20px; border-radius: 14px; border: none; background: #10b981; color: white; font-weight: 700; font-size: 0.9rem; cursor: not-allowed; display: flex; align-items: center; gap: 10px; transition: all 0.2s; opacity: 0.5; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
+                    <i class="fas fa-save"></i>
+                    <?php echo t('products.btn_apply_changes'); ?>
+                </button>
+            </div>
         </div>
 
-        <!-- Paginación -->
+        <!-- Contenedor de Tabla -->
+        <div style="flex: 1; overflow-y: auto; padding: 25px 30px; background: var(--bg-card);">
+            <div style="border: 1px solid var(--border-main); border-radius: 20px; overflow: hidden; background: var(--bg-panel); box-shadow: var(--shadow-sm);">
+                <table style="width: 100%; border-collapse: collapse;" id="tablaCambiarPrecios">
+                    <thead style="background: var(--bg-secondary);">
+                        <tr id="cabeceraCambiarPrecios" style="border-bottom: 1px solid var(--border-main);">
+                            <!-- Dinámico -->
+                        </tr>
+                    </thead>
+                    <tbody id="bodyTablaCambiarPrecios">
+                        <tr>
+                            <td colspan="10" style="text-align: center; padding: 60px; color: var(--text-muted);">
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 15px;">
+                                    <i class="fas fa-circle-notch fa-spin" style="font-size: 2.5rem; color: #6366f1;"></i>
+                                    <p style="font-weight: 600; font-size: 1.1rem;"><?php echo t('products.loading_products'); ?>...</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer / Paginación -->
         <div id="paginacionCambiarPrecios"
-            style="padding: 10px 25px 15px 25px; border-top: 1px solid var(--border-main); display: flex; justify-content: center; align-items: center; gap: 10px; flex-shrink: 0; color: var(--text-muted);">
+            style="padding: 20px 30px; background: var(--bg-panel); border-top: 1px solid var(--border-main); display: flex; justify-content: center; align-items: center; gap: 15px; flex-shrink: 0;">
         </div>
     </div>
+</div>
 </div>
 
 <!-- ##=========================== MODAL: PRODUCTO COMODÍN ===========================## -->
 <!-- Modal para crear un producto temporal "comodín" y añadirlo directamente al carrito -->
-<div class="modal-overlay" id="modalProductoComodin" style="display:none;">
-    <div class="modal-content" style="max-width: 400px; padding: 0;">
-        <!-- Cabecera -->
-        <div class="modal-header-premium modal-header-blue">
-            <div class="icon-container-discount">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon
-                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
-                    </polygon>
-                </svg>
+<div class="modal-overlay" id="modalProductoComodin" style="display:none; backdrop-filter: blur(16px); background: rgba(0,0,0,0.6); z-index: 10000;">
+    <div class="modal-content"
+        style="max-width: 450px; padding: 0; border-radius: 32px; background: var(--bg-card); border: none; text-align: left; box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.5); overflow: hidden; position: relative;">
+        
+        <!-- Cabecera con gradiente Índigo -->
+        <div style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); padding: 40px 30px; text-align: center; position: relative; overflow: hidden;">
+            <!-- Botón Cerrar Flotante -->
+            <button onclick="cerrarModal('modalProductoComodin')" 
+                style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(4px);">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <div
+                style="display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.3); color: white; margin: 0 auto 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+                <i class="fas fa-magic" style="font-size: 1.8rem;"></i>
             </div>
-            <h3><?php echo t('products.comodin_title'); ?></h3>
-            <p><?php echo t('products.comodin_subtitle'); ?></p>
+            <h3 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: white; letter-spacing: -0.02em;">
+                <?php echo t('products.comodin_title'); ?>
+            </h3>
+            <p style="margin: 8px 0 0; color: white; opacity: 0.9; font-size: 0.95rem; font-weight: 500;">
+                <?php echo t('products.comodin_subtitle'); ?>
+            </p>
         </div>
 
-        <!-- Formulario -->
-        <div style="padding: 25px;">
-            <div style="margin-bottom: 20px;">
-                <label for="comodinNombre"
-                    style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);"><?php echo t('products.label_comodin_name'); ?>
-                    *</label>
-                <input type="text" id="comodinNombre" maxlength="26"
-                    placeholder="Ej: <?php echo t('products.comodin_name_placeholder'); ?>"
-                    style="width: 100%; padding: 12px 15px; border: 1px solid var(--border-main); border-radius: 8px; font-size: 14px; box-sizing: border-box; background: var(--bg-input); color: var(--text-main);"
-                    onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='var(--border-main)'">
-            </div>
-
-            <div style="margin-bottom: 20px;">
-                <label for="comodinDescripcion"
-                    style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);"><?php echo t('products.label_comodin_desc'); ?>
-                    (<?php echo t('common.optional'); ?>)</label>
-                <textarea id="comodinDescripcion" placeholder="<?php echo t('products.comodin_desc_placeholder'); ?>..."
-                    style="width: 100%; padding: 12px 15px; border: 1px solid var(--border-main); border-radius: 8px; font-size: 14px; box-sizing: border-box; background: var(--bg-input); color: var(--text-main); resize: vertical; min-height: 80px;"
-                    onfocus="this.style.borderColor='#6366f1'"
-                    onblur="this.style.borderColor='var(--border-main)'"></textarea>
-            </div>
-
-            <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                <div style="flex: 1;">
-                    <label for="comodinIva"
-                        style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);">IVA (%)
-                        *</label>
-                    <input type="number" id="comodinIva" value="21" step="1" min="0"
-                        oninput="actualizarComodinPrecioTotal()"
-                        style="width: 100%; padding: 12px 15px; border: 1px solid var(--border-main); border-radius: 8px; font-size: 14px; box-sizing: border-box; background: var(--bg-input); color: var(--text-main);"
-                        onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='var(--border-main)'">
+        <div style="padding: 30px;">
+            <div style="display: grid; gap: 20px;">
+                <!-- Campo Nombre -->
+                <div>
+                    <label for="comodinNombre"
+                        style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+                        <?php echo t('products.label_comodin_name'); ?> *
+                    </label>
+                    <input type="text" id="comodinNombre" maxlength="26"
+                        style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 2px solid var(--border-main); background: var(--bg-input); color: var(--text-main); font-weight: 600; outline: none; transition: all 0.2s;"
+                        placeholder="Ej: <?php echo t('products.comodin_name_placeholder'); ?>">
                 </div>
-                <div style="flex: 2;">
-                    <label for="comodinPrecio"
-                        style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main);"><?php echo t('products.label_price'); ?>
-                        (<?php echo t('products.price_base'); ?>) *</label>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="number" id="comodinPrecio" placeholder="0,00" step="0.0001"
-                            oninput="validarPrecisionDinamica(this); actualizarComodinPrecioTotal()" min="0"
+
+                <!-- Campo Descripción -->
+                <div>
+                    <label for="comodinDescripcion"
+                        style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+                        <?php echo t('products.label_comodin_desc'); ?> (<?php echo t('common.optional'); ?>)
+                    </label>
+                    <textarea id="comodinDescripcion" 
+                        style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 2px solid var(--border-main); background: var(--bg-input); color: var(--text-main); font-weight: 600; outline: none; resize: none; height: 80px;"
+                        placeholder="<?php echo t('products.comodin_desc_placeholder'); ?>..."></textarea>
+                </div>
+
+                <!-- IVA y Precio Base -->
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 15px;">
+                    <div>
+                        <label for="comodinIva"
+                            style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+                            IVA (%) *
+                        </label>
+                        <input type="number" id="comodinIva" value="21" step="1" min="0"
                             oninput="actualizarComodinPrecioTotal()"
-                            style="flex: 1; padding: 12px 15px; border: 1px solid var(--border-main); border-radius: 8px; font-size: 14px; box-sizing: border-box; background: var(--bg-input); color: var(--text-main);"
-                            onfocus="this.style.borderColor='#6366f1'"
-                            onblur="this.style.borderColor='var(--border-main)'">
-                        <span style="font-size: 16px; font-weight: 600; color: var(--text-main);">€</span>
+                            style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid var(--border-main); background: var(--bg-input); color: var(--text-main); font-weight: 700; text-align: center; outline: none;">
+                    </div>
+                    <div>
+                        <label for="comodinPrecio"
+                            style="display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+                            <?php echo t('products.label_price'); ?> (Base) *
+                        </label>
+                        <div style="position: relative;">
+                            <input type="number" id="comodinPrecio" placeholder="0.00" step="0.0001" min="0"
+                                oninput="validarPrecisionDinamica(this); actualizarComodinPrecioTotal()"
+                                style="width: 100%; padding: 12px 40px 12px 16px; border-radius: 12px; border: 2px solid var(--border-main); background: var(--bg-input); color: var(--text-main); font-weight: 700; outline: none;">
+                            <span style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-weight: 700; color: var(--text-muted);">€</span>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Card de Total -->
+                <div id="comodinTotalContainer"
+                    style="margin-top: 5px; padding: 20px; background: rgba(99, 102, 241, 0.05); border-radius: 20px; border: 2px dashed rgba(99, 102, 241, 0.2); text-align: center; transition: all 0.3s;">
+                    <span style="display: block; font-size: 0.75rem; color: #6366f1; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">
+                        <?php echo t('products.total_price_with_iva'); ?>
+                    </span>
+                    <span id="comodinPrecioTotal" style="font-size: 2.2rem; font-weight: 900; color: var(--text-main); letter-spacing: -1px;">
+                        0,00 €
+                    </span>
+                </div>
             </div>
 
-            <div id="comodinTotalContainer"
-                style="margin-bottom: 25px; padding: 15px; background: var(--bg-panel); border-radius: 10px; border: 1px dashed var(--border-main); text-align: center;">
-                <span
-                    style="display: block; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-bottom: 4px;"><?php echo mb_strtoupper(t('products.total_price_with_iva')); ?></span>
-                <span id="comodinPrecioTotal" style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">0,00
-                    €</span>
-            </div>
-
-            <div style="display: flex; gap: 10px; margin-top: 30px;">
+            <!-- Botones -->
+            <div style="display: flex; gap: 12px; margin-top: 30px;">
                 <button class="btn-modal-cancelar" onclick="cerrarModal('modalProductoComodin')"
-                    style="flex: 1; padding: 14px;">
+                    style="flex: 1; padding: 14px; border-radius: 14px; font-weight: 700; background: var(--bg-card); color: var(--text-muted); border: 2px solid var(--border-main); cursor: pointer; transition: all 0.2s;">
                     <?php echo t('common.cancel'); ?>
                 </button>
-                <button class="btn-apply-premium" onclick="agregarProductoComodin()"
-                    style="flex: 1; background: var(--accent); color: white; padding: 14px;">
-                    <?php echo t('cart.add_to_cart'); ?>
+                <button class="btn-tpv" onclick="agregarProductoComodin()"
+                    style="flex: 1.5; padding: 14px; border-radius: 14px; font-weight: 800; background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; cursor: pointer; box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4); transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    <i class="fas fa-plus-circle"></i> <?php echo t('cart.add_to_cart'); ?>
                 </button>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- ##=========================== MODAL: PANTALLA DE BLOQUEO ===========================## -->
+<div class="modal-overlay" id="pantallaBloqueo" style="display:none; z-index: 9999; backdrop-filter: blur(10px); background: rgba(0,0,0,0.8);">
+    <div class="modal-content" style="max-width: 400px; padding: 40px; border-radius: 24px; text-align: center; background: var(--bg-card); border: 1px solid var(--border-main);">
+        <div style="font-size: 3rem; color: var(--accent); margin-bottom: 20px;">
+            <i class="fas fa-lock"></i>
+        </div>
+        <h3 style="color: var(--text-main); margin-bottom: 10px; font-weight: 800; font-size: 1.5rem;"><?php echo t('cajero.session_locked') ?? 'Sesión Bloqueada'; ?></h3>
+        <p style="color: var(--text-muted); margin-bottom: 25px;"><?php echo t('cajero.unlock_prompt') ?? 'Introduce tu contraseña para desbloquear la sesión de'; ?> <br><strong><?php echo htmlspecialchars($_SESSION['nombreUsuario'] ?? ''); ?></strong></p>
+        
+        <input type="password" id="inputPasswordDesbloqueo" placeholder="<?php echo t('cajero.password') ?? 'Contraseña'; ?>" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid var(--border-main); background: var(--bg-input); color: var(--text-main); font-size: 1.1rem; margin-bottom: 15px; outline: none; text-align: center;" onkeypress="if(event.key === 'Enter') desbloquearSesion()">
+        <p id="errorDesbloqueo" style="color: var(--accent-danger); display: none; font-size: 0.9rem; margin-top: -5px; margin-bottom: 15px; font-weight: bold;">Contraseña incorrecta</p>
+        
+        <button onclick="desbloquearSesion()" class="btn-exito" style="width: 100%; padding: 15px; border-radius: 12px; font-weight: 800; font-size: 1.1rem; margin: 0; cursor: pointer; display: block; text-align: center;">
+            <?php echo t('cajero.unlock') ?? 'Desbloquear'; ?>
+        </button>
     </div>
 </div>

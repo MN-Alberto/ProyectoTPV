@@ -196,6 +196,7 @@
 
         // Mensaje
         const mensajeDiv = document.getElementById('recuperar-mensaje');
+        let recoveryToken = ''; // Token temporal para el flujo sin sesión
 
         // Función para mostrar mensaje
         function mostrarMensaje(texto, tipo) {
@@ -295,12 +296,14 @@
                 formData.append('action', 'send_recovery_code');
                 formData.append('nombre', nombre);
 
-                response = await fetch('/proyectoTPV/api/recuperar-password.php', {
+                response = await fetch('api/recuperar-password.php', {
                     method: 'POST',
+                    credentials: 'include',
                     body: formData
                 });
 
                 const data = await response.json();
+                console.log('Recovery API Response (Step 1):', data);
 
                 if (data.ok) {
                     mostrarMensaje(data.message, 'success');
@@ -345,14 +348,16 @@
                 formData.append('action', 'verify_recovery_code');
                 formData.append('codigo', codigo);
 
-                const response = await fetch('/proyectoTPV/api/recuperar-password.php', {
+                const response = await fetch('api/recuperar-password.php', {
                     method: 'POST',
+                    credentials: 'include',
                     body: formData
                 });
 
                 const data = await response.json();
 
                 if (data.ok) {
+                    recoveryToken = data.temp_token; // Guardamos el token
                     pasoCodigo.style.display = 'none';
                     pasoNuevaPassword.style.display = 'block';
                     inputNuevaPassword.focus();
@@ -407,9 +412,11 @@
                 formData.append('action', 'change_password');
                 formData.append('password', password);
                 formData.append('confirm_password', confirmPassword);
+                formData.append('temp_token', recoveryToken); // Enviamos el token
 
-                const response = await fetch('/proyectoTPV/api/recuperar-password.php', {
+                const response = await fetch('api/recuperar-password.php', {
                     method: 'POST',
+                    credentials: 'include',
                     body: formData
                 });
 

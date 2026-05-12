@@ -39,6 +39,7 @@ return [
         'go_cashier' => 'Zur Kassenansicht',
         'go_admin' => 'Zurück zur Verwaltung',
         'language' => 'Sprache',
+        'lock_session' => 'Sitzung sperren',
     ],
 
     // ======================== ANMELDUNG ========================
@@ -96,6 +97,10 @@ return [
         'change_prices' => 'Preise ändern',
         'see_prev_options' => 'Vorherige Optionen anzeigen',
         'see_more_options' => 'Weitere Optionen anzeigen',
+        'session_locked' => 'Sitzung gesperrt',
+        'password' => 'Passwort',
+        'unlock' => 'Entsperren',
+        'unlock_prompt' => 'Geben Sie Ihr Passwort ein, um die Sitzung zu entsperren von',
     ],
 
     // ======================== BON / WARENKORB ========================
@@ -125,7 +130,7 @@ return [
         'mixed_total_covered' => '✅ Gesamtbetrag gedeckt',
         'mixed_exact_assigned' => '✅ Betrag exakt zugeordnet',
         'mixed_error_cash_limit' => '⚠️ Es können nicht mehr als 1.000€ in Bargeld zugeordnet werden',
-        'alert_no_stock_available' => '❌ Unzureichender Bestand für dieses Produkt',
+        'alert_no_stock_available' => '❌ Unzureichender Bestand für dieses producto',
     ],
 
     // ======================== MODAL: BARGELD WECHSELGELD ========================
@@ -459,6 +464,7 @@ return [
         'cancel' => 'Abbrechen',
         'accumulate' => 'Punkte sammeln',
         'apply_discount' => 'Rabatt anwenden',
+        'redeem_and_apply' => 'Einlösen und Rabatt anwenden',
     ],
 
     // ======================== ADMINISTRATION ========================
@@ -725,6 +731,10 @@ return [
         'postponed_success1' => 'Verkauf erfolgreich verschoben mit',
         'postponed_success2' => 'Produkten. Sie kann jederzeit wiederhergestellt werden.',
         'postponed_sales_title' => 'Verschobene Verkäufe',
+        'product_label' => 'Produkt',
+        'products_label' => 'Produkte',
+        'pending_sale' => 'ausstehender Verkauf',
+        'pending_sales' => 'ausstehende Verkäufe',
         'product_s' => 'Produkte',
         'no_customer' => 'Ohne Kunden',
         'no_customer_assigned' => 'Kein Kunde zugewiesen',
