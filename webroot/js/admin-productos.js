@@ -481,36 +481,29 @@ async function abrirModalEstadisticasProductos() {
         const borderColor = isDark ? '#4b5563' : '#e5e7eb';
 
         const tarjeta = (icono, colorIcon, colBg, periodo, titulo, nombre, cantidad, unidad) => `
-            <div class="stat-card-premium" style="
-                background:${isDark ? 'linear-gradient(135deg,#1e293b,#0f172a)' : 'white'};
-                padding:24px;border-radius:16px;border:1px solid ${borderColor};
-                box-shadow:0 4px 20px rgba(0,0,0,.05);display:flex;flex-direction:column;gap:12px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;">
-                    <div style="padding:10px;border-radius:12px;background:${colBg};">
-                        <i class="fas ${icono}" style="color:${colorIcon};font-size:20px;"></i></div>
-                    <span style="font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:600;">${periodo}</span>
+            <div class="stat-card-premium">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                    <div class="stat-card-icon-box" style="background:${colBg}; color:${colorIcon};">
+                        <i class="fas ${icono}"></i>
+                    </div>
+                    <span class="stat-card-period">${periodo}</span>
                 </div>
                 <div>
-                    <h4 style="margin:0;color:#64748b;font-size:.9rem;font-weight:500;">${titulo}</h4>
-                    <p style="font-size:1.25rem;font-weight:700;color:${textColor};margin:4px 0 0 0;line-height:1.2;">${nombre || 'Sin datos'}</p>
+                    <h4 class="stat-card-label">${titulo}</h4>
+                    <p class="stat-card-value">${nombre || 'Sin datos'}</p>
                 </div>
-                <div style="margin-top:auto;display:flex;align-items:baseline;gap:6px;">
-                    <span style="font-size:1.5rem;font-weight:800;color:${colorIcon};">${cantidad || 0}</span>
-                    <span style="color:#64748b;font-size:.85rem;">${unidad}</span>
+                <div class="stat-card-footer">
+                    <span class="stat-card-amount" style="color:${colorIcon};">${cantidad || 0}</span>
+                    <span class="stat-card-unit">${unidad}</span>
                 </div>
             </div>`;
 
         contenido.innerHTML = `
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;padding:24px;animation:fadeIn .4s ease-out;">
+            <div class="stats-grid-premium animate-fade-in">
                 ${tarjeta('fa-trophy', '#d97706', 'rgba(251,191,36,.15)', 'Todo el tiempo', 'Producto Estrella', stats.mas_vendido_historia?.nombre, stats.mas_vendido_historia?.cantidad, 'unidades vendidas')}
                 ${tarjeta('fa-calendar-check', '#2563eb', 'rgba(59,130,246,.15)', 'Este Mes', 'Líder Mensual', stats.mas_vendido_mes?.nombre, stats.mas_vendido_mes?.cantidad, 'u. este mes')}
                 ${tarjeta('fa-bolt', '#059669', 'rgba(16,185,129,.15)', 'Esta Semana', 'Tendencia Semanal', stats.mas_vendido_semana?.nombre, stats.mas_vendido_semana?.cantidad, 'u. esta semana')}
-            </div>
-            <style>
-                @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-                .stat-card-premium{transition:transform .2s cubic-bezier(.4,0,.2,1),box-shadow .2s cubic-bezier(.4,0,.2,1)!important}
-                .stat-card-premium:hover{transform:translateY(-5px);box-shadow:0 12px 30px rgba(0,0,0,.1)!important}
-            </style>`;
+            </div>`;
     } catch (err) {
         console.error('Error cargando estadísticas:', err);
         contenido.innerHTML = '<p style="color:#dc2626;text-align:center;">Error al cargar las estadísticas</p>';

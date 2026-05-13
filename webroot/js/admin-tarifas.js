@@ -263,10 +263,12 @@ function abrirModalNuevaCategoria() {
         document.body.appendChild(modal);
     }
     modal.querySelector('.modal-content').innerHTML = `
-        <div class="modal-header-premium" style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px 25px; text-align: left; position: relative;">
-            <h3 style="margin: 0; color: #fff; font-size: 1.3rem;">Nueva Categoría</h3>
-            <p class="modal-subtitulo" style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Crea una nueva clasificación para tus productos</p>
-            <button onclick="cerrarModal('modalNuevaCategoria')" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+        <div class="modal-header-premium" style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px 25px; text-align: left; position: relative; display: block;">
+            <div class="header-text-container">
+                <h3 class="modal-header-title-white" style="margin:0;">Nueva Categoría</h3>
+                <p class="modal-subtitulo modal-header-subtitle-white">Crea una nueva clasificación para tus productos</p>
+            </div>
+            <button onclick="cerrarModal('modalNuevaCategoria')" class="modal-close-round-btn">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -321,10 +323,12 @@ function abrirModalEditarCategoria(id, nombre, descripcion = '') {
         div.style.display = 'none';
         div.innerHTML = `
             <div class="modal-content modal-premium" style="max-width:500px; padding: 0; overflow: hidden;">
-                <div class="modal-header-premium" style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px 25px; text-align: left; position: relative;">
-                    <h3 style="margin: 0; color: #fff; font-size: 1.3rem;">Editar Categoría</h3>
-                    <p class="modal-subtitulo" style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Modifica la información de la clasificación</p>
-                    <button onclick="cerrarModal('modalEditarCategoria')" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                <div class="modal-header-premium" style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px 25px; text-align: left; position: relative; display: block;">
+                    <div class="header-text-container">
+                        <h3 class="modal-header-title-white" style="margin:0;">Editar Categoría</h3>
+                        <p class="modal-subtitulo modal-header-subtitle-white">Modifica la información de la clasificación</p>
+                    </div>
+                    <button onclick="cerrarModal('modalEditarCategoria')" class="modal-close-round-btn">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -1293,7 +1297,7 @@ function abrirModalProgramarCambiosTarifas() {
 
     modalesDiv.innerHTML = `
     <div id="modalProgramarCambiosTarifas" class="modal-overlay" style="display: flex; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px);">
-        <div class="modal-content animate-scale-up" style="background: ${modalBg}; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); max-width: 600px; width: 95%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; border: 1px solid ${borderColor};">
+        <div class="modal-content animate-scale-up" style="background: ${modalBg}; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); max-width: 600px; width: 95%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; border: none;">
             <!-- Header -->
             <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 25px 30px; display: flex; justify-content: space-between; align-items: center;">
                 <div style="display: flex; align-items: center; gap: 15px;">
@@ -1479,11 +1483,18 @@ function mostrarPanelTarifasPrefijadas() {
                     </div>
 
                     ${modoProgramacionTarifas ? `
-                        <div id="alertModoProgramacion" class="alert-modern info animate-slide-up" style="margin-bottom: 15px; display: flex; align-items: center; gap: 12px; padding: 10px 15px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; color: #92400e; width: fit-content; max-width: 100%; transition: opacity 0.5s ease;">
-                            <i class="fas fa-info-circle" style="font-size: 1rem;"></i>
-                            <p style="margin: 0; font-size: 0.85rem; font-weight: 500;">
-                                <strong style="font-weight: 700;">Modo Programación:</strong> Los cambios se guardarán en un lote para ser programados.
-                            </p>
+                        <div id="alertModoProgramacion" class="alert-modern info animate-slide-up" style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; color: #92400e; width: fit-content; max-width: 100%; transition: all 0.3s ease; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <i class="fas fa-clock" style="font-size: 1.1rem; color: #f59e0b;"></i>
+                                <p style="margin: 0; font-size: 0.9rem; font-weight: 500; line-height: 1.4;">
+                                    <strong style="font-weight: 700; color: #b45309;">Modo Programación:</strong> Los cambios se guardarán en un lote para ser programados.
+                                </p>
+                            </div>
+                            <button onclick="this.parentElement.style.opacity='0'; setTimeout(() => this.parentElement.style.display='none', 300)" 
+                                style="background: rgba(245, 158, 11, 0.1); border: none; color: #92400e; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; margin-left: 10px;"
+                                onmouseover="this.style.background='rgba(245, 158, 11, 0.2)'" onmouseout="this.style.background='rgba(245, 158, 11, 0.1)'">
+                                <i class="fas fa-times" style="font-size: 0.8rem;"></i>
+                            </button>
                         </div>
                     ` : ''}
 
@@ -1510,6 +1521,8 @@ function mostrarPanelTarifasPrefijadas() {
         actualizarCabeceraTarifas();
         actualizarTablaTarifas();
 
+        // El mensaje de modo programación permanece visible con botón de cerrar
+        /* 
         if (modoProgramacionTarifas) {
             setTimeout(() => {
                 const alert = document.getElementById('alertModoProgramacion');
@@ -1519,6 +1532,7 @@ function mostrarPanelTarifasPrefijadas() {
                 }
             }, 4000);
         }
+        */
     });
 }
 
@@ -1562,7 +1576,7 @@ function abrirModalTarifas() {
 
             modalesDiv.innerHTML = `
             <div id="modalTarifas" class="modal-overlay" style="display: flex; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px);">
-                <div class="modal-content animate-scale-up" style="background: ${modalContentBg}; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); max-width: 950px; width: 95%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; border: 1px solid ${borderColor};">
+                <div class="modal-content animate-scale-up" style="background: ${modalContentBg}; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); max-width: 950px; width: 95%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; border: none;">
                     <!-- Header Premium -->
                     <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%); color: white; padding: 25px 35px; display: flex; justify-content: space-between; align-items: center; position: relative; overflow: hidden;">
                         <div style="position: absolute; top: -20px; right: -20px; width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>

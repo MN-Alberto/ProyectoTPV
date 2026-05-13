@@ -37,7 +37,7 @@ let tarifaDataPendiente = null;
 // ── Paginación: Productos ────────────────────────────────────────────────────
 let productosData = [];
 let paginaActualProductos = 1;
-const productosPorPagina = 5;
+const productosPorPagina = 4;
 
 // ── Paginación: Categorías ───────────────────────────────────────────────────
 let categoriasData = [];
@@ -50,7 +50,7 @@ let totalUsuariosData = 0;
 let paginaActualUsuarios = 1;
 let totalPaginasUsuarios = 1;
 let busquedaUsuarioActual = '';
-const usuariosPorPagina = 5;
+const usuariosPorPagina = 4;
 
 // ── Paginación: Clientes ─────────────────────────────────────────────────────
 let clientesData = [];
@@ -63,7 +63,7 @@ const clientesPorPagina = 6;
 // ── Paginación: Ventas ───────────────────────────────────────────────────────
 let ventasData = [];
 let paginaActualVentas = 1;
-const ventasPorPagina = 6;
+const ventasPorPagina = 5;
 
 // ── Paginación: Retiros ──────────────────────────────────────────────────────
 let retirosData = [];

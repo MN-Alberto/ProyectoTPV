@@ -5,21 +5,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo t('app.title'); ?></title>
-    
+
     <!-- Configuración Global de Idioma para JavaScript -->
     <script>
         // Inyectamos el diccionario actual y el código de idioma para uso en scripts del cliente (layout.js, cajero.js, etc.)
         window.__LANG__ = <?php echo json_encode($LANG, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}'; ?>;
         window.__LANG_CODE__ = '<?php echo $_SESSION['lang'] ?? 'es'; ?>';
     </script>
-    
+
     <!-- Scripts y Fuentes Base -->
     <script src="webroot/js/layout.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="webroot/css/login.css" rel="stylesheet" type="text/css">
-    
+
     <!-- Carga Condicional de Estilos según el Contexto -->
-    <?php 
+    <?php
     /**
      * Si el usuario está en el panel del Cajero o en el Admin, cargamos los estilos específicos.
      * Se cargan por separado para mantener el CSS ligero en la pantalla de login.
@@ -29,7 +29,7 @@
         <link href="webroot/css/idiomas-ticket.css" rel="stylesheet" type="text/css">
     <?php endif; ?>
 
-    <?php 
+    <?php
     /**
      * El CSS de Admin contiene estilos para modales y tablas avanzadas que también
      * se reutilizan en algunas partes del cajero.
@@ -37,7 +37,7 @@
     if (isset($_SESSION['paginaEnCurso']) && ($_SESSION['paginaEnCurso'] === 'admin' || $_SESSION['paginaEnCurso'] === 'cajero')): ?>
         <link href="webroot/css/admin.css?v=5" rel="stylesheet" type="text/css">
     <?php endif; ?>
-    
+
     <link rel="icon" href="webroot/img/logoCPU.PNG" type="image/png" id="favicon-link">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -136,9 +136,19 @@
                 </button>
             </div>
 
+            <!-- Bloque: Bloquear Sesión (Solo Cajero) -->
+            <?php if (isset($_SESSION['paginaEnCurso']) && $_SESSION['paginaEnCurso'] === 'cajero'): ?>
+                <div class="theme-toggle">
+                    <button class="theme-btn" onclick="bloquearSesion()"
+                        title="<?php echo t('header.lock_session') ?? 'Bloquear sesión'; ?>">
+                        <i class="fas fa-lock"></i>
+                    </button>
+                </div>
+            <?php endif; ?>
+
             <!-- Bloque: Información de Usuario y Navegación de Rol -->
             <?php if (isset($_SESSION['idUsuario'])): ?>
-                <?php 
+                <?php
                 /**
                  * Lógica de intercambio de paneles (Admin <-> Cajero)
                  * Solo permitida si el usuario tiene rol de administrador.
@@ -155,7 +165,7 @@
 
                 <span><?php echo t('header.hello'); ?>,
                     <strong><?php echo htmlspecialchars($_SESSION['nombreUsuario']); ?></strong></span>
-                
+
                 <!-- Botón de Cierre de Sesión -->
                 <form action="<?php echo $_SERVER["PHP_SELF"]; ?>" method="post">
                     <input type="submit" name="cerrarSesion" class="btn-cerrar-sesion"
@@ -173,7 +183,7 @@
          * El controlador determina qué archivo debe cargarse en $_SESSION["paginaEnCurso"]
          * y lo insertamos aquí para que el layout actúe como marco.
          */
-        require_once $view[$_SESSION["paginaEnCurso"]]; 
+        require_once $view[$_SESSION["paginaEnCurso"]];
         ?>
     </main>
 
@@ -185,4 +195,4 @@
     </footer>
 </body>
 
-</html>
+</html>

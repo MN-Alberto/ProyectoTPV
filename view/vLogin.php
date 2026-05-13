@@ -56,40 +56,40 @@
         </div>
 
         <!-- Modal de Recuperación de Contraseña (Premium) -->
-        <div id="modal-recuperar-password" class="modal-overlay" style="display: none;">
-            <div class="modal-content modal-premium" style="max-width: 450px;">
-                <div class="modal-header-premium" style="background: linear-gradient(135deg, #6366f1, #4f46e5); padding: 30px;">
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <div style="background: rgba(255,255,255,0.2); width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                            <i class="fas fa-shield-alt" style="color: #fff; font-size: 1.5rem;"></i>
+        <div id="modal-recuperar-password" class="modal-overlay hidden-initial">
+            <div class="modal-content modal-premium modal-premium-content">
+                <div class="modal-header-premium">
+                    <div class="modal-header-content-wrapper">
+                        <div class="modal-header-icon-box">
+                            <i class="fas fa-shield-alt modal-header-icon"></i>
                         </div>
                         <div>
-                            <h3 style="margin: 0; color: #fff; font-size: 1.3rem; font-weight: 700;"><?php echo t('login.recover_title'); ?></h3>
-                            <p style="margin: 3px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Siga los pasos para restablecer su acceso</p>
+                            <h3 class="modal-header-title-premium"><?php echo t('login.recover_title'); ?></h3>
+                            <p class="modal-header-subtitle-premium">Siga los pasos para restablecer su acceso</p>
                         </div>
                     </div>
-                    <button class="modal-close-btn" id="cerrar-modal-recuperar" style="position: absolute; top: 25px; right: 25px; background: rgba(255,255,255,0.15); border: none; color: white; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                    <button class="modal-close-btn-premium" id="cerrar-modal-recuperar">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
 
                 <!-- Indicador de Progreso -->
-                <div class="recovery-progress" style="display: flex; justify-content: space-between; padding: 25px 50px 10px; position: relative;">
-                    <div class="progress-line" style="position: absolute; top: 40px; left: 50px; right: 50px; height: 2px; background: #e2e8f0; z-index: 1;">
-                        <div id="progress-fill" style="width: 0%; height: 100%; background: #6366f1; transition: width 0.3s ease;"></div>
+                <div class="recovery-progress-premium">
+                    <div class="progress-line-premium">
+                        <div id="progress-fill" class="progress-fill-premium"></div>
                     </div>
-                    <div class="progress-step active" id="step-dot-1" style="z-index: 2; position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                        <div style="width: 30px; height: 30px; border-radius: 50%; background: #6366f1; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; border: 4px solid #fff; box-shadow: 0 0 0 1px #6366f1;"><i class="fas fa-user" style="font-size: 0.7rem;"></i></div>
+                    <div class="progress-step-premium active" id="step-dot-1">
+                        <div class="step-dot-inner-premium"><i class="fas fa-user step-icon-premium"></i></div>
                     </div>
-                    <div class="progress-step" id="step-dot-2" style="z-index: 2; position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                        <div style="width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; border: 2px solid #e2e8f0;"><i class="fas fa-key" style="font-size: 0.7rem;"></i></div>
+                    <div class="progress-step-premium" id="step-dot-2">
+                        <div class="step-dot-inner-premium"><i class="fas fa-key step-icon-premium"></i></div>
                     </div>
-                    <div class="progress-step" id="step-dot-3" style="z-index: 2; position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                        <div style="width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; border: 2px solid #e2e8f0;"><i class="fas fa-lock" style="font-size: 0.7rem;"></i></div>
+                    <div class="progress-step-premium" id="step-dot-3">
+                        <div class="step-dot-inner-premium"><i class="fas fa-lock step-icon-premium"></i></div>
                     </div>
                 </div>
 
-                <div style="padding: 30px;">
+                <div class="modal-body-premium">
                     <!-- Paso 1: Introducir nombre de usuario -->
                     <div id="paso-usuario">
                         <p class="modal-instruction"><?php echo t('login.recover_step1'); ?></p>
@@ -100,33 +100,33 @@
                                 <input type="text" id="recup-usuario" placeholder="<?php echo t('login.user_placeholder'); ?>" required>
                             </div>
                         </div>
-                        <button type="button" class="btn-login-premium" id="btn-enviar-codigo" style="margin-top: 10px;">
+                        <button type="button" class="btn-login-premium mt-10" id="btn-enviar-codigo">
                             <?php echo t('login.recover_send_code'); ?>
                         </button>
                     </div>
 
                     <!-- Paso 2: Introducir código -->
-                    <div id="paso-codigo" style="display: none;">
+                    <div id="paso-codigo" class="hidden-initial">
                         <p class="modal-instruction"><?php echo t('login.recover_step2'); ?></p>
                         <div class="form-group-premium">
                             <label for="recup-codigo"><?php echo t('login.recover_code'); ?></label>
                             <div class="input-with-icon">
                                 <i class="fas fa-hashtag"></i>
-                                <input type="text" id="recup-codigo" placeholder="123456" maxlength="6" required style="text-align: center; letter-spacing: 5px; font-weight: 800; font-size: 1.2rem;">
+                                <input type="text" id="recup-codigo" placeholder="123456" maxlength="6" required class="input-code-premium">
                             </div>
                         </div>
-                        <div style="display: flex; gap: 10px; margin-top: 15px;">
-                            <button type="button" class="btn-modal-cancelar" id="btn-volver-usuario" style="flex: 1;">
+                        <div class="flex-row-gap-10-mt-15">
+                            <button type="button" class="btn-modal-cancelar flex-1" id="btn-volver-usuario">
                                 <?php echo t('login.recover_back'); ?>
                             </button>
-                            <button type="button" class="btn-login-premium" id="btn-verificar-codigo" style="flex: 2;">
+                            <button type="button" class="btn-login-premium flex-2" id="btn-verificar-codigo">
                                 <?php echo t('login.recover_verify'); ?>
                             </button>
                         </div>
                     </div>
 
                     <!-- Paso 3: Nueva contraseña -->
-                    <div id="paso-nueva-password" style="display: none;">
+                    <div id="paso-nueva-password" class="hidden-initial">
                         <p class="modal-instruction"><?php echo t('login.recover_step3'); ?></p>
                         <div class="form-group-premium">
                             <label for="recup-nueva-password"><?php echo t('login.recover_new_password'); ?></label>
@@ -142,12 +142,12 @@
                                 <input type="password" id="recup-confirmar-password" placeholder="<?php echo t('login.recover_repeat'); ?>" required>
                             </div>
                         </div>
-                        <button type="button" class="btn-login-premium" id="btn-cambiar-password" style="margin-top: 10px;">
+                        <button type="button" class="btn-login-premium mt-10" id="btn-cambiar-password">
                             <?php echo t('login.recover_change'); ?>
                         </button>
                     </div>
 
-                    <div id="recuperar-mensaje" class="login-error-premium" style="display: none; margin-top: 20px;"></div>
+                    <div id="recuperar-mensaje" class="login-error-premium hidden-initial mt-20"></div>
                 </div>
             </div>
         </div>
@@ -196,28 +196,33 @@
 
         // Mensaje
         const mensajeDiv = document.getElementById('recuperar-mensaje');
+        let recoveryToken = ''; // Token temporal para el flujo sin sesión
 
         // Función para mostrar mensaje
         function mostrarMensaje(texto, tipo) {
             mensajeDiv.innerHTML = `<i class="fas ${tipo === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> <span>${texto}</span>`;
-            mensajeDiv.className = 'login-error-premium ' + tipo;
+            mensajeDiv.className = 'login-error-premium ' + tipo + ' mt-20';
+            mensajeDiv.classList.remove('hidden-initial');
             mensajeDiv.style.display = 'flex';
         }
 
         // Función para ocultar mensaje
         function ocultarMensaje() {
+            mensajeDiv.classList.add('hidden-initial');
             mensajeDiv.style.display = 'none';
         }
 
         // Abrir modal
         linkRecuperar.addEventListener('click', function (e) {
             e.preventDefault();
+            modal.classList.remove('hidden-initial');
             modal.style.display = 'flex';
             resetModal();
         });
 
         // Cerrar modal
         cerrarModal.addEventListener('click', function () {
+            modal.classList.add('hidden-initial');
             modal.style.display = 'none';
             resetModal();
         });
@@ -225,6 +230,7 @@
         // Cerrar modal al hacer clic fuera
         modal.addEventListener('click', function (e) {
             if (e.target === modal) {
+                modal.classList.add('hidden-initial');
                 modal.style.display = 'none';
                 resetModal();
             }
@@ -243,31 +249,28 @@
             progressFill.style.width = percentages[step - 1] + '%';
             
             stepDots.forEach((dot, index) => {
-                const dotInner = dot.querySelector('div');
+                const dotInner = dot.querySelector('.step-dot-inner-premium');
                 if (index < step) {
-                    dotInner.style.background = '#6366f1';
-                    dotInner.style.color = 'white';
-                    dotInner.style.borderColor = '#fff';
-                    dotInner.style.boxShadow = '0 0 0 1px #6366f1';
+                    dotInner.classList.add('active');
                     if (index < step - 1) {
-                        dotInner.innerHTML = '<i class="fas fa-check" style="font-size: 0.7rem;"></i>';
+                        dotInner.innerHTML = '<i class="fas fa-check step-icon-premium"></i>';
                     }
                 } else {
-                    dotInner.style.background = '#fff';
-                    dotInner.style.color = '#94a3b8';
-                    dotInner.style.borderColor = '#e2e8f0';
-                    dotInner.style.boxShadow = 'none';
+                    dotInner.classList.remove('active');
                     // Reset icons
                     const icons = ['fa-user', 'fa-key', 'fa-lock'];
-                    dotInner.innerHTML = `<i class="fas ${icons[index]}" style="font-size: 0.7rem;"></i>`;
+                    dotInner.innerHTML = `<i class="fas ${icons[index]} step-icon-premium"></i>`;
                 }
             });
         }
 
         // Resetear modal
         function resetModal() {
+            pasoUsuario.classList.remove('hidden-initial');
             pasoUsuario.style.display = 'block';
+            pasoCodigo.classList.add('hidden-initial');
             pasoCodigo.style.display = 'none';
+            pasoNuevaPassword.classList.add('hidden-initial');
             pasoNuevaPassword.style.display = 'none';
             inputUsuario.value = '';
             inputCodigo.value = '';
@@ -295,16 +298,20 @@
                 formData.append('action', 'send_recovery_code');
                 formData.append('nombre', nombre);
 
-                response = await fetch('/proyectoTPV/api/recuperar-password.php', {
+                response = await fetch('api/recuperar-password.php', {
                     method: 'POST',
+                    credentials: 'include',
                     body: formData
                 });
 
                 const data = await response.json();
+                console.log('Recovery API Response (Step 1):', data);
 
                 if (data.ok) {
                     mostrarMensaje(data.message, 'success');
+                    pasoUsuario.classList.add('hidden-initial');
                     pasoUsuario.style.display = 'none';
+                    pasoCodigo.classList.remove('hidden-initial');
                     pasoCodigo.style.display = 'block';
                     inputCodigo.focus();
                     updateProgress(2);
@@ -322,7 +329,9 @@
 
         // Volver a usuario
         btnVolverUsuario.addEventListener('click', function () {
+            pasoCodigo.classList.add('hidden-initial');
             pasoCodigo.style.display = 'none';
+            pasoUsuario.classList.remove('hidden-initial');
             pasoUsuario.style.display = 'block';
             ocultarMensaje();
             updateProgress(1);
@@ -345,15 +354,19 @@
                 formData.append('action', 'verify_recovery_code');
                 formData.append('codigo', codigo);
 
-                const response = await fetch('/proyectoTPV/api/recuperar-password.php', {
+                const response = await fetch('api/recuperar-password.php', {
                     method: 'POST',
+                    credentials: 'include',
                     body: formData
                 });
 
                 const data = await response.json();
 
                 if (data.ok) {
+                    recoveryToken = data.temp_token; // Guardamos el token
+                    pasoCodigo.classList.add('hidden-initial');
                     pasoCodigo.style.display = 'none';
+                    pasoNuevaPassword.classList.remove('hidden-initial');
                     pasoNuevaPassword.style.display = 'block';
                     inputNuevaPassword.focus();
                     updateProgress(3);
@@ -407,9 +420,11 @@
                 formData.append('action', 'change_password');
                 formData.append('password', password);
                 formData.append('confirm_password', confirmPassword);
+                formData.append('temp_token', recoveryToken); // Enviamos el token
 
-                const response = await fetch('/proyectoTPV/api/recuperar-password.php', {
+                const response = await fetch('api/recuperar-password.php', {
                     method: 'POST',
+                    credentials: 'include',
                     body: formData
                 });
 
@@ -418,6 +433,7 @@
                 if (data.ok) {
                     mostrarMensaje(data.message, 'success');
                     setTimeout(function () {
+                        modal.classList.add('hidden-initial');
                         modal.style.display = 'none';
                         resetModal();
                     }, 2000);

@@ -44,6 +44,17 @@ if (isset($_GET['check_task'])) {
     exit;
 }
 
+if (isset($_GET['clear_tasks'])) {
+    try {
+        $pdo = new PDO(RUTA, USUARIO, PASS);
+        $pdo->query("DELETE FROM tareas_segundo_plano WHERE estado IN ('completado', 'error')");
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        echo json_encode(['error' => $e->getMessage()]);
+    }
+    exit;
+}
+
 // Periodo de tiempo solicitado por el usuario
 $periodo = $_GET['periodo'] ?? 'diario';
 // Modo procesamiento en segundo plano para informes pesados

@@ -39,6 +39,7 @@ return [
         'go_cashier' => 'Go to Cashier View',
         'go_admin' => 'Back to Administration',
         'language' => 'Language',
+        'lock_session' => 'Lock session',
     ],
 
     // ======================== LOGIN ========================
@@ -100,6 +101,10 @@ return [
         'see_prev_options' => 'See previous options',
         'see_more_options' => 'See more options',
         'alert_insufficient_cash' => 'Insufficient cash in register',
+        'session_locked' => 'Session Locked',
+        'password' => 'Password',
+        'unlock' => 'Unlock',
+        'unlock_prompt' => 'Enter your password to unlock the session of',
     ],
 
     // ======================== TICKET / CART ========================
@@ -471,6 +476,7 @@ return [
         'cancel' => 'Cancel',
         'accumulate' => 'Accumulate Points',
         'apply_discount' => 'Apply Discount',
+        'redeem_and_apply' => 'Redeem and apply discount',
     ],
 
     // ======================== ADMIN ========================
@@ -790,6 +796,10 @@ return [
         'thermal_ticket' => 'Thermal Ticket',
         'alert_discount_range' => 'Discount must be between 0 and 100',
         'client_default_tarifa' => 'Client',
+        'product_label' => 'Product',
+        'products_label' => 'Products',
+        'pending_sale' => 'pending sale',
+        'pending_sales' => 'pending sales',
         'alert_cash_limit_exceeded' => '⚠️ Cash limit exceeded. Cash payments over €1,000 are not allowed',
         'mixed_total_covered' => '✅ Total covered',
         'mixed_exact_assigned' => '✅ Amount exactly assigned',

@@ -648,6 +648,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Polling cada 15 segundos
     setInterval(sincronizarEfectivoCaja, 15000);
+
+    // Invalidar estado de puntos si se cambian datos manualmente
+    ['clienteNif', 'clienteNombre'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', () => { 
+            if (clienteIdentificadoEnModalPuntos) {
+                clienteIdentificadoEnModalPuntos = false; 
+                renderizarVistaPreviaTicket(); 
+            }
+        });
+    });
 });
 
 // ======================== FUNCIONES DE MODAL (necesarias para el modal de nuevo producto) ========================
@@ -1331,13 +1342,17 @@ function posponerVenta() {
         ? { dni: puntosCanjeados.dni, puntos: puntosCanjeados.puntos }
         : null;
 
+    const cNombreInput = document.getElementById('clienteNombre');
+    const clienteNombre = cNombreInput ? cNombreInput.value.trim() : '';
+
     const ventaId = Date.now();
     const ventaPospuesta = {
         id: ventaId,
-        carrito: carrito,
-        descuento: descuento,
+        carrito: JSON.parse(JSON.stringify(carrito)),
+        descuento: JSON.parse(JSON.stringify(descuento)),
         tarifa: document.getElementById('tarifaVenta')?.value || '',
         clienteDni: clienteDni,
+        clienteNombre: clienteNombre,
         puntosCanjeados: puntosCanjeadosData,
         puntosGanados: puntosGanados,
         fecha: new Date().toLocaleString('es-ES')
@@ -1404,48 +1419,73 @@ function mostrarModalVentasPospuestas() {
     }
 
     const isDark = document.body.classList.contains('dark-mode');
-    const bgColor = isDark ? '#1f2937' : 'white';
     const textColor = isDark ? '#e5e7eb' : '#1a1a2e';
     const borderColor = isDark ? '#374151' : '#e5e7eb';
     const subTextColor = isDark ? '#9ca3af' : '#6b7280';
-
     const modalHtml = `
-        <div id="modalVentasPospuestas" class="modal-overlay" style="display: flex;">
-            <div class="modal-content" style="background: ${bgColor}; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); max-width: 500px; width: 90%; max-height: 80vh; overflow: hidden;">
-                <div style="padding: 20px; border-bottom: 1px solid ${borderColor}; display: flex; justify-content: space-between; align-items: center;">
-                    <h2 style="margin: 0; font-size: 20px; color: ${textColor};">${t('cart.postponed_sales_title')}</h2>
-                    <button onclick="cerrarModalVentasPospuestas()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: ${subTextColor};">&times;</button>
+        <div id="modalVentasPospuestas" class="modal-overlay" style="display: flex; backdrop-filter: blur(8px); background: rgba(0,0,0,0.4); z-index: 10000; transition: all 0.3s ease;">
+            <div class="modal-content glass-modal" style="padding: 0 !important; background: ${isDark ? 'rgba(31, 41, 55, 0.98)' : 'rgba(255, 255, 255, 0.98)'}; border-radius: 24px; border: none; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); max-width: 550px; width: 95%; max-height: 85vh; overflow: hidden; animation: modalFadeIn 0.3s ease-out; display: flex; flex-direction: column;">
+                
+                <!-- Cabecera estilo Puntos (Premium Gradiente) -->
+                <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 40px 30px; text-align: center; position: relative; overflow: hidden;">
+                    <!-- Botón Cerrar Flotante -->
+                    <button onclick="cerrarModalVentasPospuestas()" 
+                        style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(4px);">
+                        <i class="fas fa-times"></i>
+                    </button>
+
+                    <div style="display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.3); color: white; margin: 0 auto 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+                        <i class="fas fa-pause-circle" style="font-size: 1.8rem;"></i>
+                    </div>
+                    <h3 style="margin: 0; font-size: 1.6rem; font-weight: 800; color: white; letter-spacing: -0.02em;">
+                        ${t('cart.postponed_sales_title')}
+                    </h3>
+                    <p style="margin: 8px 0 0; color: white; opacity: 0.9; font-size: 1rem; font-weight: 500;">
+                        ${ventasPospuestas.length} ${ventasPospuestas.length === 1 ? t('cart.pending_sale') || 'venta pendiente' : t('cart.pending_sales') || 'ventas pendientes'}
+                    </p>
                 </div>
-                <div style="padding: 20px; overflow-y: auto; max-height: 60vh;">
+
+                <div style="padding: 24px; overflow-y: auto; flex: 1; background: ${isDark ? 'transparent' : '#f8fafc'};">
                     ${ventasPospuestas.map((venta, index) => {
-        const totalVenta = venta.carrito.reduce((sum, item) => sum + (item.pvpUnitario * item.cantidad), 0);
-        const numProductos = venta.carrito.reduce((sum, item) => sum + item.cantidad, 0);
-        return `
-                            <div style="border: 1px solid ${borderColor}; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: ${isDark ? '#111827' : '#f9fafb'};">
-                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                        const totalVenta = venta.carrito.reduce((sum, item) => sum + (item.pvpUnitario * item.cantidad), 0);
+                        const numProductos = venta.carrito.reduce((sum, item) => sum + item.cantidad, 0);
+                        return `
+                            <div class="pospuesta-card" style="background: ${isDark ? '#111827' : 'white'}; border: 1px solid ${borderColor}; border-radius: 18px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden; border-left: 5px solid #3b82f6;">
+                                
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
                                     <div>
-                                        <strong style="color: ${textColor};">${venta.serie || 'T'}${String(venta.numero || (index + 1)).padStart(5, '0').slice(-5)}</strong>
-                                        <div style="font-size: 12px; color: ${subTextColor};">${venta.fecha}</div>
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                            <span style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; padding: 3px 10px; border-radius: 8px; font-size: 12px; font-weight: 800; border: 1px solid rgba(59, 130, 246, 0.2);">#${String(venta.numero || (index + 1)).padStart(5, '0').slice(-5)}</span>
+                                            <span style="font-size: 12px; color: ${subTextColor}; font-weight: 500;"><i class="far fa-clock" style="margin-right: 4px;"></i> ${venta.fecha}</span>
+                                        </div>
+                                        <div style="font-size: 16px; font-weight: 700; color: ${textColor};">
+                                            <i class="fas fa-user-circle" style="color: #3b82f6; margin-right: 6px; opacity: 0.7;"></i>
+                                            ${venta.clienteNombre || t('cart.no_customer')}
+                                        </div>
                                     </div>
                                     <div style="text-align: right;">
-                                        <div style="font-size: 16px; font-weight: 600; color: #059669;">${totalVenta.toFixed(2)} €</div>
-                                        <div style="font-size: 12px; color: ${subTextColor};">${numProductos} ${t('cart.product_s')}</div>
+                                        <div style="font-size: 22px; font-weight: 900; color: #10b981; letter-spacing: -0.5px;">${totalVenta.toFixed(2)} €</div>
+                                        <div style="font-size: 12px; color: ${subTextColor}; font-weight: 600; text-transform: uppercase;">${numProductos} ${numProductos === 1 ? t('cart.product_label') || 'Producto' : t('cart.products_label') || 'Productos'}</div>
                                     </div>
                                 </div>
-                                <div style="font-size: 13px; color: ${subTextColor}; margin-bottom: 10px;">
-                                    ${venta.clienteDni ? t('cart.customer_label') + ': ' + venta.clienteDni : t('cart.no_customer')}
+
+                                <div style="display: flex; gap: 12px; margin-top: 5px; position: relative; z-index: 2;">
+                                    <button onclick="recuperarVenta(${venta.id})" class="btn-tpv" style="background: #3b82f6; flex: 2; height: 46px; border-radius: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25); border: none; color: white; cursor: pointer; transition: transform 0.2s;">
+                                        <i class="fas fa-file-import" style="font-size: 14px;"></i> 
+                                        ${t('cart.recover_btn')}
+                                    </button>
+                                    <button onclick="eliminarVentaPospuesta(${venta.id})" class="btn-tpv" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; flex: 1; height: 46px; border-radius: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(239, 68, 68, 0.2); cursor: pointer; transition: all 0.2s;">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
                                 </div>
-                                <div style="display: flex; gap: 10px; margin-top: 12px;">
-                                    <button onclick="recuperarVenta(${venta.id})" class="btn-tpv" style="background: #059669; flex: 1;">
-                                        <i class="fas fa-reply"></i> ${t('cart.recover_btn')}
-                                    </button>
-                                    <button onclick="eliminarVentaPospuesta(${venta.id})" class="btn-tpv" style="background: #dc2626; flex: 1;">
-                                        <i class="fas fa-trash"></i> ${t('cart.delete_btn')}
-                                    </button>
+
+                                <!-- Decoración Background -->
+                                <div style="position: absolute; right: -20px; top: -10px; opacity: 0.05; font-size: 100px; pointer-events: none; transform: rotate(-15deg); color: ${isDark ? 'white' : 'black'};">
+                                    <i class="fas fa-receipt"></i>
                                 </div>
                             </div>
                         `;
-    }).join('')}
+                    }).join('')}
                 </div>
             </div>
         </div>
@@ -1454,17 +1494,11 @@ function mostrarModalVentasPospuestas() {
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
-/**
- * cerrarModalVentasPospuestas()
- */
 function cerrarModalVentasPospuestas() {
     const modal = document.getElementById('modalVentasPospuestas');
     if (modal) modal.remove();
 }
 
-/**
- * eliminarVentaPospuesta(id)
- */
 function eliminarVentaPospuesta(id) {
     if (!confirm(t('cart.confirm_delete_postponed'))) return;
 
@@ -1535,20 +1569,16 @@ function recuperarVenta(id) {
         }
     }
 
-    const clienteNifInput = document.getElementById('clienteNif');
-    if (ventaPospuesta.clienteDni) {
-        if (clienteNifInput) {
-            clienteNifInput.value = ventaPospuesta.clienteDni;
-            if (typeof mostrarDniEnTicket === 'function') {
-                mostrarDniEnTicket(ventaPospuesta.clienteDni);
-            }
-        }
-    } else {
-        if (clienteNifInput) clienteNifInput.value = '';
-        const clienteNombreInput = document.getElementById('clienteNombre');
-        if (clienteNombreInput) clienteNombreInput.value = '';
-        const indicador = document.getElementById('indicadorClienteDni');
-        if (indicador) indicador.style.display = 'none';
+    const cNifInput = document.getElementById('clienteNif');
+    const cNomInput = document.getElementById('clienteNombre');
+    const indicador = document.getElementById('indicadorClienteDni');
+
+    if (cNifInput) cNifInput.value = ventaPospuesta.clienteDni || '';
+    if (cNomInput) cNomInput.value = ventaPospuesta.clienteNombre || '';
+    if (indicador) indicador.style.display = ventaPospuesta.clienteDni ? 'block' : 'none';
+
+    if (ventaPospuesta.clienteDni && typeof mostrarDniEnTicket === 'function') {
+        mostrarDniEnTicket(ventaPospuesta.clienteDni);
     }
 
     if (ventaPospuesta.puntosCanjeados && ventaPospuesta.puntosCanjeados.dni && ventaPospuesta.puntosCanjeados.puntos > 0) {
@@ -1984,8 +2014,15 @@ function mostrarModalCambio() {
 
     const cambioDevolver = document.getElementById('cambioDevolver');
     if (cambioDevolver) {
-        cambioDevolver.textContent = '0,00 €';
-        cambioDevolver.style.color = '#333';
+        cambioDevolver.textContent = '0,00';
+        cambioDevolver.style.color = 'var(--text-muted)';
+    }
+
+    const container = document.getElementById('cambioResultContainer');
+    if (container) {
+        container.style.background = 'var(--bg-main)';
+        container.style.borderColor = 'transparent';
+        container.style.transform = 'scale(1)';
     }
 
     const cambioError = document.getElementById('cambioError');
@@ -2025,32 +2062,45 @@ function calcularCambio() {
     const total = obtenerTotalCalculado();
     const precTotal = obtenerDecimalesMaximosCarrito();
     const inputEntregado = document.getElementById('inputDineroEntregado');
-    if (!inputEntregado) return;
+    const spanDevolver = document.getElementById('cambioDevolver');
+    const errorMsg = document.getElementById('cambioError');
+    const container = document.getElementById('cambioResultContainer');
+    
+    if (!inputEntregado || !spanDevolver || !errorMsg) return;
 
     const entregado = parseFloat(inputEntregado.value) || 0;
     const devolucion = entregado - total;
-    // Usar un pequeño epsilon o redondear para evitar errores de precisión en punto flotante
     const devolucionRedondeada = roundTo(devolucion, precTotal);
-
-    const spanDevolver = document.getElementById('cambioDevolver');
-    const errorMsg = document.getElementById('cambioError');
-
-    if (!spanDevolver || !errorMsg) return;
 
     if (devolucionRedondeada < 0 && entregado > 0) {
         // Cantidad insuficiente: mostrar error
-        spanDevolver.textContent = '0,00 €';
-        spanDevolver.style.color = '#333';
-        errorMsg.style.display = 'block';
+        spanDevolver.textContent = '0,00';
+        spanDevolver.style.color = 'var(--text-muted)';
+        errorMsg.style.display = 'flex';
+        if (container) {
+            container.style.background = 'var(--bg-main)';
+            container.style.borderColor = 'transparent';
+            container.style.transform = 'scale(1)';
+        }
     } else {
         // Cantidad suficiente o vacía: mostrar cambio
         errorMsg.style.display = 'none';
         if (entregado === 0) {
-            spanDevolver.textContent = '0,00 €';
-            spanDevolver.style.color = '#333';
+            spanDevolver.textContent = '0,00';
+            spanDevolver.style.color = 'var(--text-muted)';
+            if (container) {
+                container.style.background = 'var(--bg-main)';
+                container.style.borderColor = 'transparent';
+                container.style.transform = 'scale(1)';
+            }
         } else {
-            spanDevolver.textContent = devolucionRedondeada.toFixed(precTotal).replace('.', ',') + ' €';
-            spanDevolver.style.color = '#22c55e';
+            spanDevolver.textContent = devolucionRedondeada.toFixed(precTotal).replace('.', ',');
+            spanDevolver.style.color = 'var(--accent-success)';
+            if (container) {
+                container.style.background = 'var(--bg-accent-success)';
+                container.style.borderColor = 'rgba(22, 163, 74, 0.2)';
+                container.style.transform = 'scale(1.02)';
+            }
         }
     }
 }
@@ -2156,34 +2206,103 @@ function calcularRestanteMixto() {
     if (restante > 0.005) {
         // Falta por asignar
         container.style.background = 'var(--bg-accent-danger)';
+        container.style.borderColor = 'rgba(220, 38, 38, 0.1)';
+        container.style.transform = 'scale(1)';
         label.style.color = 'var(--accent-danger)';
         sub.style.color = 'var(--accent-danger)';
         restanteValor.style.color = 'var(--accent-danger)';
-        label.textContent = t('cart.mixed_remaining_assign');
-        sub.textContent = t('cart.mixed_distribute_full');
-        restanteValor.textContent = restante.toFixed(precTotal).replace('.', ',') + ' €';
+        label.textContent = t('mixed_modal.remaining') || 'RESTANTE';
+        sub.textContent = t('mixed_modal.distribute_total') || 'Distribuye el total';
+        restanteValor.textContent = restante.toFixed(precTotal).replace('.', ',');
         errorEl.style.display = 'none';
     } else if (restante < -0.005) {
         // Excedente (cambio)
         const cambio = Math.abs(restante);
         container.style.background = 'var(--bg-accent-success)';
+        container.style.borderColor = 'rgba(22, 163, 74, 0.2)';
+        container.style.transform = 'scale(1.02)';
         label.style.color = 'var(--accent-success)';
         sub.style.color = 'var(--accent-success)';
         restanteValor.style.color = 'var(--accent-success)';
-        label.textContent = t('cart.mixed_change_return');
-        sub.textContent = t('cart.mixed_cash_excess');
-        restanteValor.textContent = cambio.toFixed(precTotal).replace('.', ',') + ' €';
+        label.textContent = t('cash_modal.change') || 'CAMBIO';
+        sub.textContent = t('cash_modal.for_client') || 'Para el cliente';
+        restanteValor.textContent = cambio.toFixed(precTotal).replace('.', ',');
         errorEl.style.display = 'none';
     } else {
         // Exacto
         container.style.background = 'var(--bg-accent-success)';
+        container.style.borderColor = 'rgba(22, 163, 74, 0.4)';
+        container.style.transform = 'scale(1.05)';
         label.style.color = 'var(--accent-success)';
         sub.style.color = 'var(--accent-success)';
         restanteValor.style.color = 'var(--accent-success)';
-        label.textContent = '✓ ' + t('cart.mixed_total_covered');
-        sub.textContent = t('cart.mixed_exact_assigned');
-        restanteValor.textContent = '0,00 €';
+        label.textContent = '✓ ' + (t('mixed_modal.confirm_distribution') || 'CUBIERTO');
+        sub.textContent = 'DISTRIBUCIÓN CORRECTA';
+        restanteValor.textContent = '0,00';
         errorEl.style.display = 'none';
+    }
+
+    // Gestión dinámica de botones de autocompletar
+    const fillButtons = {
+        'mixtoEfectivo': document.getElementById('btnFillMixtoEfectivo'),
+        'mixtoTarjeta': document.getElementById('btnFillMixtoTarjeta'),
+        'mixtoBizum': document.getElementById('btnFillMixtoBizum')
+    };
+
+    Object.keys(fillButtons).forEach(id => {
+        const btn = fillButtons[id];
+        const input = document.getElementById(id);
+        if (btn && input) {
+            const valInput = parseFloat(input.value) || 0;
+            // Solo mostrar si hay restante real y el input está vacío (o es 0)
+            if (restante > 0.005 && valInput < 0.005) {
+                btn.style.display = 'block';
+                btn.textContent = '+ ' + restante.toFixed(precTotal).replace('.', ',') + ' €';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+    });
+}
+
+/**
+ * Calcula el importe faltante para cubrir el total de la venta y lo asigna al input especificado.
+ * @param {string} targetId ID del elemento input al que se asignará el restante.
+ */
+function fijarRestanteMixto(targetId) {
+    const total = obtenerTotalCalculado();
+    const precTotal = obtenerDecimalesMaximosCarrito();
+    
+    // IDs de los métodos de pago mixto
+    const ids = ['mixtoEfectivo', 'mixtoTarjeta', 'mixtoBizum'];
+    
+    // Calcular cuánto se ha asignado ya en los OTROS inputs
+    let asignadoEnOtros = 0;
+    ids.forEach(id => {
+        if (id !== targetId) {
+            const val = parseFloat(document.getElementById(id)?.value) || 0;
+            asignadoEnOtros += val;
+        }
+    });
+    
+    // El restante para este input es (Total - lo que hay en los otros)
+    const restante = Math.max(0, roundTo(total - asignadoEnOtros, precTotal));
+    
+    const input = document.getElementById(targetId);
+    if (input) {
+        input.value = restante > 0 ? restante.toFixed(precTotal) : '';
+        calcularRestanteMixto();
+        
+        // Focus para feedback visual
+        input.focus();
+        
+        // Si el restante cubre exactamente lo que faltaba, dar foco al botón confirmar
+        const sumaFinal = roundTo(asignadoEnOtros + restante, precTotal);
+        if (Math.abs(sumaFinal - total) < 0.005) {
+            setTimeout(() => {
+                document.getElementById('btnConfirmarPagoMixto')?.focus();
+            }, 100);
+        }
     }
 }
 
@@ -2204,23 +2323,26 @@ function confirmarPagoMixto() {
 
     // Validar que la suma cubra el total
     if (Math.round(asignado * 100) < Math.round(total * 100)) {
-        errorEl.textContent = t('cart.mixed_error_not_covered') + ': ' + roundTo(total - asignado, precTotal).toFixed(precTotal).replace('.', ',') + ' €';
-        errorEl.style.display = 'block';
+        const spanError = document.getElementById('mixtoErrorSpan');
+        if (spanError) spanError.textContent = (t('cart.mixed_error_not_covered') || 'Falta cubrir') + ': ' + roundTo(total - asignado, precTotal).toFixed(precTotal).replace('.', ',') + ' €';
+        errorEl.style.display = 'flex';
         return;
     }
 
     // Validar límite de efectivo
     if (efectivo > 1000) {
-        errorEl.textContent = t('cart.mixed_error_cash_limit');
-        errorEl.style.display = 'block';
+        const spanError = document.getElementById('mixtoErrorSpan');
+        if (spanError) spanError.textContent = t('cart.mixed_error_cash_limit') || 'Límite efectivo superado';
+        errorEl.style.display = 'flex';
         return;
     }
 
     // Validar que al menos 2 métodos tengan importe (sino no tiene sentido "mixto")
     const metodosUsados = [efectivo, tarjeta, bizum].filter(v => v > 0).length;
     if (metodosUsados < 2) {
-        errorEl.textContent = t('cart.mixed_error_two_methods');
-        errorEl.style.display = 'block';
+        const spanError = document.getElementById('mixtoErrorSpan');
+        if (spanError) spanError.textContent = t('cart.mixed_error_two_methods') || 'Usa al menos 2 métodos';
+        errorEl.style.display = 'flex';
         return;
     }
 
@@ -2366,6 +2488,13 @@ function abrirModalFinalizarVenta() {
     const emailContainerCheckout = document.getElementById('emailContainerCheckout');
     if (emailContainerCheckout) emailContainerCheckout.style.display = 'none';
 
+    // Si no hay datos de cliente, asegurar que no se acumulen puntos
+    const nifValRes = document.getElementById('clienteNif')?.value.trim() || '';
+    const nomValRes = document.getElementById('clienteNombre')?.value.trim() || '';
+    if (!nifValRes && !nomValRes) {
+        clienteIdentificadoEnModalPuntos = false;
+    }
+
     // Actualizar resumen de cliente
     actualizarResumenClienteCheckout();
 
@@ -2384,6 +2513,7 @@ function actualizarResumenClienteCheckout() {
     const nifEl = document.getElementById('clienteNif');
     const nombreEl = document.getElementById('clienteNombre');
     const textEl = document.getElementById('clientDataTextCheckout');
+    const btnRemove = document.getElementById('btnRemoveClientCheckout');
 
     if (!textEl) return;
 
@@ -2391,10 +2521,41 @@ function actualizarResumenClienteCheckout() {
     const nombre = nombreEl ? nombreEl.value.trim() : '';
 
     if (nif || nombre) {
-        textEl.innerHTML = `<div style="color:var(--text-main); font-weight:600;">${nombre || t('cart.no_name')}</div><div style="font-size:0.8rem;">${nif || t('cart.no_nif')}</div>`;
+        textEl.innerHTML = `<div style="color:var(--text-main); font-weight:600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${nombre || t('cart.no_name')}</div><div style="font-size:0.8rem; opacity: 0.7;">${nif || t('cart.no_nif')}</div>`;
+        if (btnRemove) btnRemove.style.display = 'block';
     } else {
         textEl.textContent = t('cart.no_customer_assigned');
+        if (btnRemove) btnRemove.style.display = 'none';
     }
+}
+
+/**
+ * Borra los datos del receptor (cliente) y resetea puntos.
+ */
+function quitarClienteFinalizar() {
+    // 1. Limpiar campos de datos del cliente
+    const campos = ['clienteNif', 'clienteNombre', 'clienteDireccion', 'clienteNotas', 'inputEmailFinal'];
+    campos.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+
+    // 2. Limpiar puntos si los había
+    const pDni = document.getElementById('inputPuntosCanjeadosDni');
+    const pCant = document.getElementById('inputPuntosCanjeadosCantidad');
+    const pTicket = document.getElementById('inputPuntosCanjeadosTicket');
+    
+    if (pDni) pDni.value = '';
+    if (pCant) pCant.value = '0';
+    if (pTicket) pTicket.value = '0';
+    
+    clienteIdentificadoEnModalPuntos = false;
+
+    // 3. Actualizar UI
+    actualizarResumenClienteCheckout();
+    
+    // 4. Regenerar vista previa del ticket (para que desaparezcan los datos)
+    renderizarVistaPreviaTicket();
 }
 
 /**
@@ -2525,11 +2686,12 @@ function construirObjetoVentaTemporal(tipoDoc) {
         clienteNombre: nombre,
         clienteDir: direccion,
         clienteObs: observaciones,
+        esClienteRegistrado: clienteIdentificadoEnModalPuntos,
         clientePuntos: parseInt(document.getElementById('clientePuntos')?.value) || 0,
         descuentoTipo: descuento.tipo,
         descuentoValor: descuento.valor,
         descuentoCupon: descuento.cupon,
-        puntosGanados: totalPVP >= 20 ? Math.round(totalPVP * 10) : 0,
+        puntosGanados: (clienteIdentificadoEnModalPuntos && totalPVP >= 20) ? Math.round(totalPVP * 10) : 0,
         puntosCanjeados: (typeof puntosCanjeados !== 'undefined' && puntosCanjeados && puntosCanjeados.puntos > 0) ? puntosCanjeados : null,
         mensajePersonalizado: mensajePersonalizado,
         pagoMixtoDesglose: (metodoPagoActual === 'mixto') ? pagoMixtoDesglose : null,
@@ -2795,7 +2957,11 @@ function buscarDatosCliente() {
                     msgEl.style.color = '#10b981';
                     msgEl.textContent = t('cart.client_found_filled');
                 }
+                clienteIdentificadoEnModalPuntos = true;
+                renderizarVistaPreviaTicket();
             } else {
+                clienteIdentificadoEnModalPuntos = false;
+                renderizarVistaPreviaTicket();
                 if (msgEl) msgEl.style.display = 'none';
                 if (confirm(t('cart.confirm_add_client'))) {
                     const clienteHabitualDni = document.getElementById('clienteHabitualDni');
@@ -2808,6 +2974,8 @@ function buscarDatosCliente() {
         })
         .catch(err => {
             console.error('Error buscando cliente:', err);
+            clienteIdentificadoEnModalPuntos = false;
+            renderizarVistaPreviaTicket();
             if (msgEl) {
                 msgEl.style.display = 'block';
                 msgEl.style.color = '#ef4444';
@@ -2876,6 +3044,13 @@ function validarYConfirmarVenta() {
     // En modo Factura, NIF, Nombre y Dirección son obligatorios
     if (tipoDocumentoActual === 'factura') {
         if (!nif || !nombre || !direccion) {
+            const errorDatosCliente = document.getElementById('errorDatosCliente');
+            if (errorDatosCliente) errorDatosCliente.style.display = 'block';
+            return;
+        }
+    } else {
+        // Modo Ticket: Si rellena uno, el otro es obligatorio
+        if ((nif && !nombre) || (!nif && nombre)) {
             const errorDatosCliente = document.getElementById('errorDatosCliente');
             if (errorDatosCliente) errorDatosCliente.style.display = 'block';
             return;
@@ -5590,3 +5765,79 @@ function cerrarModalBienvenida(idModal) {
 console.log('[DEBUG cajero.js] File fully parsed - all functions defined');
 
 
+// ======================== BLOQUEO DE SESIÓN ========================
+
+/**
+ * Bloquea la sesión del cajero y muestra la pantalla de bloqueo.
+ */
+function bloquearSesion() {
+    sessionStorage.setItem('cajero_bloqueado', 'true');
+    mostrarPantallaBloqueo();
+}
+
+/**
+ * Muestra visualmente la pantalla de bloqueo.
+ */
+function mostrarPantallaBloqueo() {
+    const pantalla = document.getElementById('pantallaBloqueo');
+    if (pantalla) {
+        pantalla.style.display = 'flex';
+        // Desenfocar elementos de fondo
+        const header = document.querySelector('header');
+        const cajero = document.getElementById('cajero');
+        if (header) header.style.filter = 'blur(5px)';
+        if (cajero) cajero.style.filter = 'blur(5px)';
+        
+        setTimeout(() => {
+            const input = document.getElementById('inputPasswordDesbloqueo');
+            if (input) input.focus();
+        }, 100);
+    }
+}
+
+/**
+ * Intenta desbloquear la sesión validando la contraseña en el servidor.
+ */
+function desbloquearSesion() {
+    const input = document.getElementById('inputPasswordDesbloqueo');
+    const pwd = input.value;
+    const errorMsg = document.getElementById('errorDesbloqueo');
+    
+    if (!pwd) return;
+    
+    fetch('api/unlock.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            sessionStorage.removeItem('cajero_bloqueado');
+            document.getElementById('pantallaBloqueo').style.display = 'none';
+            input.value = '';
+            errorMsg.style.display = 'none';
+            
+            // Quitar desenfoque
+            const header = document.querySelector('header');
+            const cajero = document.getElementById('cajero');
+            if (header) header.style.filter = '';
+            if (cajero) cajero.style.filter = '';
+        } else {
+            errorMsg.style.display = 'block';
+            errorMsg.textContent = data.message || 'Contraseña incorrecta';
+        }
+    })
+    .catch(e => {
+        console.error(e);
+        errorMsg.style.display = 'block';
+        errorMsg.textContent = 'Error de conexión';
+    });
+}
+
+// Check at startup
+document.addEventListener('DOMContentLoaded', () => {
+    if (sessionStorage.getItem('cajero_bloqueado') === 'true') {
+        mostrarPantallaBloqueo();
+    }
+});

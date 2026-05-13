@@ -248,7 +248,7 @@ function generarHTMLComprobante(datosVenta, idioma = 'es') {
         finalPuntosBalance = (parseInt(datosVenta.clientePuntos) || 0) - (parseInt(datosVenta.puntosCanjeados?.puntos) || 0) + (parseInt(datosVenta.puntosGanados) || 0);
     }
 
-    const puntosFooterHtml = (datosVenta.clienteNif || datosVenta.puntosBalance > 0) ? `
+    const puntosFooterHtml = (datosVenta.esClienteRegistrado || (datosVenta.puntosCanjeados && datosVenta.puntosCanjeados.puntos > 0)) ? `
         <div style="margin-top:10px; border-top:1px dashed #ccc; padding-top:5px; font-size:10px;">
             ${datosVenta.puntosGanados > 0 ? `<div>${T.print.earned_points}: <strong>+${datosVenta.puntosGanados}</strong></div>` : ''}
             <div>${T.print.new_balance}: <strong>${finalPuntosBalance.toLocaleString('es-ES')}</strong></div>
@@ -336,7 +336,7 @@ function generarHTMLComprobante(datosVenta, idioma = 'es') {
                         ${T.print.rectificativa_original_ref || 'Rectifica a:'} ${datosVenta.serie_original || 'T'}${String(datosVenta.numero_original || datosVenta.id_original).padStart(5, '0')}
                     </div>
                 ` : ''}
-                ${datosVenta.clienteNombre ? `<div style="margin-bottom:8px; font-size:10px; border:1px solid #eee; padding:4px;"><strong>Cliente:</strong> ${datosVenta.clienteNombre}</div>` : ''}
+                ${datosVenta.clienteNombre ? `<div style="margin-bottom:8px; font-size:10px; border:1px solid #eee; padding:4px;"><strong>Cliente:</strong> ${datosVenta.clienteNombre}${datosVenta.clienteNif ? ` (${datosVenta.clienteNif})` : ''}</div>` : ''}
                 <table>
                     <thead>
                         <tr>

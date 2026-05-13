@@ -1,56 +1,21 @@
 <?php
 /**
- * API de Recuperación Segura de Contraseña.
- * 
- * Sistema de restablecimiento de credenciales implementado con buenas prácticas
- * de seguridad y medidas anti abuso. Utiliza flujo de 3 pasos separados para
- * garantizar la integridad del proceso.
- * 
- * ✅ Medidas de seguridad implementadas:
- *  - Anti enumeración de usuarios: nunca revela si el usuario existe
- *  - Códigos de verificación generados criptográficamente
- *  - Caducidad automática de 30 minutos
- *  - Deshabilitación completa de errores para evitar fugas de información
- *  - Flujo estricto sin saltos entre pasos
- *  - Hash seguro de contraseñas
- *  - Limpieza automática de sesión al finalizar
- * 
- * @author Alberto Méndez
- * @version 1.1 (Comentarios añadidos)
+ * API de Recuperación Segura de Contraseña (Versión DB).
  */
 
-// Iniciamos la sesión
-session_start();
-
-/**
- * 🔒 DESHABILITACIÓN DE ERRORES
- * 
- * IMPORTANTE: Se deshabilitan TODOS los avisos y errores por motivos de SEGURIDAD.
- * Cualquier mensaje de error podría revelar información sensible sobre el sistema,
- * rutas de archivos, configuraciones o datos internos.
- * 
- * Esta medida es especialmente crítica en APIs públicas que no requieren autenticación.
- */
+header('Content-Type: application/json; charset=utf-8');
 error_reporting(0);
 ini_set('display_errors', 0);
 
-// Cabecera JSON
-header('Content-Type: application/json; charset=utf-8');
-
-// Verificar que es una petición POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['ok' => false, 'error' => 'Método no permitido']);
     exit();
 }
 
-// Obtener la acción
 $action = $_POST['action'] ?? '';
 
-// Cargar dependencias necesarias
 require_once(__DIR__ . '/../config/confDB.php');
 require_once(__DIR__ . '/../model/Usuario.php');
-
-// Cargar PHPMailer
 require_once __DIR__ . '/../core/Exception.php';
 require_once __DIR__ . '/../core/PHPMailer.php';
 require_once __DIR__ . '/../core/SMTP.php';
@@ -58,62 +23,43 @@ require_once __DIR__ . '/../core/SMTP.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-$pdo = ConexionDB::getInstancia()->getConexion();
+try {
+    $pdo = new PDO(RUTA, USUARIO, PASS);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// Acción: Enviar código de recuperación
-if ($action === 'send_recovery_code') {
-    $nombre = trim($_POST['nombre'] ?? '');
+    // Acción: Enviar código de recuperación
+    if ($action === 'send_recovery_code') {
+        $nombre = trim($_POST['nombre'] ?? '');
+        if (empty($nombre)) {
+            echo json_encode(['ok' => false, 'error' => 'El nombre de usuario es obligatorio.']);
+            exit();
+        }
 
-    if (empty($nombre)) {
-        echo json_encode(['ok' => false, 'error' => 'El nombre de usuario es obligatorio.']);
-        exit();
-    }
+        $usuario = Usuario::buscarPorNombre($nombre);
+        if (!$usuario) {
+            echo json_encode(['ok' => true, 'message' => 'Si el usuario existe, se enviará un código a su correo.']);
+            exit();
+        }
 
-    // Buscar usuario por nombre
-    $usuario = Usuario::buscarPorNombre($nombre);
+        $email = $usuario->getEmail();
+        if (empty($email)) {
+            echo json_encode(['ok' => false, 'error' => 'El usuario no tiene un correo asociado.']);
+            exit();
+        }
 
-    if (!$usuario) {
-        /**
-         * 🛡️ MEDIDA ANTI ENUMERACIÓN DE USUARIOS
-         * 
-         * Por seguridad NUNCA se revela si el nombre de usuario existe o no en el sistema.
-         * Siempre se devuelve la misma respuesta exacta en ambos casos.
-         * 
-         * Esta medida evita que atacantes puedan comprobar nombres de usuario válidos
-         * mediante fuerza bruta para posteriormente realizar ataques dirigidos.
-         */
-        echo json_encode(['ok' => true, 'message' => 'Si el usuario existe, se enviará un código a su correo.']);
-        exit();
-    }
+        $codigo = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $expiracion = date('Y-m-d H:i:s', strtotime('+30 minutes'));
 
-    $email = $usuario->getEmail();
+        // Borrar solicitudes previas de este usuario
+        $stmt = $pdo->prepare("DELETE FROM recuperacion_password WHERE usuario = ?");
+        $stmt->execute([$nombre]);
 
-    if (empty($email)) {
-        echo json_encode(['ok' => false, 'error' => 'El usuario no tiene un correo asociado.']);
-        exit();
-    }
+        // Insertar nueva solicitud
+        $stmt = $pdo->prepare("INSERT INTO recuperacion_password (usuario, codigo, expiracion) VALUES (?, ?, ?)");
+        $stmt->execute([$nombre, $codigo, $expiracion]);
 
-    /**
-     * 🔐 GENERACIÓN SEGURA DE CÓDIGO
-     * 
-     * Se usa `random_int()` que es un generador de números aleatorios criptográficamente seguro.
-     * NUNCA se usa `rand()` o `mt_rand()` para este tipo de operaciones ya que son predecibles.
-     * 
-     * Se rellena con ceros a la izquierda para garantizar que siempre tenga exactamente 6 dígitos,
-     * incluyendo códigos que empiecen por cero.
-     */
-    $codigo = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-
-    // Guardar código en sesión
-    $_SESSION['recovery_code'] = $codigo;
-    $_SESSION['recovery_user'] = $nombre;
-    $_SESSION['recovery_time'] = time();
-
-    // Enviar correo con el código
-    $mail = new PHPMailer(true);
-
-    try {
-        // Configuración del servidor SMTP
+        // Enviar correo
+        $mail = new PHPMailer(true);
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
@@ -121,146 +67,116 @@ if ($action === 'send_recovery_code') {
         $mail->Password = 'jdpq cfwd whpm ekmc';
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
-
-        // Remitente
         $mail->setFrom('albertomennun04@gmail.com', 'TPV Bazar');
-
-        // Destinatario
         $mail->addAddress($email, $usuario->getNombre());
-
-        // Contenido
         $mail->isHTML(true);
         $mail->CharSet = 'UTF-8';
-        $mail->Subject = 'Código de recuperación de contraseña - TPV Bazar';
+        $mail->Subject = '🔐 Código de seguridad - Restablecer Contraseña';
+        
         $mail->Body = '
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #333;">Recuperación de Contraseña</h2>
-            <p>Has solicitado recuperar tu contraseña en <strong>TPV Bazar</strong>.</p>
-            <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
-                <p style="margin: 0; font-size: 14px; color: #666;">Tu código de verificación es:</p>
-                <p style="margin: 10px 0 0 0; font-size: 32px; font-weight: bold; color: #333; letter-spacing: 8px;">' . $codigo . '</p>
+        <div style="background-color: #f3f4f6; padding: 40px 20px; font-family: \'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif;">
+            <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05);">
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); padding: 40px 30px; text-align: center;">
+                    <div style="background: rgba(255,255,255,0.2); width: 60px; height: 60px; border-radius: 18px; margin: 0 auto 20px; display: table;">
+                        <span style="display: table-cell; vertical-align: middle; color: white; font-size: 30px;">🔐</span>
+                    </div>
+                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Restablecer Contraseña</h1>
+                </div>
+
+                <!-- Content -->
+                <div style="padding: 40px 35px; text-align: center;">
+                    <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 30px;">
+                        Hola <strong>' . htmlspecialchars($usuario->getNombre()) . '</strong>,<br>
+                        Has solicitado restablecer tu contraseña. Utiliza el siguiente código de verificación para completar el proceso:
+                    </p>
+
+                    <!-- Code Box -->
+                    <div style="background-color: #f9fafb; border: 2px dashed #e5e7eb; border-radius: 20px; padding: 25px; margin-bottom: 30px;">
+                        <span style="display: block; color: #9ca3af; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Tu código de seguridad</span>
+                        <span style="display: block; color: #111827; font-size: 42px; font-weight: 800; letter-spacing: 10px; margin-left: 10px;">' . $codigo . '</span>
+                    </div>
+
+                    <p style="color: #ef4444; font-size: 13px; font-weight: 600; margin-bottom: 0;">
+                        ⏱️ Este código caducará en 30 minutos.
+                    </p>
+                </div>
+
+                <!-- Footer -->
+                <div style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #f1f5f9;">
+                    <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                        Si no has solicitado este cambio, puedes ignorar este correo con seguridad.<br>
+                        <strong>TPV Bazar System</strong>
+                    </p>
+                </div>
             </div>
-            <p style="color: #666; font-size: 12px;">Este código expira en 30 minutos.</p>
-            <p style="color: #666; font-size: 12px;">Si no has solicitado este código, puedes ignorar este mensaje.</p>
-        </div>
-        ';
-        $mail->AltBody = 'Tu código de verificación es: ' . $codigo . '. Este código expira en 30 minutos.';
+        </div>';
 
         $mail->send();
 
         echo json_encode(['ok' => true, 'message' => 'Código enviado correctamente.']);
-    } catch (Exception $e) {
-        error_log('Error al enviar correo: ' . $mail->ErrorInfo);
-        echo json_encode(['ok' => false, 'error' => 'Error al enviar el correo. Inténtalo más tarde.']);
-    }
-    exit();
-}
-
-// Acción: Verificar código
-if ($action === 'verify_recovery_code') {
-    $codigoIngresado = trim($_POST['codigo'] ?? '');
-
-    if (empty($codigoIngresado)) {
-        echo json_encode(['ok' => false, 'error' => 'El código es obligatorio.']);
         exit();
     }
 
-    // Verificar que existe una sesión de recuperación
-    if (!isset($_SESSION['recovery_code']) || !isset($_SESSION['recovery_time'])) {
-        echo json_encode(['ok' => false, 'error' => 'No hay una solicitud de recuperación activa.']);
+    // Acción: Verificar código
+    if ($action === 'verify_recovery_code') {
+        $codigoIngresado = trim($_POST['codigo'] ?? '');
+        if (empty($codigoIngresado)) {
+            echo json_encode(['ok' => false, 'error' => 'El código es obligatorio.']);
+            exit();
+        }
+
+        $stmt = $pdo->prepare("SELECT * FROM recuperacion_password WHERE codigo = ? AND expiracion > NOW() AND verificado = 0");
+        $stmt->execute([$codigoIngresado]);
+        $recup = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$recup) {
+            echo json_encode(['ok' => false, 'error' => 'Código incorrecto o expirado.']);
+            exit();
+        }
+
+        // Marcar como verificado
+        $stmt = $pdo->prepare("UPDATE recuperacion_password SET verificado = 1 WHERE id = ?");
+        $stmt->execute([$recup['id']]);
+
+        echo json_encode(['ok' => true, 'message' => 'Código verificado correctamente.', 'temp_token' => $recup['codigo']]);
         exit();
     }
 
-    /**
-     * ⏱️ COMPROBACIÓN DE CADUCIDAD
-     * 
-     * Tiempo de vida máximo del código: 30 minutos = 1800 segundos.
-     * 
-     * Si ha expirado se eliminan INMEDIATAMENTE todos los datos de la sesión
-     * para evitar reutilizaciones posteriores. Esta es una medida anti abuso.
-     */
-    $tiempoTranscurrido = time() - $_SESSION['recovery_time'];
-    if ($tiempoTranscurrido > 1800) {
-        unset($_SESSION['recovery_code'], $_SESSION['recovery_user'], $_SESSION['recovery_time']);
-        echo json_encode(['ok' => false, 'error' => 'El código ha expirado. Solicita uno nuevo.']);
-        exit();
-    }
+    // Acción: Cambiar contraseña
+    if ($action === 'change_password') {
+        $nuevaPassword = $_POST['password'] ?? '';
+        $codigo = $_POST['temp_token'] ?? '';
 
-    // Verificar código
-    if ($codigoIngresado !== $_SESSION['recovery_code']) {
-        echo json_encode(['ok' => false, 'error' => 'Código incorrecto.']);
-        exit();
-    }
+        if (empty($nuevaPassword) || empty($codigo)) {
+            echo json_encode(['ok' => false, 'error' => 'Datos incompletos.']);
+            exit();
+        }
 
-    // Código válido, marcar como verificado
-    $_SESSION['recovery_verified'] = true;
+        $stmt = $pdo->prepare("SELECT * FROM recuperacion_password WHERE codigo = ? AND verificado = 1 AND expiracion > NOW()");
+        $stmt->execute([$codigo]);
+        $recup = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    echo json_encode(['ok' => true, 'message' => 'Código verificado correctamente.']);
-    exit();
-}
+        if (!$recup) {
+            echo json_encode(['ok' => false, 'error' => 'Sesión de recuperación inválida.']);
+            exit();
+        }
 
-// Acción: Cambiar contraseña
-if ($action === 'change_password') {
-    $nuevaPassword = $_POST['password'] ?? '';
-    $confirmarPassword = $_POST['confirm_password'] ?? '';
+        $nuevaPasswordHash = password_hash($nuevaPassword, PASSWORD_DEFAULT);
+        $stmt = $pdo->prepare("UPDATE usuarios SET password = ? WHERE nombre = ?");
+        $stmt->execute([$nuevaPasswordHash, $recup['usuario']]);
 
-    // Validaciones
-    if (empty($nuevaPassword) || empty($confirmarPassword)) {
-        echo json_encode(['ok' => false, 'error' => 'Ambas contraseñas son obligatorias.']);
-        exit();
-    }
-
-    if ($nuevaPassword !== $confirmarPassword) {
-        echo json_encode(['ok' => false, 'error' => 'Las contraseñas no coinciden.']);
-        exit();
-    }
-
-    if (strlen($nuevaPassword) < 6) {
-        echo json_encode(['ok' => false, 'error' => 'La contraseña debe tener al menos 6 caracteres.']);
-        exit();
-    }
-
-    // Verificar que la sesión está validada
-    if (!isset($_SESSION['recovery_verified']) || !$_SESSION['recovery_verified'] || !isset($_SESSION['recovery_user'])) {
-        echo json_encode(['ok' => false, 'error' => 'Debes verificar el código primero.']);
-        exit();
-    }
-
-    $nombreUsuario = $_SESSION['recovery_user'];
-
-    // Buscar usuario
-    $usuario = Usuario::buscarPorNombre($nombreUsuario);
-
-    if (!$usuario) {
-        echo json_encode(['ok' => false, 'error' => 'Usuario no encontrado.']);
-        exit();
-    }
-
-    /**
-     * 🔒 HASH SEGURO DE CONTRASEÑA
-     * 
-     * Se usa el algoritmo recomendado por PHP `PASSWORD_DEFAULT` que actualmente es bcrypt.
-     * Este algoritmo incluye automáticamente un salt único por contraseña y es resistente
-     * a ataques de diccionario y rainbow tables.
-     * 
-     * NUNCA se almacenan contraseñas en texto plano ni con hashes débiles como md5 o sha1.
-     */
-    $nuevaPasswordHash = password_hash($nuevaPassword, PASSWORD_DEFAULT);
-
-    try {
-        $stmt = $pdo->prepare("UPDATE usuarios SET password = :password WHERE nombre = :nombre");
-        $stmt->execute([':password' => $nuevaPasswordHash, ':nombre' => $nombreUsuario]);
-
-        // Limpiar sesión de recuperación
-        unset($_SESSION['recovery_code'], $_SESSION['recovery_user'], $_SESSION['recovery_time'], $_SESSION['recovery_verified']);
+        // Borrar registro de recuperación
+        $stmt = $pdo->prepare("DELETE FROM recuperacion_password WHERE id = ?");
+        $stmt->execute([$recup['id']]);
 
         echo json_encode(['ok' => true, 'message' => 'Contraseña actualizada correctamente.']);
-    } catch (Exception $e) {
-        echo json_encode(['ok' => false, 'error' => 'Error al actualizar la contraseña.']);
+        exit();
     }
-    exit();
-}
 
-// Acción no reconocida
-echo json_encode(['ok' => false, 'error' => 'Acción no válida.']);
+    echo json_encode(['ok' => false, 'error' => 'Acción no válida.']);
+
+} catch (Exception $e) {
+    echo json_encode(['ok' => false, 'error' => 'Error del servidor: ' . $e->getMessage()]);
+}
 ?>

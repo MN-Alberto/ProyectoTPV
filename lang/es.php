@@ -38,6 +38,7 @@ return [
         'go_cashier' => 'Ir a Vista de Cajero',
         'go_admin' => 'Volver a Administración',
         'language' => 'Idioma',
+        'lock_session' => 'Bloquear sesión',
     ],
 
     // ======================== LOGIN ========================
@@ -99,6 +100,10 @@ return [
         'see_prev_options' => 'Ver opciones anteriores',
         'see_more_options' => 'Ver más opciones',
         'alert_insufficient_cash' => 'No hay suficiente efectivo en caja',
+        'session_locked' => 'Sesión Bloqueada',
+        'password' => 'Contraseña',
+        'unlock' => 'Desbloquear',
+        'unlock_prompt' => 'Introduce tu contraseña para desbloquear la sesión de',
     ],
 
     // ======================== TICKET / CARRITO ========================
@@ -469,6 +474,7 @@ return [
         'cancel' => 'Cancelar',
         'accumulate' => 'Acumular Puntos',
         'apply_discount' => 'Aplicar Descuento',
+        'redeem_and_apply' => 'Canjear y aplicar descuento',
     ],
 
     // ======================== ADMIN ========================
@@ -787,6 +793,10 @@ return [
         'thermal_ticket' => 'Ticket Térmico',
         'alert_discount_range' => 'El descuento debe estar entre 0 y 100',
         'client_default_tarifa' => 'Cliente',
+        'product_label' => 'Producto',
+        'products_label' => 'Productos',
+        'pending_sale' => 'venta pendiente',
+        'pending_sales' => 'ventas pendientes',
     ],
 
     // ======================== PRINT ========================

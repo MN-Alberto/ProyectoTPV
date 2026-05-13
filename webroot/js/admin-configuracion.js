@@ -392,7 +392,7 @@ function generarSeccionTema(seccion) {
                     </div>
                     <div>
                         <div class="tema-campo">
-                            <label class="tema-label">Columnas (Grid) <span class="tamano-value" id="val_producto_grid_columns">${columnsVal}</span></label>
+                            <label class="tema-label">Tarjetas por línea <span class="tamano-value" id="val_producto_grid_columns">${columnsVal}</span></label>
                             <input type="range" id="tema_producto_grid_columns" min="2" max="10" value="${parseInt(columnsVal)}" oninput="previsualizarTamanoProductos()" class="premium-range">
                         </div>
                         <div class="tema-campo" style="margin-top:20px;">
@@ -500,18 +500,26 @@ function previsualizarTema() {
             const hexColor = document.getElementById('hex_footer_color');
             if (hexBg) hexBg.textContent = bgF.value;
             if (hexColor) hexColor.textContent = colorF.value;
+            
+            // Aplicar a la interfaz real
+            const realFooter = document.querySelector('footer');
+            if (realFooter) {
+                realFooter.style.background = bgF.value;
+                realFooter.style.color = colorF.value;
+            }
         }
 
         // Cargar Fuentes
         const fuentesUsadas = new Set();
-        if (fontH) fuentesUsadas.add(fontH.value);
-        if (fontF) fuentesUsadas.add(fontF.value);
-        cargarGoogleFonts([...fuentesUsadas]);
+        if (fontH && fontH.value) fuentesUsadas.add(fontH.value);
+        if (fontF && fontF.value) fuentesUsadas.add(fontF.value);
+        if (fuentesUsadas.size > 0) cargarGoogleFonts([...fuentesUsadas]);
         
         // Aplicar a la interfaz real
-        if (document.querySelector('header')) {
-            document.querySelector('header').style.background = bgH.value;
-            document.querySelector('header').style.color = colorH.value;
+        const realHeader = document.querySelector('header');
+        if (realHeader && bgH && colorH) {
+            realHeader.style.background = bgH.value;
+            realHeader.style.color = colorH.value;
         }
 
         previsualizarTamanoProductos();
@@ -570,7 +578,7 @@ function previsualizarTamanoProductos() {
 
         // Configurar grid
         grid.style.display = 'grid';
-        grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        grid.style.setProperty('grid-template-columns', `repeat(${cols}, 1fr)`, 'important');
         grid.style.gap = '8px';
         
         // Escalar para el preview (contenedor de 600px)
@@ -580,7 +588,7 @@ function previsualizarTamanoProductos() {
 
         for (let i = 0; i < numCards; i++) {
             cards += `
-                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; display:flex; flex-direction:column; height:${height * scale}px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="width: ${width * scale}px; height:${height * scale}px; max-width: 100%; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; display:flex; flex-direction:column; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin: 0 auto;">
                     <div style="flex:1; background:#f8fafc; display:flex; align-items:center; justify-content:center; overflow:hidden;">
                         <i class="fas fa-image" style="color:#cbd5e1; font-size:1.5rem;"></i>
                     </div>
