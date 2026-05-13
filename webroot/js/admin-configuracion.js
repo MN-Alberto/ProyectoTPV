@@ -500,18 +500,26 @@ function previsualizarTema() {
             const hexColor = document.getElementById('hex_footer_color');
             if (hexBg) hexBg.textContent = bgF.value;
             if (hexColor) hexColor.textContent = colorF.value;
+            
+            // Aplicar a la interfaz real
+            const realFooter = document.querySelector('footer');
+            if (realFooter) {
+                realFooter.style.background = bgF.value;
+                realFooter.style.color = colorF.value;
+            }
         }
 
         // Cargar Fuentes
         const fuentesUsadas = new Set();
-        if (fontH) fuentesUsadas.add(fontH.value);
-        if (fontF) fuentesUsadas.add(fontF.value);
-        cargarGoogleFonts([...fuentesUsadas]);
+        if (fontH && fontH.value) fuentesUsadas.add(fontH.value);
+        if (fontF && fontF.value) fuentesUsadas.add(fontF.value);
+        if (fuentesUsadas.size > 0) cargarGoogleFonts([...fuentesUsadas]);
         
         // Aplicar a la interfaz real
-        if (document.querySelector('header')) {
-            document.querySelector('header').style.background = bgH.value;
-            document.querySelector('header').style.color = colorH.value;
+        const realHeader = document.querySelector('header');
+        if (realHeader && bgH && colorH) {
+            realHeader.style.background = bgH.value;
+            realHeader.style.color = colorH.value;
         }
 
         previsualizarTamanoProductos();

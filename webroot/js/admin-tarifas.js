@@ -263,10 +263,12 @@ function abrirModalNuevaCategoria() {
         document.body.appendChild(modal);
     }
     modal.querySelector('.modal-content').innerHTML = `
-        <div class="modal-header-premium" style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px 25px; text-align: left; position: relative;">
-            <h3 style="margin: 0; color: #fff; font-size: 1.3rem;">Nueva Categoría</h3>
-            <p class="modal-subtitulo" style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Crea una nueva clasificación para tus productos</p>
-            <button onclick="cerrarModal('modalNuevaCategoria')" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+        <div class="modal-header-premium" style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px 25px; text-align: left; position: relative; display: block;">
+            <div class="header-text-container">
+                <h3 class="modal-header-title-white" style="margin:0;">Nueva Categoría</h3>
+                <p class="modal-subtitulo modal-header-subtitle-white">Crea una nueva clasificación para tus productos</p>
+            </div>
+            <button onclick="cerrarModal('modalNuevaCategoria')" class="modal-close-round-btn">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -321,10 +323,12 @@ function abrirModalEditarCategoria(id, nombre, descripcion = '') {
         div.style.display = 'none';
         div.innerHTML = `
             <div class="modal-content modal-premium" style="max-width:500px; padding: 0; overflow: hidden;">
-                <div class="modal-header-premium" style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px 25px; text-align: left; position: relative;">
-                    <h3 style="margin: 0; color: #fff; font-size: 1.3rem;">Editar Categoría</h3>
-                    <p class="modal-subtitulo" style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Modifica la información de la clasificación</p>
-                    <button onclick="cerrarModal('modalEditarCategoria')" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                <div class="modal-header-premium" style="background: linear-gradient(135deg, #10b981, #059669); padding: 20px 25px; text-align: left; position: relative; display: block;">
+                    <div class="header-text-container">
+                        <h3 class="modal-header-title-white" style="margin:0;">Editar Categoría</h3>
+                        <p class="modal-subtitulo modal-header-subtitle-white">Modifica la información de la clasificación</p>
+                    </div>
+                    <button onclick="cerrarModal('modalEditarCategoria')" class="modal-close-round-btn">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
