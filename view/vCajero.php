@@ -58,7 +58,16 @@
 <!-- Librería local para generación de QR -->
 <script src="webroot/js/lib/qrcode.min.js"></script>
 <script src="webroot/js/shared-impresion.js"></script>
-<script src="webroot/js/cajero.js"></script>
+<script src="webroot/js/cajero/cajero.js"></script>
+<script src="webroot/js/cajero/cajero-catalog.js"></script>
+<script src="webroot/js/cajero/cajero-loyalty.js"></script>
+<script src="webroot/js/cajero/cajero-checkout.js"></script>
+<script src="webroot/js/cajero/cajero-history.js"></script>
+<script src="webroot/js/cajero/cajero-register.js"></script>
+<script src="webroot/js/cajero/cajero-postponed.js"></script>
+<script src="webroot/js/cajero/cajero-lock.js"></script>
+<script src="webroot/js/cajero/cajero-comodin.js"></script>
+<script src="webroot/js/cajero/cajero-devoluciones.js"></script>
 
 
 <!-- ##=========================== SECCIÓN PRINCIPAL DEL CAJERO ===========================## -->
@@ -2753,7 +2762,7 @@ endif; ?>
 <?php unset($_SESSION['interrupcionRecuperada']); ?>
 
 <!-- Carga del script externo del cajero (funciones de búsqueda y filtrado de productos) -->
-<script src="webroot/js/cajero.js"></script>
+<script src="webroot/js/cajero/cajero.js"></script>
 
 <!-- ##=========================== MODAL: HISTORIAL DE VENTAS ===========================## -->
 <div class="modal-overlay" id="modalHistorialVentas" style="display:none;">

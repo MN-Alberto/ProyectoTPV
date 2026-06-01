@@ -1,0 +1,22 @@
+# Backups SQL (too large for GitHub)
+backups/
+
+# Cache
+cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Dependencies
+node_modules/
+vendor/
+
+# Kilo worktrees
+.kilo/

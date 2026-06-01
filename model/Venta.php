@@ -940,7 +940,7 @@ class Venta
         $stmtLines->execute([$this->id]);
         $lineasParaXML = $stmtLines->fetchAll(PDO::FETCH_ASSOC);
 
-        $numDoc = ($this->getSerie() ?: '') . ($this->getNumero() ?: '');
+        $numDoc = Verifactu::formatNumSerie($this->getSerie(), $this->getNumero());
         // ✅ Validación pre-envío (NIF, fecha, importes, certificado...)
         $validacion = Verifactu::validarDatosPreEnvio($this, $lineasParaXML);
         if (!$validacion['valid']) {
@@ -1073,7 +1073,7 @@ class Venta
         $this->hash = $huellaAnu;
         
         $tabla = self::getTablaById($this->id);
-        $numDoc = ($this->serie ? $this->serie . '-' : '') . $this->numero;
+        $numDoc = Verifactu::formatNumSerie($this->serie, $this->numero);
 
         // Comprobar cooldown AEAT (TiempoEsperaEnvio)
         $cooldownRestante = Verifactu::getCooldownRestante();
@@ -1368,7 +1368,7 @@ class Venta
         $stmtVeri = $conexion->prepare("UPDATE {$tabla} SET hash = ?, xml_datos = ? WHERE id = ?");
         $stmtVeri->execute([$hashRect, $xmlRect, $rectificativa->getId()]);
         
-        $numDoc = $serieRect . str_pad(substr((string)$siguienteNumero, -5), 5, '0', STR_PAD_LEFT);
+        $numDoc = Verifactu::formatNumSerie($serieRect, $siguienteNumero);
 
         // Comprobar cooldown AEAT (TiempoEsperaEnvio)
         $cooldownRestante = Verifactu::getCooldownRestante();
