@@ -13,23 +13,24 @@ window.onerror = function(msg, url, line, col, error) {
     return false;
 };
 </script>
-<script src="webroot/js/admin-state.js"></script>
-<script src="webroot/js/admin-utils.js?v=10"></script>
-<script src="webroot/js/admin-backups.js"></script>
-<script src="webroot/js/admin-caja.js?v=10"></script>
-<script src="webroot/js/admin-clientes.js?v=10"></script>
-<script src="webroot/js/admin-configuracion.js"></script>
-<script src="webroot/js/admin-informes.js"></script>
-<script src="webroot/js/admin-logs.js"></script>
-<script src="webroot/js/admin-pagination.js"></script>
-<script src="webroot/js/admin-productos.js"></script>
-<script src="webroot/js/admin-tarifas.js?v=10"></script>
-<script src="webroot/js/admin-usuarios.js?v=10"></script>
-<script src="webroot/js/admin-verifactu.js?v=10"></script>
+<script src="webroot/js/admin/admin-state.js"></script>
+<script src="webroot/js/admin/admin-utils.js?v=10"></script>
+<script src="webroot/js/admin/admin-backups.js"></script>
+<script src="webroot/js/admin/admin-caja.js?v=10"></script>
+<script src="webroot/js/admin/admin-clientes.js?v=10"></script>
+<script src="webroot/js/admin/admin-configuracion.js"></script>
+<script src="webroot/js/admin/admin-informes.js"></script>
+<script src="webroot/js/admin/admin-logs.js"></script>
+<script src="webroot/js/admin/admin-pagination.js"></script>
+<script src="webroot/js/admin/admin-productos.js"></script>
+<script src="webroot/js/admin/admin-tarifas.js?v=10"></script>
+<script src="webroot/js/admin/admin-usuarios.js?v=10"></script>
+<script src="webroot/js/admin/admin-verifactu.js?v=10"></script>
 <script src="webroot/js/lib/qrcode.min.js"></script>
 <script src="webroot/js/shared-impresion.js"></script>
-<script src="webroot/js/admin-ventas.js?v=10"></script>
-<script src="webroot/js/admin-main.js?v=10"></script>
+<script src="webroot/js/admin/admin-ventas.js?v=10"></script>
+<script src="webroot/js/admin/admin-main.js?v=10"></script>
+
 
 <!-- Librerías Externas: Gráficos (Chart.js), PDF (jsPDF), Alertas (SweetAlert2) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -57,42 +58,7 @@ window.onerror = function(msg, url, line, col, error) {
     };
 </script>
 
-<!-- DEBUG: Floating test button - REMOVE after fixing -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var btn = document.createElement('button');
-    btn.textContent = '🔧 TEST MODAL';
-    btn.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:99999;padding:15px 25px;background:red;color:white;border:none;border-radius:10px;font-size:16px;font-weight:bold;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
-    btn.onclick = function() {
-        var modal = document.getElementById('modalClienteHabitual');
-        var info = '';
-        info += 'modalClienteHabitual: ' + (modal ? 'EXISTS' : 'NOT FOUND') + '\n';
-        if (modal) {
-            info += 'Current display: ' + modal.style.display + '\n';
-            info += 'Parent: ' + modal.parentElement.tagName + '#' + (modal.parentElement.id || '') + '.' + (modal.parentElement.className || '').split(' ')[0] + '\n';
-            modal.style.display = 'flex';
-            var cs = window.getComputedStyle(modal);
-            info += 'After flex - computed display: ' + cs.display + '\n';
-            info += 'position: ' + cs.position + '\n';
-            info += 'z-index: ' + cs.zIndex + '\n';
-            info += 'opacity: ' + cs.opacity + '\n';
-            info += 'visibility: ' + cs.visibility + '\n';
-            info += 'width: ' + cs.width + '\n';
-            info += 'height: ' + cs.height + '\n';
-            info += 'top: ' + cs.top + '\n';
-            info += 'left: ' + cs.left + '\n';
-            var rect = modal.getBoundingClientRect();
-            info += 'BoundingRect: ' + Math.round(rect.width) + 'x' + Math.round(rect.height) + ' at (' + Math.round(rect.left) + ',' + Math.round(rect.top) + ')\n';
-        }
-        info += '\nnuevoCliente: ' + (typeof nuevoCliente) + '\n';
-        info += 'editarIva: ' + (typeof editarIva) + '\n';
-        info += 'abrirModalNuevoIva: ' + (typeof abrirModalNuevoIva) + '\n';
-        info += 'cerrarModal: ' + (typeof cerrarModal) + '\n';
-        alert(info);
-    };
-    document.body.appendChild(btn);
-});
-</script>
+
 
 <section id="cajero">
     <!-- Panel izquierdo: Navegación de Admin -->

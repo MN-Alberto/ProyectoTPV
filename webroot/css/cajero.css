@@ -448,6 +448,25 @@ input[type=number] {
     vertical-align: middle;
 }
 
+.ticket-subtotal-input {
+    width: 65px;
+    text-align: right;
+    border: 1px solid var(--border-main);
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-weight: 600;
+    background: var(--bg-input);
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: inherit;
+    outline: none;
+}
+
+.ticket-subtotal-input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
 .cantidad-control {
     display: flex;
     align-items: center;
@@ -3159,3 +3178,162 @@ body.dark-mode .resumen-caja-detalles-premium {
 body.dark-mode .cambio-next-turn {
     border-top-color: rgba(255, 255, 255, 0.05);
 }
+
+/* ======================== RESTAURANT TABLES LAYOUT FOR POSTPONED SALES ======================== */
+
+.mesas-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 20px;
+    padding: 10px 5px;
+}
+
+.mesa-item {
+    background: var(--bg-card);
+    border: 2px dashed var(--border-main);
+    border-radius: 20px;
+    padding: 18px;
+    aspect-ratio: 1.1 / 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-sizing: border-box;
+}
+
+.mesa-item.libre {
+    border-color: #10b981;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.02);
+}
+
+.mesa-item.libre:hover {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: #059669;
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.2);
+}
+
+.mesa-item.ocupada {
+    border-style: solid;
+    border-color: #3b82f6;
+    background: var(--bg-card);
+    color: var(--text-main);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.mesa-item.ocupada:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -8px rgba(59, 130, 246, 0.35);
+}
+
+/* In posponer mode, occupied tables are disabled for selection but can still have delete button clicked */
+.mesa-item.ocupada.disabled-posponer {
+    opacity: 0.65;
+    cursor: not-allowed;
+    border-color: var(--border-main);
+}
+
+.mesa-item.ocupada.disabled-posponer:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.mesa-number {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mesa-status-badge {
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1;
+}
+
+.mesa-status-badge.libre {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.mesa-status-badge.ocupada {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+.mesa-total {
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: #10b981;
+    letter-spacing: -0.03em;
+    margin: 6px 0;
+}
+
+.mesa-info {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: center;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0.9;
+}
+
+/* In recuperar mode, free tables are not actionable */
+.mesa-item.libre.disabled-recuperar {
+    opacity: 0.4;
+    cursor: default;
+    border-color: var(--border-main);
+}
+
+.mesa-item.libre.disabled-recuperar:hover {
+    transform: none;
+    box-shadow: none;
+    background: rgba(16, 185, 129, 0.02);
+}
+
+.mesa-delete-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.mesa-delete-btn:hover {
+    background: #ef4444;
+    color: white;
+    transform: scale(1.1);
+}
+
+body.dark-mode .mesa-item.libre {
+    background: rgba(16, 185, 129, 0.01);
+}
+
+body.dark-mode .mesa-item.ocupada {
+    background: #1f2937;
+    border-color: #3b82f6;
+}
+

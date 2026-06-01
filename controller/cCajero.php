@@ -172,6 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 
             //Calculamos el total y validamos el stock.
             $total = 0;
+            $totalNormal = 0;
             $stockValido = true;
             // Recorremos los productos del carrito para validar el stock y calcular el total con IVA
             foreach ($carrito as $item) {
@@ -181,7 +182,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 // Skip stock validation for comodin products
                 if (isset($item['esComodin']) && $item['esComodin'] === true) {
                     $precioUnitarioConIva = isset($item['pvpUnitario']) ? (float) $item['pvpUnitario'] : (float) $item['precio'];
-                    $total += round($precioUnitarioConIva * $item['cantidad'], $dec);
+                    $lineaTotal = round($precioUnitarioConIva * $item['cantidad'], $dec);
+                    $total += $lineaTotal;
+                    if (!isset($item['subtotalModificado']) || !$item['subtotalModificado']) {
+                        $totalNormal += $lineaTotal;
+                    }
                     continue;
                 }
 
@@ -199,7 +204,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
                 $precioUnitarioConIva = isset($item['pvpUnitario']) ? (float) $item['pvpUnitario'] : (float) $item['precio'] * (1 + ($producto->getIvaPorcentaje() / 100));
 
                 // Sumamos al total acumulado redondeado a sus decimales para evitar arrastre de coma flotante
-                $total += round($precioUnitarioConIva * $item['cantidad'], $dec);
+                $lineaTotal = round($precioUnitarioConIva * $item['cantidad'], $dec);
+                $total += $lineaTotal;
+                if (!isset($item['subtotalModificado']) || !$item['subtotalModificado']) {
+                    $totalNormal += $lineaTotal;
+                }
             }
 
             // Si el stock no es válido, guardamos un error en la sesión y recargamos la página
@@ -228,9 +237,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
 
             // Calcular descuento manual (código promocional)
             if ($descuentoManualTipo === 'porcentaje') {
-                $importeDescuentoManual = $total * ($descuentoManualValor / 100);
+                $importeDescuentoManual = $totalNormal * ($descuentoManualValor / 100);
             } elseif ($descuentoManualTipo === 'fijo') {
-                $importeDescuentoManual = $descuentoManualValor;
+                $importeDescuentoManual = min($totalNormal, $descuentoManualValor);
             }
 
             // Determinar precisión del total (max del carrito, min 2)

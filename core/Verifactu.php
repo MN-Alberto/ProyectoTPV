@@ -89,6 +89,18 @@ class Verifactu
     }
 
     /**
+     * Formatea el número de serie/factura según el estándar AEAT (acolchado 5 dígitos).
+     * @param string $serie Serie del documento
+     * @param string|int $numero Número correlativo
+     * @return string Número formateado para AEAT y para la cola de envíos
+     */
+    public static function formatNumSerie($serie, $numero)
+    {
+        $numeroAcolchado = str_pad((string)$numero, 5, '0', STR_PAD_LEFT);
+        return preg_replace('/\s+/', '', ($serie ?: '') . $numeroAcolchado);
+    }
+
+    /**
      * 🔗 CÁLCULO DE HUELLA DIGITAL OFICIAL AEAT
      * 
      * Esta función implementa EXACTAMENTE el algoritmo especificado por la AEAT
@@ -165,9 +177,8 @@ class Verifactu
         $fechaExp = date('d-m-Y', $fechaTs);
         $numero = htmlspecialchars($venta->getNumero(), ENT_XML1, 'UTF-8');
         $serie = $venta->getSerie() ? htmlspecialchars($venta->getSerie(), ENT_XML1, 'UTF-8') : '';
-        // ✅ AEAT FIX: El número debe estar acolchado con ceros (5 dígitos) para coincidir con el QR y el ticket físico
-        $numeroAcolchado = str_pad($numero, 5, '0', STR_PAD_LEFT);
-        $numSerieSafe = preg_replace('/\s+/', '', $serie . $numeroAcolchado);
+        // ✅ AEAT FIX: El número debe estar acolchado con ceros (5 dígitos)
+        $numSerieSafe = self::formatNumSerie($serie, $numero);
         $total = number_format($venta->getTotal(), 2, '.', '');
         $fechaHito = date('Y-m-d\TH:i:sP');
 
@@ -403,8 +414,7 @@ class Verifactu
         $fechaExp = date('d-m-Y', $fechaTs);
         $numero = htmlspecialchars($venta->getNumero(), ENT_XML1, 'UTF-8');
         $serie = $venta->getSerie() ? htmlspecialchars($venta->getSerie(), ENT_XML1, 'UTF-8') : '';
-        $numeroAcolchado = str_pad($numero, 5, '0', STR_PAD_LEFT);
-        $numSerieSafe = preg_replace('/\s+/', '', $serie . $numeroAcolchado);
+        $numSerieSafe = self::formatNumSerie($serie, $numero);
         $fechaHito = date('Y-m-d\TH:i:sP');
         $prevHash = ($venta->getHashPrevio() && $venta->getHashPrevio() !== 'INITIAL_HASH_PLACEHOLDER') ? $venta->getHashPrevio() : '';
         $huella = self::calcularHuellaAnulacion($nif, $numSerieSafe, $fechaExp, $prevHash, $fechaHito);
@@ -550,6 +560,9 @@ class Verifactu
                 $tiempoEspera = (int) $tiempoEsperaStr;
             }
 
+            // Capturar CSV global del lote
+            $csvGlobal = (string) ($respXml->xpath('//*[local-name()="CSV"]')[0] ?? '');
+
             // Extraer resultados por línea
             $lineas = $respXml->xpath('//*[local-name()="RespuestaLinea"]');
             foreach ($lineas as $linea) {
@@ -566,7 +579,7 @@ class Verifactu
                 $resultados[] = [
                     'num_serie' => $numSerie,
                     'success' => ($estado === 'Correcto' || $estado === 'AceptadoConErrores'),
-                    'csv' => $csv,
+                    'csv' => $csv ?: $csvGlobal, // Usar global si no hay específico
                     'codigo_error' => $errCode,
                     'message' => $errDesc ?: ($estado === 'Correcto' ? 'OK' : 'Error AEAT')
                 ];
@@ -580,9 +593,15 @@ class Verifactu
                 $tiempoEspera = (int) trim($m[1]);
             }
 
+            // Capturar CSV global vía regex
+            $csvGlobal = '';
+            if (preg_match('/<[^:]*:CSV[^>]*>([^<]+)<\/[^:]*:CSV>/is', $response, $m)) {
+                $csvGlobal = trim($m[1]);
+            }
+
             // Intentar extraer bloques RespuestaLinea
             if (preg_match_all('/<[^:]*:RespuestaLinea>(.*?)<\/[^:]*:RespuestaLinea>/is', $response, $matches)) {
-                foreach ($matches[1] as $inner) {
+                foreach ($matches[1] as $idx => $inner) {
                     $numSerie = '';
                     if (preg_match('/NumSerieFactura[^>]*>([^<]+)</s', $inner, $m))
                         $numSerie = trim($m[1]);
@@ -608,7 +627,7 @@ class Verifactu
                     $resultados[] = [
                         'num_serie' => $numSerie,
                         'success' => ($estado === 'Correcto' || $estado === 'AceptadoConErrores'),
-                        'csv' => $csv,
+                        'csv' => $csv ?: $csvGlobal,
                         'codigo_error' => $errCode,
                         'message' => $errDesc ?: ($estado === 'Correcto' ? 'OK' : 'Error AEAT')
                     ];
@@ -798,7 +817,7 @@ class Verifactu
             'message' => $ultimoError,
             'es_error_conexion' => $esErrorConexion,
             'codigo_error' => $codigoError,
-            'raw_response' => $response ?? null
+            'raw_response' => $response
         ];
     }
 
@@ -1041,6 +1060,7 @@ class Verifactu
         $xmlRegistros = "";
         $cabecera = "";
         $mapaIds = [];
+        $pendientesPorOrden = [];
         $necesitaIncidencia = false;
         $ahora = time();
 
@@ -1068,13 +1088,29 @@ class Verifactu
                 }
             }
             // Extraer todos los RegistroFactura (puede haber uno o varios)
+            $registrosExtraidos = 0;
             if (preg_match_all('/<sum:RegistroFactura>(.*?)<\/sum:RegistroFactura>/is', $envio['xml_contenido'], $matches)) {
                 foreach ($matches[0] as $reg) {
                     $xmlRegistros .= $reg . "\n";
+                    $pendientesPorOrden[] = $envio;
+                    $registrosExtraidos++;
                 }
             }
+            if ($registrosExtraidos === 0) {
+                $pendientesPorOrden[] = $envio;
+            }
+
             $key = $envio['num_documento'];
             $mapaIds[$key] = $envio;
+            // ✅ FIX: Si el número en BD no está acolchado (ej. T1) o tiene guión (ej. T-1),
+            // lo normalizamos también en el mapa para que coincida con la respuesta AEAT (ej. T00001)
+            $cleanKey = preg_replace('/[^A-Z0-9]/i', '', $key); // Quitar guiones etc.
+            if (preg_match('/^([A-Z]*)(\d+)$/i', $cleanKey, $m)) {
+                $normKey = self::formatNumSerie($m[1], $m[2]);
+                if (!isset($mapaIds[$normKey])) {
+                    $mapaIds[$normKey] = $envio;
+                }
+            }
 
             // Marcar como "enviando"
             $pdo->prepare("UPDATE verifactu_cola_envios SET estado = 'enviando', fecha_ultimo_intento = NOW() WHERE id = ?")
@@ -1094,16 +1130,44 @@ class Verifactu
         $resumen['cooldown_segundos'] = $resLote['tiempo_espera'] ?? 0;
 
         if ($resLote['success'] && isset($resLote['resultados'])) {
-            foreach ($resLote['resultados'] as $res) {
-                $envio = $mapaIds[$res['num_serie']] ?? null;
-                if (!$envio)
+            $procesadosIds = [];
+
+            foreach ($resLote['resultados'] as $idx => $res) {
+                $numSerie = $res['num_serie'] ?? '';
+                $envio = null;
+
+                if ($numSerie !== '') {
+                    $cleanNumSerie = preg_replace('/[^A-Z0-9]/i', '', $numSerie);
+                    if (isset($mapaIds[$numSerie])) {
+                        $envio = $mapaIds[$numSerie];
+                    } elseif (isset($mapaIds[$cleanNumSerie])) {
+                        $envio = $mapaIds[$cleanNumSerie];
+                    } else {
+                        if (preg_match('/^([A-Z]*)(\d+)$/i', $cleanNumSerie, $m)) {
+                            $normNumSerie = self::formatNumSerie($m[1], $m[2]);
+                            if (isset($mapaIds[$normNumSerie])) {
+                                $envio = $mapaIds[$normNumSerie];
+                            }
+                        }
+                    }
+                }
+
+                if (!$envio && isset($pendientesPorOrden[$idx])) {
+                    $envio = $pendientesPorOrden[$idx];
+                    error_log("DEBUG Verifactu: Match por fallback posicional para serie '$numSerie' en posicion $idx, ID Cola: " . $envio['id']);
+                }
+
+                if (!$envio) {
+                    error_log("DEBUG Verifactu: No se pudo emparejar el resultado de la serie '$numSerie' en posicion $idx.");
                     continue;
+                }
 
                 $intentos = $envio['intentos'] + 1;
-                $intervalo = (int) (self::getConfig('verifactu_intervalo_reintento') ?: 15);
-
+                $procesadosIds[] = $envio['id'];
+                
                 if ($res['success']) {
                     $resumen['exitosos']++;
+
                     $pdo->prepare("UPDATE verifactu_cola_envios SET estado = 'enviado', intentos = ?, fecha_envio_exitoso = NOW(), ultimo_error = NULL, csv_aeat = ?, respuesta_xml = ? WHERE id = ?")
                         ->execute([$intentos, $res['csv'] ?? null, $resLote['raw_response'] ?? null, $envio['id']]);
                     $pdo->prepare("UPDATE {$envio['tabla_origen']} SET estado_aeat = 'enviado', csv_aeat = ?, error_aeat = NULL WHERE id = ?")
@@ -1111,10 +1175,44 @@ class Verifactu
                     self::registrarEvento('reintento_ok', $envio['id_documento'], $envio['tabla_origen'], "Reenvío en lote exitoso. CSV: " . $res['csv']);
                 } else {
                     $resumen['fallidos']++;
+                    $intervalo = (int) (self::getConfig('verifactu_intervalo_reintento') ?: 15);
                     $nuevoEstado = ($intentos >= $envio['max_intentos']) ? 'error_permanente' : 'error_temporal';
+                    
                     $pdo->prepare("UPDATE verifactu_cola_envios SET estado = ?, intentos = ?, ultimo_error = ?, codigo_error_aeat = ?, respuesta_xml = ?, proximo_reintento = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id = ?")
                         ->execute([$nuevoEstado, $intentos, $res['message'], $res['codigo_error'], $resLote['raw_response'] ?? null, $intervalo, $envio['id']]);
                     self::registrarEvento('reintento_error', $envio['id_documento'], $envio['tabla_origen'], "Error en lote: " . $res['message']);
+                }
+            }
+
+            // Fallback global de seguridad para evitar registros colgados en 'enviando'
+            $csvGlobal = null;
+            foreach ($resLote['resultados'] as $r) {
+                if ($r['success'] && !empty($r['csv'])) {
+                    $csvGlobal = $r['csv'];
+                    break;
+                }
+            }
+
+            foreach ($pendientes as $envio) {
+                if (!in_array($envio['id'], $procesadosIds)) {
+                    if ($csvGlobal) {
+                        $intentos = $envio['intentos'] + 1;
+                        $resumen['exitosos']++;
+                        $pdo->prepare("UPDATE verifactu_cola_envios SET estado = 'enviado', intentos = ?, fecha_envio_exitoso = NOW(), ultimo_error = 'Fallback global por exito de lote', csv_aeat = ?, respuesta_xml = ? WHERE id = ?")
+                            ->execute([$intentos, $csvGlobal, $resLote['raw_response'] ?? null, $envio['id']]);
+                        $pdo->prepare("UPDATE {$envio['tabla_origen']} SET estado_aeat = 'enviado', csv_aeat = ?, error_aeat = NULL WHERE id = ?")
+                            ->execute([$csvGlobal, $envio['id_documento']]);
+                        self::registrarEvento('reintento_ok', $envio['id_documento'], $envio['tabla_origen'], "Reenvío en lote exitoso (fallback global). CSV: " . $csvGlobal);
+                        error_log("WARNING Verifactu: Envio ID " . $envio['id'] . " quedo huerfano en lote y se marco como enviado via fallback global.");
+                    } else {
+                        $intentos = $envio['intentos'] + 1;
+                        $resumen['fallidos']++;
+                        $intervalo = (int) (self::getConfig('verifactu_intervalo_reintento') ?: 15);
+                        $nuevoEstado = ($intentos >= $envio['max_intentos']) ? 'error_permanente' : 'error_temporal';
+                        $pdo->prepare("UPDATE verifactu_cola_envios SET estado = ?, intentos = ?, ultimo_error = 'Error huerfano en lote', respuesta_xml = ?, proximo_reintento = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id = ?")
+                            ->execute([$nuevoEstado, $intentos, $resLote['raw_response'] ?? null, $intervalo, $envio['id']]);
+                        error_log("ERROR Verifactu: Envio ID " . $envio['id'] . " quedo huerfano en lote fallido.");
+                    }
                 }
             }
         } else {
@@ -1212,11 +1310,11 @@ class Verifactu
             $pdo->prepare("UPDATE {$tablaOrigen} SET xml_datos = ?, hash = ?, estado_aeat = 'error', error_aeat = 'Subsanado (Pendiente de envío manual)' WHERE id = ?")
                 ->execute([$xmlNuevo, $hashNuevo, $idDocumento]);
 
-            // Obtener Serie+Numero para la cola
+            // Obtener Serie+Numero formateado para la cola
             $stmtIds = $pdo->prepare("SELECT serie, numero FROM ventas_ids WHERE id = ?");
             $stmtIds->execute([$idDocumento]);
             $ids = $stmtIds->fetch(PDO::FETCH_ASSOC);
-            $numDoc = ($ids['serie'] ?? '') . ($ids['numero'] ?? '');
+            $numDoc = self::formatNumSerie($ids['serie'] ?? '', $ids['numero'] ?? '');
 
             // Encolar como 'subsanado' (estado especial que no se procesa automáticamente)
             $colaId = self::encolarEnvio($idDocumento, $tablaOrigen, 'subsanacion', $xmlNuevo, 'Subsanado - Pendiente envío manual', null, false, $numDoc, 'subsanado');

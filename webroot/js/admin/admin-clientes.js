@@ -619,7 +619,9 @@ function _renderizarComprasOVentas(tipo) {
         const date = new Date(v.fecha);
         const fecha = date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
         const hora = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-        const ticket = `${v.serie || 'T'}${String(v.numero || v.id).padStart(5, '0')}`;
+        const serie = v.ticket_serie || v.serie || 'T';
+        const numero = v.ticket_numero || v.numero || v.idVenta || v.id || 0;
+        const ticket = `${serie}${String(numero).padStart(5, '0')}`;
         const total = parseFloat(v.total).toFixed(2).replace('.', ',');
         const lineasHtml = (v.lineas || []).map(l => `
             <tr>
